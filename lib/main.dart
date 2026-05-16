@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:tasknest/login/login_view.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/presentation/login/auth_server_example.dart';
+import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
+import 'package:tasknest/presentation/login/login_view.dart';
 
 void main() {
   runApp(const MyApp());
@@ -8,14 +11,16 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
-      home: LoginScreen(),
+    return MultiBlocProvider(
+      providers: [BlocProvider(create: (_) => LoginBloc(AuthService()))],
+
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+
+        home: const LoginScreen(),
+      ),
     );
   }
 }
