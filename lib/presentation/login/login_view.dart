@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart' show GoRouterHelper;
+import 'package:tasknest/core/routes/auth.guard.dart';
+import 'package:tasknest/core/routes/routes_name.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/presentation/dashboard/dashboard_screen.dart.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 import 'package:tasknest/presentation/login/bloc/login_state.dart';
 import 'package:tasknest/presentation/login/widget/footer.dart';
@@ -32,10 +34,8 @@ class LoginScreen extends StatelessWidget {
 
         if (state.isLoading) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => DashboardScreen()),
-            );
+            AuthGuard.isLoggedIn = true;
+            context.go(RouteNames.dashboard);
           });
         }
 

@@ -73,10 +73,7 @@ const _currentUser = AppUser(
 
 // ── Dashboard Screen ──────────────────────────────────────────────────────────
 class DashboardScreen extends StatelessWidget {
-  DashboardScreen({super.key});
-
-  final ValueNotifier<int> _selectedIndex = ValueNotifier(0);
-  final ValueNotifier<TicketStatus?> _filterStatus = ValueNotifier(null);
+  const DashboardScreen({super.key});
 
   List<Ticket> _visibleTickets(AppUser user) {
     switch (user.role) {
@@ -97,6 +94,8 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ValueNotifier<int> _selectedIndex = ValueNotifier(0);
+    final ValueNotifier<TicketStatus?> _filterStatus = ValueNotifier(null);
     final isWide = MediaQuery.of(context).size.width > 768;
     final tickets = _visibleTickets(_currentUser);
 
