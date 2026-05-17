@@ -1,45 +1,46 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:tasknest/presentation/login/auth_server_example.dart';
+import 'package:tasknest/data/repositories/auth/auth_repository.dart';
 import 'package:tasknest/presentation/login/bloc/login_event.dart';
 import 'package:tasknest/presentation/login/bloc/login_state.dart';
 
-class LoginBloc extends Bloc<LoginEvent, LoginState> {
-  final AuthService authService;
+class AuthBloc extends Bloc<AuthEvent, AuthState> {
+  final AuthRepository authRepository;
 
-  LoginBloc(this.authService) : super(const LoginState()) {
-    on<Credentials>((event, emit) {
-      emit(state.copyWith(email: event.email, password: event.password));
+  AuthBloc(this.authRepository) : super(AuthInitial()) {
+    on<LoginEvent>((event, emit) async {
+      emit(AuthLoading());
+
+      try {
+        await authRepository.login(
+          email: event.email,
+          password: event.password,
+        );
+
+        emit(AuthAuthenticated());
+      } catch (e) {
+        emit(AuthError(e.toString()));
+      }
     });
 
-    on<TogglePasswordVisibility>((event, emit) {
-      emit(state.copyWith(obscurePassword: !state.obscurePassword));
+    on<RegisterEvent>((event, emit) async {
+      emit(AuthLoading());
+
+      try {
+        await authRepository.register(
+          name: event.name,
+          email: event.email,
+          password: event.password,
+        );
+
+        emit(AuthAuthenticated());
+      } catch (e) {
+        emit(AuthError(e.toString()));
+      }
     });
 
-    on<LoginSubmitted>(_onLoginSubmitted);
-  }
-
-  Future<void> _onLoginSubmitted(
-    LoginSubmitted event,
-    Emitter<LoginState> emit,
-  ) async {
-    if (state.email.isEmpty || state.password.isEmpty) {
-      emit(state.copyWith(errorMessage: "Please fill all fields"));
-      return;
-    }
-
-    emit(state.copyWith(isLoading: true, errorMessage: null));
-
-    final success = await authService.login(
-      email: state.email,
-      password: state.password,
-    );
-
-    if (success) {
-      emit(state.copyWith(isLoading: false));
-    } else {
-      emit(
-        state.copyWith(isLoading: false, errorMessage: "Invalid credentials"),
-      );
-    }
+    on<LogoutEvent>((event, emit) async {
+      await authRepository.logout();
+      emit(AuthUnauthenticated());
+    });
   }
 }

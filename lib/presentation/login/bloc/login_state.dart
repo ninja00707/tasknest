@@ -1,33 +1,15 @@
-class LoginState {
-  final String email;
-  final String password;
-  final bool obscurePassword;
-  final bool isLoading;
-  final String? errorMessage;
+abstract class AuthState {}
 
-  const LoginState({
-    this.email = '',
-    this.password = '',
-    this.obscurePassword = true,
-    this.isLoading = false,
+class AuthInitial extends AuthState {}
 
-    this.errorMessage,
-  });
+class AuthLoading extends AuthState {}
 
-  LoginState copyWith({
-    String? email,
-    String? password,
-    bool? obscurePassword,
-    bool? isLoading,
-    String? errorMessage,
-  }) {
-    return LoginState(
-      email: email ?? this.email,
-      password: password ?? this.password,
-      obscurePassword: obscurePassword ?? this.obscurePassword,
-      isLoading: isLoading ?? this.isLoading,
+class AuthAuthenticated extends AuthState {}
 
-      errorMessage: errorMessage,
-    );
-  }
+class AuthUnauthenticated extends AuthState {}
+
+class AuthError extends AuthState {
+  final String message;
+
+  AuthError(this.message);
 }

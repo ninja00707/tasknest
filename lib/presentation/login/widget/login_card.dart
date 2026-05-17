@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
+import 'package:tasknest/presentation/login/bloc/login_event.dart';
+import 'package:tasknest/presentation/login/bloc/login_state.dart';
 import 'package:tasknest/presentation/login/widget/input_field.dart';
 import 'package:tasknest/presentation/login/widget/password_field.dart';
-import '../bloc/login_bloc.dart';
-import '../bloc/login_event.dart';
-import '../bloc/login_state.dart';
 
 class LoginCard extends StatelessWidget {
   const LoginCard({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<LoginBloc, LoginState>(
+    return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         return Container(
           width: 396,
@@ -139,8 +139,11 @@ class LoginCard extends StatelessWidget {
                       icon: Icons.email_outlined,
 
                       onChanged: (value) {
-                        context.read<LoginBloc>().add(
-                          Credentials(email: value),
+                        context.read<AuthBloc>().add(
+                          LoginEvent(
+                            emailController.text,
+                            passwordController.text,
+                          ),
                         );
                       },
                     ),

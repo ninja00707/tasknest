@@ -3,6 +3,10 @@ const jwt = require('jsonwebtoken');
 const repo = require('./auth.repository');
 
 exports.register = async ({ email, password }) => {
+  if (!email || !password) {
+    throw new Error('Email and password are required');
+  }
+
   const existingUser = await repo.findUserByEmail(email);
 
   if (existingUser) {
@@ -17,6 +21,10 @@ exports.register = async ({ email, password }) => {
 };
 
 exports.login = async ({ email, password }) => {
+  if (!email || !password) {
+    throw new Error('Email and password are required');
+  }
+
   const user = await repo.findUserByEmail(email);
 
   if (!user) {

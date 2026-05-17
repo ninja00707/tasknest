@@ -1,11 +1,18 @@
-abstract class LoginEvent {}
+abstract class AuthEvent {}
 
-class Credentials extends LoginEvent {
-  final String? email;
-  final String? password;
-  Credentials({this.email, this.password});
+class LoginEvent extends AuthEvent {
+  final String email;
+  final String password;
+
+  LoginEvent(this.email, this.password);
 }
 
-class TogglePasswordVisibility extends LoginEvent {}
+class RegisterEvent extends AuthEvent {
+  final String name;
+  final String email;
+  final String password;
 
-class LoginSubmitted extends LoginEvent {}
+  RegisterEvent(this.name, this.email, this.password);
+}
+
+class LogoutEvent extends AuthEvent {}
