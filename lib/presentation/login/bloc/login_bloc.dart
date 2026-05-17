@@ -46,6 +46,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           name: event.name,
           email: event.email,
           password: event.password,
+          companyId: event.companyId,
+          departmentId: event.departmentId,
+          role: event.role,
         );
 
         emit(const AuthAuthenticated());

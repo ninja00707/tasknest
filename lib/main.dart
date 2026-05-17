@@ -4,7 +4,6 @@ import 'package:tasknest/injection.dart';
 import 'package:url_strategy/url_strategy.dart';
 
 import 'package:tasknest/core/routes/app_router.dart';
-
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 
 void main() async {
