@@ -50,7 +50,7 @@ class AuthRemoteDataSource {
           'password': password,
           'company_id': int.tryParse(companyId),
           'department_id': int.tryParse(departmentId),
-          'role': 'user', // default role
+          'role': role, // default role
         },
       );
 

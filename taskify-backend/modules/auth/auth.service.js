@@ -2,37 +2,59 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const repo = require('./auth.repository');
 
-exports.register = async ({ email, password, name, company_id, department_id, role }) => {
-  if (!email || !password) {
-    const error = new Error('Email and password are required');
+exports.register = async ({
+  email,
+  password,
+  name,
+  company_id,
+  department_id,
+  role,
+}) => {
+
+  if (
+    !email ||
+    !password ||
+    !name ||
+    !company_id ||
+    !department_id ||
+    !role
+  ) {
+
+    const error = new Error(
+      'All fields are required'
+    );
+
     error.statusCode = 400;
+
     throw error;
   }
 
-  // Check if user already exists
-  const existingUser = await repo.findUserByEmail(email);
+  const existingUser =
+    await repo.findUserByEmail(email);
+
   if (existingUser) {
-    const error = new Error('User already exists');
+
+    const error =
+      new Error('User already exists');
+
     error.statusCode = 409;
+
     throw error;
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+  const hashedPassword =
+    await bcrypt.hash(password, 10);
 
-  // Create the new user with all schema fields
   const user = await repo.createUser({
-    email, 
-    password: hashedPassword, 
-    name, 
-    company_id, 
-    department_id, 
-    role
+    email: email.toLowerCase(),
+    password: hashedPassword,
+    name,
+    company_id,
+    department_id,
+    role,
   });
 
-  // Remove the password field before returning
-  if (user && user.password) {
-    delete user.password;
-  }
+  delete user.password;
 
   return user;
 };
@@ -44,7 +66,7 @@ exports.login = async ({ email, password }) => {
     throw error;
   }
 
-  const user = await repo.findUserByEmail(email);
+  const user = await repo.findUserByEmail(email.toLowerCase());
   if (!user) {
     const error = new Error('User not found');
     error.statusCode = 404;
@@ -60,12 +82,12 @@ exports.login = async ({ email, password }) => {
 
   // Make sure to set JWT_SECRET in your .env file
   const token = jwt.sign(
-    { 
-      id: user.id, 
-      email: user.email, 
-      role: user.role, 
-      company_id: user.company_id, 
-      department_id: user.department_id 
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      company_id: user.company_id,
+      department_id: user.department_id
     },
     process.env.JWT_SECRET || 'fallback_secret',
     { expiresIn: '7d' }
@@ -96,6 +118,6 @@ exports.forgotPassword = async (email) => {
 
   // TODO: Implement actual email sending logic with a reset token here.
   // For now, return a success message indicating the email would be sent.
-  
+
   return { message: 'If an account exists with this email, a reset link has been sent.' };
 };

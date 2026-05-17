@@ -174,8 +174,17 @@ class SignupCard extends StatelessWidget {
                             ? 'Department is required'
                             : null,
                       ),
+                      const SizedBox(height: 12),
+                      // DEPARTMENT FIELD (Placeholder for Dropdown later)
+                      CommonTextFormField(
+                        hint: 'Role',
+                        controller: roleController,
+                        icon: Icons.verified_user,
+                        validator: (val) => val == null || val.isEmpty
+                            ? 'Role is required'
+                            : null,
+                      ),
                       const SizedBox(height: 20),
-
                       // SIGN UP BUTTON
                       SizedBox(
                         width: double.infinity,

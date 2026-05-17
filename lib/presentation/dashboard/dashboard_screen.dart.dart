@@ -1,235 +1,319 @@
 import 'package:flutter/material.dart';
-import 'package:tasknest/presentation/dashboard/models.dart';
-import 'package:tasknest/core/theme/color.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-// ── Sample Data ───────────────────────────────────────────────────────────────
-final _sampleTickets = [
-  Ticket(
-    id: 'TKT-001',
-    title: 'Update employee records',
-    description: 'Please update the Q4 employee attendance records.',
-    createdByDept: Department.hr,
-    assignedToDept: Department.finance,
-    status: TicketStatus.open,
-    priority: TicketPriority.high,
-    createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-    createdByName: 'Sara Ahmed',
-  ),
-  Ticket(
-    id: 'TKT-002',
-    title: 'Fix network issues in Block C',
-    description: 'Internet connectivity is down in Block C server room.',
-    createdByDept: Department.it,
-    assignedToDept: Department.la,
-    status: TicketStatus.inProgress,
-    priority: TicketPriority.urgent,
-    createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-    createdByName: 'Omar Khalid',
-  ),
-  Ticket(
-    id: 'TKT-003',
-    title: 'Procurement of lab supplies',
-    description: 'Urgent procurement of reagents for lab testing.',
-    createdByDept: Department.procurement,
-    assignedToDept: Department.fmas,
-    status: TicketStatus.open,
-    priority: TicketPriority.medium,
-    createdAt: DateTime.now().subtract(const Duration(days: 1)),
-    createdByName: 'Aisha Malik',
-  ),
-  Ticket(
-    id: 'TKT-004',
-    title: 'Facility maintenance request',
-    description: 'HVAC system needs servicing in main hall.',
-    createdByDept: Department.admin,
-    assignedToDept: Department.fm,
-    status: TicketStatus.completed,
-    priority: TicketPriority.low,
-    createdAt: DateTime.now().subtract(const Duration(days: 2)),
-    createdByName: 'Bilal Hassan',
-  ),
-  Ticket(
-    id: 'TKT-005',
-    title: 'Feed stock inventory check',
-    description: 'Monthly inventory audit of all feed stock.',
-    createdByDept: Department.feed,
-    assignedToDept: Department.lara,
-    status: TicketStatus.open,
-    priority: TicketPriority.medium,
-    createdAt: DateTime.now().subtract(const Duration(hours: 8)),
-    createdByName: 'Fatima Raza',
-  ),
-];
+// ============================================================
+// MODELS
+// ============================================================
 
-// ── Sample current user (change to test different roles) ──────────────────────
-const _currentUser = AppUser(
-  id: 'U001',
-  name: 'Zaid Khan',
-  email: 'zaid@umenterprises.com',
-  role: UserRole.ceo,
+enum UserRole { ceo, admin, manager, user }
+
+enum TicketStatus { open, inProgress, resolved, closed }
+
+enum TicketPriority { low, medium, high, urgent }
+
+enum Department { hr, admin, it, procurement, la, feed, fm, drag, finance }
+
+extension DepartmentExtension on Department {
+  String get displayName {
+    switch (this) {
+      case Department.hr:
+        return 'HR';
+      case Department.admin:
+        return 'Admin';
+      case Department.it:
+        return 'IT';
+      case Department.procurement:
+        return 'Procurement';
+      case Department.la:
+        return 'LA';
+      case Department.feed:
+        return 'Feed';
+      case Department.fm:
+        return 'FM';
+      case Department.drag:
+        return 'DRAG';
+      case Department.finance:
+        return 'Finance';
+    }
+  }
+}
+
+class AppUser {
+  final String id;
+  final String name;
+  final String email;
+  final UserRole role;
+  final Department department;
+  final String company;
+
+  const AppUser({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.role,
+    required this.department,
+    required this.company,
+  });
+}
+
+class TicketEntity {
+  final String id;
+  final String title;
+  final String description;
+  final Department createdDepartment;
+  final Department assignedDepartment;
+  final TicketStatus status;
+  final TicketPriority priority;
+  final String createdBy;
+  final String? assignedTo;
+
+  const TicketEntity({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.createdDepartment,
+    required this.assignedDepartment,
+    required this.status,
+    required this.priority,
+    required this.createdBy,
+    this.assignedTo,
+  });
+}
+
+// ============================================================
+// SAMPLE DATA
+// ============================================================
+
+const currentUser = AppUser(
+  id: '1',
+  name: 'Muhammad Qasim',
+  email: 'qasim@um.com',
+  role: UserRole.manager,
   department: Department.hr,
   company: 'UM Enterprises',
 );
 
-// ── Dashboard Screen ──────────────────────────────────────────────────────────
+final List<TicketEntity> sampleTickets = [
+  TicketEntity(
+    id: 'TKT-001',
+    title: 'Update Employee Records',
+    description: 'Please update employee attendance records.',
+    createdDepartment: Department.hr,
+    assignedDepartment: Department.finance,
+    status: TicketStatus.open,
+    priority: TicketPriority.high,
+    createdBy: 'Sara',
+  ),
+  TicketEntity(
+    id: 'TKT-002',
+    title: 'Server Issue',
+    description: 'Main server is down.',
+    createdDepartment: Department.it,
+    assignedDepartment: Department.it,
+    status: TicketStatus.inProgress,
+    priority: TicketPriority.urgent,
+    createdBy: 'Ali',
+    assignedTo: 'Usman',
+  ),
+  TicketEntity(
+    id: 'TKT-003',
+    title: 'Procurement Approval',
+    description: 'Need procurement approval for equipment.',
+    createdDepartment: Department.hr,
+    assignedDepartment: Department.procurement,
+    status: TicketStatus.resolved,
+    priority: TicketPriority.medium,
+    createdBy: 'Qasim',
+  ),
+];
+
+// ============================================================
+// BLOC
+// ============================================================
+
+abstract class DashboardEvent {}
+
+class LoadDashboard extends DashboardEvent {}
+
+class ChangeTab extends DashboardEvent {
+  final int index;
+
+  ChangeTab(this.index);
+}
+
+class FilterTickets extends DashboardEvent {
+  final TicketStatus? status;
+
+  FilterTickets(this.status);
+}
+
+class DashboardState {
+  final bool isLoading;
+  final int selectedTab;
+  final TicketStatus? filter;
+  final List<TicketEntity> tickets;
+
+  const DashboardState({
+    this.isLoading = false,
+    this.selectedTab = 0,
+    this.filter,
+    this.tickets = const [],
+  });
+
+  DashboardState copyWith({
+    bool? isLoading,
+    int? selectedTab,
+    TicketStatus? filter,
+    List<TicketEntity>? tickets,
+  }) {
+    return DashboardState(
+      isLoading: isLoading ?? this.isLoading,
+      selectedTab: selectedTab ?? this.selectedTab,
+      filter: filter ?? this.filter,
+      tickets: tickets ?? this.tickets,
+    );
+  }
+}
+
+class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
+  DashboardBloc() : super(const DashboardState()) {
+    on<LoadDashboard>((event, emit) {
+      emit(state.copyWith(tickets: sampleTickets));
+    });
+
+    on<ChangeTab>((event, emit) {
+      emit(state.copyWith(selectedTab: event.index));
+    });
+
+    on<FilterTickets>((event, emit) {
+      emit(state.copyWith(filter: event.status));
+    });
+  }
+}
+
+// ============================================================
+// THEME COLORS
+// ============================================================
+
+class AppColors {
+  static const background = Color(0xFFF7F9FB);
+  static const card = Colors.white;
+  static const primary = Color(0xFF2563EB);
+  static const secondary = Color(0xFF10B981);
+  static const border = Color(0xFFE5E7EB);
+  static const textPrimary = Color(0xFF111827);
+  static const textSecondary = Color(0xFF6B7280);
+}
+
+// ============================================================
+// DASHBOARD SCREEN
+// ============================================================
+
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
-  List<Ticket> _visibleTickets(AppUser user) {
-    switch (user.role) {
-      case UserRole.ceo:
-        return _sampleTickets; // CEO sees everything
-      case UserRole.upperManagement:
-        // Upper mgmt sees tickets THEY created
-        return _sampleTickets
-            .where((t) => t.createdByDept == user.department)
-            .toList();
-      case UserRole.lowerDepartment:
-        // Lower dept sees only tickets assigned TO them
-        return _sampleTickets
-            .where((t) => t.assignedToDept == user.department)
-            .toList();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final ValueNotifier<int> _selectedIndex = ValueNotifier(0);
-    final ValueNotifier<TicketStatus?> _filterStatus = ValueNotifier(null);
-    final isWide = MediaQuery.of(context).size.width > 768;
-    final tickets = _visibleTickets(_currentUser);
-
-    return Scaffold(
-      backgroundColor: ThemeColors.navyTextWhite,
-      body: SafeArea(
-        child: isWide
-            ? Row(
-                children: [
-                  _Sidebar(user: _currentUser, selectedIndex: _selectedIndex),
-                  Expanded(
-                    child: _MainContent(
-                      user: _currentUser,
-                      tickets: tickets,
-                      filterStatus: _filterStatus,
-                      selectedIndex: _selectedIndex,
-                    ),
-                  ),
-                ],
-              )
-            : Column(
-                children: [
-                  _TopAppBar(user: _currentUser),
-                  Expanded(
-                    child: _MainContent(
-                      user: _currentUser,
-                      tickets: tickets,
-                      filterStatus: _filterStatus,
-                      selectedIndex: _selectedIndex,
-                    ),
-                  ),
-                  _BottomNav(selectedIndex: _selectedIndex),
-                ],
-              ),
+    return BlocProvider(
+      create: (_) => DashboardBloc()..add(LoadDashboard()),
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: Row(
+            children: const [
+              DashboardSidebar(),
+              Expanded(child: DashboardContent()),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-// ── Sidebar (wide screens) ────────────────────────────────────────────────────
-class _Sidebar extends StatelessWidget {
-  final AppUser user;
-  final ValueNotifier<int> selectedIndex;
+// ============================================================
+// SIDEBAR
+// ============================================================
 
-  const _Sidebar({required this.user, required this.selectedIndex});
+class DashboardSidebar extends StatelessWidget {
+  const DashboardSidebar({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 220,
-      height: double.infinity,
-      decoration: const BoxDecoration(
-        color: ThemeColors.cardWhite,
-        border: Border(right: BorderSide(color: ThemeColors.borderGreen)),
-      ),
+      width: 260,
+      color: AppColors.card,
+      padding: const EdgeInsets.all(20),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Logo
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: ThemeColors.lightGreen,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: const Text(
-                    'TK',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
-                    ),
-                  ),
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Taskify',
+                alignment: Alignment.center,
+                child: const Text(
+                  'TN',
                   style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 18,
-                    color: ThemeColors.primaryGreen,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'TaskNest',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
           ),
-
-          // User info card
+          const SizedBox(height: 30),
+          _navItem(context, Icons.dashboard_outlined, 'Dashboard', 0),
+          _navItem(context, Icons.task_alt_outlined, 'Tickets', 1),
+          _navItem(context, Icons.add_circle_outline, 'Create Ticket', 2),
+          if (currentUser.role == UserRole.manager ||
+              currentUser.role == UserRole.admin ||
+              currentUser.role == UserRole.ceo)
+            _navItem(context, Icons.analytics_outlined, 'Analytics', 3),
+          const Spacer(),
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: ThemeColors.backgroundGreen,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: ThemeColors.borderGreen),
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
                 CircleAvatar(
-                  radius: 18,
-                  backgroundColor: ThemeColors.primaryGreen,
+                  backgroundColor: AppColors.primary,
                   child: Text(
-                    user.name.substring(0, 1),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                    ),
+                    currentUser.name[0],
+                    style: const TextStyle(color: Colors.white),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        user.name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                          color: ThemeColors.textDark,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                        currentUser.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        _roleLabel(user),
+                        currentUser.department.displayName,
                         style: const TextStyle(
-                          fontSize: 11,
-                          color: ThemeColors.textMuted,
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -238,620 +322,329 @@ class _Sidebar extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
 
-          // Nav items
-          ValueListenableBuilder<int>(
-            valueListenable: selectedIndex,
-            builder: (_, idx, __) => Column(
+  Widget _navItem(
+    BuildContext context,
+    IconData icon,
+    String title,
+    int index,
+  ) {
+    return BlocBuilder<DashboardBloc, DashboardState>(
+      builder: (context, state) {
+        final selected = state.selectedTab == index;
+
+        return GestureDetector(
+          onTap: () {
+            context.read<DashboardBloc>().add(ChangeTab(index));
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.primary : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
               children: [
-                _NavItem(
-                  icon: Icons.dashboard_outlined,
-                  label: 'Dashboard',
-                  index: 0,
-                  selected: idx,
-                  onTap: (i) => selectedIndex.value = i,
+                Icon(
+                  icon,
+                  color: selected ? Colors.white : AppColors.textSecondary,
                 ),
-                _NavItem(
-                  icon: Icons.task_alt_outlined,
-                  label: 'My Tickets',
-                  index: 1,
-                  selected: idx,
-                  onTap: (i) => selectedIndex.value = i,
-                ),
-                if (user.role == UserRole.upperManagement ||
-                    user.role == UserRole.lowerDepartment)
-                  _NavItem(
-                    icon: Icons.add_circle_outline,
-                    label: 'Create Ticket',
-                    index: 2,
-                    selected: idx,
-                    onTap: (i) => selectedIndex.value = i,
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: selected ? Colors.white : AppColors.textSecondary,
                   ),
-                if (user.role == UserRole.ceo)
-                  _NavItem(
-                    icon: Icons.bar_chart_outlined,
-                    label: 'Analytics',
-                    index: 2,
-                    selected: idx,
-                    onTap: (i) => selectedIndex.value = i,
-                  ),
-                _NavItem(
-                  icon: Icons.notifications_outlined,
-                  label: 'Notifications',
-                  index: 3,
-                  selected: idx,
-                  onTap: (i) => selectedIndex.value = i,
-                ),
-                _NavItem(
-                  icon: Icons.person_outline,
-                  label: 'Profile',
-                  index: 4,
-                  selected: idx,
-                  onTap: (i) => selectedIndex.value = i,
                 ),
               ],
             ),
           ),
-          const Spacer(),
-
-          // Company badge
-          Container(
-            margin: const EdgeInsets.all(12),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: ThemeColors.backgroundGreen,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: ThemeColors.borderGreen),
-            ),
-            child: Text(
-              user.company,
-              style: const TextStyle(
-                fontSize: 11,
-                color: ThemeColors.textMuted,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _roleLabel(AppUser user) {
-    if (user.role == UserRole.ceo) return 'CEO';
-    return '${user.department.displayName} · ${user.role == UserRole.upperManagement ? "Upper Mgmt" : "Department"}';
-  }
-}
-
-// ── Nav Item ──────────────────────────────────────────────────────────────────
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final int index;
-  final int selected;
-  final void Function(int) onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.index,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isSelected = index == selected;
-    return GestureDetector(
-      onTap: () => onTap(index),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? ThemeColors.primaryGreen : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: isSelected ? Colors.white : ThemeColors.textMuted,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? Colors.white : ThemeColors.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Top App Bar (mobile) ──────────────────────────────────────────────────────
-class _TopAppBar extends StatelessWidget {
-  final AppUser user;
-  const _TopAppBar({required this.user});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
-        color: ThemeColors.cardWhite,
-        border: Border(bottom: BorderSide(color: ThemeColors.borderGreen)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: ThemeColors.lightGreen,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            alignment: Alignment.center,
-            child: const Text(
-              'TK',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 12,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Text(
-            'Taskify',
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 16,
-              color: ThemeColors.primaryGreen,
-            ),
-          ),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(
-              Icons.notifications_outlined,
-              color: ThemeColors.textMuted,
-            ),
-            onPressed: () {},
-          ),
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: ThemeColors.primaryGreen,
-            child: Text(
-              user.name.substring(0, 1),
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Bottom Nav (mobile) ───────────────────────────────────────────────────────
-class _BottomNav extends StatelessWidget {
-  final ValueNotifier<int> selectedIndex;
-  const _BottomNav({required this.selectedIndex});
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<int>(
-      valueListenable: selectedIndex,
-      builder: (_, idx, __) => Container(
-        decoration: const BoxDecoration(
-          color: ThemeColors.cardWhite,
-          border: Border(top: BorderSide(color: ThemeColors.borderGreen)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _BottomNavItem(
-              icon: Icons.dashboard_outlined,
-              label: 'Dashboard',
-              index: 0,
-              selected: idx,
-              onTap: (i) => selectedIndex.value = i,
-            ),
-            _BottomNavItem(
-              icon: Icons.task_alt_outlined,
-              label: 'Tickets',
-              index: 1,
-              selected: idx,
-              onTap: (i) => selectedIndex.value = i,
-            ),
-            _BottomNavItem(
-              icon: Icons.add_circle_outline,
-              label: 'Create',
-              index: 2,
-              selected: idx,
-              onTap: (i) => selectedIndex.value = i,
-            ),
-            _BottomNavItem(
-              icon: Icons.person_outline,
-              label: 'Profile',
-              index: 4,
-              selected: idx,
-              onTap: (i) => selectedIndex.value = i,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomNavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final int index;
-  final int selected;
-  final void Function(int) onTap;
-
-  const _BottomNavItem({
-    required this.icon,
-    required this.label,
-    required this.index,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isSelected = index == selected;
-    return GestureDetector(
-      onTap: () => onTap(index),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 22,
-              color: isSelected
-                  ? ThemeColors.primaryGreen
-                  : ThemeColors.textMuted,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: isSelected
-                    ? ThemeColors.primaryGreen
-                    : ThemeColors.textMuted,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Main Content ──────────────────────────────────────────────────────────────
-class _MainContent extends StatelessWidget {
-  final AppUser user;
-  final List<Ticket> tickets;
-  final ValueNotifier<TicketStatus?> filterStatus;
-  final ValueNotifier<int> selectedIndex;
-
-  const _MainContent({
-    required this.user,
-    required this.tickets,
-    required this.filterStatus,
-    required this.selectedIndex,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<int>(
-      valueListenable: selectedIndex,
-      builder: (_, idx, __) {
-        if (idx == 1)
-          return _TicketListView(
-            tickets: tickets,
-            filterStatus: filterStatus,
-            user: user,
-          );
-        if (idx == 2 && user.role != UserRole.ceo)
-          return const _CreateTicketView();
-        return _DashboardView(
-          user: user,
-          tickets: tickets,
-          filterStatus: filterStatus,
-          selectedIndex: selectedIndex,
         );
       },
     );
   }
 }
 
-// ── Dashboard View ────────────────────────────────────────────────────────────
-class _DashboardView extends StatelessWidget {
-  final AppUser user;
-  final List<Ticket> tickets;
-  final ValueNotifier<TicketStatus?> filterStatus;
-  final ValueNotifier<int> selectedIndex;
+// ============================================================
+// CONTENT
+// ============================================================
 
-  const _DashboardView({
-    required this.user,
-    required this.tickets,
-    required this.filterStatus,
-    required this.selectedIndex,
-  });
+class DashboardContent extends StatelessWidget {
+  const DashboardContent({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final open = tickets.where((t) => t.status == TicketStatus.open).length;
-    final inProgress = tickets
-        .where((t) => t.status == TicketStatus.inProgress)
-        .length;
-    final completed = tickets
-        .where((t) => t.status == TicketStatus.completed)
-        .length;
-    final urgent = tickets
-        .where((t) => t.priority == TicketPriority.urgent)
-        .length;
+    return BlocBuilder<DashboardBloc, DashboardState>(
+      builder: (context, state) {
+        switch (state.selectedTab) {
+          case 1:
+            return const TicketsView();
+          case 2:
+            return const CreateTicketView();
+          default:
+            return const DashboardHomeView();
+        }
+      },
+    );
+  }
+}
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+// ============================================================
+// HOME VIEW
+// ============================================================
+
+class DashboardHomeView extends StatelessWidget {
+  const DashboardHomeView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<DashboardBloc, DashboardState>(
+      builder: (context, state) {
+        final open = state.tickets
+            .where((e) => e.status == TicketStatus.open)
+            .length;
+
+        final progress = state.tickets
+            .where((e) => e.status == TicketStatus.inProgress)
+            .length;
+
+        final resolved = state.tickets
+            .where((e) => e.status == TicketStatus.resolved)
+            .length;
+
+        final urgent = state.tickets
+            .where((e) => e.priority == TicketPriority.urgent)
+            .length;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Hello, ${user.name.split(' ').first} 👋',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: ThemeColors.primaryGreen,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Welcome back, ${currentUser.name}',
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        currentUser.company,
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ],
                   ),
-                  Text(
-                    _greetingSubtitle(user),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: ThemeColors.textMuted,
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      context.read<DashboardBloc>().add(ChangeTab(2));
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create Ticket'),
                   ),
                 ],
               ),
-              if (user.role == UserRole.upperManagement ||
-                  user.role == UserRole.lowerDepartment)
-                ElevatedButton.icon(
-                  onPressed: () => selectedIndex.value = 2,
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text('New Ticket'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ThemeColors.primaryGreen,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+              const SizedBox(height: 30),
+              GridView.count(
+                crossAxisCount: 4,
+                shrinkWrap: true,
+                childAspectRatio: 1.6,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 18,
+                mainAxisSpacing: 18,
+                children: [
+                  StatCard(
+                    title: 'Open',
+                    value: open.toString(),
+                    icon: Icons.inbox_outlined,
                   ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Role badge
-          _RoleBadge(user: user),
-          const SizedBox(height: 24),
-
-          // Stats cards
-          GridView.count(
-            crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.4,
-            children: [
-              _StatCard(
-                label: 'Open',
-                count: open,
-                color: const Color(0xFF1877F2),
-                icon: Icons.inbox_outlined,
+                  StatCard(
+                    title: 'In Progress',
+                    value: progress.toString(),
+                    icon: Icons.pending_outlined,
+                  ),
+                  StatCard(
+                    title: 'Resolved',
+                    value: resolved.toString(),
+                    icon: Icons.check_circle_outline,
+                  ),
+                  StatCard(
+                    title: 'Urgent',
+                    value: urgent.toString(),
+                    icon: Icons.warning_amber_outlined,
+                  ),
+                ],
               ),
-              _StatCard(
-                label: 'In Progress',
-                count: inProgress,
-                color: const Color(0xFFF59E0B),
-                icon: Icons.pending_outlined,
-              ),
-              _StatCard(
-                label: 'Completed',
-                count: completed,
-                color: ThemeColors.primaryGreen,
-                icon: Icons.check_circle_outline,
-              ),
-              _StatCard(
-                label: 'Urgent',
-                count: urgent,
-                color: const Color(0xFFEF4444),
-                icon: Icons.warning_amber_outlined,
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Recent tickets
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+              const SizedBox(height: 30),
               const Text(
-                'Recent tickets',
+                'Recent Tickets',
                 style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: ThemeColors.textDark,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
                 ),
               ),
-              TextButton(
-                onPressed: () => selectedIndex.value = 1,
-                child: const Text(
-                  'View all',
-                  style: TextStyle(color: ThemeColors.primaryGreen),
-                ),
-              ),
+              const SizedBox(height: 20),
+              ...state.tickets.map((e) => TicketCard(ticket: e)),
             ],
           ),
-          const SizedBox(height: 12),
-          ...tickets.take(3).map((t) => _TicketCard(ticket: t, user: user)),
-        ],
-      ),
+        );
+      },
     );
-  }
-
-  String _greetingSubtitle(AppUser user) {
-    switch (user.role) {
-      case UserRole.ceo:
-        return 'You have full visibility across all departments.';
-      case UserRole.upperManagement:
-        return 'Manage tickets for ${user.department.displayName}.';
-      case UserRole.lowerDepartment:
-        return 'Tickets assigned to ${user.department.displayName}.';
-    }
   }
 }
 
-// ── Role Badge ────────────────────────────────────────────────────────────────
-class _RoleBadge extends StatelessWidget {
-  final AppUser user;
-  const _RoleBadge({required this.user});
+// ============================================================
+// TICKETS VIEW
+// ============================================================
+
+class TicketsView extends StatelessWidget {
+  const TicketsView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    Color bg;
-    Color fg;
-    String label;
-    IconData icon;
-    switch (user.role) {
-      case UserRole.ceo:
-        bg = const Color(0xFFEDE9FE);
-        fg = const Color(0xFF5B21B6);
-        label = 'CEO — Full access';
-        icon = Icons.visibility_outlined;
-        break;
-      case UserRole.upperManagement:
-        bg = const Color(0xFFE0F2FE);
-        fg = const Color(0xFF0369A1);
-        label =
-            '${user.department.displayName} — Upper management · ${user.company}';
-        icon = Icons.manage_accounts_outlined;
-        break;
-      case UserRole.lowerDepartment:
-        bg = ThemeColors.backgroundGreen;
-        fg = ThemeColors.primaryGreen;
-        label = '${user.department.displayName} — Department · ${user.company}';
-        icon = Icons.badge_outlined;
-        break;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: fg.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: fg),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: fg,
-              fontWeight: FontWeight.w600,
+    return BlocBuilder<DashboardBloc, DashboardState>(
+      builder: (context, state) {
+        return ListView.builder(
+          padding: const EdgeInsets.all(24),
+          itemCount: state.tickets.length,
+          itemBuilder: (_, index) {
+            return TicketCard(ticket: state.tickets[index]);
+          },
+        );
+      },
+    );
+  }
+}
+
+// ============================================================
+// CREATE TICKET VIEW
+// ============================================================
+
+class CreateTicketView extends StatelessWidget {
+  const CreateTicketView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Create Ticket',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+            const CommonField(title: 'Ticket Title', hint: 'Enter title'),
+            const SizedBox(height: 18),
+            const CommonField(
+              title: 'Description',
+              hint: 'Describe issue',
+              maxLines: 5,
+            ),
+            const SizedBox(height: 18),
+            const CommonDropdown(title: 'Assign Department'),
+            const SizedBox(height: 18),
+            const CommonDropdown(title: 'Priority'),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton(
+                onPressed: () {},
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: const Text(
+                  'Submit Ticket',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-// ── Stat Card ─────────────────────────────────────────────────────────────────
-class _StatCard extends StatelessWidget {
-  final String label;
-  final int count;
-  final Color color;
+// ============================================================
+// COMPONENTS
+// ============================================================
+
+class StatCard extends StatelessWidget {
+  final String title;
+  final String value;
   final IconData icon;
 
-  const _StatCard({
-    required this.label,
-    required this.count,
-    required this.color,
+  const StatCard({
+    super.key,
+    required this.title,
+    required this.value,
     required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: ThemeColors.cardWhite,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ThemeColors.borderGreen),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 18, color: color),
-          ),
+          Icon(icon, color: AppColors.primary, size: 28),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '$count',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w800,
-                  color: color,
+                value,
+                style: const TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: ThemeColors.textMuted,
-                ),
+                title,
+                style: const TextStyle(color: AppColors.textSecondary),
               ),
             ],
           ),
@@ -861,22 +654,19 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-// ── Ticket Card ───────────────────────────────────────────────────────────────
-class _TicketCard extends StatelessWidget {
-  final Ticket ticket;
-  final AppUser user;
+class TicketCard extends StatelessWidget {
+  final TicketEntity ticket;
 
-  const _TicketCard({required this.ticket, required this.user});
+  const TicketCard({super.key, required this.ticket});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: ThemeColors.cardWhite,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ThemeColors.borderGreen),
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -886,371 +676,53 @@ class _TicketCard extends StatelessWidget {
               Text(
                 ticket.id,
                 style: const TextStyle(
-                  fontSize: 12,
-                  color: ThemeColors.textMuted,
+                  color: AppColors.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const Spacer(),
-              _PriorityBadge(priority: ticket.priority),
-              const SizedBox(width: 8),
-              _StatusBadge(status: ticket.status),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            ticket.title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: ThemeColors.textDark,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            ticket.description,
-            style: const TextStyle(fontSize: 13, color: ThemeColors.textMuted),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(
-                Icons.arrow_upward_rounded,
-                size: 14,
-                color: ThemeColors.textMuted,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'From: ${ticket.createdByDept.displayName}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: ThemeColors.textMuted,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
                 ),
-              ),
-              const SizedBox(width: 12),
-              const Icon(
-                Icons.arrow_downward_rounded,
-                size: 14,
-                color: ThemeColors.textMuted,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                'To: ${ticket.assignedToDept.displayName}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: ThemeColors.textMuted,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-              ),
-              const Spacer(),
-              Text(
-                ticket.createdByName,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: ThemeColors.textMuted,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Priority Badge ────────────────────────────────────────────────────────────
-class _PriorityBadge extends StatelessWidget {
-  final TicketPriority priority;
-  const _PriorityBadge({required this.priority});
-
-  @override
-  Widget build(BuildContext context) {
-    Color bg;
-    Color fg;
-    switch (priority) {
-      case TicketPriority.low:
-        bg = const Color(0xFFDCFCE7);
-        fg = const Color(0xFF15803D);
-        break;
-      case TicketPriority.medium:
-        bg = const Color(0xFFFEF3C7);
-        fg = const Color(0xFFD97706);
-        break;
-      case TicketPriority.high:
-        bg = const Color(0xFFFFEDD5);
-        fg = const Color(0xFFEA580C);
-        break;
-      case TicketPriority.urgent:
-        bg = const Color(0xFFFEE2E2);
-        fg = const Color(0xFFDC2626);
-        break;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        priority.displayName,
-        style: TextStyle(fontSize: 11, color: fg, fontWeight: FontWeight.w700),
-      ),
-    );
-  }
-}
-
-// ── Status Badge ──────────────────────────────────────────────────────────────
-class _StatusBadge extends StatelessWidget {
-  final TicketStatus status;
-  const _StatusBadge({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    Color bg;
-    Color fg;
-    switch (status) {
-      case TicketStatus.open:
-        bg = const Color(0xFFE0F2FE);
-        fg = const Color(0xFF0369A1);
-        break;
-      case TicketStatus.inProgress:
-        bg = const Color(0xFFFEF3C7);
-        fg = const Color(0xFFD97706);
-        break;
-      case TicketStatus.completed:
-        bg = const Color(0xFFDCFCE7);
-        fg = const Color(0xFF15803D);
-        break;
-      case TicketStatus.closed:
-        bg = const Color(0xFFF3F4F6);
-        fg = const Color(0xFF6B7280);
-        break;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        status.displayName,
-        style: TextStyle(fontSize: 11, color: fg, fontWeight: FontWeight.w700),
-      ),
-    );
-  }
-}
-
-// ── Ticket List View ──────────────────────────────────────────────────────────
-class _TicketListView extends StatelessWidget {
-  final List<Ticket> tickets;
-  final ValueNotifier<TicketStatus?> filterStatus;
-  final AppUser user;
-
-  const _TicketListView({
-    required this.tickets,
-    required this.filterStatus,
-    required this.user,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<TicketStatus?>(
-      valueListenable: filterStatus,
-      builder: (_, filter, __) {
-        final filtered = filter == null
-            ? tickets
-            : tickets.where((t) => t.status == filter).toList();
-        return Column(
-          children: [
-            // Filter bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              color: ThemeColors.cardWhite,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _FilterChip(
-                      label: 'All',
-                      selected: filter == null,
-                      onTap: () => filterStatus.value = null,
-                    ),
-                    _FilterChip(
-                      label: 'Open',
-                      selected: filter == TicketStatus.open,
-                      onTap: () => filterStatus.value = TicketStatus.open,
-                    ),
-                    _FilterChip(
-                      label: 'In Progress',
-                      selected: filter == TicketStatus.inProgress,
-                      onTap: () => filterStatus.value = TicketStatus.inProgress,
-                    ),
-                    _FilterChip(
-                      label: 'Completed',
-                      selected: filter == TicketStatus.completed,
-                      onTap: () => filterStatus.value = TicketStatus.completed,
-                    ),
-                    _FilterChip(
-                      label: 'Closed',
-                      selected: filter == TicketStatus.closed,
-                      onTap: () => filterStatus.value = TicketStatus.closed,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              child: filtered.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No tickets found.',
-                        style: TextStyle(color: ThemeColors.textMuted),
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(24),
-                      itemCount: filtered.length,
-                      itemBuilder: (_, i) =>
-                          _TicketCard(ticket: filtered[i], user: user),
-                    ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-// ── Filter Chip ───────────────────────────────────────────────────────────────
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected
-              ? ThemeColors.primaryGreen
-              : ThemeColors.backgroundGreen,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected
-                ? ThemeColors.primaryGreen
-                : ThemeColors.borderGreen,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : ThemeColors.textMuted,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Create Ticket View ────────────────────────────────────────────────────────
-class _CreateTicketView extends StatelessWidget {
-  const _CreateTicketView();
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Create new ticket',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: ThemeColors.primaryGreen,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Fill in the details below to create and assign a ticket.',
-            style: TextStyle(fontSize: 14, color: ThemeColors.textMuted),
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: ThemeColors.cardWhite,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: ThemeColors.borderGreen),
-            ),
-            child: Column(
-              children: [
-                _FormField(
-                  label: 'Ticket Title',
-                  hint: 'Enter a clear, descriptive title',
-                ),
-                const SizedBox(height: 16),
-                _FormField(
-                  label: 'Description',
-                  hint: 'Describe the task in detail...',
-                  maxLines: 4,
-                ),
-                const SizedBox(height: 16),
-                _DropdownField(
-                  label: 'Assign to Department',
-                  items: Department.values
-                      .where((d) => d.isLowerDepartment)
-                      .map((d) => d.displayName)
-                      .toList(),
-                ),
-                const SizedBox(height: 16),
-                _DropdownField(
-                  label: 'Priority',
-                  items: TicketPriority.values
-                      .map((p) => p.displayName)
-                      .toList(),
-                ),
-                const SizedBox(height: 16),
-                _FormField(label: 'Due Date', hint: 'Select due date'),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ThemeColors.primaryGreen,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'Submit Ticket',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                child: Text(
+                  ticket.status.name,
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            ticket.title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            ticket.description,
+            style: const TextStyle(color: AppColors.textSecondary, height: 1.5),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text(
+                'From: ${ticket.createdDepartment.displayName}',
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(width: 18),
+              Text(
+                'To: ${ticket.assignedDepartment.displayName}',
+                style: const TextStyle(color: AppColors.textSecondary),
+              ),
+            ],
           ),
         ],
       ),
@@ -1258,14 +730,14 @@ class _CreateTicketView extends StatelessWidget {
   }
 }
 
-// ── Form Field ────────────────────────────────────────────────────────────────
-class _FormField extends StatelessWidget {
-  final String label;
+class CommonField extends StatelessWidget {
+  final String title;
   final String hint;
   final int maxLines;
 
-  const _FormField({
-    required this.label,
+  const CommonField({
+    super.key,
+    required this.title,
     required this.hint,
     this.maxLines = 1,
   });
@@ -1275,44 +747,17 @@ class _FormField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: ThemeColors.textDark,
-          ),
-        ),
-        const SizedBox(height: 6),
+        Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
         TextField(
           maxLines: maxLines,
-          style: const TextStyle(fontSize: 14, color: ThemeColors.textDark),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(
-              color: ThemeColors.textMuted.withOpacity(0.6),
-              fontSize: 14,
-            ),
             filled: true,
-            fillColor: ThemeColors.backgroundGreen,
+            fillColor: AppColors.background,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: ThemeColors.borderGreen),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: ThemeColors.borderGreen),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(
-                color: ThemeColors.primaryGreen,
-                width: 2,
-              ),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 12,
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none,
             ),
           ),
         ),
@@ -1321,47 +766,31 @@ class _FormField extends StatelessWidget {
   }
 }
 
-// ── Dropdown Field ────────────────────────────────────────────────────────────
-class _DropdownField extends StatelessWidget {
-  final String label;
-  final List<String> items;
+class CommonDropdown extends StatelessWidget {
+  final String title;
 
-  const _DropdownField({required this.label, required this.items});
+  const CommonDropdown({super.key, required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: ThemeColors.textDark,
-          ),
-        ),
-        const SizedBox(height: 6),
+        Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: ThemeColors.backgroundGreen,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: ThemeColors.borderGreen),
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(14),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: items.first,
+              value: 'Select',
               isExpanded: true,
-              dropdownColor: ThemeColors.cardWhite,
-              style: const TextStyle(fontSize: 14, color: ThemeColors.textDark),
-              icon: const Icon(
-                Icons.keyboard_arrow_down,
-                color: ThemeColors.textMuted,
-              ),
-              items: items
-                  .map((i) => DropdownMenuItem(value: i, child: Text(i)))
-                  .toList(),
+              items: const [
+                DropdownMenuItem(value: 'Select', child: Text('Select')),
+              ],
               onChanged: (_) {},
             ),
           ),
@@ -1370,3 +799,36 @@ class _DropdownField extends StatelessWidget {
     );
   }
 }
+
+// ## Updated Manager & Employee Business Logic
+
+// ### Manager Permissions
+// 1. Manager can see all tickets belonging to their department.
+// 2. Manager can see tickets coming from department employees.
+// 3. Manager can assign tickets to employees within the same department.
+// 4. Manager can update ticket statuses.
+// 5. Manager can supervise department workload and queue.
+// 6. Manager cannot access unrelated department tickets.
+
+// ### Employee (User) Permissions
+// 1. User can see all tickets assigned to their department only.
+// 2. User can create tickets.
+// 3. User can transfer tickets to another department.
+// 4. User cannot assign tickets user-to-user.
+// 5. User can self-assign OPEN tickets.
+// 6. User cannot see tickets from other departments.
+// 7. User can reopen their own ticket once within 48 hours.
+
+// ### CEO / Admin Permissions
+// 1. Full visibility across all departments.
+// 2. Can monitor both UM Enterprises and Matrix Pharma.
+// 3. Can create tickets for any department.
+// 4. Can monitor analytics and ticket flow.
+
+// ### Ticket Visibility Rules
+// - Department members can only view department tickets.
+// - Managers and users share the same department visibility.
+// - Cross-department visibility is restricted.
+// - Ticket transfer between departments is allowed.
+// - Only resolver can close ticket.
+// - Creator can reopen once within 48 hours.

@@ -16,7 +16,7 @@ exports.createUser = async ({ email, password, name, company_id, department_id, 
       err.statusCode = 409;
       throw err;
     }
-    
+
     // For other DB errors, throw a generic 500 error
     const err = new Error('Database error while creating user');
     err.statusCode = 500;
