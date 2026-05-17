@@ -15,14 +15,14 @@ class RegisterEvent extends AuthEvent {
   final String departmentId;
   final String role;
 
-  RegisterEvent(
-    this.name,
-    this.email,
-    this.password,
-    this.companyId,
-    this.departmentId,
-    this.role,
-  );
+  RegisterEvent({
+    required this.name,
+    required this.email,
+    required this.password,
+    required this.companyId,
+    required this.departmentId,
+    required this.role,
+  });
 }
 
 class LogoutEvent extends AuthEvent {}

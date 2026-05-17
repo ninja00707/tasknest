@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/constant/validators.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
+import 'package:tasknest/presentation/login/bloc/login_event.dart';
 import 'package:tasknest/presentation/login/bloc/login_state.dart';
 import 'package:tasknest/presentation/login/widget/input_field.dart';
 
@@ -19,6 +20,7 @@ class SignupCard extends StatelessWidget {
   // In a real app these would likely be dropdowns populated from the API
   final companyController = TextEditingController();
   final departmentController = TextEditingController();
+  final roleController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -196,6 +198,17 @@ class SignupCard extends StatelessWidget {
                                 : () {
                                     if (formKey.currentState!.validate()) {
                                       // Trigger signup event here
+                                      context.read<AuthBloc>().add(
+                                        RegisterEvent(
+                                          name: nameController.text,
+                                          email: emailController.text,
+                                          password: passwordController.text,
+                                          companyId: companyController.text,
+                                          departmentId:
+                                              departmentController.text,
+                                          role: roleController.text,
+                                        ),
+                                      );
                                     }
                                   },
                             style: ElevatedButton.styleFrom(
