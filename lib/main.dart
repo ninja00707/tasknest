@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:tasknest/core/routes/app_router.dart';
-import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
+import 'package:tasknest/injection.dart';
 import 'package:url_strategy/url_strategy.dart';
-import 'package:tasknest/presentation/login/auth_server_example.dart';
+
+import 'package:tasknest/core/routes/app_router.dart';
+
+import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   setPathUrlStrategy();
 
-  final storage = LocalStorageService();
-
-  final token = await storage.getToken();
-  runApp(MyApp(isLoggedIn: token != null));
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -21,11 +21,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
-      providers: [BlocProvider(create: (_) => LoginBloc(AuthService()))],
+      providers: [
+        BlocProvider<AuthBloc>(create: (_) => AuthBloc(authRepository)),
+      ],
 
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
-
         routerConfig: appRouter,
       ),
     );

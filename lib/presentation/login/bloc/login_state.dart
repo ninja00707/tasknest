@@ -1,15 +1,35 @@
-abstract class AuthState {}
+abstract class AuthState {
+  final bool isLoading;
+  final bool obscurePassword;
 
-class AuthInitial extends AuthState {}
+  const AuthState({this.isLoading = false, this.obscurePassword = true});
+}
 
-class AuthLoading extends AuthState {}
+class AuthInitial extends AuthState {
+  const AuthInitial();
+}
 
-class AuthAuthenticated extends AuthState {}
+class AuthLoading extends AuthState {
+  const AuthLoading({super.obscurePassword}) : super(isLoading: true);
+}
 
-class AuthUnauthenticated extends AuthState {}
+class AuthAuthenticated extends AuthState {
+  const AuthAuthenticated();
+}
+
+class AuthUnauthenticated extends AuthState {
+  const AuthUnauthenticated();
+}
 
 class AuthError extends AuthState {
   final String message;
 
-  AuthError(this.message);
+  const AuthError(this.message, {super.obscurePassword});
+}
+
+class PasswordVisibilityState extends AuthState {
+  const PasswordVisibilityState({
+    required bool obscurePassword,
+    required bool isLoading,
+  }) : super(obscurePassword: obscurePassword, isLoading: isLoading);
 }

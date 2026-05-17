@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart' show GoRouterHelper;
-import 'package:tasknest/core/routes/auth.guard.dart';
+import 'package:go_router/go_router.dart';
+
 import 'package:tasknest/core/routes/routes_name.dart';
+import 'package:tasknest/core/theme/aleertbox.dart';
 import 'package:tasknest/core/theme/color.dart';
+
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 import 'package:tasknest/presentation/login/bloc/login_state.dart';
+
 import 'package:tasknest/presentation/login/widget/footer.dart';
 import 'package:tasknest/presentation/login/widget/left_panel.dart';
 import 'package:tasknest/presentation/login/widget/login_card.dart';
@@ -18,27 +21,28 @@ class LoginScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 768;
 
-    return BlocBuilder<LoginBloc, LoginState>(
+    return BlocConsumer<AuthBloc, AuthState>(
+      listener: (context, state) {
+        // LOGIN SUCCESS
+        if (state is AuthAuthenticated) {
+          context.go(RouteNames.dashboard);
+        }
+
+        // LOGIN ERROR
+        if (state is AuthError) {
+          AppAlertDialog.show(
+            context: context,
+
+            title: 'Login Failed',
+
+            message: state.message,
+
+            isError: true,
+          );
+        }
+      },
+
       builder: (context, state) {
-        // ERROR
-
-        if (state.errorMessage != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
-          });
-        }
-
-        // SUCCESS NAVIGATION
-
-        if (state.isLoading) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            AuthGuard.isLoggedIn = true;
-            context.go(RouteNames.dashboard);
-          });
-        }
-
         return Scaffold(
           backgroundColor: ThemeColors.unifiedBackground,
 
@@ -65,7 +69,7 @@ class LoginScreen extends StatelessWidget {
 
                               const SizedBox(width: 56),
 
-                              const LoginCard(),
+                              LoginCard(),
                             ],
                           )
                         : Column(
@@ -74,7 +78,7 @@ class LoginScreen extends StatelessWidget {
 
                               const SizedBox(height: 36),
 
-                              const LoginCard(),
+                              LoginCard(),
                             ],
                           ),
                   ),

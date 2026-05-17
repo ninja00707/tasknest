@@ -1,29 +1,45 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'package:tasknest/data/repositories/auth/auth_repository.dart';
-import 'package:tasknest/presentation/login/bloc/login_event.dart';
-import 'package:tasknest/presentation/login/bloc/login_state.dart';
+
+import 'login_event.dart';
+import 'login_state.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository authRepository;
 
-  AuthBloc(this.authRepository) : super(AuthInitial()) {
+  bool obscurePassword = true;
+
+  AuthBloc(this.authRepository) : super(const AuthInitial()) {
     on<LoginEvent>((event, emit) async {
-      emit(AuthLoading());
+      emit(AuthLoading(obscurePassword: obscurePassword));
 
       try {
         await authRepository.login(
-          email: event.email,
-          password: event.password,
+          email: event.email!,
+          password: event.password!,
         );
 
-        emit(AuthAuthenticated());
+        emit(const AuthAuthenticated());
       } catch (e) {
-        emit(AuthError(e.toString()));
+        print("==============================$e");
+        emit(AuthError(e.toString(), obscurePassword: obscurePassword));
       }
     });
 
+    on<TogglePasswordVisibility>((event, emit) {
+      obscurePassword = !obscurePassword;
+
+      emit(
+        PasswordVisibilityState(
+          obscurePassword: obscurePassword,
+          isLoading: false,
+        ),
+      );
+    });
+
     on<RegisterEvent>((event, emit) async {
-      emit(AuthLoading());
+      emit(AuthLoading(obscurePassword: obscurePassword));
 
       try {
         await authRepository.register(
@@ -32,15 +48,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           password: event.password,
         );
 
-        emit(AuthAuthenticated());
+        emit(const AuthAuthenticated());
       } catch (e) {
-        emit(AuthError(e.toString()));
+        emit(AuthError(e.toString(), obscurePassword: obscurePassword));
       }
     });
 
     on<LogoutEvent>((event, emit) async {
       await authRepository.logout();
-      emit(AuthUnauthenticated());
+
+      emit(const AuthUnauthenticated());
     });
   }
 }
