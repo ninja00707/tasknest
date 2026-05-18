@@ -1,19 +1,29 @@
-const router = require('express').Router();
-const ticketController = require('./ticket.controller');
+const express = require('express');
+const router = express.Router();
+const controller = require('./ticket.controller');
+const { authenticate, isManager } = require('./Auth.middleware');
 
-// Create a new ticket
-router.post('/', ticketController.createTicket);
+// All ticket routes require authentication
+router.use(authenticate);
 
-// Get tickets based on user role and department
-router.get('/', ticketController.getTickets);
+// ── Stats & Departments ───────────────────────────────────────
+router.get('/stats', controller.getStats);
+router.get('/departments', controller.getDepartments);
 
-// Manager assigns a ticket to a user (or a user auto-assigns themselves)
-router.put('/:id/assign', ticketController.assignTicket);
+// ── CRUD ──────────────────────────────────────────────────────
+router.get('/', controller.getTickets);
+router.get('/:id', controller.getTicket);
+router.post('/', controller.createTicket);
 
-// Resolver closes a ticket
-router.put('/:id/close', ticketController.closeTicket);
+// ── Actions ───────────────────────────────────────────────────
+router.patch('/:id/status', controller.updateStatus);
+router.patch('/:id/self-assign', controller.selfAssign);
+router.patch('/:id/assign', isManager, controller.assignToEmployee);
+router.patch('/:id/transfer', controller.transferTicket);
+router.patch('/:id/reopen', controller.reopenTicket);
 
-// Creator reopens a ticket
-router.put('/:id/reopen', ticketController.reopenTicket);
+// ── Comments ──────────────────────────────────────────────────
+router.get('/:id/comments', controller.getComments);
+router.post('/:id/comments', controller.addComment);
 
 module.exports = router;

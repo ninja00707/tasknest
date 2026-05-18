@@ -1,134 +1,106 @@
 const ticketService = require('./ticket.service');
 
-exports.createTicket = async (req, res) => {
-  try {
-    const { title, description, target_department_id, company_id } = req.body;
-    
-    // In a real app, req.user is set by auth middleware.
-    // For now, we assume the user object is sent in req.user or req.body for testing.
-    // If you add JWT middleware, it will be req.user.id
-    const creator = req.user || req.body.user; 
-    
-    if (!creator || !creator.id) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
+class TicketController {
 
-    const ticket = await ticketService.createTicket({
-      title,
-      description,
-      creator_id: creator.id,
-      target_department_id,
-      company_id
-    });
-
-    return res.status(201).json({
-      success: true,
-      message: 'Ticket created successfully',
-      data: ticket
-    });
-  } catch (error) {
-    console.error('Create Ticket Error:', error);
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || 'Error creating ticket'
-    });
+  // GET /api/tickets/stats
+  async getStats(req, res, next) {
+    try {
+      const stats = await ticketService.getDashboardStats(req.user);
+      res.json({ success: true, data: stats });
+    } catch (err) { next(err); }
   }
-};
 
-exports.getTickets = async (req, res) => {
-  try {
-    const user = req.user || req.body.user;
-    if (!user || !user.id || !user.role || !user.department_id || !user.company_id) {
-      return res.status(401).json({ success: false, message: 'Unauthorized or missing user context' });
-    }
-
-    const tickets = await ticketService.getTickets(user);
-
-    return res.status(200).json({
-      success: true,
-      data: tickets
-    });
-  } catch (error) {
-    console.error('Get Tickets Error:', error);
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || 'Error fetching tickets'
-    });
+  // GET /api/tickets/departments
+  async getDepartments(req, res, next) {
+    try {
+      const depts = await ticketService.getDepartments();
+      res.json({ success: true, data: depts });
+    } catch (err) { next(err); }
   }
-};
 
-exports.assignTicket = async (req, res) => {
-  try {
-    const user = req.user || req.body.user;
-    const ticketId = req.params.id;
-    const { assignee_id } = req.body;
-
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
-
-    const ticket = await ticketService.assignTicket(ticketId, user, assignee_id);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Ticket assigned successfully',
-      data: ticket
-    });
-  } catch (error) {
-    console.error('Assign Ticket Error:', error);
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || 'Error assigning ticket'
-    });
+  // GET /api/tickets?status=&priority=&page=&limit=
+  async getTickets(req, res, next) {
+    try {
+      const tickets = await ticketService.getTickets(req.user, req.query);
+      res.json({ success: true, data: tickets });
+    } catch (err) { next(err); }
   }
-};
 
-exports.closeTicket = async (req, res) => {
-  try {
-    const user = req.user || req.body.user;
-    const ticketId = req.params.id;
-
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
-
-    const ticket = await ticketService.closeTicket(ticketId, user);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Ticket closed successfully',
-      data: ticket
-    });
-  } catch (error) {
-    console.error('Close Ticket Error:', error);
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || 'Error closing ticket'
-    });
+  // GET /api/tickets/:id
+  async getTicket(req, res, next) {
+    try {
+      const ticket = await ticketService.getTicket(req.params.id, req.user);
+      res.json({ success: true, data: ticket });
+    } catch (err) { next(err); }
   }
-};
 
-exports.reopenTicket = async (req, res) => {
-  try {
-    const user = req.user || req.body.user;
-    const ticketId = req.params.id;
-
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
-    }
-
-    const ticket = await ticketService.reopenTicket(ticketId, user);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Ticket reopened successfully',
-      data: ticket
-    });
-  } catch (error) {
-    console.error('Reopen Ticket Error:', error);
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.message || 'Error reopening ticket'
-    });
+  // POST /api/tickets
+  async createTicket(req, res, next) {
+    try {
+      const ticket = await ticketService.createTicket(req.body, req.user);
+      res.status(201).json({ success: true, data: ticket });
+    } catch (err) { next(err); }
   }
-};
+
+  // PATCH /api/tickets/:id/status
+  async updateStatus(req, res, next) {
+    try {
+      const ticket = await ticketService.updateStatus(req.params.id, req.body.status, req.user);
+      res.json({ success: true, data: ticket });
+    } catch (err) { next(err); }
+  }
+
+  // PATCH /api/tickets/:id/self-assign
+  async selfAssign(req, res, next) {
+    try {
+      const ticket = await ticketService.selfAssign(req.params.id, req.user);
+      res.json({ success: true, data: ticket });
+    } catch (err) { next(err); }
+  }
+
+  // PATCH /api/tickets/:id/assign  { employeeId }
+  async assignToEmployee(req, res, next) {
+    try {
+      const ticket = await ticketService.assignToEmployee(
+        req.params.id, req.body.employeeId, req.user
+      );
+      res.json({ success: true, data: ticket });
+    } catch (err) { next(err); }
+  }
+
+  // PATCH /api/tickets/:id/transfer  { targetDeptId }
+  async transferTicket(req, res, next) {
+    try {
+      const ticket = await ticketService.transferTicket(
+        req.params.id, req.body.targetDeptId, req.user
+      );
+      res.json({ success: true, data: ticket });
+    } catch (err) { next(err); }
+  }
+
+  // PATCH /api/tickets/:id/reopen
+  async reopenTicket(req, res, next) {
+    try {
+      const ticket = await ticketService.reopenTicket(req.params.id, req.user);
+      res.json({ success: true, data: ticket });
+    } catch (err) { next(err); }
+  }
+
+  // GET /api/tickets/:id/comments
+  async getComments(req, res, next) {
+    try {
+      const comments = await ticketService.getComments(req.params.id, req.user);
+      res.json({ success: true, data: comments });
+    } catch (err) { next(err); }
+  }
+
+  // POST /api/tickets/:id/comments  { message }
+  async addComment(req, res, next) {
+    try {
+      const comment = await ticketService.addComment(req.params.id, req.body.message, req.user);
+      res.status(201).json({ success: true, data: comment });
+    } catch (err) { next(err); }
+  }
+}
+
+module.exports = new TicketController();

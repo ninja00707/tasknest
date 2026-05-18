@@ -1,53 +1,161 @@
--- Database Schema for Task Management System
+-- ============================================================
+--  Taskify — Full Database Schema
+--  Companies: UM Enterprises | Matrix Pharma
+-- ============================================================
 
-CREATE TABLE IF NOT EXISTS companies (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL UNIQUE
+-- ── Companies ────────────────────────────────────────────────
+CREATE TABLE companies (
+  id         SERIAL PRIMARY KEY,
+  name       VARCHAR(100) NOT NULL,
+  slug       VARCHAR(50)  NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ  DEFAULT NOW()
 );
 
-CREATE TABLE IF NOT EXISTS departments (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
-    parent_department_id INTEGER REFERENCES departments(id) ON DELETE CASCADE,
-    is_shared BOOLEAN DEFAULT FALSE -- Flag for shared departments like HR/IT
+INSERT INTO companies (name, slug) VALUES
+  ('UM Enterprises', 'um'),
+  ('Matrix Pharma',  'matrix');
+
+-- ── Departments ──────────────────────────────────────────────
+CREATE TABLE departments (
+  id            SERIAL PRIMARY KEY,
+  name          VARCHAR(100)  NOT NULL,
+  code          VARCHAR(20)   NOT NULL UNIQUE,
+  company_id    INT           REFERENCES companies(id),
+  parent_id     INT           REFERENCES departments(id),  -- for sub-depts
+  tier          VARCHAR(20)   NOT NULL CHECK (tier IN ('upper','lower')),
+  created_at    TIMESTAMPTZ   DEFAULT NOW()
 );
 
--- If users table already exists from previous steps, we alter it to add new columns.
--- We use a DO block to safely add columns if they don't exist in PostgreSQL.
-DO $$ 
-BEGIN
-    BEGIN
-        ALTER TABLE users ADD COLUMN name VARCHAR(255);
-    EXCEPTION WHEN duplicate_column THEN END;
-    
-    BEGIN
-        ALTER TABLE users ADD COLUMN company_id INTEGER REFERENCES companies(id);
-    EXCEPTION WHEN duplicate_column THEN END;
-    
-    BEGIN
-        ALTER TABLE users ADD COLUMN department_id INTEGER REFERENCES departments(id);
-    EXCEPTION WHEN duplicate_column THEN END;
-    
-    BEGIN
-        ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT 'user'; -- 'user', 'manager', 'ceo'
-    EXCEPTION WHEN duplicate_column THEN END;
-END $$;
+-- Upper management (shared across both companies)
+INSERT INTO departments (name, code, company_id, parent_id, tier) VALUES
+  ('HR',          'HR',   NULL, NULL, 'upper'),
+  ('Admin',       'ADM',  NULL, NULL, 'upper'),
+  ('IT',          'IT',   NULL, NULL, 'upper'),
+  ('Procurement', 'PROC', NULL, NULL, 'upper');
 
-CREATE TABLE IF NOT EXISTS tickets (
-    id SERIAL PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    creator_id INTEGER NOT NULL REFERENCES users(id),
-    target_department_id INTEGER NOT NULL REFERENCES departments(id),
-    company_id INTEGER NOT NULL REFERENCES companies(id),
-    assignee_id INTEGER REFERENCES users(id),
-    status VARCHAR(50) DEFAULT 'open', -- 'open', 'in_progress', 'closed'
-    reopen_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    closed_at TIMESTAMP
+-- Lower departments (UM Enterprises)
+INSERT INTO departments (name, code, company_id, parent_id, tier) VALUES
+  ('LA',      'LA',   1, NULL, 'lower'),
+  ('Feed',    'FEED', 1, NULL, 'lower'),
+  ('FM',      'FM',   1, NULL, 'lower'),
+  ('Drag',    'DRAG', 1, NULL, 'lower'),
+  ('Finance', 'FIN',  1, NULL, 'lower');
+
+-- LA sub-departments
+INSERT INTO departments (name, code, company_id, parent_id, tier)
+  SELECT 'LARA', 'LARA', 1, id, 'lower' FROM departments WHERE code = 'LA';
+INSERT INTO departments (name, code, company_id, parent_id, tier)
+  SELECT 'LAFM', 'LAFM', 1, id, 'lower' FROM departments WHERE code = 'LA';
+INSERT INTO departments (name, code, company_id, parent_id, tier)
+  SELECT 'LBFM', 'LBFM', 1, id, 'lower' FROM departments WHERE code = 'LA';
+
+-- FM sub-departments
+INSERT INTO departments (name, code, company_id, parent_id, tier)
+  SELECT 'FMAS', 'FMAS', 1, id, 'lower' FROM departments WHERE code = 'FM';
+INSERT INTO departments (name, code, company_id, parent_id, tier)
+  SELECT 'FMPS', 'FMPS', 1, id, 'lower' FROM departments WHERE code = 'FM';
+INSERT INTO departments (name, code, company_id, parent_id, tier)
+  SELECT 'FMSG', 'FMSG', 1, id, 'lower' FROM departments WHERE code = 'FM';
+
+-- ── Roles ────────────────────────────────────────────────────
+CREATE TABLE roles (
+  id   SERIAL PRIMARY KEY,
+  name VARCHAR(30) NOT NULL UNIQUE  -- ceo | manager | employee
 );
 
--- Pre-seed some initial companies
-INSERT INTO companies (name) VALUES ('UM Enterprises'), ('Matrix Pharma') ON CONFLICT DO NOTHING;
+INSERT INTO roles (name) VALUES ('ceo'), ('manager'), ('employee');
+
+-- ── Users ────────────────────────────────────────────────────
+CREATE TABLE users (
+  id            SERIAL PRIMARY KEY,
+  name          VARCHAR(100) NOT NULL,
+  email         VARCHAR(150) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  role_id       INT          NOT NULL REFERENCES roles(id),
+  department_id INT          NOT NULL REFERENCES departments(id),
+  company_id    INT          NOT NULL REFERENCES companies(id),
+  is_active     BOOLEAN      DEFAULT TRUE,
+  created_at    TIMESTAMPTZ  DEFAULT NOW()
+);
+
+-- ── Tickets ──────────────────────────────────────────────────
+CREATE TABLE tickets (
+  id                SERIAL PRIMARY KEY,
+  title             VARCHAR(255)  NOT NULL,
+  description       TEXT          NOT NULL,
+  status            VARCHAR(20)   NOT NULL DEFAULT 'open'
+                    CHECK (status IN ('open','in_progress','completed','closed')),
+  priority          VARCHAR(20)   NOT NULL DEFAULT 'medium'
+                    CHECK (priority IN ('low','medium','high','urgent')),
+
+  -- who created it
+  created_by_id     INT           NOT NULL REFERENCES users(id),
+  created_by_dept   INT           NOT NULL REFERENCES departments(id),
+
+  -- which department it is assigned to
+  assigned_dept_id  INT           NOT NULL REFERENCES departments(id),
+
+  -- which individual is working on it (optional self-assign)
+  assigned_to_id    INT           REFERENCES users(id),
+
+  -- transfer tracking
+  transferred_from  INT           REFERENCES departments(id),
+  transferred_at    TIMESTAMPTZ,
+
+  -- close / reopen tracking
+  closed_by_id      INT           REFERENCES users(id),
+  closed_at         TIMESTAMPTZ,
+  reopened_at       TIMESTAMPTZ,
+  reopen_count      INT           DEFAULT 0,
+
+  due_date          DATE,
+  created_at        TIMESTAMPTZ   DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ   DEFAULT NOW()
+);
+
+-- ── Ticket Comments ──────────────────────────────────────────
+CREATE TABLE ticket_comments (
+  id         SERIAL PRIMARY KEY,
+  ticket_id  INT         NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+  user_id    INT         NOT NULL REFERENCES users(id),
+  message    TEXT        NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ── Ticket Activity Log ──────────────────────────────────────
+CREATE TABLE ticket_logs (
+  id          SERIAL PRIMARY KEY,
+  ticket_id   INT         NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+  acted_by_id INT         NOT NULL REFERENCES users(id),
+  action      VARCHAR(50) NOT NULL,  -- created | assigned | transferred | status_changed | closed | reopened
+  old_value   VARCHAR(100),
+  new_value   VARCHAR(100),
+  note        TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ── Notifications ────────────────────────────────────────────
+CREATE TABLE notifications (
+  id         SERIAL PRIMARY KEY,
+  user_id    INT         NOT NULL REFERENCES users(id),
+  ticket_id  INT         REFERENCES tickets(id),
+  message    TEXT        NOT NULL,
+  is_read    BOOLEAN     DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ── Indexes ──────────────────────────────────────────────────
+CREATE INDEX idx_tickets_dept    ON tickets(assigned_dept_id);
+CREATE INDEX idx_tickets_status  ON tickets(status);
+CREATE INDEX idx_tickets_creator ON tickets(created_by_id);
+CREATE INDEX idx_notifications   ON notifications(user_id, is_read);
+
+-- ── Auto-update updated_at ───────────────────────────────────
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tickets_updated_at
+  BEFORE UPDATE ON tickets
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();

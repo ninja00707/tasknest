@@ -4,20 +4,21 @@ const repo = require('./auth.repository');
 
 exports.register = async ({
   email,
-  password,
+  password_hash,
   name,
   company_id,
   department_id,
-  role,
+  role_id,
 }) => {
 
+  // Validation
   if (
     !email ||
-    !password ||
+    !password_hash ||
     !name ||
     !company_id ||
     !department_id ||
-    !role
+    !role_id
   ) {
 
     const error = new Error(
@@ -29,6 +30,7 @@ exports.register = async ({
     throw error;
   }
 
+  // Check existing user
   const existingUser =
     await repo.findUserByEmail(email);
 
@@ -42,63 +44,150 @@ exports.register = async ({
     throw error;
   }
 
+  // Hash password
   const hashedPassword =
-    await bcrypt.hash(password, 10);
+    await bcrypt.hash(password_hash, 10);
 
+  // Create user
   const user = await repo.createUser({
     email: email.toLowerCase(),
-    password: hashedPassword,
+    password_hash: hashedPassword,
     name,
     company_id,
     department_id,
-    role,
+    role_id,
   });
 
-  delete user.password;
+  // Remove password before returning
+  delete user.password_hash;
 
   return user;
 };
+exports.login = async ({
+  email,
+  password,
+}) => {
 
-exports.login = async ({ email, password }) => {
   if (!email || !password) {
-    const error = new Error('Email and password are required');
+
+    const error = new Error(
+      'Email and password are required'
+    );
+
     error.statusCode = 400;
+
     throw error;
   }
 
-  const user = await repo.findUserByEmail(email.toLowerCase());
+  const user =
+    await repo.findUserByEmail(email);
+
   if (!user) {
-    const error = new Error('User not found');
-    error.statusCode = 404;
-    throw error;
-  }
 
-  const isValid = await bcrypt.compare(password, user.password);
-  if (!isValid) {
-    const error = new Error('Invalid credentials');
+    const error = new Error(
+      'Invalid credentials'
+    );
+
     error.statusCode = 401;
+
     throw error;
   }
 
-  // Make sure to set JWT_SECRET in your .env file
+  const isPasswordValid =
+    await bcrypt.compare(
+      password,
+      user.password_hash
+    );
+
+  if (!isPasswordValid) {
+
+    const error = new Error(
+      'Invalid credentials'
+    );
+
+    error.statusCode = 401;
+
+    throw error;
+  }
+
+  // Generate JWT token
   const token = jwt.sign(
     {
       id: user.id,
       email: user.email,
-      role: user.role,
+      role_id: user.role_id,
       company_id: user.company_id,
-      department_id: user.department_id
+      department_id: user.department_id,
     },
-    process.env.JWT_SECRET || 'fallback_secret',
-    { expiresIn: '7d' }
+    process.env.JWT_SECRET,
+    {
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    }
   );
 
-  // Exclude password from the returned object
-  const userWithoutPassword = { ...user };
-  delete userWithoutPassword.password;
+  // Remove password hash
+  delete user.password_hash;
 
-  return { token, user: userWithoutPassword };
+  return {
+    token,
+    user,
+  };
 };
+// exports.login = async ({
+//   email,
+//   password,
+// }) => {
+
+//   if (!email || !password) {
+
+//     const error = new Error(
+//       'Email and password are required'
+//     );
+
+//     error.statusCode = 400;
+
+//     throw error;
+//   }
+
+//   const user =
+//     await repo.findUserByEmail(email);
+
+//   if (!user) {
+
+//     const error = new Error(
+//       'Invalid credentials'
+//     );
+
+//     error.statusCode = 401;
+
+//     throw error;
+//   }
+
+//   // IMPORTANT FIX HERE
+//   const isPasswordValid =
+//     await bcrypt.compare(
+//       password,
+//       user.password_hash
+//     );
+
+//   if (!isPasswordValid) {
+
+//     const error = new Error(
+//       'Invalid credentials'
+//     );
+
+//     error.statusCode = 401;
+
+//     throw error;
+//   }
+
+//   // Remove password before returning
+//   delete user.password_hash;
+
+//   return user;
+// };
+
+
 
 exports.forgotPassword = async (email) => {
   if (!email) {

@@ -1,116 +1,143 @@
-const repo = require('./ticket.repository');
+const ticketRepo = require('./ticket.repository');
 
-exports.createTicket = async (ticketData) => {
-  if (!ticketData.title || !ticketData.creator_id || !ticketData.target_department_id || !ticketData.company_id) {
-    const error = new Error('Missing required fields for ticket creation');
-    error.statusCode = 400;
-    throw error;
-  }
-  return await repo.createTicket(ticketData);
-};
+class TicketService {
 
-exports.getTickets = async (user) => {
-  // CEO sees all tickets in their company
-  if (user.role === 'ceo') {
-    return await repo.getTicketsByCompany(user.company_id);
-  }
-  
-  // Managers and Users see tickets assigned to their department, OR tickets they created
-  return await repo.getTicketsByDepartmentAndCreator(user.department_id, user.id);
-};
-
-exports.assignTicket = async (ticketId, user, assignee_id) => {
-  const ticket = await repo.getTicketById(ticketId);
-  
-  if (!ticket) {
-    const error = new Error('Ticket not found');
-    error.statusCode = 404;
-    throw error;
+  // ── Dashboard stats ───────────────────────────────────────────────────────
+  async getDashboardStats(user) {
+    return await ticketRepo.getDashboardStats(user);
   }
 
-  // A manager can assign tickets to anyone in their department
-  // A user can only assign a ticket to themselves
-  if (user.role === 'manager') {
-    if (!assignee_id) {
-      const error = new Error('Assignee ID is required for a manager');
-      error.statusCode = 400;
-      throw error;
+  // ── Get tickets (role-filtered) ───────────────────────────────────────────
+  async getTickets(user, filters) {
+    return await ticketRepo.getVisibleTickets(user, filters);
+  }
+
+  // ── Get single ticket ─────────────────────────────────────────────────────
+  async getTicket(ticketId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied to this ticket' };
+    return ticket;
+  }
+
+  // ── Create ticket ─────────────────────────────────────────────────────────
+  // All roles can create tickets
+  async createTicket(data, user) {
+    const { title, description, priority = 'medium', assignedDeptId, dueDate } = data;
+
+    if (!title || !description || !assignedDeptId) {
+      throw { statusCode: 400, message: 'title, description and assignedDeptId are required' };
     }
-  } else if (user.role === 'user') {
-    // Force auto-assignment to self
-    assignee_id = user.id;
-  } else {
-    // CEO generally shouldn't be assigning tickets, or maybe they can. We'll allow CEO if assignee_id is provided.
-    if (!assignee_id) {
-      const error = new Error('Assignee ID is required');
-      error.statusCode = 400;
-      throw error;
+
+    const ticket = await ticketRepo.createTicket({
+      title, description, priority, assignedDeptId, dueDate, createdBy: user,
+    });
+
+    await ticketRepo.logAction(ticket.id, user.id, 'created', null, 'open', `Created by ${user.name}`);
+    return ticket;
+  }
+
+  // ── Update status ─────────────────────────────────────────────────────────
+  // Manager can update any status in their dept
+  // Employee can update statuses on their own self-assigned ticket
+  // Only the resolver (assigned_to) or manager can close
+  async updateStatus(ticketId, newStatus, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+
+    const allowedStatuses = ['open', 'in_progress', 'completed', 'closed'];
+    if (!allowedStatuses.includes(newStatus)) {
+      throw { statusCode: 400, message: 'Invalid status' };
     }
-  }
 
-  return await repo.updateTicketAssignee(ticketId, assignee_id);
-};
-
-exports.closeTicket = async (ticketId, user) => {
-  const ticket = await repo.getTicketById(ticketId);
-  
-  if (!ticket) {
-    const error = new Error('Ticket not found');
-    error.statusCode = 404;
-    throw error;
-  }
-
-  // ONLY resolver (assignee) can close the ticket
-  if (ticket.assignee_id !== user.id && user.role !== 'ceo') { // Giving CEO override just in case, but strictly rule says only resolver
-    if (ticket.assignee_id !== user.id) {
-      const error = new Error('Only the assigned resolver can close this ticket');
-      error.statusCode = 403;
-      throw error;
+    // Only resolver or manager can close
+    if (newStatus === 'closed') {
+      const canClose = user.role === 'ceo' ||
+        user.role === 'manager' ||
+        ticket.assigned_to_id === user.id;
+      if (!canClose) throw { statusCode: 403, message: 'Only the resolver or manager can close a ticket' };
     }
+
+    const oldStatus = ticket.status;
+    const updated = await ticketRepo.updateStatus(ticketId, newStatus, user);
+    await ticketRepo.logAction(ticketId, user.id, 'status_changed', oldStatus, newStatus, null);
+    return updated;
   }
 
-  return await repo.closeTicket(ticketId);
-};
+  // ── Self-assign (employee only on open tickets) ───────────────────────────
+  async selfAssign(ticketId, user) {
+    if (user.role === 'ceo') throw { statusCode: 400, message: 'CEO does not self-assign' };
 
-exports.reopenTicket = async (ticketId, user) => {
-  const ticket = await repo.getTicketById(ticketId);
-  
-  if (!ticket) {
-    const error = new Error('Ticket not found');
-    error.statusCode = 404;
-    throw error;
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    if (ticket.status !== 'open') throw { statusCode: 400, message: 'Only OPEN tickets can be self-assigned' };
+
+    const updated = await ticketRepo.selfAssign(ticketId, user.id);
+    if (!updated) throw { statusCode: 400, message: 'Ticket already assigned' };
+
+    await ticketRepo.logAction(ticketId, user.id, 'assigned', null, user.name, 'Self-assigned');
+    return updated;
   }
 
-  // Only the creator can reopen
-  if (ticket.creator_id !== user.id) {
-    const error = new Error('Only the creator of the ticket can reopen it');
-    error.statusCode = 403;
-    throw error;
+  // ── Manager assigns to employee ───────────────────────────────────────────
+  async assignToEmployee(ticketId, employeeId, user) {
+    if (!['manager', 'ceo'].includes(user.role)) {
+      throw { statusCode: 403, message: 'Only managers can assign tickets to employees' };
+    }
+
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+
+    const updated = await ticketRepo.assignToEmployee(ticketId, employeeId, user.id);
+    await ticketRepo.logAction(ticketId, user.id, 'assigned', null, `employee:${employeeId}`, 'Manager assigned');
+    return updated;
   }
 
-  if (ticket.status !== 'closed') {
-    const error = new Error('Ticket is not closed');
-    error.statusCode = 400;
-    throw error;
+  // ── Transfer to another department ────────────────────────────────────────
+  async transferTicket(ticketId, targetDeptId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+
+    if (ticket.assigned_dept_id === targetDeptId) {
+      throw { statusCode: 400, message: 'Ticket is already in that department' };
+    }
+
+    const oldDept = ticket.assigned_dept_code;
+    const updated = await ticketRepo.transferTicket(ticketId, targetDeptId, user);
+    await ticketRepo.logAction(ticketId, user.id, 'transferred', oldDept, `dept:${targetDeptId}`, 'Department transfer');
+    return updated;
   }
 
-  // Can only be reopened once
-  if (ticket.reopen_count >= 1) {
-    const error = new Error('Ticket has already been reopened the maximum number of times (1)');
-    error.statusCode = 400;
-    throw error;
+  // ── Reopen ticket ─────────────────────────────────────────────────────────
+  async reopenTicket(ticketId, user) {
+    const updated = await ticketRepo.reopenTicket(ticketId, user.id);
+    await ticketRepo.logAction(ticketId, user.id, 'reopened', 'closed', 'open', 'Creator reopened');
+    return updated;
   }
 
-  // Must be reopened within 48 hours of being closed
-  const closedAt = new Date(ticket.closed_at);
-  const now = new Date();
-  const diffHours = Math.abs(now - closedAt) / 36e5; // Convert ms to hours
-
-  if (diffHours > 48) {
-    const error = new Error('Ticket can only be reopened within 48 hours of being closed');
-    error.statusCode = 400;
-    throw error;
+  // ── Comments ──────────────────────────────────────────────────────────────
+  async getComments(ticketId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    return await ticketRepo.getComments(ticketId);
   }
 
-  return await repo.reopenTicket(ticketId, ticket.reopen_count + 1);
-};
+  async addComment(ticketId, message, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    return await ticketRepo.addComment(ticketId, user.id, message);
+  }
+
+  // ── Departments list ──────────────────────────────────────────────────────
+  async getDepartments() {
+    return await ticketRepo.getDepartments();
+  }
+}
+
+module.exports = new TicketService();

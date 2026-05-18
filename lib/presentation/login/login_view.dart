@@ -40,27 +40,30 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
-        if (state is AuthAuthenticated) {
-          context.go(RouteNames.dashboard);
-        }
-        if (state is AuthError) {
-          AppAlertDialog.show(
-            context: context,
-            title: 'Authentication Failed',
-            message: state.message,
-            isError: true,
-          );
-        }
-        if (state is AuthAuthenticated) {
-          AppAlertDialog.show(
-            context: context,
-            title: 'Success',
-            message: 'Login Success',
-            isError: false,
-          );
-          if (currentMode == AuthViewMode.forgotPassword) {
-            _switchMode(AuthViewMode.login);
+        try {
+          if (state is AuthAuthenticated) {
+            AppAlertDialog.show(
+              context: context,
+              title: 'Success',
+              message: 'Login Success',
+              isError: false,
+            );
+
+            context.go(RouteNames.dashboard);
           }
+
+          if (state is AuthError) {
+            AppAlertDialog.show(
+              context: context,
+              title: 'Authentication Failed',
+              message: state.message,
+              isError: true,
+            );
+          }
+        } catch (e) {
+          print(
+            "=====================Loginview listner=========================>$e",
+          );
         }
       },
       builder: (context, state) {

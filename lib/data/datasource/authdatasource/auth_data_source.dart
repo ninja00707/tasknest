@@ -47,10 +47,10 @@ class AuthRemoteDataSource {
         data: {
           'name': name,
           'email': email,
-          'password': password,
+          'password_hash': password,
           'company_id': int.tryParse(companyId),
           'department_id': int.tryParse(departmentId),
-          'role': role, // default role
+          'role_id': 1,
         },
       );
 

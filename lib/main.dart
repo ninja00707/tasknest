@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/injection.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:url_strategy/url_strategy.dart';
 
 import 'package:tasknest/core/routes/app_router.dart';
@@ -22,6 +23,7 @@ class MyApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider<AuthBloc>(create: (_) => AuthBloc(authRepository)),
+        BlocProvider<DashboardBloc>(create: (_) => createDashboardBloc()),
       ],
 
       child: MaterialApp.router(

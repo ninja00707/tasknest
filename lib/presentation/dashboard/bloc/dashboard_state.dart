@@ -1,0 +1,76 @@
+// ══════════════════════════════════════════════════════════════
+//  STATES
+// ══════════════════════════════════════════════════════════════
+import 'package:equatable/equatable.dart';
+import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
+
+abstract class DashboardState extends Equatable {
+  @override
+  List<Object?> get props => [];
+}
+
+class DashboardInitial extends DashboardState {}
+
+class DashboardLoading extends DashboardState {}
+
+class DashboardLoaded extends DashboardState {
+  final DashboardStats stats;
+  final List<TicketModel> tickets;
+  final List<DepartmentModel> departments;
+  final String? filterStatus;
+  final String? filterPriority;
+
+  DashboardLoaded({
+    required this.stats,
+    required this.tickets,
+    required this.departments,
+    this.filterStatus,
+    this.filterPriority,
+  });
+
+  DashboardLoaded copyWith({
+    DashboardStats? stats,
+    List<TicketModel>? tickets,
+    List<DepartmentModel>? departments,
+    String? filterStatus,
+    String? filterPriority,
+  }) => DashboardLoaded(
+    stats: stats ?? this.stats,
+    tickets: tickets ?? this.tickets,
+    departments: departments ?? this.departments,
+    filterStatus: filterStatus ?? this.filterStatus,
+    filterPriority: filterPriority ?? this.filterPriority,
+  );
+
+  @override
+  List<Object?> get props => [
+    stats,
+    tickets,
+    departments,
+    filterStatus,
+    filterPriority,
+  ];
+}
+
+class DashboardError extends DashboardState {
+  final String message;
+  DashboardError(this.message);
+  @override
+  List<Object?> get props => [message];
+}
+
+class TicketActionSuccess extends DashboardState {
+  final String message;
+  final DashboardLoaded previousState;
+  TicketActionSuccess(this.message, this.previousState);
+  @override
+  List<Object?> get props => [message];
+}
+
+class TicketActionError extends DashboardState {
+  final String message;
+  final DashboardLoaded previousState;
+  TicketActionError(this.message, this.previousState);
+  @override
+  List<Object?> get props => [message];
+}
