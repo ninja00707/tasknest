@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_button.dart';
+import 'package:tasknest/core/theme/common_decoration.dart';
+import 'package:tasknest/core/theme/common_dropDown.dart';
+import 'package:tasknest/core/theme/common_text.dart';
+import 'package:tasknest/core/theme/common_textForm_Field.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
+import 'package:tasknest/presentation/dashboard/models.dart';
 
 // ── Dashboard Screen ──────────────────────────────────────────────────────────
 class DashboardScreen extends StatefulWidget {
@@ -154,55 +161,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return _DashboardView(state: loadedState);
     }
   }
-  // Widget _buildBody(DashboardState state) {
-  //   if (state is DashboardLoading || state is DashboardInitial) {
-  //     return const Center(
-  //       child: CircularProgressIndicator(color: ThemeColors.unifiedPrimary),
-  //     );
-  //   }
-  //   if (state is DashboardError) {
-  //     return Center(
-  //       child: Column(
-  //         mainAxisSize: MainAxisSize.min,
-  //         children: [
-  //           const Icon(
-  //             Icons.wifi_off_rounded,
-  //             size: 48,
-  //             color: ThemeColors.unifiedTextMuted,
-  //           ),
-  //           const SizedBox(height: 12),
-  //           Text(
-  //             state.message,
-  //             style: const TextStyle(color: ThemeColors.unifiedTextMuted),
-  //           ),
-  //           const SizedBox(height: 16),
-  //           ElevatedButton(
-  //             onPressed: () =>
-  //                 context.read<DashboardBloc>().add(LoadDashboard()),
-  //             child: const Text('Retry'),
-  //           ),
-  //         ],
-  //       ),
-  //     );
-  //   }
-
-  //   final loaded = state is DashboardLoaded
-  //       ? state
-  //       : state is TicketActionSuccess
-  //       ? state.previousState
-  //       : (state as TicketActionError).previousState;
-
-  //   switch (_selectedIndex) {
-  //     case 0:
-  //       return _DashboardView(state: loaded);
-  //     case 1:
-  //       return _TicketListView(state: loaded);
-  //     case 2:
-  //       return _CreateTicketView(departments: loaded.departments);
-  //     default:
-  //       return _DashboardView(state: loaded);
-  //   }
-  // }
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -1338,7 +1296,10 @@ class _CreateTicketViewState extends State<_CreateTicketView> {
   String _priority = 'medium';
   int? _deptId;
   String? _dueDate;
-
+  Departments _selectedDepartment = Departments(
+    id: 0,
+    name: 'Select Department',
+  );
   final _priorities = ['low', 'medium', 'high', 'urgent'];
 
   @override
@@ -1352,18 +1313,18 @@ class _CreateTicketViewState extends State<_CreateTicketView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          const CommonText(
             'Create New Ticket',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: ThemeColors.unifiedTextPrimary,
-            ),
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            color: ThemeColors.unifiedTextPrimary,
           ),
+
           const SizedBox(height: 4),
-          const Text(
+          const CommonText(
             'Fill details and assign to a department.',
-            style: TextStyle(fontSize: 13, color: ThemeColors.unifiedTextMuted),
+            fontSize: 13,
+            color: ThemeColors.unifiedTextMuted,
           ),
           const SizedBox(height: 20),
 
@@ -1378,69 +1339,110 @@ class _CreateTicketViewState extends State<_CreateTicketView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Gradient top strip
-                Container(
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [
-                        ThemeColors.unifiedGradStart,
-                        ThemeColors.unifiedGradEnd,
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
+                CommonDecoration().commonTopGradStrip,
 
-                _FormLabel('Title'),
+                CommonText(
+                  'Title',
+                  customeStyle: CommonDecoration().commonFormLabelStyle,
+                ),
                 const SizedBox(height: 6),
-                _Field(
+
+                CommonTextFormField(
                   controller: _title,
                   hint: 'Enter a clear, descriptive title',
                 ),
                 const SizedBox(height: 16),
 
-                _FormLabel('Description'),
+                CommonText(
+                  'Description',
+                  customeStyle: CommonDecoration().commonFormLabelStyle,
+                ),
                 const SizedBox(height: 6),
-                _Field(
+                CommonTextFormField(
                   controller: _description,
                   hint: 'Describe the task in detail...',
                   maxLines: 4,
                 ),
                 const SizedBox(height: 16),
-
-                _FormLabel('Assign to Department'),
-                const SizedBox(height: 6),
-                _DropDown<int>(
-                  value: _deptId,
-                  hint: 'Select department',
-                  items: lowerDepts
-                      .map(
-                        (d) =>
-                            DropdownMenuItem(value: d.id, child: Text(d.name)),
-                      )
-                      .toList(),
-                  onChanged: (v) => setState(() => _deptId = v),
+                CommonText(
+                  'Assign to Department',
+                  customeStyle: CommonDecoration().commonFormLabelStyle,
                 ),
+
+                const SizedBox(height: 6),
+
+                // CommonDropdown<Departments>(
+                //   hint: 'Select Department',
+
+                //   value: _selectedDepartment,
+
+                //   items: departments.map((dept) {
+                //     return DropdownItem<Departments>(
+                //       value: dept,
+                //       label: dept.name,
+                //     );
+                //   }).toList(),
+
+                //   onChanged: (Departments value) {
+                //     setState(() {
+                //       _selectedDepartment = value;
+                //     });
+
+                //     print(value.id);
+                //     print(value.name);
+                //   },
+                // ),
+                // _DropDown<int>(
+                //   value: _deptId,
+                //   hint: 'Select department',
+                //   items: lowerDepts
+                //       .map(
+                //         (d) =>
+                //             DropdownMenuItem(value: d.id, child: Text(d.name)),
+                //       )
+                //       .toList(),
+                //   onChanged: (v) => setState(() => _deptId = v),
+                // ),
+                const SizedBox(height: 16),
+                CommonText(
+                  'Priority',
+                  customeStyle: CommonDecoration().commonFormLabelStyle,
+                ),
+
+                const SizedBox(height: 6),
+                // CommonDropdown<String>(
+                //   hint: 'Select Priority',
+                //   value: _priority,
+                //   items: _priorities.map((priority) {
+                //     return DropdownItem<String>(
+                //       value: priority,
+                //       label: priority.toUpperCase(),
+                //     );
+                //   }).toList(),
+                //   onChanged: (String value) {
+                //     setState(() {
+                //       _priority = value;
+                //     });
+                //   },
+                // ),
+                // _DropDown<String>(
+                //   value: _priority,
+                //   items: _priorities
+                //       .map(
+                //         (p) => DropdownMenuItem(
+                //           value: p,
+                //           child: Text(p.toUpperCase()),
+                //         ),
+                //       )
+                //       .toList(),
+                //   onChanged: (v) => setState(() => _priority = v!),
+                // ),
                 const SizedBox(height: 16),
 
-                _FormLabel('Priority'),
-                const SizedBox(height: 6),
-                _DropDown<String>(
-                  value: _priority,
-                  items: _priorities
-                      .map(
-                        (p) => DropdownMenuItem(
-                          value: p,
-                          child: Text(p.toUpperCase()),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) => setState(() => _priority = v!),
+                CommonText(
+                  'Due Date (optional)',
+                  customeStyle: CommonDecoration().commonFormLabelStyle,
                 ),
-                const SizedBox(height: 16),
-
-                _FormLabel('Due Date (optional)'),
                 const SizedBox(height: 6),
                 GestureDetector(
                   onTap: () async {
@@ -1490,42 +1492,9 @@ class _CreateTicketViewState extends State<_CreateTicketView> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
 
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          ThemeColors.unifiedGradStart,
-                          ThemeColors.unifiedGradEnd,
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: ElevatedButton(
-                      onPressed: _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text(
-                        'Submit Ticket',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 24),
+                CommonButton(onTap: _submit, buttonName: 'Submit Ticket'),
               ],
             ),
           ),
@@ -1554,108 +1523,4 @@ class _CreateTicketViewState extends State<_CreateTicketView> {
       ),
     );
   }
-}
-
-class _FormLabel extends StatelessWidget {
-  final String text;
-  const _FormLabel(this.text);
-  @override
-  Widget build(BuildContext context) => Text(
-    text,
-    style: const TextStyle(
-      fontSize: 13,
-      fontWeight: FontWeight.w600,
-      color: ThemeColors.unifiedTextPrimary,
-    ),
-  );
-}
-
-class _Field extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final int maxLines;
-  const _Field({
-    required this.controller,
-    required this.hint,
-    this.maxLines = 1,
-  });
-
-  @override
-  Widget build(BuildContext context) => TextField(
-    controller: controller,
-    maxLines: maxLines,
-    style: const TextStyle(fontSize: 14, color: ThemeColors.unifiedTextPrimary),
-    decoration: InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(
-        color: ThemeColors.unifiedTextMuted,
-        fontSize: 14,
-      ),
-      filled: true,
-      fillColor: ThemeColors.unifiedInputBg,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: ThemeColors.unifiedBorder),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: ThemeColors.unifiedBorder),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(
-          color: ThemeColors.unifiedPrimary,
-          width: 2,
-        ),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    ),
-  );
-}
-
-class _DropDown<T> extends StatelessWidget {
-  final T? value;
-  final String? hint;
-  final List<DropdownMenuItem<T>> items;
-  final void Function(T?) onChanged;
-  const _DropDown({
-    this.value,
-    this.hint,
-    required this.items,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) => DropdownButtonFormField<T>(
-    value: value,
-    decoration: InputDecoration(
-      hintText: hint,
-      filled: true,
-      fillColor: ThemeColors.unifiedInputBg,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: ThemeColors.unifiedBorder),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: ThemeColors.unifiedBorder),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(
-          color: ThemeColors.unifiedPrimary,
-          width: 2,
-        ),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    ),
-    dropdownColor: ThemeColors.unifiedSurface,
-    style: const TextStyle(fontSize: 14, color: ThemeColors.unifiedTextPrimary),
-    icon: const Icon(
-      Icons.keyboard_arrow_down,
-      color: ThemeColors.unifiedTextMuted,
-    ),
-    items: items,
-    onChanged: onChanged,
-  );
 }

@@ -6,11 +6,11 @@ import 'package:tasknest/core/constant/validators.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 import 'package:tasknest/presentation/login/bloc/login_state.dart';
-import 'package:tasknest/presentation/login/widget/input_field.dart';
+import 'package:tasknest/core/theme/common_textForm_Field.dart';
 
 class ForgotPasswordCard extends StatelessWidget {
   ForgotPasswordCard({super.key});
-  
+
   final formKey = GlobalKey<FormState>();
   final emailController = TextEditingController();
 
@@ -90,7 +90,7 @@ class ForgotPasswordCard extends StatelessWidget {
                         icon: Icons.email_outlined,
                         validator: AuthValidators.validateEmail,
                       ),
-                      
+
                       const SizedBox(height: 24),
 
                       // RESET BUTTON
@@ -154,7 +154,7 @@ class ForgotPasswordCard extends StatelessWidget {
                         height: 48,
                         child: OutlinedButton(
                           onPressed: () {
-                             context.go(RouteNames.login);
+                            context.go(RouteNames.login);
                           },
                           style: OutlinedButton.styleFrom(
                             foregroundColor: ThemeColors.unifiedPrimary,
