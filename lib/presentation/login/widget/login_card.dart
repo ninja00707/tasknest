@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
-import 'package:tasknest/core/routes/routes_name.dart';
 import 'package:tasknest/core/constant/validators.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';

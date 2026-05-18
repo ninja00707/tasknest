@@ -27,6 +27,15 @@ class CommonDropdown<T> extends StatelessWidget {
     return DropdownButtonFormField<T>(
       value: value,
 
+      // IMPORTANT
+      hint: Text(
+        hint,
+        style: const TextStyle(
+          color: ThemeColors.unifiedTextMuted,
+          fontSize: 14,
+        ),
+      ),
+
       isExpanded: true,
 
       dropdownColor: ThemeColors.unifiedSurface,
@@ -61,13 +70,6 @@ class CommonDropdown<T> extends StatelessWidget {
       },
 
       decoration: InputDecoration(
-        hintText: hint,
-
-        hintStyle: const TextStyle(
-          color: ThemeColors.unifiedTextMuted,
-          fontSize: 14,
-        ),
-
         filled: true,
         fillColor: ThemeColors.unifiedInputBg,
 

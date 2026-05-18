@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/constant/validators.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_dropDown.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 import 'package:tasknest/presentation/login/bloc/login_event.dart';
 import 'package:tasknest/presentation/login/bloc/login_state.dart';
 import 'package:tasknest/core/theme/common_textForm_Field.dart';
 
+// ignore: must_be_immutable
 class SignupCard extends StatelessWidget {
   SignupCard({super.key, required this.onNavigate});
 
@@ -17,11 +20,9 @@ class SignupCard extends StatelessWidget {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  // In a real app these would likely be dropdowns populated from the API
-  final companyController = TextEditingController();
-  final departmentController = TextEditingController();
-  final roleController = TextEditingController();
-
+  Departments selectedDepartment = Departments(id: 0, name: 'HR');
+  Roles selectedRole = Roles(name: 'ceo', id: 0);
+  Company selectedCompany = Company(id: 0, name: 'UM Enterprises');
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
@@ -155,34 +156,47 @@ class SignupCard extends StatelessWidget {
                       const SizedBox(height: 12),
 
                       // COMPANY FIELD (Placeholder for Dropdown later)
-                      CommonTextFormField(
-                        hint: 'Company ID (e.g. 1 or 2)',
-                        controller: companyController,
-                        icon: Icons.business_outlined,
-                        validator: (val) => val == null || val.isEmpty
-                            ? 'Company is required'
-                            : null,
+                      CommonDropdown<Company>(
+                        hint: 'Select Company',
+                        items: CompanyNames.map((v) {
+                          return DropdownItem<Company>(value: v, label: v.name);
+                        }).toList(),
+
+                        onChanged: (Company value) {
+                          selectedCompany = value;
+                        },
                       ),
                       const SizedBox(height: 12),
 
-                      // DEPARTMENT FIELD (Placeholder for Dropdown later)
-                      CommonTextFormField(
-                        hint: 'Department ID',
-                        controller: departmentController,
-                        icon: Icons.group_outlined,
-                        validator: (val) => val == null || val.isEmpty
-                            ? 'Department is required'
-                            : null,
+                      CommonDropdown<Departments>(
+                        hint: 'Select Department',
+                        items: departments.map((dept) {
+                          return DropdownItem<Departments>(
+                            value: dept,
+                            label: dept.name,
+                          );
+                        }).toList(),
+
+                        onChanged: (Departments value) {
+                          selectedDepartment = value;
+                        },
                       ),
+
                       const SizedBox(height: 12),
+
                       // DEPARTMENT FIELD (Placeholder for Dropdown later)
-                      CommonTextFormField(
-                        hint: 'Role',
-                        controller: roleController,
-                        icon: Icons.verified_user,
-                        validator: (val) => val == null || val.isEmpty
-                            ? 'Role is required'
-                            : null,
+                      CommonDropdown<Roles>(
+                        hint: 'Select Role',
+                        items: roles.map((role) {
+                          return DropdownItem<Roles>(
+                            value: role,
+                            label: role.name,
+                          );
+                        }).toList(),
+
+                        onChanged: (Roles value) {
+                          selectedRole = value;
+                        },
                       ),
                       const SizedBox(height: 20),
                       // SIGN UP BUTTON
@@ -212,10 +226,11 @@ class SignupCard extends StatelessWidget {
                                           name: nameController.text,
                                           email: emailController.text,
                                           password: passwordController.text,
-                                          companyId: companyController.text,
-                                          departmentId:
-                                              departmentController.text,
-                                          role: roleController.text,
+                                          companyId: selectedCompany.id
+                                              .toString(),
+                                          departmentId: selectedDepartment.id
+                                              .toString(),
+                                          role: selectedRole.id.toString(),
                                         ),
                                       );
                                     }

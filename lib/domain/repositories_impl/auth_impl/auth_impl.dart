@@ -22,7 +22,11 @@ class AuthRepositoryImpl implements AuthRepository {
       password: password,
     );
 
+    // SAVE TOKEN
     await localStorageService.saveToken(result.token);
+
+    // SAVE USER
+    await localStorageService.saveUser(result.user);
 
     return result;
   }
@@ -45,7 +49,11 @@ class AuthRepositoryImpl implements AuthRepository {
       role: role,
     );
 
+    // SAVE TOKEN
     await localStorageService.saveToken(result.token);
+
+    // SAVE USER
+    await localStorageService.saveUser(result.user);
 
     return result;
   }

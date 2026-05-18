@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/core/theme/common_button.dart';
 import 'package:tasknest/core/theme/common_decoration.dart';
 import 'package:tasknest/core/theme/common_dropDown.dart';
 import 'package:tasknest/core/theme/common_text.dart';
 import 'package:tasknest/core/theme/common_textForm_Field.dart';
+import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
-import 'package:tasknest/presentation/dashboard/models.dart';
+import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
+import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
+import 'package:tasknest/presentation/login/bloc/login_event.dart';
 
 // ── Dashboard Screen ──────────────────────────────────────────────────────────
 class DashboardScreen extends StatefulWidget {
@@ -160,6 +163,243 @@ class _DashboardScreenState extends State<DashboardScreen> {
       default:
         return _DashboardView(state: loadedState);
     }
+  }
+}
+
+// ── Dashboard View ────────────────────────────────────────────────────────────
+class _DashboardView extends StatelessWidget {
+  final DashboardLoaded state;
+  const _DashboardView({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = state.stats;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: FutureBuilder<UserModel?>(
+        future: LocalStorageService().getUser(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(
+                color: ThemeColors.unifiedPrimary,
+              ),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}"));
+          }
+
+          if (!snapshot.hasData) {
+            return const Center(child: Text("No user found"));
+          }
+
+          final user = snapshot.data!;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Welcome Back ${user.name}',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: ThemeColors.unifiedTextPrimary,
+                        ),
+                      ),
+                      Text(
+                        'Your department ticket overview',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: ThemeColors.unifiedTextMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Refresh'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ThemeColors.unifiedPrimary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      context.read<AuthBloc>().add(LogoutEvent());
+                      LocalStorageService().clearToken();
+                      context.go("/login");
+                    },
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Logout'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ThemeColors.unifiedPrimary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Role info badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      ThemeColors.unifiedGradStart.withOpacity(0.1),
+                      ThemeColors.unifiedGradEnd.withOpacity(0.1),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: ThemeColors.unifiedBorder),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: ThemeColors.unifiedPrimary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Manager · Finance Department · UM Enterprises',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: ThemeColors.unifiedTextPrimary,
+                      ),
+                    ),
+                    const Spacer(),
+                    const Text(
+                      'Full dept visibility',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: ThemeColors.unifiedTextMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Stat cards grid
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final cols = constraints.maxWidth > 500 ? 4 : 4;
+                  return GridView.count(
+                    crossAxisCount: cols,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.5,
+                    children: [
+                      _StatCard(
+                        label: 'Total',
+                        count: s.total,
+                        color: ThemeColors.unifiedAccent,
+                        icon: Icons.inbox_outlined,
+                      ),
+                      _StatCard(
+                        label: 'Open',
+                        count: s.open,
+                        color: ThemeColors.unifiedSecondary,
+                        icon: Icons.radio_button_unchecked,
+                      ),
+                      _StatCard(
+                        label: 'In Progress',
+                        count: s.inProgress,
+                        color: ThemeColors.unifiedWarning,
+                        icon: Icons.pending_outlined,
+                      ),
+                      _StatCard(
+                        label: 'Completed',
+                        count: s.completed,
+                        color: ThemeColors.unifiedPrimary,
+                        icon: Icons.check_circle_outline,
+                      ),
+                      _StatCard(
+                        label: 'Closed',
+                        count: s.closed,
+                        color: ThemeColors.unifiedTextMuted,
+                        icon: Icons.lock_outline,
+                      ),
+                      _StatCard(
+                        label: 'Urgent',
+                        count: s.urgent,
+                        color: ThemeColors.unifiedDanger,
+                        icon: Icons.warning_amber_rounded,
+                      ),
+                      _StatCard(
+                        label: 'High Pri.',
+                        count: s.highPriority,
+                        color: const Color(0xFFEA580C),
+                        icon: Icons.priority_high,
+                      ),
+                      _StatCard(
+                        label: 'Overdue',
+                        count: s.overdue,
+                        color: ThemeColors.unifiedDanger,
+                        icon: Icons.access_time_rounded,
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // Recent tickets
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Recent Tickets',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: ThemeColors.unifiedTextPrimary,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {},
+                    child: const Text(
+                      'View all',
+                      style: TextStyle(color: ThemeColors.unifiedSecondary),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ...state.tickets.take(5).map((t) => _TicketCard(ticket: t)),
+            ],
+          );
+        },
+      ),
+    );
   }
 }
 
@@ -491,200 +731,6 @@ class _BotItem extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ── Dashboard View ────────────────────────────────────────────────────────────
-class _DashboardView extends StatelessWidget {
-  final DashboardLoaded state;
-  const _DashboardView({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final s = state.stats;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Manager Dashboard',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: ThemeColors.unifiedTextPrimary,
-                    ),
-                  ),
-                  Text(
-                    'Your department ticket overview',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: ThemeColors.unifiedTextMuted,
-                    ),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.refresh_rounded, size: 16),
-                label: const Text('Refresh'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: ThemeColors.unifiedPrimary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Role info badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  ThemeColors.unifiedGradStart.withOpacity(0.1),
-                  ThemeColors.unifiedGradEnd.withOpacity(0.1),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: ThemeColors.unifiedBorder),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: ThemeColors.unifiedPrimary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Manager · Finance Department · UM Enterprises',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: ThemeColors.unifiedTextPrimary,
-                  ),
-                ),
-                const Spacer(),
-                const Text(
-                  'Full dept visibility',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: ThemeColors.unifiedTextMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Stat cards grid
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final cols = constraints.maxWidth > 500 ? 4 : 2;
-              return GridView.count(
-                crossAxisCount: cols,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.35,
-                children: [
-                  _StatCard(
-                    label: 'Total',
-                    count: s.total,
-                    color: ThemeColors.unifiedAccent,
-                    icon: Icons.inbox_outlined,
-                  ),
-                  _StatCard(
-                    label: 'Open',
-                    count: s.open,
-                    color: ThemeColors.unifiedSecondary,
-                    icon: Icons.radio_button_unchecked,
-                  ),
-                  _StatCard(
-                    label: 'In Progress',
-                    count: s.inProgress,
-                    color: ThemeColors.unifiedWarning,
-                    icon: Icons.pending_outlined,
-                  ),
-                  _StatCard(
-                    label: 'Completed',
-                    count: s.completed,
-                    color: ThemeColors.unifiedPrimary,
-                    icon: Icons.check_circle_outline,
-                  ),
-                  _StatCard(
-                    label: 'Closed',
-                    count: s.closed,
-                    color: ThemeColors.unifiedTextMuted,
-                    icon: Icons.lock_outline,
-                  ),
-                  _StatCard(
-                    label: 'Urgent',
-                    count: s.urgent,
-                    color: ThemeColors.unifiedDanger,
-                    icon: Icons.warning_amber_rounded,
-                  ),
-                  _StatCard(
-                    label: 'High Pri.',
-                    count: s.highPriority,
-                    color: const Color(0xFFEA580C),
-                    icon: Icons.priority_high,
-                  ),
-                  _StatCard(
-                    label: 'Overdue',
-                    count: s.overdue,
-                    color: ThemeColors.unifiedDanger,
-                    icon: Icons.access_time_rounded,
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 24),
-
-          // Recent tickets
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Recent Tickets',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: ThemeColors.unifiedTextPrimary,
-                ),
-              ),
-              TextButton(
-                onPressed: () {},
-                child: const Text(
-                  'View all',
-                  style: TextStyle(color: ThemeColors.unifiedSecondary),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...state.tickets.take(5).map((t) => _TicketCard(ticket: t)),
-        ],
       ),
     );
   }
@@ -1293,14 +1339,10 @@ class _CreateTicketView extends StatefulWidget {
 class _CreateTicketViewState extends State<_CreateTicketView> {
   final _title = TextEditingController();
   final _description = TextEditingController();
-  String _priority = 'medium';
+  Priorities priority = Priorities(name: 'medium', id: 0);
   int? _deptId;
   String? _dueDate;
-  Departments _selectedDepartment = Departments(
-    id: 0,
-    name: 'Select Department',
-  );
-  final _priorities = ['low', 'medium', 'high', 'urgent'];
+  Departments _selectedDepartment = Departments(id: 0, name: 'HR');
 
   @override
   Widget build(BuildContext context) {
@@ -1371,38 +1413,22 @@ class _CreateTicketViewState extends State<_CreateTicketView> {
 
                 const SizedBox(height: 6),
 
-                // CommonDropdown<Departments>(
-                //   hint: 'Select Department',
+                CommonDropdown<Departments>(
+                  hint: 'Select Department',
+                  items: departments.map((dept) {
+                    return DropdownItem<Departments>(
+                      value: dept,
+                      label: dept.name,
+                    );
+                  }).toList(),
 
-                //   value: _selectedDepartment,
+                  onChanged: (Departments value) {
+                    setState(() {
+                      _selectedDepartment = value;
+                    });
+                  },
+                ),
 
-                //   items: departments.map((dept) {
-                //     return DropdownItem<Departments>(
-                //       value: dept,
-                //       label: dept.name,
-                //     );
-                //   }).toList(),
-
-                //   onChanged: (Departments value) {
-                //     setState(() {
-                //       _selectedDepartment = value;
-                //     });
-
-                //     print(value.id);
-                //     print(value.name);
-                //   },
-                // ),
-                // _DropDown<int>(
-                //   value: _deptId,
-                //   hint: 'Select department',
-                //   items: lowerDepts
-                //       .map(
-                //         (d) =>
-                //             DropdownMenuItem(value: d.id, child: Text(d.name)),
-                //       )
-                //       .toList(),
-                //   onChanged: (v) => setState(() => _deptId = v),
-                // ),
                 const SizedBox(height: 16),
                 CommonText(
                   'Priority',
@@ -1410,21 +1436,21 @@ class _CreateTicketViewState extends State<_CreateTicketView> {
                 ),
 
                 const SizedBox(height: 6),
-                // CommonDropdown<String>(
-                //   hint: 'Select Priority',
-                //   value: _priority,
-                //   items: _priorities.map((priority) {
-                //     return DropdownItem<String>(
-                //       value: priority,
-                //       label: priority.toUpperCase(),
-                //     );
-                //   }).toList(),
-                //   onChanged: (String value) {
-                //     setState(() {
-                //       _priority = value;
-                //     });
-                //   },
-                // ),
+                CommonDropdown<Priorities>(
+                  hint: 'Select Priority',
+
+                  items: priorities.map((dept) {
+                    return DropdownItem<Priorities>(
+                      value: dept,
+                      label: dept.name,
+                    );
+                  }).toList(),
+                  onChanged: (Priorities value) {
+                    setState(() {
+                      priority = value;
+                    });
+                  },
+                ),
                 // _DropDown<String>(
                 //   value: _priority,
                 //   items: _priorities
@@ -1494,7 +1520,7 @@ class _CreateTicketViewState extends State<_CreateTicketView> {
                 ),
 
                 const SizedBox(height: 24),
-                CommonButton(onTap: _submit, buttonName: 'Submit Ticket'),
+                // CommonButton(onTap: _submit, buttonName: 'Submit Ticket'),
               ],
             ),
           ),
@@ -1503,24 +1529,24 @@ class _CreateTicketViewState extends State<_CreateTicketView> {
     );
   }
 
-  void _submit() {
-    if (_title.text.isEmpty || _description.text.isEmpty || _deptId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fill all required fields'),
-          backgroundColor: ThemeColors.unifiedDanger,
-        ),
-      );
-      return;
-    }
-    context.read<DashboardBloc>().add(
-      CreateTicketEvent(
-        title: _title.text.trim(),
-        description: _description.text.trim(),
-        priority: _priority,
-        assignedDeptId: _deptId!,
-        dueDate: _dueDate,
-      ),
-    );
-  }
+  // void _submit() {
+  //   if (_title.text.isEmpty || _description.text.isEmpty || _deptId == null) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(
+  //         content: Text('Please fill all required fields'),
+  //         backgroundColor: ThemeColors.unifiedDanger,
+  //       ),
+  //     );
+  //     return;
+  //   }
+  //   context.read<DashboardBloc>().add(
+  //     CreateTicketEvent(
+  //       title: _title.text.trim(),
+  //       description: _description.text.trim(),
+  //       priority: priority,
+  //       assignedDeptId: _deptId!,
+  //       dueDate: _dueDate,
+  //     ),
+  //   );
+  // }
 }

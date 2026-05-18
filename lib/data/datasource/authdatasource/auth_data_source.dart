@@ -48,9 +48,10 @@ class AuthRemoteDataSource {
           'name': name,
           'email': email,
           'password_hash': password,
-          'company_id': int.tryParse(companyId),
-          'department_id': int.tryParse(departmentId),
-          'role_id': 1,
+          'company_id': companyId,
+          'department_id': departmentId,
+          'role_id': role,
+          'is_active': true,
         },
       );
 
