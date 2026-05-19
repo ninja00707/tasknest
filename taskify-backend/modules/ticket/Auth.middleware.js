@@ -13,13 +13,14 @@ const authenticate = async (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         // Attach full user from DB (so we always have fresh role/dept)
+        // Use LEFT JOIN for departments to handle cases where department_id is NULL
         const result = await pool.query(
             `SELECT u.id, u.name, u.email, u.department_id, u.company_id,
-              r.name AS role, d.code AS dept_code, d.tier AS dept_tier,
-              d.parent_id AS dept_parent_id
+              r.name AS role, COALESCE(d.code, '') AS dept_code, COALESCE(d.tier, 0) AS dept_tier,
+              COALESCE(d.parent_id, NULL) AS dept_parent_id
        FROM users u
        JOIN roles r ON r.id = u.role_id
-       JOIN departments d ON d.id = u.department_id
+       LEFT JOIN departments d ON d.id = u.department_id
        WHERE u.id = $1 AND u.is_active = TRUE`,
             [decoded.id]
         );

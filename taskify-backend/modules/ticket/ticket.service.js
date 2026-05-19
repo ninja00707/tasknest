@@ -23,6 +23,11 @@ class TicketService {
       throw { statusCode: 400, message: 'title, description and assignedDeptId are required' };
     }
 
+    // Non-CEO users can only create tickets for their own department
+    if (user.role !== 'ceo' && Number(assignedDeptId) !== Number(user.department_id)) {
+      throw { statusCode: 403, message: 'Only CEO can create tickets for other departments' };
+    }
+
     const ticket = await ticketRepo.createTicket({
       title,
       description,
@@ -55,15 +60,14 @@ class TicketService {
     }
 
     if (newStatus === 'closed') {
-      const canClose =
-        user.role === 'ceo' ||
-        user.role === 'manager' ||
-        ticket.assigned_to_id === user.id;
-
-      if (!canClose) {
+      // Only the resolver (assigned_to_id) can close the ticket
+      const isResolver = ticket.assigned_to_id === user.id;
+      const isCeo = user.role === 'ceo';
+      
+      if (!isResolver && !isCeo) {
         throw {
           statusCode: 403,
-          message: 'Only the resolver or manager can close a ticket',
+          message: 'Only the person assigned to this ticket can close it',
         };
       }
     }
@@ -122,6 +126,11 @@ class TicketService {
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
+    // Prevent transferring open tickets
+    if (ticket.status === 'open') {
+      throw { statusCode: 400, message: 'Cannot transfer open tickets. Assign the ticket first.' };
+    }
+
     if (Number(ticket.assigned_dept_id) === Number(targetDeptId)) {
       throw { statusCode: 400, message: 'Ticket is already in that department' };
     }
@@ -177,6 +186,17 @@ class TicketService {
 
   async getSentTickets(user) {
     return await ticketRepo.getSentTicketsByDepartment(user.department_id);
+  }
+
+  async getTicketLogs(ticketId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    return await ticketRepo.getTicketLogs(ticketId);
+  }
+
+  async getAnalyticsByDepartment() {
+    return await ticketRepo.getAnalyticsByDepartment();
   }
 }
 

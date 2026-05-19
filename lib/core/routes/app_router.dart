@@ -3,6 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/routes/routes_name.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/dashboard/dashboard_screen.dart.dart';
+import 'package:tasknest/presentation/dashboard/screens/manager_analytics_screen.dart';
+import 'package:tasknest/presentation/dashboard/screens/ceo_analytics_screen.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_detail_screen.dart';
 
 import 'package:tasknest/presentation/login/login_view.dart';
 
@@ -40,6 +43,24 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: RouteNames.dashboard,
       builder: (context, state) => const DashboardScreen(),
+    ),
+
+    GoRoute(
+      path: '/analytics/manager',
+      builder: (context, state) => const ManagerAnalyticsScreen(),
+    ),
+
+    GoRoute(
+      path: '/analytics/ceo',
+      builder: (context, state) => const CeoAnalyticsScreen(),
+    ),
+
+    GoRoute(
+      path: '/ticket/:id',
+      builder: (context, state) {
+        final id = int.parse(state.pathParameters['id']!);
+        return TicketDetailScreen(ticketId: id);
+      },
     ),
   ],
 );

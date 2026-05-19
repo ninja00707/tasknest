@@ -358,6 +358,49 @@ class TicketRepository {
 
     return result.rows;
   }
+
+  // ── Get ticket logs/history ─────────────────────────────────────────────
+  async getTicketLogs(ticketId) {
+    const result = await pool.query(`
+      SELECT 
+        tl.id, tl.ticket_id, tl.action, tl.old_value, tl.new_value, tl.note, tl.created_at,
+        u.id AS acted_by_id,
+        u.name AS acted_by_name,
+        d.code AS dept_code
+      FROM ticket_logs tl
+      LEFT JOIN users u ON u.id = tl.acted_by_id
+      LEFT JOIN departments d ON d.id = u.department_id
+      WHERE tl.ticket_id = $1
+      ORDER BY tl.created_at ASC
+    `, [ticketId]);
+
+    return result.rows;
+  }
+
+  // ── Get analytics grouped by department ──────────────────────────────────
+  async getAnalyticsByDepartment() {
+    const result = await pool.query(`
+      SELECT
+        d.id AS dept_id,
+        d.code AS dept_code,
+        d.name AS dept_name,
+        COUNT(t.id)                                          AS total,
+        COUNT(t.id) FILTER (WHERE t.status = 'open')        AS open,
+        COUNT(t.id) FILTER (WHERE t.status = 'in_progress') AS in_progress,
+        COUNT(t.id) FILTER (WHERE t.status = 'completed')   AS completed,
+        COUNT(t.id) FILTER (WHERE t.status = 'closed')      AS closed,
+        COUNT(t.id) FILTER (WHERE t.priority = 'urgent')    AS urgent,
+        COUNT(t.id) FILTER (WHERE t.priority = 'high')      AS high_priority,
+        COUNT(t.id) FILTER (WHERE t.due_date < NOW() AND t.status NOT IN ('completed','closed')) AS overdue,
+        ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(t.closed_at, t.updated_at) - t.created_at)) / 3600)::numeric, 2) AS avg_resolution_hours
+      FROM departments d
+      LEFT JOIN tickets t ON t.assigned_dept_id = d.id
+      GROUP BY d.id, d.code, d.name
+      ORDER BY d.name ASC
+    `);
+
+    return result.rows;
+  }
 }
 
 module.exports = new TicketRepository();
