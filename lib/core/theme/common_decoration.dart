@@ -55,7 +55,11 @@ class CommonDecoration {
   }
 
   TextStyle textStyleButton() {
-    return const TextStyle(fontSize: 16, fontWeight: FontWeight.w700);
+    return const TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w700,
+      color: Colors.white,
+    );
   }
 
   BoxDecoration boxDecorationWithGradient() {
@@ -98,5 +102,10 @@ class CommonDecoration {
     fontSize: 13,
     fontWeight: FontWeight.w600,
     color: ThemeColors.unifiedTextPrimary,
+  );
+
+  TextStyle commonFontstyle = const TextStyle(
+    fontSize: 13,
+    color: ThemeColors.unifiedTextMuted,
   );
 }
