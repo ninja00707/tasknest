@@ -8,6 +8,8 @@ import 'package:tasknest/core/theme/common_button.dart';
 import 'package:tasknest/core/theme/common_decoration.dart';
 import 'package:tasknest/core/theme/common_text.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 
 import 'package:tasknest/presentation/dashboard/widgets/state_card.dart';
@@ -93,7 +95,9 @@ class DashboardView extends StatelessWidget {
                   Spacer(),
                   CommonButton(
                     width: 150,
-                    onTap: () {},
+                    onTap: () {
+                      context.read<DashboardBloc>().add(LoadDashboard());
+                    },
                     buttonName: 'Refresh',
                     icon: Icon(Icons.refresh_rounded),
                   ),

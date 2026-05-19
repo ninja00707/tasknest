@@ -72,68 +72,115 @@ class TicketActions extends StatelessWidget {
   }
 
   void _showTransferDialog(BuildContext context, TicketModel ticket) {
+    // BLOCK OPEN TICKETS
+    if (ticket.isOpen) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Open tickets cannot be transferred. Please assign or start progress first.',
+          ),
+          backgroundColor: ThemeColors.unifiedDanger,
+        ),
+      );
+
+      return;
+    }
+
     final bloc = context.read<DashboardBloc>();
     final state = bloc.state;
+
     if (state is! DashboardLoaded) return;
 
-    final depts = state.departments.where((d) => d.tier == 'lower').toList();
-    int? selectedDeptId;
+    final depts = state.departments
+        .where((d) => d.id != ticket.assignedDeptId)
+        .toList();
+
+    if (depts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No departments available for transfer')),
+      );
+
+      return;
+    }
+
+    int selectedDeptId = depts.first.id;
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text(
-          'Transfer Ticket',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: ThemeColors.unifiedTextPrimary,
-          ),
-        ),
-        content: StatefulBuilder(
+      builder: (dialogContext) {
+        return StatefulBuilder(
           builder: (context, setState) {
-            return DropdownButtonFormField<int>(
-              decoration: InputDecoration(
-                labelText: 'Target Department',
-                filled: true,
-                fillColor: ThemeColors.unifiedInputBg,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(
-                    color: ThemeColors.unifiedBorder,
-                  ),
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+
+              title: const Text(
+                'Transfer Ticket',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: ThemeColors.unifiedTextPrimary,
                 ),
               ),
-              items: depts
-                  .map(
-                    (d) => DropdownMenuItem(value: d.id, child: Text(d.name)),
-                  )
-                  .toList(),
-              onChanged: (v) => setState(() => selectedDeptId = v),
+
+              content: DropdownButtonFormField<int>(
+                value: selectedDeptId,
+
+                decoration: InputDecoration(
+                  labelText: 'Target Department',
+                  filled: true,
+                  fillColor: ThemeColors.unifiedInputBg,
+
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: ThemeColors.unifiedBorder,
+                    ),
+                  ),
+                ),
+
+                items: depts.map((d) {
+                  return DropdownMenuItem<int>(
+                    value: d.id,
+                    child: Text(d.name),
+                  );
+                }).toList(),
+
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      selectedDeptId = value;
+                    });
+                  }
+                },
+              ),
+
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+
+                ElevatedButton(
+                  onPressed: () {
+                    bloc.add(TransferTicket(ticket.id, selectedDeptId));
+
+                    Navigator.pop(dialogContext);
+                  },
+
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ThemeColors.unifiedPrimary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                  ),
+
+                  child: const Text('Transfer'),
+                ),
+              ],
             );
           },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: selectedDeptId == null
-                ? null
-                : () {
-                    bloc.add(TransferTicket(ticket.id, selectedDeptId!));
-                    Navigator.pop(context);
-                  },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: ThemeColors.unifiedPrimary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-            child: const Text('Transfer'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
