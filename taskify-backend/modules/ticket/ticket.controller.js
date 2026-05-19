@@ -1,105 +1,146 @@
 const ticketService = require('./ticket.service');
 
 class TicketController {
-
-  // GET /api/tickets/stats
   async getStats(req, res, next) {
     try {
       const stats = await ticketService.getDashboardStats(req.user);
       res.json({ success: true, data: stats });
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 
-  // GET /api/tickets/departments
   async getDepartments(req, res, next) {
     try {
       const depts = await ticketService.getDepartments();
       res.json({ success: true, data: depts });
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 
-  // GET /api/tickets?status=&priority=&page=&limit=
+  async getEmployees(req, res, next) {
+    try {
+      const employees = await ticketService.getEmployees(req.user, req.query.departmentId);
+      res.json({ success: true, data: employees });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async getTickets(req, res, next) {
     try {
       const tickets = await ticketService.getTickets(req.user, req.query);
       res.json({ success: true, data: tickets });
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 
-  // GET /api/tickets/:id
   async getTicket(req, res, next) {
     try {
       const ticket = await ticketService.getTicket(req.params.id, req.user);
       res.json({ success: true, data: ticket });
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 
-  // POST /api/tickets
   async createTicket(req, res, next) {
     try {
       const ticket = await ticketService.createTicket(req.body, req.user);
       res.status(201).json({ success: true, data: ticket });
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 
-  // PATCH /api/tickets/:id/status
   async updateStatus(req, res, next) {
     try {
-      const ticket = await ticketService.updateStatus(req.params.id, req.body.status, req.user);
+      const ticket = await ticketService.updateStatus(
+        req.params.id,
+        req.body.status,
+        req.user
+      );
       res.json({ success: true, data: ticket });
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 
-  // PATCH /api/tickets/:id/self-assign
   async selfAssign(req, res, next) {
     try {
       const ticket = await ticketService.selfAssign(req.params.id, req.user);
       res.json({ success: true, data: ticket });
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 
-  // PATCH /api/tickets/:id/assign  { employeeId }
   async assignToEmployee(req, res, next) {
     try {
       const ticket = await ticketService.assignToEmployee(
-        req.params.id, req.body.employeeId, req.user
+        req.params.id,
+        req.body.employeeId,
+        req.user
       );
       res.json({ success: true, data: ticket });
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 
-  // PATCH /api/tickets/:id/transfer  { targetDeptId }
   async transferTicket(req, res, next) {
     try {
       const ticket = await ticketService.transferTicket(
-        req.params.id, req.body.targetDeptId, req.user
+        req.params.id,
+        req.body.targetDeptId,
+        req.user
       );
       res.json({ success: true, data: ticket });
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 
-  // PATCH /api/tickets/:id/reopen
   async reopenTicket(req, res, next) {
     try {
       const ticket = await ticketService.reopenTicket(req.params.id, req.user);
       res.json({ success: true, data: ticket });
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 
-  // GET /api/tickets/:id/comments
   async getComments(req, res, next) {
     try {
       const comments = await ticketService.getComments(req.params.id, req.user);
       res.json({ success: true, data: comments });
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 
-  // POST /api/tickets/:id/comments  { message }
   async addComment(req, res, next) {
     try {
-      const comment = await ticketService.addComment(req.params.id, req.body.message, req.user);
+      const comment = await ticketService.addComment(
+        req.params.id,
+        req.body.message,
+        req.user
+      );
       res.status(201).json({ success: true, data: comment });
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getSentTickets(req, res, next) {
+    try {
+      const tickets = await ticketService.getSentTickets(req.user);
+      res.json({ success: true, data: tickets });
+    } catch (err) {
+      next(err);
+    }
   }
 }
 

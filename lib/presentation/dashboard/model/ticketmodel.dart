@@ -68,7 +68,6 @@ class TicketModel {
       !isClosed &&
       !isCompleted;
 
-  // Can creator reopen? (once, within 48h)
   bool canReopenBy(int userId) {
     if (reopenCount >= 1) return false;
     if (!isClosed && !isCompleted) return false;
@@ -142,5 +141,41 @@ class DepartmentModel {
     code: j['code'],
     tier: j['tier'],
     parentId: j['parent_id'],
+  );
+}
+
+class EmployeeModel {
+  final int id;
+  final String name;
+  final String email;
+  final int departmentId;
+  final int companyId;
+  final bool isActive;
+  final String role;
+  final String deptCode;
+  final String deptName;
+
+  const EmployeeModel({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.departmentId,
+    required this.companyId,
+    required this.isActive,
+    required this.role,
+    required this.deptCode,
+    required this.deptName,
+  });
+
+  factory EmployeeModel.fromJson(Map<String, dynamic> j) => EmployeeModel(
+    id: j['id'],
+    name: j['name'],
+    email: j['email'],
+    departmentId: j['department_id'],
+    companyId: j['company_id'],
+    isActive: j['is_active'] ?? true,
+    role: j['role'] ?? '',
+    deptCode: j['dept_code'] ?? '',
+    deptName: j['dept_name'] ?? '',
   );
 }

@@ -1,23 +1,51 @@
 const pool = require('../../database/db');
 
 class TicketRepository {
+  async getTicketDetails(ticketId) {
+    const result = await pool.query(`
+      SELECT
+        t.id, t.title, t.description, t.status, t.priority,
+        t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
+        t.transferred_from, t.transferred_at,
+        t.due_date, t.created_at, t.updated_at,
+        t.closed_at, t.reopened_at, t.reopen_count,
+
+        creator.id   AS created_by_id,
+        creator.name AS created_by_name,
+        cd.code      AS created_by_dept_code,
+        cd.name      AS created_by_dept_name,
+
+        ad.id        AS assigned_dept_id,
+        ad.code      AS assigned_dept_code,
+        ad.name      AS assigned_dept_name,
+
+        assignee.id   AS assigned_to_id,
+        assignee.name AS assigned_to_name,
+
+        tf.code AS transferred_from_code
+      FROM tickets t
+      JOIN users creator       ON creator.id = t.created_by_id
+      JOIN departments cd      ON cd.id = t.created_by_dept
+      JOIN departments ad      ON ad.id = t.assigned_dept_id
+      LEFT JOIN users assignee ON assignee.id = t.assigned_to_id
+      LEFT JOIN departments tf ON tf.id = t.transferred_from
+      WHERE t.id = $1
+    `, [ticketId]);
+
+    return result.rows[0] || null;
+  }
 
   // ── Get tickets visible to this user based on role ────────────────────────
   async getVisibleTickets(user, filters = {}) {
     const { status, priority, page = 1, limit = 20 } = filters;
-    const offset = (page - 1) * limit;
+    const offset = (Number(page) - 1) * Number(limit);
     const params = [];
     let whereClause = '';
 
     if (user.role === 'ceo') {
       // CEO sees everything
       whereClause = 'WHERE 1=1';
-    } else if (user.role === 'manager') {
-      // Manager sees all tickets assigned to their department
-      params.push(user.department_id);
-      whereClause = `WHERE t.assigned_dept_id = $${params.length}`;
     } else {
-      // Employee sees only tickets assigned to their department
       params.push(user.department_id);
       whereClause = `WHERE t.assigned_dept_id = $${params.length}`;
     }
@@ -31,13 +59,15 @@ class TicketRepository {
       whereClause += ` AND t.priority = $${params.length}`;
     }
 
-    params.push(limit, offset);
+    params.push(Number(limit), offset);
 
     const query = `
       SELECT
         t.id, t.title, t.description, t.status, t.priority,
+        t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
+        t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
-        t.reopen_count, t.closed_at, t.transferred_at,
+        t.reopen_count, t.closed_at,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -97,27 +127,19 @@ class TicketRepository {
 
   // ── Get single ticket (with permission check) ─────────────────────────────
   async getTicketById(ticketId, user) {
-    const result = await pool.query(`
-      SELECT t.*,
-        creator.name  AS created_by_name,
-        cd.code       AS created_by_dept_code,
-        ad.code       AS assigned_dept_code,
-        ad.name       AS assigned_dept_name,
-        assignee.name AS assigned_to_name
-      FROM tickets t
-      JOIN users       creator  ON creator.id = t.created_by_id
-      JOIN departments cd       ON cd.id      = t.created_by_dept
-      JOIN departments ad       ON ad.id      = t.assigned_dept_id
-      LEFT JOIN users  assignee ON assignee.id = t.assigned_to_id
-      WHERE t.id = $1
-    `, [ticketId]);
+    const ticket = await this.getTicketDetails(ticketId);
 
-    if (result.rows.length === 0) return null;
+    if (!ticket) return null;
 
-    const ticket = result.rows[0];
+    if (user.role === 'ceo') {
+      return ticket;
+    }
 
-    // Visibility check
-    if (user.role !== 'ceo' && ticket.assigned_dept_id !== user.department_id) {
+    const isAssignedDept = ticket.assigned_dept_id === user.department_id;
+    const isTransferredFromUsersDept =
+      ticket.transferred_at && ticket.created_by_dept === user.department_id;
+
+    if (!isAssignedDept && !isTransferredFromUsersDept) {
       return { forbidden: true };
     }
 
@@ -130,23 +152,22 @@ class TicketRepository {
       INSERT INTO tickets
         (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, status)
       VALUES ($1, $2, $3, $4, $5, $6, $7, 'open')
-      RETURNING *
+      RETURNING id
     `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id]);
 
-    return result.rows[0];
+    return await this.getTicketDetails(result.rows[0].id);
   }
 
   // ── Update ticket status ─────────────────────────────────────────────────
   async updateStatus(ticketId, status, user) {
-    const result = await pool.query(`
+    await pool.query(`
       UPDATE tickets SET status = $1,
         closed_by_id = CASE WHEN $1 = 'closed' THEN $2 ELSE closed_by_id END,
         closed_at    = CASE WHEN $1 = 'closed' THEN NOW() ELSE closed_at END
       WHERE id = $3
-      RETURNING *
     `, [status, user.id, ticketId]);
 
-    return result.rows[0];
+    return await this.getTicketDetails(ticketId);
   }
 
   // ── Self-assign open ticket (employee only) ───────────────────────────────
@@ -155,10 +176,12 @@ class TicketRepository {
       UPDATE tickets
       SET assigned_to_id = $1, status = 'in_progress'
       WHERE id = $2 AND status = 'open' AND assigned_to_id IS NULL
-      RETURNING *
+      RETURNING id
     `, [userId, ticketId]);
 
-    return result.rows[0];
+    if (result.rows.length === 0) return null;
+
+    return await this.getTicketDetails(ticketId);
   }
 
   // ── Manager assigns ticket to employee ───────────────────────────────────
@@ -167,18 +190,24 @@ class TicketRepository {
     const empCheck = await pool.query(
       `SELECT id FROM users WHERE id = $1 AND department_id = (
          SELECT department_id FROM users WHERE id = $2
-       )`, [employeeId, managerId]
+       )`,
+      [employeeId, managerId]
     );
+
     if (empCheck.rows.length === 0) {
       throw new Error('Employee not in same department');
     }
 
     const result = await pool.query(`
-      UPDATE tickets SET assigned_to_id = $1, status = 'in_progress'
-      WHERE id = $2 RETURNING *
+      UPDATE tickets
+      SET assigned_to_id = $1, status = 'in_progress'
+      WHERE id = $2
+      RETURNING id
     `, [employeeId, ticketId]);
 
-    return result.rows[0];
+    if (result.rows.length === 0) return null;
+
+    return await this.getTicketDetails(ticketId);
   }
 
   // ── Transfer ticket to another department ─────────────────────────────────
@@ -191,10 +220,12 @@ class TicketRepository {
           assigned_to_id     = NULL,
           status             = 'open'
       WHERE id = $2
-      RETURNING *
+      RETURNING id
     `, [targetDeptId, ticketId]);
 
-    return result.rows[0];
+    if (result.rows.length === 0) return null;
+
+    return await this.getTicketDetails(ticketId);
   }
 
   // ── Reopen ticket (creator, within 48h, once only) ────────────────────────
@@ -217,10 +248,12 @@ class TicketRepository {
       UPDATE tickets
       SET status = 'open', reopened_at = NOW(), reopen_count = reopen_count + 1, closed_by_id = NULL, closed_at = NULL
       WHERE id = $1
-      RETURNING *
+      RETURNING id
     `, [ticketId]);
 
-    return result.rows[0];
+    if (result.rows.length === 0) return null;
+
+    return await this.getTicketDetails(ticketId);
   }
 
   // ── Get ticket comments ───────────────────────────────────────────────────
@@ -260,6 +293,69 @@ class TicketRepository {
     const result = await pool.query(
       `SELECT id, name, code, tier, parent_id FROM departments ORDER BY tier, name`
     );
+    return result.rows;
+  }
+
+  // ── Get employees in a department ────────────────────────────────────────
+  async getEmployeesByDepartment(departmentId) {
+    const result = await pool.query(`
+      SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.department_id,
+        u.company_id,
+        u.is_active,
+        r.name AS role,
+        d.code AS dept_code,
+        d.name AS dept_name
+      FROM users u
+      JOIN roles r ON r.id = u.role_id
+      JOIN departments d ON d.id = u.department_id
+      WHERE u.department_id = $1
+        AND u.is_active = TRUE
+        AND r.name = 'employee'
+      ORDER BY u.name ASC
+    `, [departmentId]);
+
+    return result.rows;
+  }
+
+  // ── Tickets created by this department and transferred out ───────────────
+  async getSentTicketsByDepartment(departmentId) {
+    const result = await pool.query(`
+      SELECT
+        t.id, t.title, t.description, t.status, t.priority,
+        t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
+        t.transferred_from, t.transferred_at,
+        t.due_date, t.created_at, t.updated_at,
+        t.reopen_count, t.closed_at,
+
+        creator.id   AS created_by_id,
+        creator.name AS created_by_name,
+        cd.code      AS created_by_dept_code,
+        cd.name      AS created_by_dept_name,
+
+        ad.id        AS assigned_dept_id,
+        ad.code      AS assigned_dept_code,
+        ad.name      AS assigned_dept_name,
+
+        assignee.id   AS assigned_to_id,
+        assignee.name AS assigned_to_name,
+
+        tf.code AS transferred_from_code
+      FROM tickets t
+      JOIN users       creator  ON creator.id  = t.created_by_id
+      JOIN departments cd       ON cd.id        = t.created_by_dept
+      JOIN departments ad       ON ad.id        = t.assigned_dept_id
+      LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
+      LEFT JOIN departments tf  ON tf.id        = t.transferred_from
+      WHERE t.created_by_dept = $1
+        AND t.assigned_dept_id <> $1
+        AND t.transferred_at IS NOT NULL
+      ORDER BY t.transferred_at DESC, t.created_at DESC
+    `, [departmentId]);
+
     return result.rows;
   }
 }

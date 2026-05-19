@@ -11,6 +11,8 @@ class TicketCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isTransferred = ticket.transferredFromCode != null;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -31,7 +33,6 @@ class TicketCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Top color accent based on priority
           Container(
             height: 3,
             decoration: BoxDecoration(
@@ -77,6 +78,27 @@ class TicketCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                    if (isTransferred) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: ThemeColors.unifiedWarning.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'SENT FROM ${ticket.transferredFromCode}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: ThemeColors.unifiedWarning,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
                     const Spacer(),
                     PriorityBadge(priority: ticket.priority),
                     const SizedBox(width: 6),
@@ -149,10 +171,30 @@ class TicketCard extends StatelessWidget {
                       ),
                     ],
                     const Spacer(),
-                    // Action buttons
                     TicketActions(ticket: ticket),
                   ],
                 ),
+                if (isTransferred) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.sync_alt_rounded,
+                        size: 13,
+                        color: ThemeColors.unifiedWarning,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Transferred from ${ticket.transferredFromCode}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: ThemeColors.unifiedWarning,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

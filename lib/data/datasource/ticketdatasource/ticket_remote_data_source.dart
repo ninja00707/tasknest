@@ -35,11 +35,8 @@ class TicketRemoteDataSource {
     required String description,
     required String priority,
     required int assignedDeptId,
-
-    // ADD THESE
     required int createdById,
     required int createdByDept,
-
     String? dueDate,
   }) async {
     final res = await _api.post(
@@ -48,14 +45,9 @@ class TicketRemoteDataSource {
         'title': title,
         'description': description,
         'priority': priority,
-
-        // DATABASE COLUMN
         'assignedDeptId': assignedDeptId,
-
-        // ADD THESE
         'createdById': createdById,
         'createdByDept': createdByDept,
-
         if (dueDate != null) 'dueDate': dueDate,
       },
     );
@@ -102,5 +94,18 @@ class TicketRemoteDataSource {
     return (res['data'] as List)
         .map((e) => DepartmentModel.fromJson(e))
         .toList();
+  }
+
+  Future<List<EmployeeModel>> getEmployees({int? departmentId}) async {
+    final query = {
+      if (departmentId != null) 'departmentId': departmentId.toString(),
+    };
+    final res = await _api.get('tickets/employees', queryParams: query);
+    return (res['data'] as List).map((e) => EmployeeModel.fromJson(e)).toList();
+  }
+
+  Future<List<TicketModel>> getSentTickets() async {
+    final res = await _api.get('tickets/sent-tickets');
+    return (res['data'] as List).map((e) => TicketModel.fromJson(e)).toList();
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/data/datasource/ticketdatasource/ticket_remote_data_source.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
@@ -42,16 +43,29 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     emit(DashboardLoading());
 
     try {
-      final results = await Future.wait([
+      final user = await LocalStorageService().getUser();
+      if (user == null) {
+        throw Exception('User not found');
+      }
+
+      final futures = <Future<dynamic>>[
         _dataSource.getStats(),
         _dataSource.getTickets(),
         _dataSource.getDepartments(),
-      ]);
+        user.roleId == 1
+            ? _dataSource.getEmployees(departmentId: user.departmentId)
+            : Future.value(<EmployeeModel>[]),
+        _dataSource.getSentTickets(),
+      ];
+
+      final results = await Future.wait(futures);
       emit(
         DashboardLoaded(
           stats: results[0] as DashboardStats,
           tickets: results[1] as List<TicketModel>,
           departments: results[2] as List<DepartmentModel>,
+          employees: results[3] as List<EmployeeModel>,
+          sentTickets: results[4] as List<TicketModel>,
         ),
       );
     } catch (e) {

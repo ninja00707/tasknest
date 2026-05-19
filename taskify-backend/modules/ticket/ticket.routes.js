@@ -9,6 +9,8 @@ router.use(authenticate);
 // ── Stats & Departments ───────────────────────────────────────
 router.get('/stats', controller.getStats);
 router.get('/departments', controller.getDepartments);
+router.get('/employees', isManager, controller.getEmployees);
+router.get('/sent-tickets', controller.getSentTickets);
 
 // ── CRUD ──────────────────────────────────────────────────────
 router.get('/', controller.getTickets);

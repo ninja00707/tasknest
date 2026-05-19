@@ -11,7 +11,6 @@ import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
-
 import 'package:tasknest/presentation/dashboard/widgets/state_card.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_card.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
@@ -25,6 +24,7 @@ class DashboardView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = state.stats;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: FutureBuilder<UserModel?>(
@@ -71,7 +71,6 @@ class DashboardView extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -92,14 +91,14 @@ class DashboardView extends StatelessWidget {
                       ),
                     ],
                   ),
-                  Spacer(),
+                  const Spacer(),
                   CommonButton(
                     width: 150,
                     onTap: () {
                       context.read<DashboardBloc>().add(LoadDashboard());
                     },
                     buttonName: 'Refresh',
-                    icon: Icon(Icons.refresh_rounded),
+                    icon: const Icon(Icons.refresh_rounded),
                   ),
                   const SizedBox(width: 20),
                   CommonButton(
@@ -110,13 +109,11 @@ class DashboardView extends StatelessWidget {
                       context.go("/login");
                     },
                     buttonName: 'Logout',
-                    icon: Icon(Icons.power_settings_new),
+                    icon: const Icon(Icons.power_settings_new),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
-
-              // Role info badge
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -143,18 +140,21 @@ class DashboardView extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      '${user.name.toUpperCase()} · '
-                      '$departmentName · '
-                      '$roleName · '
-                      '$companyName',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: ThemeColors.unifiedTextPrimary,
+                    Expanded(
+                      child: Text(
+                        '${user.name.toUpperCase()} · '
+                        '$departmentName · '
+                        '$roleName · '
+                        '$companyName',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: ThemeColors.unifiedTextPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 12),
                     const Text(
                       'Full dept visibility',
                       style: TextStyle(
@@ -166,8 +166,6 @@ class DashboardView extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // Stat cards grid
               LayoutBuilder(
                 builder: (context, constraints) {
                   final cols = constraints.maxWidth > 500 ? 4 : 4;
@@ -232,8 +230,6 @@ class DashboardView extends StatelessWidget {
                 },
               ),
               const SizedBox(height: 24),
-
-              // Recent tickets
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -246,7 +242,9 @@ class DashboardView extends StatelessWidget {
                     ),
                   ),
                   TextButton(
-                    onPressed: () {},
+                    onPressed: () => context.read<DashboardBloc>().add(
+                      SidebarSelectedIndexEvent(sidebarSelectedIndexEvent: 1),
+                    ),
                     child: const Text(
                       'View all',
                       style: TextStyle(color: ThemeColors.unifiedSecondary),
@@ -255,7 +253,40 @@ class DashboardView extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              ...state.tickets.take(5).map((t) => TicketCard(ticket: t)),
+              if (state.tickets.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: Text(
+                      'No tickets found.',
+                      style: TextStyle(color: ThemeColors.unifiedTextMuted),
+                    ),
+                  ),
+                )
+              else
+                ...state.tickets.take(5).map((t) => TicketCard(ticket: t)),
+              const SizedBox(height: 24),
+              if (state.sentTickets.isNotEmpty) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Transferred From Your Department',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: ThemeColors.unifiedTextPrimary,
+                      ),
+                    ),
+                    const Text(
+                      'Sent tickets',
+                      style: TextStyle(color: ThemeColors.unifiedTextMuted),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ...state.sentTickets.take(5).map((t) => TicketCard(ticket: t)),
+              ],
             ],
           );
         },
