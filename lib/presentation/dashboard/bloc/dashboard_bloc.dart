@@ -21,18 +21,15 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<CreateTicketEvent>(_onCreate);
     on<SidebarSelectedIndexEvent>(_onSelectedIndex);
   }
-
+  // Add this method:
   Future<void> _onSelectedIndex(
     SidebarSelectedIndexEvent event,
     Emitter<DashboardState> emit,
   ) async {
     final currentState = state;
-
-    if (currentState is SidebarSelectedIndexState) {
+    if (currentState is DashboardLoaded) {
       emit(
-        currentState.copyWith(
-          sidebarSelectedIndexState: event.sidebarSelectedIndexEvent,
-        ),
+        currentState.copyWith(selectedIndex: event.sidebarSelectedIndexEvent),
       );
     }
   }
@@ -43,6 +40,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     Emitter<DashboardState> emit,
   ) async {
     emit(DashboardLoading());
+
     try {
       final results = await Future.wait([
         _dataSource.getStats(),

@@ -12,9 +12,7 @@ import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/side_
 import 'package:tasknest/presentation/dashboard/widgets/ticket_Listview.dart';
 
 class DashboardScreen extends StatelessWidget {
-  final int selectedIndex;
-
-  const DashboardScreen({super.key, this.selectedIndex = 0});
+  const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -82,8 +80,22 @@ class DashboardScreen extends StatelessWidget {
         }
       },
       builder: (context, state) {
+        DashboardLoaded? loadedState;
+
+        if (state is DashboardLoaded) {
+          loadedState = state;
+        } else if (state is TicketActionSuccess) {
+          loadedState = state.previousState;
+        } else if (state is TicketActionError) {
+          loadedState = state.previousState;
+        }
+
+        // INITIAL VALUE = 0
+        final selectedIndex = loadedState?.selectedIndex ?? 0;
+
         return Scaffold(
           backgroundColor: ThemeColors.unifiedBackground,
+
           body: SafeArea(
             child: isWide
                 ? Row(
@@ -98,13 +110,16 @@ class DashboardScreen extends StatelessWidget {
                           );
                         },
                       ),
+
                       Expanded(child: _buildBody(state, selectedIndex)),
                     ],
                   )
                 : Column(
                     children: [
                       const MobileTopBar(),
+
                       Expanded(child: _buildBody(state, selectedIndex)),
+
                       BottomNav(
                         selectedIndex: selectedIndex,
                         onNav: (i) {
@@ -120,6 +135,50 @@ class DashboardScreen extends StatelessWidget {
           ),
         );
       },
+      // builder: (context, state) {
+      //   DashboardLoaded? loadedState;
+      //   return Scaffold(
+      //     backgroundColor: ThemeColors.unifiedBackground,
+      //     body: SafeArea(
+      //       child: isWide
+      //           ? Row(
+      //               children: [
+      //                 Sidebar(
+      //                   selectedIndex: loadedState!.selectedIndex,
+      //                   onNav: (i) {
+      //                     context.read<DashboardBloc>().add(
+      //                       SidebarSelectedIndexEvent(
+      //                         sidebarSelectedIndexEvent: i,
+      //                       ),
+      //                     );
+      //                   },
+      //                 ),
+      //                 Expanded(
+      //                   child: _buildBody(state, loadedState.selectedIndex),
+      //                 ),
+      //               ],
+      //             )
+      //           : Column(
+      //               children: [
+      //                 const MobileTopBar(),
+      //                 Expanded(
+      //                   child: _buildBody(state, loadedState.selectedIndex),
+      //                 ),
+      //                 BottomNav(
+      //                   selectedIndex: loadedState.selectedIndex,
+      //                   onNav: (i) {
+      //                     context.read<DashboardBloc>().add(
+      //                       SidebarSelectedIndexEvent(
+      //                         sidebarSelectedIndexEvent: i,
+      //                       ),
+      //                     );
+      //                   },
+      //                 ),
+      //               ],
+      //             ),
+      //     ),
+      //   );
+      // },
     );
   }
 
@@ -147,8 +206,8 @@ class DashboardScreen extends StatelessWidget {
     if (loadedState == null) {
       return const Center(child: Text("Something went wrong"));
     }
-
-    switch (selectedIndex) {
+    // selectedIndexg = loadedState.selectedIndex;
+    switch (loadedState.selectedIndex) {
       case 0:
         return DashboardView(state: loadedState);
 

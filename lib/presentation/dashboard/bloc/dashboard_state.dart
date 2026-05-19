@@ -36,7 +36,7 @@ class DashboardLoaded extends DashboardState {
     List<DepartmentModel>? departments,
     String? filterStatus,
     String? filterPriority,
-    int? selectedIndex,
+    int selectedIndex = 0,
   }) => DashboardLoaded(
     stats: stats ?? this.stats,
     tickets: tickets ?? this.tickets,
@@ -53,6 +53,7 @@ class DashboardLoaded extends DashboardState {
     departments,
     filterStatus,
     filterPriority,
+    selectedIndex,
   ];
 }
 
