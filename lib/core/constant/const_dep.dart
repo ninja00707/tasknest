@@ -24,6 +24,21 @@ class Company {
   Company({required this.name, required this.id});
 }
 
+class Statuses {
+  final String name;
+  final int id;
+  Statuses({required this.name, required this.id});
+}
+
+final statuses = [
+  Statuses(id: 0, name: 'All'),
+  Statuses(id: 1, name: 'open'),
+
+  Statuses(id: 2, name: 'in_progress'),
+
+  Statuses(id: 3, name: 'completed'),
+  Statuses(id: 4, name: 'closed'),
+];
 final CompanyNames = [
   Company(id: 0, name: 'UM Enterprises'),
   Company(id: 1, name: 'Matrix Pharma'),

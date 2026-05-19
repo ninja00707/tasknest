@@ -18,18 +18,18 @@ class FilterTickets extends DashboardEvent {
   List<Object?> get props => [status, priority];
 }
 
-class SelfAssignTicket extends DashboardEvent {
-  final int ticketId;
-  SelfAssignTicket(this.ticketId);
-  @override
-  List<Object?> get props => [ticketId];
-}
-
 class SidebarSelectedIndexEvent extends DashboardEvent {
   final int sidebarSelectedIndexEvent;
   SidebarSelectedIndexEvent({required this.sidebarSelectedIndexEvent});
   @override
   List<Object?> get props => [sidebarSelectedIndexEvent];
+}
+
+class SelfAssignTicket extends DashboardEvent {
+  final int ticketId;
+  SelfAssignTicket(this.ticketId);
+  @override
+  List<Object?> get props => [ticketId];
 }
 
 class UpdateTicketStatus extends DashboardEvent {
@@ -68,20 +68,34 @@ class CreateTicketEvent extends DashboardEvent {
   final String description;
   final String priority;
   final int assignedDeptId;
+
+  // ADD THESE
+  final int createdById;
+  final int createdByDept;
+
   final String? dueDate;
+
   CreateTicketEvent({
     required this.title,
     required this.description,
     required this.priority,
     required this.assignedDeptId,
+
+    // ADD THESE
+    required this.createdById,
+    required this.createdByDept,
+
     this.dueDate,
   });
+
   @override
   List<Object?> get props => [
     title,
     description,
     priority,
     assignedDeptId,
+    createdById,
+    createdByDept,
     dueDate,
   ];
 }

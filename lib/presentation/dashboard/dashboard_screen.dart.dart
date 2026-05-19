@@ -5,11 +5,11 @@ import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/bottom_nav_bar.dart';
-import 'package:tasknest/presentation/dashboard/widgets/create_ticket.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/create_ticket.dart';
 import 'package:tasknest/presentation/dashboard/widgets/dashboard_view.dart';
 import 'package:tasknest/presentation/dashboard/widgets/mobile_top_bar.dart';
 import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/side_bar.dart';
-import 'package:tasknest/presentation/dashboard/widgets/ticket_Listview.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_Listview.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -135,50 +135,6 @@ class DashboardScreen extends StatelessWidget {
           ),
         );
       },
-      // builder: (context, state) {
-      //   DashboardLoaded? loadedState;
-      //   return Scaffold(
-      //     backgroundColor: ThemeColors.unifiedBackground,
-      //     body: SafeArea(
-      //       child: isWide
-      //           ? Row(
-      //               children: [
-      //                 Sidebar(
-      //                   selectedIndex: loadedState!.selectedIndex,
-      //                   onNav: (i) {
-      //                     context.read<DashboardBloc>().add(
-      //                       SidebarSelectedIndexEvent(
-      //                         sidebarSelectedIndexEvent: i,
-      //                       ),
-      //                     );
-      //                   },
-      //                 ),
-      //                 Expanded(
-      //                   child: _buildBody(state, loadedState.selectedIndex),
-      //                 ),
-      //               ],
-      //             )
-      //           : Column(
-      //               children: [
-      //                 const MobileTopBar(),
-      //                 Expanded(
-      //                   child: _buildBody(state, loadedState.selectedIndex),
-      //                 ),
-      //                 BottomNav(
-      //                   selectedIndex: loadedState.selectedIndex,
-      //                   onNav: (i) {
-      //                     context.read<DashboardBloc>().add(
-      //                       SidebarSelectedIndexEvent(
-      //                         sidebarSelectedIndexEvent: i,
-      //                       ),
-      //                     );
-      //                   },
-      //                 ),
-      //               ],
-      //             ),
-      //     ),
-      //   );
-      // },
     );
   }
 

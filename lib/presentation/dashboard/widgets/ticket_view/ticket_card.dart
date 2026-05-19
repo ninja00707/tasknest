@@ -3,7 +3,7 @@ import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
-import 'package:tasknest/presentation/dashboard/widgets/ticket_action.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_action.dart';
 
 class TicketCard extends StatelessWidget {
   final TicketModel ticket;

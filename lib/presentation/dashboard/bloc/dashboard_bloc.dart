@@ -163,15 +163,21 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     Emitter<DashboardState> emit,
   ) async {
     final prev = state as DashboardLoaded;
+
     try {
       await _dataSource.createTicket(
         title: event.title,
         description: event.description,
         priority: event.priority,
         assignedDeptId: event.assignedDeptId,
+
+        createdById: event.createdById,
+        createdByDept: event.createdByDept,
         dueDate: event.dueDate,
       );
+
       emit(TicketActionSuccess('Ticket created!', prev));
+
       add(LoadDashboard());
     } catch (e) {
       emit(TicketActionError(e.toString(), prev));

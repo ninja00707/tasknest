@@ -1,11 +1,16 @@
 // ── Create Ticket View ────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_button.dart';
 import 'package:tasknest/core/theme/common_decoration.dart';
 import 'package:tasknest/core/theme/common_dropDown.dart';
 import 'package:tasknest/core/theme/common_text.dart';
 import 'package:tasknest/core/theme/common_textForm_Field.dart';
+import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 
 class CreateTicketView extends StatefulWidget {
@@ -127,18 +132,7 @@ class CreateTicketViewState extends State<CreateTicketView> {
                     });
                   },
                 ),
-                // _DropDown<String>(
-                //   value: _priority,
-                //   items: _priorities
-                //       .map(
-                //         (p) => DropdownMenuItem(
-                //           value: p,
-                //           child: Text(p.toUpperCase()),
-                //         ),
-                //       )
-                //       .toList(),
-                //   onChanged: (v) => setState(() => _priority = v!),
-                // ),
+
                 const SizedBox(height: 16),
 
                 CommonText(
@@ -196,7 +190,7 @@ class CreateTicketViewState extends State<CreateTicketView> {
                 ),
 
                 const SizedBox(height: 24),
-                // CommonButton(onTap: _submit, buttonName: 'Submit Ticket'),
+                CommonButton(onTap: _submit, buttonName: 'Submit Ticket'),
               ],
             ),
           ),
@@ -205,24 +199,41 @@ class CreateTicketViewState extends State<CreateTicketView> {
     );
   }
 
-  // void _submit() {
-  //   if (_title.text.isEmpty || _description.text.isEmpty || _deptId == null) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(
-  //         content: Text('Please fill all required fields'),
-  //         backgroundColor: ThemeColors.unifiedDanger,
-  //       ),
-  //     );
-  //     return;
-  //   }
-  //   context.read<DashboardBloc>().add(
-  //     CreateTicketEvent(
-  //       title: _title.text.trim(),
-  //       description: _description.text.trim(),
-  //       priority: priority,
-  //       assignedDeptId: _deptId!,
-  //       dueDate: _dueDate,
-  //     ),
-  //   );
-  // }
+  void _submit() async {
+    if (_title.text.isEmpty || _description.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill all required fields'),
+          backgroundColor: ThemeColors.unifiedDanger,
+        ),
+      );
+      return;
+    }
+
+    final user = await LocalStorageService().getUser();
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('User not found'),
+          backgroundColor: ThemeColors.unifiedDanger,
+        ),
+      );
+      return;
+    }
+    context.read<DashboardBloc>().add(
+      CreateTicketEvent(
+        title: _title.text.trim(),
+        description: _description.text.trim(),
+        priority: priority.name,
+        assignedDeptId: _selectedDepartment.id,
+
+        // FETCHED FROM STORAGE
+        createdById: user.id,
+        createdByDept: user.departmentId,
+
+        dueDate: _dueDate,
+      ),
+    );
+  }
 }

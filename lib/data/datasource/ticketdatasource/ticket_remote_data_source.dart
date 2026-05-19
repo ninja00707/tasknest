@@ -35,6 +35,11 @@ class TicketRemoteDataSource {
     required String description,
     required String priority,
     required int assignedDeptId,
+
+    // ADD THESE
+    required int createdById,
+    required int createdByDept,
+
     String? dueDate,
   }) async {
     final res = await _api.post(
@@ -43,10 +48,18 @@ class TicketRemoteDataSource {
         'title': title,
         'description': description,
         'priority': priority,
+
+        // DATABASE COLUMN
         'assignedDeptId': assignedDeptId,
+
+        // ADD THESE
+        'createdById': createdById,
+        'createdByDept': createdByDept,
+
         if (dueDate != null) 'dueDate': dueDate,
       },
     );
+
     return TicketModel.fromJson(res['data']);
   }
 

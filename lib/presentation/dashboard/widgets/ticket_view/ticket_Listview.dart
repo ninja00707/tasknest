@@ -1,11 +1,12 @@
 // ── Ticket List View ──────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
-import 'package:tasknest/presentation/dashboard/widgets/ticket_card.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_card.dart';
 
 class TicketListView extends StatelessWidget {
   final DashboardLoaded state;
@@ -13,9 +14,6 @@ class TicketListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statuses = ['All', 'open', 'in_progress', 'completed', 'closed'];
-    // final priorities = ['All', 'urgent', 'high', 'medium', 'low'];
-
     return Column(
       children: [
         // Filter bar
@@ -31,21 +29,26 @@ class TicketListView extends StatelessWidget {
                   child: Row(
                     children: statuses.map((s) {
                       final active =
-                          (s == 'All' && state.filterStatus == null) ||
-                          s == state.filterStatus;
+                          (s.name == 'All' && state.filterStatus == null) ||
+                          s.name == state.filterStatus;
+
                       return GestureDetector(
-                        onTap: () => context.read<DashboardBloc>().add(
-                          FilterTickets(
-                            status: s == 'All' ? null : s,
-                            priority: state.filterPriority,
-                          ),
-                        ),
+                        onTap: () {
+                          context.read<DashboardBloc>().add(
+                            FilterTickets(
+                              status: s.name == 'All' ? null : s.name,
+                              priority: state.filterPriority,
+                            ),
+                          );
+                        },
+
                         child: Container(
                           margin: const EdgeInsets.only(right: 8),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
                             vertical: 6,
                           ),
+
                           decoration: BoxDecoration(
                             gradient: active
                                 ? const LinearGradient(
@@ -55,20 +58,25 @@ class TicketListView extends StatelessWidget {
                                     ],
                                   )
                                 : null,
+
                             color: active
                                 ? null
                                 : ThemeColors.unifiedBackground,
+
                             borderRadius: BorderRadius.circular(20),
+
                             border: Border.all(
                               color: active
                                   ? Colors.transparent
                                   : ThemeColors.unifiedBorder,
                             ),
                           ),
+
                           child: Text(
-                            s == 'All'
-                                ? 'All'
-                                : s.replaceAll('_', ' ').toUpperCase(),
+                            s.name == 'All'
+                                ? 'ALL'
+                                : s.name.replaceAll('_', ' ').toUpperCase(),
+
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
