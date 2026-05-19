@@ -11,26 +11,16 @@ import 'package:tasknest/presentation/dashboard/widgets/mobile_top_bar.dart';
 import 'package:tasknest/presentation/dashboard/widgets/side_bar.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_Listview.dart';
 
-// ── Dashboard Screen ──────────────────────────────────────────────────────────
-class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+class DashboardScreen extends StatelessWidget {
+  final int selectedIndex;
 
-  @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
-}
-
-class _DashboardScreenState extends State<DashboardScreen> {
-  int _selectedIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    context.read<DashboardBloc>().add(LoadDashboard());
-  }
+  const DashboardScreen({super.key, this.selectedIndex = 0});
 
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 768;
+
+    context.read<DashboardBloc>().add(LoadDashboard());
 
     return BlocConsumer<DashboardBloc, DashboardState>(
       listener: (context, state) {
@@ -62,6 +52,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           );
         }
+
         if (state is TicketActionError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -97,21 +88,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: isWide
                 ? Row(
                     children: [
-                      Sidebar(
-                        selectedIndex: _selectedIndex,
-                        onNav: (i) => setState(() => _selectedIndex = i),
-                      ),
-                      Expanded(child: _buildBody(state)),
+                      Sidebar(selectedIndex: selectedIndex, onNav: (i) {}),
+                      Expanded(child: _buildBody(state, selectedIndex)),
                     ],
                   )
                 : Column(
                     children: [
-                      MobileTopBar(),
-                      Expanded(child: _buildBody(state)),
-                      BottomNav(
-                        selectedIndex: _selectedIndex,
-                        onNav: (i) => setState(() => _selectedIndex = i),
-                      ),
+                      const MobileTopBar(),
+                      Expanded(child: _buildBody(state, selectedIndex)),
+                      BottomNav(selectedIndex: selectedIndex, onNav: (i) {}),
                     ],
                   ),
           ),
@@ -120,7 +105,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildBody(DashboardState state) {
+  Widget _buildBody(DashboardState state, int selectedIndex) {
     DashboardLoaded? loadedState;
 
     if (state is DashboardLoaded) {
@@ -145,7 +130,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return const Center(child: Text("Something went wrong"));
     }
 
-    switch (_selectedIndex) {
+    switch (selectedIndex) {
       case 0:
         return DashboardView(state: loadedState);
 
