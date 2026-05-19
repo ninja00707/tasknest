@@ -4,11 +4,11 @@ import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
-import 'package:tasknest/presentation/dashboard/widgets/bottom_nav_bar.dart';
+import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/bottom_nav_bar.dart';
 import 'package:tasknest/presentation/dashboard/widgets/create_ticket.dart';
 import 'package:tasknest/presentation/dashboard/widgets/dashboard_view.dart';
 import 'package:tasknest/presentation/dashboard/widgets/mobile_top_bar.dart';
-import 'package:tasknest/presentation/dashboard/widgets/side_bar.dart';
+import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/side_bar.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_Listview.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -88,7 +88,16 @@ class DashboardScreen extends StatelessWidget {
             child: isWide
                 ? Row(
                     children: [
-                      Sidebar(selectedIndex: selectedIndex, onNav: (i) {}),
+                      Sidebar(
+                        selectedIndex: selectedIndex,
+                        onNav: (i) {
+                          context.read<DashboardBloc>().add(
+                            SidebarSelectedIndexEvent(
+                              sidebarSelectedIndexEvent: i,
+                            ),
+                          );
+                        },
+                      ),
                       Expanded(child: _buildBody(state, selectedIndex)),
                     ],
                   )
@@ -96,7 +105,16 @@ class DashboardScreen extends StatelessWidget {
                     children: [
                       const MobileTopBar(),
                       Expanded(child: _buildBody(state, selectedIndex)),
-                      BottomNav(selectedIndex: selectedIndex, onNav: (i) {}),
+                      BottomNav(
+                        selectedIndex: selectedIndex,
+                        onNav: (i) {
+                          context.read<DashboardBloc>().add(
+                            SidebarSelectedIndexEvent(
+                              sidebarSelectedIndexEvent: i,
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
           ),

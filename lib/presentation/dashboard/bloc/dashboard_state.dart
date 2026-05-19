@@ -19,6 +19,7 @@ class DashboardLoaded extends DashboardState {
   final List<DepartmentModel> departments;
   final String? filterStatus;
   final String? filterPriority;
+  final int selectedIndex;
 
   DashboardLoaded({
     required this.stats,
@@ -26,6 +27,7 @@ class DashboardLoaded extends DashboardState {
     required this.departments,
     this.filterStatus,
     this.filterPriority,
+    this.selectedIndex = 0,
   });
 
   DashboardLoaded copyWith({
@@ -34,12 +36,14 @@ class DashboardLoaded extends DashboardState {
     List<DepartmentModel>? departments,
     String? filterStatus,
     String? filterPriority,
+    int? selectedIndex,
   }) => DashboardLoaded(
     stats: stats ?? this.stats,
     tickets: tickets ?? this.tickets,
     departments: departments ?? this.departments,
     filterStatus: filterStatus ?? this.filterStatus,
     filterPriority: filterPriority ?? this.filterPriority,
+    selectedIndex: selectedIndex ?? this.selectedIndex,
   );
 
   @override
@@ -73,4 +77,18 @@ class TicketActionError extends DashboardState {
   TicketActionError(this.message, this.previousState);
   @override
   List<Object?> get props => [message];
+}
+
+class SidebarSelectedIndexState extends DashboardState {
+  final int sidebarSelectedIndexState;
+
+  SidebarSelectedIndexState({required this.sidebarSelectedIndexState});
+
+  SidebarSelectedIndexState copyWith({int? sidebarSelectedIndexState}) =>
+      SidebarSelectedIndexState(
+        sidebarSelectedIndexState:
+            sidebarSelectedIndexState ?? this.sidebarSelectedIndexState,
+      );
+  @override
+  List<Object?> get props => [sidebarSelectedIndexState];
 }

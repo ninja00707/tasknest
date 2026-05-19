@@ -25,6 +25,13 @@ class SelfAssignTicket extends DashboardEvent {
   List<Object?> get props => [ticketId];
 }
 
+class SidebarSelectedIndexEvent extends DashboardEvent {
+  final int sidebarSelectedIndexEvent;
+  SidebarSelectedIndexEvent({required this.sidebarSelectedIndexEvent});
+  @override
+  List<Object?> get props => [sidebarSelectedIndexEvent];
+}
+
 class UpdateTicketStatus extends DashboardEvent {
   final int ticketId;
   final String status;

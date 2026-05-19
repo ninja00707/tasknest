@@ -19,6 +19,22 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<TransferTicket>(_onTransfer);
     on<ReopenTicket>(_onReopen);
     on<CreateTicketEvent>(_onCreate);
+    on<SidebarSelectedIndexEvent>(_onSelectedIndex);
+  }
+
+  Future<void> _onSelectedIndex(
+    SidebarSelectedIndexEvent event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final currentState = state;
+
+    if (currentState is SidebarSelectedIndexState) {
+      emit(
+        currentState.copyWith(
+          sidebarSelectedIndexState: event.sidebarSelectedIndexEvent,
+        ),
+      );
+    }
   }
 
   // ── Load ──────────────────────────────────────────────────────

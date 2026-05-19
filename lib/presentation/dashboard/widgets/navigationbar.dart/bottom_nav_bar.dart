@@ -1,12 +1,16 @@
 // ── Bottom Nav ────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/presentation/dashboard/widgets/bottom_item.dart';
+import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/bottom_item.dart';
 
 class BottomNav extends StatelessWidget {
   final int selectedIndex;
-  final void Function(int) onNav;
-  const BottomNav({required this.selectedIndex, required this.onNav});
+  final ValueChanged<int> onNav;
+  const BottomNav({
+    super.key,
+    required this.selectedIndex,
+    required this.onNav,
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -9,7 +9,7 @@ import 'package:tasknest/core/theme/common_decoration.dart';
 import 'package:tasknest/core/theme/common_text.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
-import 'package:tasknest/presentation/dashboard/models.dart';
+
 import 'package:tasknest/presentation/dashboard/widgets/state_card.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_card.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';

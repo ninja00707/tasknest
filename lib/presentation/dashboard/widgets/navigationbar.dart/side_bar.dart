@@ -1,12 +1,12 @@
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/presentation/dashboard/widgets/nav_items.dart';
+import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/nav_items.dart';
 
 class Sidebar extends StatelessWidget {
   final int selectedIndex;
   final void Function(int) onNav;
-  const Sidebar({required this.selectedIndex, required this.onNav});
+  const Sidebar({super.key, required this.selectedIndex, required this.onNav});
 
   @override
   Widget build(BuildContext context) {
