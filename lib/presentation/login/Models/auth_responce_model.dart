@@ -42,4 +42,16 @@ class UserModel {
       isActive: json['is_active'] ?? false,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'email': email,
+      'role_id': roleId,
+      'department_id': departmentId,
+      'company_id': companyId,
+      'is_active': isActive,
+    };
+  }
 }

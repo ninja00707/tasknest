@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/constant/const_dep.dart'; // Import const_dep for departments list
+import 'package:tasknest/core/constant/name_by_id.dart'; // Import NameById helper
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
@@ -109,6 +111,13 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
                 }
 
                 final user = snapshot.data!;
+                final departmentName = NameById.getNameById<Departments>(
+                  id: user.departmentId,
+                  items:
+                      departments, // Assuming 'departments' list is available globally or passed
+                  idSelector: (e) => e.id,
+                  nameSelector: (e) => e.name,
+                );
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,8 +139,7 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Analytics for ${"Your Department"}',
-                            // 'Analytics for ${user.departmentName ?? "Your Department"}',
+                            'Analytics for ${departmentName ?? "Your Department"}', // Use actual department name from const_dep
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,

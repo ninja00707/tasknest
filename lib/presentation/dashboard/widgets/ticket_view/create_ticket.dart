@@ -210,7 +210,8 @@ class CreateTicketViewState extends State<CreateTicketView> {
       return;
     }
 
-    final user = await LocalStorageService().getUser();
+    final user = await LocalStorageService()
+        .getUser(); // Await the async call to ensure user data is loaded
 
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(

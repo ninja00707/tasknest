@@ -1,26 +1,30 @@
 import 'package:dio/dio.dart';
-import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/constant/api_constant.dart';
+import 'package:flutter/foundation.dart';
 import 'package:tasknest/core/routes/routes_name.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
-import 'package:flutter/material.dart';
+import 'package:tasknest/core/routes/app_router.dart';
 
 class ApiClient {
   late Dio dio;
-  static BuildContext? _context;
 
-  static void setContext(BuildContext context) {
-    _context = context;
+  // Singleton instance
+  static final ApiClient _instance = ApiClient._internal();
+
+  // To prevent multiple redirects if many requests fail at once
+  bool _isRedirecting = false;
+
+  factory ApiClient() {
+    return _instance;
   }
 
-  ApiClient() {
+  ApiClient._internal() {
     dio = Dio(
       BaseOptions(
         baseUrl: ApiConstants.baseUrl,
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
         headers: {'Content-Type': 'application/json'},
-        validateStatus: (status) => status != null && status < 500,
       ),
     );
 
@@ -30,25 +34,54 @@ class ApiClient {
         onRequest: (options, handler) async {
           final token = await LocalStorageService().getToken();
 
+          if (kDebugMode) {
+            debugPrint('ApiClient Interceptor: Request to ${options.path}');
+            debugPrint('ApiClient Interceptor: Retrieved token: $token');
+          }
+
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
-
+          if (kDebugMode)
+            debugPrint(
+              'ApiClient Interceptor: Request headers: ${options.headers}',
+            );
           return handler.next(options);
         },
-        onError: (error, handler) async {
-          // Handle 401 Unauthorized responses
-          if (error.response?.statusCode == 401) {
-            // Clear token and redirect to login
-            await LocalStorageService().clearToken();
-            
-            if (_context != null && _context!.mounted) {
-              _context!.go(RouteNames.login);
+        onError: (DioException error, handler) async {
+          final path = error.requestOptions.path;
+          final isAuthRoute =
+              path.contains(ApiConstants.login) ||
+              path.contains(ApiConstants.register);
+
+          // Only handle 401 as "Session Expired" if NOT on an auth route
+          if (error.response?.statusCode == 401 && !isAuthRoute) {
+            if (_isRedirecting) return handler.next(error);
+            _isRedirecting = true;
+
+            if (kDebugMode) {
+              debugPrint(
+                'ApiClient Interceptor: 401 Unauthorized. Redirecting to Login.',
+              );
             }
-            
-            return handler.reject(error);
+
+            // await LocalStorageService().clearToken();
+
+            // Use the global appRouter directly to avoid context errors
+            appRouter.go(RouteNames.login);
+            _isRedirecting = false;
+
+            return handler.reject(
+              DioException(
+                requestOptions: error.requestOptions,
+                error: 'Session expired. Please login again.',
+              ),
+            );
           }
 
+          if (kDebugMode) {
+            debugPrint('ApiClient Interceptor: Error: ${error.message}');
+          }
           return handler.next(error);
         },
       ),
@@ -59,26 +92,9 @@ class ApiClient {
   Future<dynamic> get(String path, {Map<String, dynamic>? queryParams}) async {
     try {
       final response = await dio.get(path, queryParameters: queryParams);
-      
-      if (response.statusCode == 401) {
-        await LocalStorageService().clearToken();
-        if (_context != null && _context!.mounted) {
-          _context!.go(RouteNames.login);
-        }
-        throw Exception('Session expired. Please login again.');
-      }
-      
-      if (response.statusCode != null && response.statusCode! >= 400) {
-        final message = response.data is Map ? response.data['message'] : null;
-        throw Exception(message ?? 'Error: ${response.statusCode}');
-      }
-
       return response.data;
     } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw Exception('Session expired. Please login again.');
-      }
-      throw Exception(e.response?.data['message'] ?? e.message ?? 'An error occurred');
+      throw Exception(_handleError(e));
     }
   }
 
@@ -94,26 +110,9 @@ class ApiClient {
         data: body,
         queryParameters: queryParams,
       );
-
-      if (response.statusCode == 401) {
-        await LocalStorageService().clearToken();
-        if (_context != null && _context!.mounted) {
-          _context!.go(RouteNames.login);
-        }
-        throw Exception('Session expired. Please login again.');
-      }
-      
-      if (response.statusCode != null && response.statusCode! >= 400) {
-        final message = response.data is Map ? response.data['message'] : null;
-        throw Exception(message ?? 'Error: ${response.statusCode}');
-      }
-
       return response.data;
     } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw Exception('Session expired. Please login again.');
-      }
-      throw Exception(e.response?.data['message'] ?? e.message ?? 'An error occurred');
+      throw Exception(_handleError(e));
     }
   }
 
@@ -129,26 +128,9 @@ class ApiClient {
         data: body,
         queryParameters: queryParams,
       );
-
-      if (response.statusCode == 401) {
-        await LocalStorageService().clearToken();
-        if (_context != null && _context!.mounted) {
-          _context!.go(RouteNames.login);
-        }
-        throw Exception('Session expired. Please login again.');
-      }
-      
-      if (response.statusCode != null && response.statusCode! >= 400) {
-        final message = response.data is Map ? response.data['message'] : null;
-        throw Exception(message ?? 'Error: ${response.statusCode}');
-      }
-
       return response.data;
     } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw Exception('Session expired. Please login again.');
-      }
-      throw Exception(e.response?.data['message'] ?? e.message ?? 'An error occurred');
+      throw Exception(_handleError(e));
     }
   }
 
@@ -164,26 +146,28 @@ class ApiClient {
         data: body,
         queryParameters: queryParams,
       );
-
-      if (response.statusCode == 401) {
-        await LocalStorageService().clearToken();
-        if (_context != null && _context!.mounted) {
-          _context!.go(RouteNames.login);
-        }
-        throw Exception('Session expired. Please login again.');
-      }
-      
-      if (response.statusCode != null && response.statusCode! >= 400) {
-        final message = response.data is Map ? response.data['message'] : null;
-        throw Exception(message ?? 'Error: ${response.statusCode}');
-      }
-
       return response.data;
     } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        throw Exception('Session expired. Please login again.');
-      }
-      throw Exception(e.response?.data['message'] ?? e.message ?? 'An error occurred');
+      throw Exception(_handleError(e));
     }
+  }
+
+  /// Safely extracts error messages from DioException
+  String _handleError(DioException e) {
+    // Prioritize custom error message from interceptor (e.g., "Session expired")
+    if (e.error is String) {
+      return e.error.toString();
+    }
+    // Check if the server returned a JSON error object
+    if (e.response?.data is Map) {
+      final data = e.response!.data as Map;
+      // Common backend error structures
+      return data['message']?.toString() ??
+          data['error']?.toString() ??
+          data['msg']?.toString() ??
+          'An error occurred';
+    }
+    // Fallback to default Dio message
+    return e.message ?? 'An unexpected error occurred';
   }
 }

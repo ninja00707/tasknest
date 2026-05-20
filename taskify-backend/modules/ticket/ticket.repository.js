@@ -24,9 +24,9 @@ class TicketRepository {
 
         tf.code AS transferred_from_code
       FROM tickets t
-      JOIN users creator       ON creator.id = t.created_by_id
-      JOIN departments cd      ON cd.id = t.created_by_dept
-      JOIN departments ad      ON ad.id = t.assigned_dept_id
+      LEFT JOIN users creator  ON creator.id = t.created_by_id
+      LEFT JOIN departments cd ON cd.id = t.created_by_dept
+      LEFT JOIN departments ad ON ad.id = t.assigned_dept_id
       LEFT JOIN users assignee ON assignee.id = t.assigned_to_id
       LEFT JOIN departments tf ON tf.id = t.transferred_from
       WHERE t.id = $1
@@ -83,9 +83,9 @@ class TicketRepository {
 
         tf.code AS transferred_from_code
       FROM tickets t
-      JOIN users       creator  ON creator.id  = t.created_by_id
-      JOIN departments cd       ON cd.id        = t.created_by_dept
-      JOIN departments ad       ON ad.id        = t.assigned_dept_id
+      LEFT JOIN users       creator  ON creator.id  = t.created_by_id
+      LEFT JOIN departments cd       ON cd.id        = t.created_by_dept
+      LEFT JOIN departments ad       ON ad.id        = t.assigned_dept_id
       LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
       LEFT JOIN departments tf  ON tf.id        = t.transferred_from
       ${whereClause}
@@ -345,9 +345,9 @@ class TicketRepository {
 
         tf.code AS transferred_from_code
       FROM tickets t
-      JOIN users       creator  ON creator.id  = t.created_by_id
-      JOIN departments cd       ON cd.id        = t.created_by_dept
-      JOIN departments ad       ON ad.id        = t.assigned_dept_id
+      LEFT JOIN users       creator  ON creator.id  = t.created_by_id
+      LEFT JOIN departments cd       ON cd.id        = t.created_by_dept
+      LEFT JOIN departments ad       ON ad.id        = t.assigned_dept_id
       LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
       LEFT JOIN departments tf  ON tf.id        = t.transferred_from
       WHERE t.created_by_dept = $1

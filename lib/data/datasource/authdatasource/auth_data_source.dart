@@ -3,33 +3,31 @@ import 'package:tasknest/core/constant/api_client.dart';
 import 'package:tasknest/core/constant/api_constant.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
+// AuthRemoteDataSource uses the singleton ApiClient instance.
 class AuthRemoteDataSource {
-  final ApiClient apiClient;
-
-  AuthRemoteDataSource(this.apiClient);
+  final ApiClient apiClient = ApiClient();
 
   Future<AuthResponseModel> login({
     required String email,
     required String password,
   }) async {
     try {
-      final response = await apiClient.dio.post(
+      final data = await apiClient.post(
         ApiConstants.login,
-        data: {'email': email, 'password': password},
+        body: {'email': email, 'password': password},
       );
 
-      // The backend returns { success: true, message: ..., data: { token, user } }
-      // So we pass response.data['data'] or fallback to response.data if it's the old format
-      final responseData = response.data['data'] ?? response.data;
-      return AuthResponseModel.fromJson(responseData);
-    } on DioException catch (e) {
-      if (e.response != null && e.response?.data != null) {
-        // Extract the clean backend message (e.g. "User not found") instead of raw Dio 404 string
-        throw Exception(e.response?.data['message'] ?? e.message);
+      // Ensure we extract the data correctly
+      Map<String, dynamic> jsonMap;
+      if (data is Map<String, dynamic>) {
+        jsonMap = data.containsKey('data') ? data['data'] : data;
+      } else {
+        throw Exception('Invalid server response format');
       }
-      throw Exception(e.message);
+
+      return AuthResponseModel.fromJson(jsonMap);
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
@@ -37,14 +35,14 @@ class AuthRemoteDataSource {
     required String name,
     required String email,
     required String password,
-    required String companyId,
-    required String departmentId,
-    required String role,
+    required int companyId,
+    required int departmentId,
+    required int role,
   }) async {
     try {
-      final response = await apiClient.dio.post(
+      final data = await apiClient.post(
         ApiConstants.register,
-        data: {
+        body: {
           'name': name,
           'email': email,
           'password_hash': password,
@@ -55,37 +53,29 @@ class AuthRemoteDataSource {
         },
       );
 
-      final responseData = response.data['data'] ?? response.data;
-      return AuthResponseModel.fromJson(responseData);
-    } on DioException catch (e) {
-      if (e.response != null && e.response?.data != null) {
-        throw Exception(e.response?.data['message'] ?? e.message);
+      // Backend registration returns both user info and a token.
+      // We wrap it in a Map that corresponds to what your model expects.
+      Map<String, dynamic> jsonMap;
+      if (data is Map<String, dynamic>) {
+        jsonMap = data.containsKey('data') ? data['data'] : data;
+      } else {
+        throw Exception('Registration failed: Invalid response');
       }
-      throw Exception(e.message);
+
+      return AuthResponseModel.fromJson(jsonMap);
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 
   Future<void> forgotPassword(String email) async {
     try {
-      final response = await apiClient.dio.post(
+      await apiClient.post(
         '/auth/forgot-password', // Replace with ApiConstants.forgotPassword if available
-        data: {'email': email},
+        body: {'email': email},
       );
-
-      if (response.data['success'] != true) {
-        throw Exception(
-          response.data['message'] ?? 'Failed to send reset link',
-        );
-      }
-    } on DioException catch (e) {
-      if (e.response != null && e.response?.data != null) {
-        throw Exception(e.response?.data['message'] ?? e.message);
-      }
-      throw Exception(e.message);
     } catch (e) {
-      throw Exception(e.toString());
+      rethrow;
     }
   }
 }

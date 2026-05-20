@@ -226,11 +226,9 @@ class SignupCard extends StatelessWidget {
                                           name: nameController.text,
                                           email: emailController.text,
                                           password: passwordController.text,
-                                          companyId: selectedCompany.id
-                                              .toString(),
-                                          departmentId: selectedDepartment.id
-                                              .toString(),
-                                          role: selectedRole.id.toString(),
+                                          companyId: selectedCompany.id,
+                                          departmentId: selectedDepartment.id,
+                                          role: selectedRole.id,
                                         ),
                                       );
                                     }

@@ -22,11 +22,11 @@ class AuthRepositoryImpl implements AuthRepository {
       password: password,
     );
 
-    // SAVE TOKEN
-    await localStorageService.saveToken(result.token);
+    // SAVE TOKEN using the correct method name from LocalStorageService
+    await localStorageService.setToken(result.token);
 
-    // SAVE USER
-    await localStorageService.saveUser(result.user);
+    // SAVE USER using the correct method name from LocalStorageService
+    await localStorageService.setUser(result.user);
 
     return result;
   }
@@ -36,9 +36,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required String name,
     required String email,
     required String password,
-    required String companyId,
-    required String departmentId,
-    required String role,
+    required int companyId,
+    required int departmentId,
+    required int role,
   }) async {
     final result = await remoteDataSource.register(
       name: name,
@@ -50,10 +50,10 @@ class AuthRepositoryImpl implements AuthRepository {
     );
 
     // SAVE TOKEN
-    await localStorageService.saveToken(result.token);
+    await localStorageService.setToken(result.token);
 
     // SAVE USER
-    await localStorageService.saveUser(result.user);
+    await localStorageService.setUser(result.user);
 
     return result;
   }

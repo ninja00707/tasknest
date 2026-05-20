@@ -105,7 +105,7 @@ class DashboardView extends StatelessWidget {
                     width: 150,
                     onTap: () {
                       context.read<AuthBloc>().add(LogoutEvent());
-                      LocalStorageService().clearToken();
+                      // LocalStorageService().clearToken();
                       context.go("/login");
                     },
                     buttonName: 'Logout',

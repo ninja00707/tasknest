@@ -2,14 +2,17 @@ const ticketRepo = require('./ticket.repository');
 
 class TicketService {
   async getDashboardStats(user) {
+    if (!user) throw { statusCode: 401, message: 'Unauthorized' };
     return await ticketRepo.getDashboardStats(user);
   }
 
   async getTickets(user, filters) {
+    if (!user) throw { statusCode: 401, message: 'Unauthorized' };
     return await ticketRepo.getVisibleTickets(user, filters);
   }
 
   async getTicket(ticketId, user) {
+    if (!user) throw { statusCode: 401, message: 'Unauthorized' };
     const ticket = await ticketRepo.getTicketById(ticketId, user);
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied to this ticket' };

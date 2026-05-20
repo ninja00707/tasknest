@@ -10,7 +10,7 @@ final storage = LocalStorageService();
 final apiClient = ApiClient();
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-final authRemoteDataSource = AuthRemoteDataSource(apiClient);
+final authRemoteDataSource = AuthRemoteDataSource();
 final authRepository = AuthRepositoryImpl(
   remoteDataSource: authRemoteDataSource,
   localStorageService: storage,

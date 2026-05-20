@@ -1,63 +1,56 @@
-import 'dart:convert';
-
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
+import 'package:flutter/foundation.dart'; // For debugPrint
+import 'dart:convert'; // For jsonEncode and jsonDecode
+import 'package:tasknest/presentation/login/Models/auth_responce_model.dart'; // For UserModel
 
 class LocalStorageService {
-  static const String tokenKey = 'token';
-  static const String userKey = 'user';
+  static const String _tokenKey = 'auth_token';
+  static const String _userKey = 'user_data';
 
-  /// SAVE TOKEN
-  Future<void> saveToken(String token) async {
+  Future<void> setToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString(tokenKey, token);
+    await prefs.setString(_tokenKey, token);
+    if (kDebugMode) {
+      debugPrint('LocalStorageService: Token saved: $token');
+    }
   }
 
-  /// GET TOKEN
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
-
-    return prefs.getString(tokenKey);
-  }
-
-  /// SAVE USER
-  Future<void> saveUser(UserModel user) async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final userJson = jsonEncode({
-      'id': user.id,
-      'name': user.name,
-      'email': user.email,
-      'role_id': user.roleId,
-      'department_id': user.departmentId,
-      'company_id': user.companyId,
-      'is_active': user.isActive,
-    });
-
-    await prefs.setString(userKey, userJson);
-  }
-
-  /// GET USER
-  Future<UserModel?> getUser() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final userString = prefs.getString(userKey);
-
-    if (userString == null) {
-      return null;
+    final token = prefs.getString(_tokenKey);
+    if (kDebugMode) {
+      debugPrint('LocalStorageService: Token retrieved: $token');
     }
-
-    final decoded = jsonDecode(userString);
-
-    return UserModel.fromJson(decoded);
+    return token;
   }
 
-  /// CLEAR STORAGE
   Future<void> clearToken() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    if (kDebugMode) {
+      debugPrint('LocalStorageService: Token cleared.');
+    }
+    await prefs.remove(_userKey); // Clear user data as well
+  }
 
-    await prefs.remove(tokenKey);
-    await prefs.remove(userKey);
+  Future<void> setUser(UserModel user) async {
+    final prefs = await SharedPreferences.getInstance();
+    final userJson = jsonEncode(user.toJson());
+    await prefs.setString(_userKey, userJson);
+    if (kDebugMode) {
+      debugPrint('LocalStorageService: User saved: $userJson');
+    }
+  }
+
+  Future<UserModel?> getUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userJson = prefs.getString(_userKey);
+    if (kDebugMode) {
+      debugPrint('LocalStorageService: User retrieved: $userJson');
+    }
+    if (userJson != null) {
+      return UserModel.fromJson(jsonDecode(userJson));
+    }
+    return null;
   }
 }

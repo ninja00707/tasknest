@@ -11,9 +11,9 @@ class RegisterEvent extends AuthEvent {
   final String name;
   final String email;
   final String password;
-  final String companyId;
-  final String departmentId;
-  final String role;
+  final int companyId;
+  final int departmentId;
+  final int role;
 
   RegisterEvent({
     required this.name,
