@@ -352,7 +352,6 @@ class TicketRepository {
       LEFT JOIN departments tf  ON tf.id        = t.transferred_from
       WHERE t.created_by_dept = $1
         AND t.assigned_dept_id <> $1
-        AND t.transferred_at IS NOT NULL
       ORDER BY t.transferred_at DESC, t.created_at DESC
     `, [departmentId]);
 

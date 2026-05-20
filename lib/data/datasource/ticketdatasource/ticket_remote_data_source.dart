@@ -45,10 +45,10 @@ class TicketRemoteDataSource {
         'title': title,
         'description': description,
         'priority': priority,
-        'assigned_dept_id': assignedDeptId,
-        'created_by_id': createdById,
-        'created_by_dept': createdByDept,
-        if (dueDate != null) 'due_date': dueDate,
+        'assignedDeptId': assignedDeptId,
+        'createdById': createdById, // Explicitly adding this
+        'createdByDept': createdByDept, // Explicitly adding this
+        if (dueDate != null) 'dueDate': dueDate,
       },
     );
 
@@ -71,7 +71,7 @@ class TicketRemoteDataSource {
   Future<TicketModel> assignToEmployee(int ticketId, int employeeId) async {
     final res = await _api.patch(
       'tickets/$ticketId/assign',
-      body: {'employee_id': employeeId},
+      body: {'employeeId': employeeId},
     );
     return TicketModel.fromJson(res['data']);
   }
@@ -79,7 +79,7 @@ class TicketRemoteDataSource {
   Future<TicketModel> transferTicket(int ticketId, int targetDeptId) async {
     final res = await _api.patch(
       'tickets/$ticketId/transfer',
-      body: {'target_dept_id': targetDeptId},
+      body: {'targetDeptId': targetDeptId},
     );
     return TicketModel.fromJson(res['data']);
   }

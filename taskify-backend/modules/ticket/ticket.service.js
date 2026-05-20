@@ -22,13 +22,8 @@ class TicketService {
   async createTicket(data, user) {
     const { title, description, priority = 'medium', assignedDeptId, dueDate } = data;
 
-    if (!title || !description || !assignedDeptId) {
+    if (!title || !description || title.trim() === '' || description.trim() === '' || assignedDeptId == null) {
       throw { statusCode: 400, message: 'title, description and assignedDeptId are required' };
-    }
-
-    // Non-CEO users can only create tickets for their own department
-    if (user.role !== 'ceo' && Number(assignedDeptId) !== Number(user.department_id)) {
-      throw { statusCode: 403, message: 'Only CEO can create tickets for other departments' };
     }
 
     const ticket = await ticketRepo.createTicket({
@@ -181,7 +176,7 @@ class TicketService {
 
   async getEmployees(user, departmentId) {
     const deptId = departmentId ? Number(departmentId) : Number(user.department_id);
-    if (!deptId) {
+    if (deptId === undefined || isNaN(deptId)) {
       throw { statusCode: 400, message: 'departmentId is required' };
     }
     return await ticketRepo.getEmployeesByDepartment(deptId);

@@ -52,7 +52,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       final stats = await _dataSource.getStats();
       final tickets = await _dataSource.getTickets();
       final departments = await _dataSource.getDepartments();
-      final employees = user.roleId == 1 && user.departmentId != 0
+      final employees = user.roleId == 1
           ? await _dataSource.getEmployees(departmentId: user.departmentId)
           : <EmployeeModel>[];
       final sentTickets = await _dataSource.getSentTickets();

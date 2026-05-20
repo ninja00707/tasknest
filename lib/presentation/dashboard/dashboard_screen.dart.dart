@@ -171,7 +171,7 @@ class DashboardScreen extends StatelessWidget {
         return TicketListView(state: loadedState);
 
       case 2:
-        return CreateTicketView(departments: loadedState.departments);
+        return CreateTicketView();
 
       default:
         return DashboardView(state: loadedState);

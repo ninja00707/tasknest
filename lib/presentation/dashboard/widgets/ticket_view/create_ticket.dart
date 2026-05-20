@@ -11,11 +11,10 @@ import 'package:tasknest/core/theme/common_textForm_Field.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
-import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 
 class CreateTicketView extends StatefulWidget {
-  final List<DepartmentModel> departments;
-  const CreateTicketView({super.key, required this.departments});
+  // final List<DepartmentModel> departments;
+  const CreateTicketView({super.key});
 
   @override
   State<CreateTicketView> createState() => CreateTicketViewState();
