@@ -21,6 +21,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<ReopenTicket>(_onReopen);
     on<CreateTicketEvent>(_onCreate);
     on<SidebarSelectedIndexEvent>(_onSelectedIndex);
+    on<LoadManagerAnalytics>(_onLoadManagerAnalytics);
+    on<LoadCeoAnalytics>(_onLoadCeoAnalytics);
   }
   // Add this method:
   Future<void> _onSelectedIndex(
@@ -195,6 +197,34 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       add(LoadDashboard());
     } catch (e) {
       emit(TicketActionError(e.toString(), prev));
+    }
+  }
+
+  // ── Manager Analytics ─────────────────────────────────────────
+  Future<void> _onLoadManagerAnalytics(
+    LoadManagerAnalytics event,
+    Emitter<DashboardState> emit,
+  ) async {
+    emit(AnalyticsLoading());
+    try {
+      final stats = await _dataSource.getDepartmentAnalytics(event.departmentId);
+      emit(ManagerAnalyticsLoaded(stats));
+    } catch (e) {
+      emit(AnalyticsError(e.toString()));
+    }
+  }
+
+  // ── CEO Analytics ─────────────────────────────────────────────
+  Future<void> _onLoadCeoAnalytics(
+    LoadCeoAnalytics event,
+    Emitter<DashboardState> emit,
+  ) async {
+    emit(AnalyticsLoading());
+    try {
+      final analytics = await _dataSource.getOrganizationAnalytics();
+      emit(CeoAnalyticsLoaded(analytics));
+    } catch (e) {
+      emit(AnalyticsError(e.toString()));
     }
   }
 }

@@ -108,4 +108,15 @@ class TicketRemoteDataSource {
     final res = await _api.get('tickets/sent-tickets');
     return (res['data'] as List).map((e) => TicketModel.fromJson(e)).toList();
   }
+
+  /// Analytics endpoints
+  Future<DashboardStats> getDepartmentAnalytics(int departmentId) async {
+    final res = await _api.get('tickets/analytics/department/$departmentId');
+    return DashboardStats.fromJson(res['data']);
+  }
+
+  Future<List<dynamic>> getOrganizationAnalytics() async {
+    final res = await _api.get('tickets/analytics/by-department');
+    return res['data'] ?? [];
+  }
 }

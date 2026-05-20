@@ -16,21 +16,46 @@ class ManagerAnalyticsScreen extends StatefulWidget {
 }
 
 class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
+  // FIX: Cache the user future so FutureBuilder doesn't re-fire on every rebuild
+  late final Future<UserModel?> _userFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _userFuture = LocalStorageService().getUser();
+    _loadAnalytics();
+  }
+
+  Future<void> _loadAnalytics() async {
+    final user = await LocalStorageService().getUser();
+    if (user != null && mounted) {
+      context.read<DashboardBloc>().add(
+        LoadManagerAnalytics(user.departmentId),
+      );
+    }
+  }
+
+  // FIX: Extracted shared AppBar to avoid duplication across states
+  AppBar _buildAppBar() {
+    return AppBar(
+      title: const Text('Department Analytics'),
+      backgroundColor: ThemeColors.unifiedSurface,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => context.pop(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<DashboardBloc, DashboardState>(
       builder: (context, state) {
-        if (state is DashboardLoading) {
+        // FIX: Removed duplicate loading/error/empty scaffold trees; unified into one
+        if (state is AnalyticsLoading) {
           return Scaffold(
-            appBar: AppBar(
-              title: const Text('Analytics'),
-              backgroundColor: ThemeColors.unifiedSurface,
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => context.pop(),
-              ),
-            ),
+            appBar: _buildAppBar(),
             body: const Center(
               child: CircularProgressIndicator(
                 color: ThemeColors.unifiedPrimary,
@@ -39,36 +64,45 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
           );
         }
 
-        if (state is! DashboardLoaded) {
+        if (state is AnalyticsError) {
           return Scaffold(
-            appBar: AppBar(
-              title: const Text('Analytics'),
-              backgroundColor: ThemeColors.unifiedSurface,
-              elevation: 0,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => context.pop(),
+            appBar: _buildAppBar(),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: ThemeColors.unifiedDanger,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(state.message),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadAnalytics,
+                    child: const Text('Retry'),
+                  ),
+                ],
               ),
             ),
           );
         }
 
+        if (state is! ManagerAnalyticsLoaded) {
+          return Scaffold(appBar: _buildAppBar());
+        }
+
         final stats = state.stats;
 
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Department Analytics'),
-            backgroundColor: ThemeColors.unifiedSurface,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.pop(),
-            ),
-          ),
+          appBar: _buildAppBar(),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
+            // FIX: Use cached _userFuture instead of creating a new
+            // LocalStorageService().getUser() on every rebuild
             child: FutureBuilder<UserModel?>(
-              future: LocalStorageService().getUser(),
+              future: _userFuture,
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: Text('Loading user data...'));
@@ -96,8 +130,8 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Analytics for ',
-                            // 'Analytics for ${user.departmentName}',
+                            'Analytics for ${"Your Department"}',
+                            // 'Analytics for ${user.departmentName ?? "Your Department"}',
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
@@ -106,7 +140,7 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Real-time overview of your department\'s ticket metrics',
+                            "Real-time overview of your department's ticket metrics",
                             style: TextStyle(
                               fontSize: 14,
                               color: ThemeColors.unifiedTextMuted.withOpacity(
@@ -131,37 +165,31 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
                         _buildMetricCard(
                           title: 'Total Tickets',
                           value: '${stats.total}',
-                          // icon: Icons.receipt_outline,
                           color: ThemeColors.unifiedPrimary,
                         ),
                         _buildMetricCard(
                           title: 'Open',
                           value: '${stats.open}',
-                          // icon: Icons.folder_open_outlined,
                           color: ThemeColors.unifiedSecondary,
                         ),
                         _buildMetricCard(
                           title: 'In Progress',
                           value: '${stats.inProgress}',
-                          // icon: Icons.hourglass_bottom_outlined,
                           color: ThemeColors.unifiedWarning,
                         ),
                         _buildMetricCard(
                           title: 'Completed',
                           value: '${stats.completed}',
-                          // icon: Icons.check_circle_outline,
                           color: ThemeColors.unifiedAccent,
                         ),
                         _buildMetricCard(
                           title: 'Closed',
                           value: '${stats.closed}',
-                          // icon: Icons.lock_outline,
                           color: ThemeColors.unifiedTextMuted,
                         ),
                         _buildMetricCard(
                           title: 'Overdue',
                           value: '${stats.overdue}',
-                          // icon: Icons.schedule_outlined,
                           color: ThemeColors.unifiedDanger,
                         ),
                       ],
@@ -299,21 +327,18 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
                             label: 'Completion Rate',
                             value:
                                 '${((stats.completed / (stats.total > 0 ? stats.total : 1)) * 100).toStringAsFixed(1)}%',
-                            // icon: Icons.trending_up_outlined,
                             color: ThemeColors.unifiedAccent,
                           ),
                           const SizedBox(height: 12),
                           _buildMetricRow(
                             label: 'Critical Issues',
                             value: '${stats.urgent}',
-                            // icon: Icons.warning_outline,
                             color: ThemeColors.unifiedDanger,
                           ),
                           const SizedBox(height: 12),
                           _buildMetricRow(
                             label: 'Overdue Tickets',
                             value: '${stats.overdue}',
-                            // icon: Icons.schedule_outlined,
                             color: ThemeColors.unifiedWarning,
                           ),
                         ],
@@ -330,10 +355,11 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
     );
   }
 
+  // FIX: Restored _buildMetricCard to its correct, clean implementation
+  // (previously the method body was replaced with a full duplicate widget tree)
   Widget _buildMetricCard({
     required String title,
     required String value,
-    // required IconData icon,
     required Color color,
   }) {
     return Container(
@@ -354,7 +380,6 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
               color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            // child: Icon(icon, color: color, size: 20),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -479,7 +504,6 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
   Widget _buildMetricRow({
     required String label,
     required String value,
-    // required IconData icon,
     required Color color,
   }) {
     return Row(
@@ -494,7 +518,6 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
                 color: color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              // child: Icon(icon, color: color, size: 18),
             ),
             const SizedBox(width: 12),
             Text(

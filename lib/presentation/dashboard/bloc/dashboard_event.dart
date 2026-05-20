@@ -99,3 +99,13 @@ class CreateTicketEvent extends DashboardEvent {
     dueDate,
   ];
 }
+
+class LoadManagerAnalytics extends DashboardEvent {
+  final int departmentId;
+  LoadManagerAnalytics(this.departmentId);
+  @override
+  List<Object?> get props => [departmentId];
+}
+
+class LoadCeoAnalytics extends DashboardEvent {}
+

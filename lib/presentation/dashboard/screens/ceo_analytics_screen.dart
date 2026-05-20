@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
-import 'package:tasknest/data/datasource/ticketdatasource/ticket_remote_data_source.dart';
-import 'package:tasknest/injection.dart';
-import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 
 class DepartmentAnalyticsModel {
   final int deptId;
@@ -63,52 +62,47 @@ class CeoAnalyticsScreen extends StatefulWidget {
 }
 
 class _CeoAnalyticsScreenState extends State<CeoAnalyticsScreen> {
-  late Future<List<DepartmentAnalyticsModel>> _analyticsFuture;
-
   @override
   void initState() {
     super.initState();
-    _analyticsFuture = _fetchAnalytics();
-  }
-
-  Future<List<DepartmentAnalyticsModel>> _fetchAnalytics() async {
-    try {
-      final response = await apiClient.get('tickets/analytics/by-department');
-      final List<dynamic> data = response['data'] ?? [];
-      return data
-          .map((item) => DepartmentAnalyticsModel.fromJson(item))
-          .toList();
-    } catch (e) {
-      print('Error fetching analytics: $e');
-      rethrow;
-    }
+    context.read<DashboardBloc>().add(LoadCeoAnalytics());
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Organization Analytics'),
-        backgroundColor: ThemeColors.unifiedSurface,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-        ),
-      ),
-      body: FutureBuilder<List<DepartmentAnalyticsModel>>(
-        future: _analyticsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
+    return BlocBuilder<DashboardBloc, DashboardState>(
+      builder: (context, state) {
+        if (state is AnalyticsLoading) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Organization Analytics'),
+              backgroundColor: ThemeColors.unifiedSurface,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.pop(),
+              ),
+            ),
+            body: const Center(
               child: CircularProgressIndicator(
                 color: ThemeColors.unifiedPrimary,
               ),
-            );
-          }
+            ),
+          );
+        }
 
-          if (snapshot.hasError) {
-            return Center(
+        if (state is AnalyticsError) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Organization Analytics'),
+              backgroundColor: ThemeColors.unifiedSurface,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.pop(),
+              ),
+            ),
+            body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -118,65 +112,90 @@ class _CeoAnalyticsScreenState extends State<CeoAnalyticsScreen> {
                     color: ThemeColors.unifiedDanger,
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    'Error loading analytics',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: ThemeColors.unifiedDanger,
-                    ),
-                  ),
+                  Text(state.message),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _analyticsFuture = _fetchAnalytics();
-                      });
-                    },
+                    onPressed: () =>
+                        context.read<DashboardBloc>().add(LoadCeoAnalytics()),
                     child: const Text('Retry'),
                   ),
                 ],
               ),
-            );
-          }
+            ),
+          );
+        }
 
-          final analytics = snapshot.data ?? [];
+        if (state is! CeoAnalyticsLoaded) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Organization Analytics'),
+              backgroundColor: ThemeColors.unifiedSurface,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.pop(),
+              ),
+            ),
+          );
+        }
 
-          if (analytics.isEmpty) {
-            return const Center(
+        final analyticsData = state.departmentAnalytics;
+        final analytics = analyticsData
+            .map(
+              (item) => DepartmentAnalyticsModel.fromJson(
+                item as Map<String, dynamic>,
+              ),
+            )
+            .toList();
+
+        if (analytics.isEmpty) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('Organization Analytics'),
+              backgroundColor: ThemeColors.unifiedSurface,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => context.pop(),
+              ),
+            ),
+            body: const Center(
               child: Text(
                 'No department data available',
                 style: TextStyle(color: ThemeColors.unifiedTextMuted),
               ),
-            );
-          }
+            ),
+          );
+        }
 
-          final totalTickets = analytics.fold<int>(
-            0,
-            (sum, a) => sum + a.total,
-          );
-          final totalOpen = analytics.fold<int>(0, (sum, a) => sum + a.open);
-          final totalInProgress = analytics.fold<int>(
-            0,
-            (sum, a) => sum + a.inProgress,
-          );
-          final totalCompleted = analytics.fold<int>(
-            0,
-            (sum, a) => sum + a.completed,
-          );
-          final totalClosed = analytics.fold<int>(
-            0,
-            (sum, a) => sum + a.closed,
-          );
-          final totalUrgent = analytics.fold<int>(
-            0,
-            (sum, a) => sum + a.urgent,
-          );
-          final totalOverdue = analytics.fold<int>(
-            0,
-            (sum, a) => sum + a.overdue,
-          );
+        final totalTickets = analytics.fold<int>(0, (sum, a) => sum + a.total);
+        final totalOpen = analytics.fold<int>(0, (sum, a) => sum + a.open);
+        final totalInProgress = analytics.fold<int>(
+          0,
+          (sum, a) => sum + a.inProgress,
+        );
+        final totalCompleted = analytics.fold<int>(
+          0,
+          (sum, a) => sum + a.completed,
+        );
+        final totalClosed = analytics.fold<int>(0, (sum, a) => sum + a.closed);
+        final totalUrgent = analytics.fold<int>(0, (sum, a) => sum + a.urgent);
+        final totalOverdue = analytics.fold<int>(
+          0,
+          (sum, a) => sum + a.overdue,
+        );
 
-          return SingleChildScrollView(
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Organization Analytics'),
+            backgroundColor: ThemeColors.unifiedSurface,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => context.pop(),
+            ),
+          ),
+          body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -320,14 +339,12 @@ class _CeoAnalyticsScreenState extends State<CeoAnalyticsScreen> {
                       _buildPerformanceRow(
                         label: 'Critical Issues',
                         value: '$totalUrgent',
-                        // icon: Icon,
                         color: ThemeColors.unifiedDanger,
                       ),
                       const SizedBox(height: 12),
                       _buildPerformanceRow(
                         label: 'Overdue Tickets',
                         value: '$totalOverdue',
-                        // icon: Icons.schedule_outlined,
                         color: ThemeColors.unifiedWarning,
                       ),
                     ],
@@ -336,9 +353,9 @@ class _CeoAnalyticsScreenState extends State<CeoAnalyticsScreen> {
                 const SizedBox(height: 16),
               ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 

@@ -105,3 +105,27 @@ class SidebarSelectedIndexState extends DashboardState {
   @override
   List<Object?> get props => [sidebarSelectedIndexState];
 }
+
+class AnalyticsLoading extends DashboardState {}
+
+class ManagerAnalyticsLoaded extends DashboardState {
+  final DashboardStats stats;
+  ManagerAnalyticsLoaded(this.stats);
+  @override
+  List<Object?> get props => [stats];
+}
+
+class CeoAnalyticsLoaded extends DashboardState {
+  final List<dynamic> departmentAnalytics;
+  CeoAnalyticsLoaded(this.departmentAnalytics);
+  @override
+  List<Object?> get props => [departmentAnalytics];
+}
+
+class AnalyticsError extends DashboardState {
+  final String message;
+  AnalyticsError(this.message);
+  @override
+  List<Object?> get props => [message];
+}
+
