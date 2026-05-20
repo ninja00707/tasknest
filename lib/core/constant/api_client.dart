@@ -58,14 +58,14 @@ class ApiClient {
           if (error.response?.statusCode == 401 && !isAuthRoute) {
             if (_isRedirecting) return handler.next(error);
             _isRedirecting = true;
-
             if (kDebugMode) {
               debugPrint(
-                'ApiClient Interceptor: 401 Unauthorized. Redirecting to Login.',
+                'ApiClient Interceptor: 401 Unauthorized for ${error.requestOptions.path}',
               );
+              debugPrint('Response body: ${error.response?.data}');
             }
 
-            // await LocalStorageService().clearToken();
+            await LocalStorageService().clearToken();
 
             // Use the global appRouter directly to avoid context errors
             appRouter.go(RouteNames.login);

@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 const pool = require('../../database/db');
 
 // ── Verify JWT ────────────────────────────────────────────────────────────────
@@ -16,7 +17,7 @@ const authenticate = async (req, res, next) => {
         // Use LEFT JOIN for departments to handle cases where department_id is NULL
         const result = await pool.query(
             `SELECT u.id, u.name, u.email, u.department_id, u.company_id,
-              r.name AS role, COALESCE(d.code, '') AS dept_code, COALESCE(d.tier, 0) AS dept_tier,
+              r.name AS role, COALESCE(d.code, '') AS dept_code, COALESCE(d.tier, '0') AS dept_tier,
               COALESCE(d.parent_id, NULL) AS dept_parent_id
        FROM users u
        JOIN roles r ON r.id = u.role_id
@@ -32,6 +33,7 @@ const authenticate = async (req, res, next) => {
         req.user = result.rows[0];
         next();
     } catch (err) {
+        console.error('JWT Verification Error:', err.message);
         return res.status(401).json({ success: false, message: 'Invalid or expired token' });
     }
 };

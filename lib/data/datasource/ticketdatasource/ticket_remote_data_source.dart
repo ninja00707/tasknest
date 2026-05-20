@@ -106,7 +106,11 @@ class TicketRemoteDataSource {
 
   Future<List<TicketModel>> getSentTickets() async {
     final res = await _api.get('tickets/sent-tickets');
-    return (res['data'] as List).map((e) => TicketModel.fromJson(e)).toList();
+    final data = res['data'];
+    if (data is List) {
+      return data.map((e) => TicketModel.fromJson(e)).toList();
+    }
+    return [];
   }
 
   /// Analytics endpoints
