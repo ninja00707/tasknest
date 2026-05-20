@@ -9,8 +9,11 @@ import 'package:tasknest/core/theme/common_dropDown.dart';
 import 'package:tasknest/core/theme/common_text.dart';
 import 'package:tasknest/core/theme/common_textForm_Field.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
+import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
+import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 
 class CreateTicketView extends StatefulWidget {
   // final List<DepartmentModel> departments;
@@ -28,8 +31,29 @@ class CreateTicketViewState extends State<CreateTicketView> {
   String? _dueDate;
   Departments _selectedDepartment = Departments(id: 0, name: 'HR');
 
+  UserModel? _user;
+  EmployeeModel? _selectedEmployee;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+    // No need to load employees here, they are loaded by DashboardBloc
+  }
+
+  void _loadUser() async {
+    _user = await LocalStorageService().getUser();
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
+    final blocState = context.watch<DashboardBloc>().state;
+    List<EmployeeModel> employeeList = [];
+    if (blocState is DashboardLoaded) {
+      employeeList = blocState.employees;
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -108,6 +132,31 @@ class CreateTicketViewState extends State<CreateTicketView> {
                     });
                   },
                 ),
+
+                if (_user!.roleId == 1) ...[
+                  // Show for managers and CEOs
+                  const SizedBox(height: 16),
+                  CommonText(
+                    'Assign to Employee (Optional)',
+                    customeStyle: CommonDecoration().commonFormLabelStyle,
+                  ),
+                  const SizedBox(height: 6),
+                  CommonDropdown<EmployeeModel>(
+                    hint: 'Select Employee',
+                    items: employeeList.map((emp) {
+                      return DropdownItem<EmployeeModel>(
+                        // Ensure EmployeeModel is correctly used
+                        value: emp,
+                        label: emp.name,
+                      );
+                    }).toList(),
+                    onChanged: (EmployeeModel value) {
+                      setState(() {
+                        _selectedEmployee = value;
+                      });
+                    },
+                  ),
+                ],
 
                 const SizedBox(height: 16),
                 CommonText(
@@ -227,6 +276,7 @@ class CreateTicketViewState extends State<CreateTicketView> {
         description: _description.text.trim(),
         priority: priority.name,
         assignedDeptId: _selectedDepartment.id,
+        assignedToId: _selectedEmployee?.id,
 
         // FETCHED FROM STORAGE
         createdById: user.id,

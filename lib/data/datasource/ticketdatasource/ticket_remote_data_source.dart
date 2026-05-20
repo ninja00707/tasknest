@@ -38,6 +38,7 @@ class TicketRemoteDataSource {
     required int createdById,
     required int createdByDept,
     String? dueDate,
+    int? assignedToId, // Added assignedToId
   }) async {
     final res = await _api.post(
       'tickets',
@@ -48,6 +49,8 @@ class TicketRemoteDataSource {
         'assignedDeptId': assignedDeptId,
         'createdById': createdById, // Explicitly adding this
         'createdByDept': createdByDept, // Explicitly adding this
+        if (assignedToId != null)
+          'assignedToId': assignedToId, // Send assignedToId if present
         if (dueDate != null) 'dueDate': dueDate,
       },
     );

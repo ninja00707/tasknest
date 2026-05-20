@@ -20,7 +20,7 @@ class TicketService {
   }
 
   async createTicket(data, user) {
-    const { title, description, priority = 'medium', assignedDeptId, dueDate } = data;
+    const { title, description, priority = 'medium', assignedDeptId, dueDate, assignedToId } = data;
 
     if (!title || !description || title.trim() === '' || description.trim() === '' || assignedDeptId == null) {
       throw { statusCode: 400, message: 'title, description and assignedDeptId are required' };
@@ -33,6 +33,7 @@ class TicketService {
       assignedDeptId,
       dueDate,
       createdBy: user,
+      assignedToId,
     });
 
     await ticketRepo.logAction(
@@ -40,8 +41,8 @@ class TicketService {
       user.id,
       'created',
       null,
-      'open',
-      `Created by ${user.name}`
+      ticket.status,
+      `Created by ${user.name}${assignedToId ? ` and assigned to employee ID ${assignedToId}` : ''}`
     );
 
     return ticket;
@@ -177,7 +178,7 @@ class TicketService {
   async getEmployees(user, departmentId) {
     const deptId = departmentId ? Number(departmentId) : Number(user.department_id);
     if (deptId === undefined || isNaN(deptId)) {
-      throw { statusCode: 400, message: 'departmentId is required' };
+      throw { statusCode: 400, message: 'Department ID is required' };
     }
     return await ticketRepo.getEmployeesByDepartment(deptId);
   }

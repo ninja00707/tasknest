@@ -72,7 +72,7 @@ class CreateTicketEvent extends DashboardEvent {
   // ADD THESE
   final int createdById;
   final int createdByDept;
-
+  final int? assignedToId; // New field for optional assignment
   final String? dueDate;
 
   CreateTicketEvent({
@@ -80,7 +80,7 @@ class CreateTicketEvent extends DashboardEvent {
     required this.description,
     required this.priority,
     required this.assignedDeptId,
-
+    required this.assignedToId, // Make assignedToId required in the constructor
     // ADD THESE
     required this.createdById,
     required this.createdByDept,
@@ -97,6 +97,7 @@ class CreateTicketEvent extends DashboardEvent {
     createdById,
     createdByDept,
     dueDate,
+    assignedToId,
   ];
 }
 
@@ -108,4 +109,3 @@ class LoadManagerAnalytics extends DashboardEvent {
 }
 
 class LoadCeoAnalytics extends DashboardEvent {}
-

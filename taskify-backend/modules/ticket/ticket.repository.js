@@ -147,13 +147,15 @@ class TicketRepository {
   }
 
   // ── Create ticket ─────────────────────────────────────────────────────────
-  async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy }) {
+  async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId }) {
+    // Set status to 'in_progress' if assignedToId is provided, otherwise 'open'
+    const status = assignedToId ? 'in_progress' : 'open';
     const result = await pool.query(`
       INSERT INTO tickets
-        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'open')
+        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id
-    `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id]);
+    `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status]);
 
     return await this.getTicketDetails(result.rows[0].id);
   }

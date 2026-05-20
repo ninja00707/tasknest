@@ -221,6 +221,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
         createdById: event.createdById,
         createdByDept: event.createdByDept,
+        assignedToId: event.assignedToId, // Correctly access assignedToId
         dueDate: event.dueDate,
       );
 
