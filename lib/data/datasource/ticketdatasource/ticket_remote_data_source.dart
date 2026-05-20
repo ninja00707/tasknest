@@ -45,10 +45,10 @@ class TicketRemoteDataSource {
         'title': title,
         'description': description,
         'priority': priority,
-        'assignedDeptId': assignedDeptId,
-        'createdById': createdById,
-        'createdByDept': createdByDept,
-        if (dueDate != null) 'dueDate': dueDate,
+        'assigned_dept_id': assignedDeptId,
+        'created_by_id': createdById,
+        'created_by_dept': createdByDept,
+        if (dueDate != null) 'due_date': dueDate,
       },
     );
 
@@ -71,7 +71,7 @@ class TicketRemoteDataSource {
   Future<TicketModel> assignToEmployee(int ticketId, int employeeId) async {
     final res = await _api.patch(
       'tickets/$ticketId/assign',
-      body: {'employeeId': employeeId},
+      body: {'employee_id': employeeId},
     );
     return TicketModel.fromJson(res['data']);
   }
@@ -79,7 +79,7 @@ class TicketRemoteDataSource {
   Future<TicketModel> transferTicket(int ticketId, int targetDeptId) async {
     final res = await _api.patch(
       'tickets/$ticketId/transfer',
-      body: {'targetDeptId': targetDeptId},
+      body: {'target_dept_id': targetDeptId},
     );
     return TicketModel.fromJson(res['data']);
   }
@@ -91,9 +91,11 @@ class TicketRemoteDataSource {
 
   Future<List<DepartmentModel>> getDepartments() async {
     final res = await _api.get('tickets/departments');
-    return (res['data'] as List)
-        .map((e) => DepartmentModel.fromJson(e))
-        .toList();
+    final data = res['data'];
+    if (data is List) {
+      return data.map((e) => DepartmentModel.fromJson(e)).toList();
+    }
+    return [];
   }
 
   Future<List<EmployeeModel>> getEmployees({int? departmentId}) async {
@@ -101,7 +103,11 @@ class TicketRemoteDataSource {
       if (departmentId != null) 'departmentId': departmentId.toString(),
     };
     final res = await _api.get('tickets/employees', queryParams: query);
-    return (res['data'] as List).map((e) => EmployeeModel.fromJson(e)).toList();
+    final data = res['data'];
+    if (data is List) {
+      return data.map((e) => EmployeeModel.fromJson(e)).toList();
+    }
+    return [];
   }
 
   Future<List<TicketModel>> getSentTickets() async {

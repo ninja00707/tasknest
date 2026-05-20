@@ -81,6 +81,9 @@ class ApiClient {
 
           if (kDebugMode) {
             debugPrint('ApiClient Interceptor: Error: ${error.message}');
+            debugPrint(
+              'ApiClient Interceptor: Response body: ${error.response?.data}',
+            );
           }
           return handler.next(error);
         },
