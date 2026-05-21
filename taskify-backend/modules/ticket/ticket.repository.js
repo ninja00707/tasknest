@@ -165,9 +165,9 @@ class TicketRepository {
   async updateStatus(ticketId, status, user) {
     console.log(`[TicketRepository] Executing updateStatus for ticketId: ${ticketId}, status: ${status}, userId: ${user.id}`);
     await pool.query(`
-      UPDATE tickets SET status = $1,
-        closed_by_id = CASE WHEN $1 = 'closed' THEN $2 ELSE closed_by_id END,
-        closed_at    = CASE WHEN $1 = 'closed' THEN NOW() ELSE closed_at END
+      UPDATE tickets SET status = $1::VARCHAR,
+        closed_by_id = CASE WHEN $1::VARCHAR = 'closed' THEN $2 ELSE closed_by_id END,
+        closed_at    = CASE WHEN $1::VARCHAR = 'closed' THEN NOW() ELSE closed_at END
       WHERE id = $3
     `, [status, user.id, ticketId]);
 
