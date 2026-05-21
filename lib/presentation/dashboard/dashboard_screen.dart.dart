@@ -182,9 +182,12 @@ class DashboardScreen extends StatelessWidget {
       case 3:
         return RecentTicketsView(state: loadedState);
       case 4:
-        return user.roleId == 1
-            ? ManagerAnalyticsScreen(user: user)
-            : CeoAnalyticsScreen();
+        // Dispatch the correct analytics event based on user role
+        if (user.roleId == 1) return ManagerAnalyticsScreen(user: user);
+        if (user.roleId == 0) return CeoAnalyticsScreen(user: user);
+        return const Center(
+          child: Text("Access Denied: Analytics"),
+        ); // Fallback for non-manager/CEO
       case 5:
         return MyTicketsView(state: loadedState, user: user);
 

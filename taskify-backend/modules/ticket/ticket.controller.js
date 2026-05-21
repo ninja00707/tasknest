@@ -160,6 +160,15 @@ class TicketController {
       next(err);
     }
   }
+
+  async getOrganizationAnalytics(req, res, next) {
+    try {
+      const analytics = await ticketService.getOrganizationAnalytics();
+      res.json({ success: true, data: analytics });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new TicketController();

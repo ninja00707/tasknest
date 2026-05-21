@@ -129,7 +129,9 @@ class TicketRemoteDataSource {
   }
 
   Future<List<dynamic>> getOrganizationAnalytics() async {
-    final res = await _api.get('tickets/analytics/by-department');
+    final res = await _api.get(
+      'tickets/analytics/organization',
+    ); // Changed endpoint to be more specific
     return res['data'] ?? [];
   }
 }

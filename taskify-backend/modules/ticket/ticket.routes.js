@@ -12,6 +12,7 @@ router.get('/departments', controller.getDepartments);
 router.get('/employees', isManager, controller.getEmployees);
 router.get('/sent-tickets', controller.getSentTickets);
 router.get('/analytics/by-department', isCeo, controller.getAnalyticsByDepartment);
+router.get('/analytics/organization', isCeo, controller.getOrganizationAnalytics);
 
 // ── CRUD ──────────────────────────────────────────────────────
 router.get('/', controller.getTickets);

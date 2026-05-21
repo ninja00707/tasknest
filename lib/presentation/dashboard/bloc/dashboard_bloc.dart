@@ -256,7 +256,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     LoadManagerAnalytics event,
     Emitter<DashboardState> emit,
   ) async {
-    emit(AnalyticsLoading());
+    emit(AnalyticsLoading()); // Indicate loading state for analytics
     try {
       final stats = await _dataSource.getDepartmentAnalytics(
         event.departmentId,

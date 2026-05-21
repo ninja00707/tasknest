@@ -53,7 +53,7 @@ final GoRouter appRouter = GoRouter(
 
     GoRoute(
       path: RouteNames.analyticsCeo,
-      builder: (context, state) => const CeoAnalyticsScreen(),
+      builder: (context, state) => CeoAnalyticsScreen(user: _user!),
     ),
 
     GoRoute(

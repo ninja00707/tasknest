@@ -211,6 +211,10 @@ class TicketService {
   async getAnalyticsByDepartment() {
     return await ticketRepo.getAnalyticsByDepartment();
   }
+
+  async getOrganizationAnalytics() {
+    return await ticketRepo.getAnalyticsByDepartment(); // Reusing the existing repo method for now
+  }
 }
 
 module.exports = new TicketService();

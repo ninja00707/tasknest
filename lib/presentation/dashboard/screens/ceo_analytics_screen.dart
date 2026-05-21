@@ -5,6 +5,7 @@ import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
+import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class DepartmentAnalyticsModel {
   final int deptId;
@@ -55,7 +56,8 @@ class DepartmentAnalyticsModel {
 }
 
 class CeoAnalyticsScreen extends StatefulWidget {
-  const CeoAnalyticsScreen({super.key});
+  final UserModel user;
+  const CeoAnalyticsScreen({super.key, required this.user});
 
   @override
   State<CeoAnalyticsScreen> createState() => _CeoAnalyticsScreenState();
