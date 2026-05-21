@@ -10,9 +10,13 @@ import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/action_button.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
+/// Handles ticket transitions with strict role and resolver-based permissions.
+/// Resolver: The user assigned to the ticket.
+/// CEO: Restricted from specific actions per requirements.
 class TicketActions extends StatelessWidget {
   final TicketModel ticket;
-  const TicketActions({super.key, required this.ticket});
+  final UserModel user;
+  const TicketActions({super.key, required this.ticket, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -22,78 +26,82 @@ class TicketActions extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
-        return FutureBuilder<UserModel?>(
-          future: LocalStorageService().getUser(),
-          builder: (context, snapshot) {
-            final user = snapshot.data;
-            final canManage =
-                user != null && (user.roleId == 0 || user.roleId == 1);
+        final bool isManager = user.roleId == 1;
+        final bool isCeo = user.roleId == 0;
+        final bool isResolver = ticket.assignedToId == user.id;
+        final bool isAssignedToMyDept =
+            ticket.assignedDeptId == user.departmentId;
 
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (ticket.isOpen && ticket.assignedToId == null)
-                  ActionBtn(
-                    icon: Icons.person_add_outlined,
-                    tooltip: 'Self Assign',
-                    color: ThemeColors.unifiedSecondary,
-                    onTap: () => context.read<DashboardBloc>().add(
-                      SelfAssignTicket(ticket.id),
-                    ),
-                  ),
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 1. Self Assign: Open to employees/managers in the department
+            if (ticket.isOpen &&
+                ticket.assignedToId == null &&
+                isAssignedToMyDept)
+              ActionBtn(
+                icon: Icons.person_add_outlined,
+                tooltip: 'Self Assign',
+                color: ThemeColors.unifiedSecondary,
+                onTap: () => context.read<DashboardBloc>().add(
+                  SelfAssignTicket(ticket.id),
+                ),
+              ),
 
-                if (canManage &&
-                    ticket.assignedToId == null &&
-                    state.employees.isNotEmpty &&
-                    ticket.assignedDeptId == user?.departmentId)
-                  ActionBtn(
-                    icon: Icons.manage_accounts_outlined,
-                    tooltip: 'Assign',
-                    color: ThemeColors.unifiedAccent,
-                    onTap: () => _showAssignDialog(context, state),
-                  ),
+            // 2. Managerial Assign: Only for Managers
+            if (isManager &&
+                ticket.assignedToId == null &&
+                state.employees.isNotEmpty &&
+                isAssignedToMyDept)
+              ActionBtn(
+                icon: Icons.manage_accounts_outlined,
+                tooltip: 'Assign to Employee',
+                color: ThemeColors.unifiedAccent,
+                onTap: () => _showAssignDialog(context, state),
+              ),
 
-                if (ticket.isInProgress)
-                  ActionBtn(
-                    icon: Icons.check_circle_outline,
-                    tooltip: 'Mark Completed',
-                    color: ThemeColors.unifiedPrimary,
-                    onTap: () => context.read<DashboardBloc>().add(
-                      UpdateTicketStatus(ticket.id, 'completed'),
-                    ),
-                  ),
+            // 3. Resolver Action: Mark Completed (Done). CEO is restricted.
+            if (ticket.isInProgress && isResolver && !isCeo)
+              ActionBtn(
+                icon: Icons.check_circle_outline,
+                tooltip: 'Mark Done',
+                color: ThemeColors.unifiedPrimary,
+                onTap: () => context.read<DashboardBloc>().add(
+                  UpdateTicketStatus(ticket.id, 'completed'),
+                ),
+              ),
 
-                if (ticket.isCompleted)
-                  ActionBtn(
-                    icon: Icons.lock_outline,
-                    tooltip: 'Close Ticket',
-                    color: ThemeColors.unifiedTextMuted,
-                    onTap: () => context.read<DashboardBloc>().add(
-                      UpdateTicketStatus(ticket.id, 'closed'),
-                    ),
-                  ),
+            // 4. Resolver Action: Close.
+            if (ticket.isCompleted && isResolver)
+              ActionBtn(
+                icon: Icons.lock_outline,
+                tooltip: 'Finalize & Close',
+                color: ThemeColors.unifiedTextMuted,
+                onTap: () => context.read<DashboardBloc>().add(
+                  UpdateTicketStatus(ticket.id, 'closed'),
+                ),
+              ),
 
-                if (!ticket.isClosed)
-                  ActionBtn(
-                    icon: Icons.swap_horiz_rounded,
-                    tooltip: 'Transfer',
-                    color: ThemeColors.unifiedWarning,
-                    onTap: () => _showTransferDialog(context, ticket),
-                  ),
+            // 5. Transfer: Managers only, CEO restricted.
+            if (!ticket.isClosed && isManager && !isCeo)
+              ActionBtn(
+                icon: Icons.swap_horiz_rounded,
+                tooltip: 'Transfer Dept',
+                color: ThemeColors.unifiedWarning,
+                onTap: () => _showTransferDialog(context, ticket),
+              ),
 
-                if ((ticket.isClosed || ticket.isCompleted) &&
-                    ticket.reopenCount < 1)
-                  ActionBtn(
-                    icon: Icons.replay_rounded,
-                    tooltip: 'Reopen',
-                    color: ThemeColors.unifiedAccent,
-                    onTap: () => context.read<DashboardBloc>().add(
-                      ReopenTicket(ticket.id),
-                    ),
-                  ),
-              ],
-            );
-          },
+            // 6. Reopen: For those who need to resume work
+            if ((ticket.isClosed || ticket.isCompleted) &&
+                ticket.reopenCount < 1)
+              ActionBtn(
+                icon: Icons.replay_rounded,
+                tooltip: 'Reopen',
+                color: ThemeColors.unifiedAccent,
+                onTap: () =>
+                    context.read<DashboardBloc>().add(ReopenTicket(ticket.id)),
+              ),
+          ],
         );
       },
     );

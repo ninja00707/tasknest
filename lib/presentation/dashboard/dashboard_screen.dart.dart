@@ -172,9 +172,9 @@ class DashboardScreen extends StatelessWidget {
 
     switch (loadedState.selectedIndex) {
       case 0:
-        return DashboardView(state: loadedState);
+        return DashboardView(state: loadedState, user: user);
       case 1:
-        return TicketListView(state: loadedState);
+        return TicketListView(state: loadedState, user: user);
       case 2:
         return CreateTicketView(user: user);
       case 3:
@@ -183,7 +183,7 @@ class DashboardScreen extends StatelessWidget {
             : CeoAnalyticsScreen();
 
       default:
-        return DashboardView(state: loadedState);
+        return DashboardView(state: loadedState, user: user);
     }
   }
 }

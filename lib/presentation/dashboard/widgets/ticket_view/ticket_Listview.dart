@@ -7,10 +7,12 @@ import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_card.dart';
+import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class TicketListView extends StatelessWidget {
   final DashboardLoaded state;
-  const TicketListView({super.key, required this.state});
+  final UserModel user;
+  const TicketListView({super.key, required this.state, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +109,8 @@ class TicketListView extends StatelessWidget {
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: state.tickets.length,
-                  itemBuilder: (_, i) => TicketCard(ticket: state.tickets[i]),
+                  itemBuilder: (_, i) =>
+                      TicketCard(ticket: state.tickets[i], user: user),
                 ),
         ),
       ],

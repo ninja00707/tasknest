@@ -5,10 +5,12 @@ import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_action.dart';
+import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class TicketCard extends StatelessWidget {
   final TicketModel ticket;
-  const TicketCard({super.key, required this.ticket});
+  final UserModel user;
+  const TicketCard({super.key, required this.ticket, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -174,7 +176,7 @@ class TicketCard extends StatelessWidget {
                         ),
                       ],
                       const Spacer(),
-                      TicketActions(ticket: ticket),
+                      TicketActions(ticket: ticket, user: user!),
                     ],
                   ),
                   if (isTransferred) ...[

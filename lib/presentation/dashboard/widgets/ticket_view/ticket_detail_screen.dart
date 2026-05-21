@@ -10,18 +10,17 @@ import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_action.dart';
+import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
-class TicketDetailScreen extends StatefulWidget {
+class TicketDetailScreen extends StatelessWidget {
   final int ticketId;
+  final UserModel user;
 
-  const TicketDetailScreen({super.key, required this.ticketId});
-
-  @override
-  State<TicketDetailScreen> createState() => _TicketDetailScreenState();
-}
-
-class _TicketDetailScreenState extends State<TicketDetailScreen> {
-  final TextEditingController _commentController = TextEditingController();
+  const TicketDetailScreen({
+    super.key,
+    required this.ticketId,
+    required this.user,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,11 +28,13 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     final bool isWide = screenWidth > 1000;
 
     return BlocBuilder<DashboardBloc, DashboardState>(
+      buildWhen: (prev, curr) =>
+          curr is DashboardLoaded || curr is DashboardLoading,
       builder: (context, state) {
         if (state is! DashboardLoaded) {
           return Scaffold(
             appBar: AppBar(
-              title: const Text('Ticket Details'),
+              title: const Text('Loading...'),
               backgroundColor: ThemeColors.unifiedSurface,
               elevation: 0,
             ),
@@ -42,7 +43,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
         }
 
         final ticket = state.tickets.firstWhere(
-          (t) => t.id == widget.ticketId,
+          (t) => t.id == ticketId,
           orElse: () => TicketModel(
             id: 0,
             title: 'Unknown Ticket',
@@ -137,7 +138,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                     children: [
                       Expanded(flex: 2, child: _buildMainInfo(ticket)),
                       const SizedBox(width: 24),
-                      Expanded(flex: 1, child: _buildSidePanel(ticket)),
+                      Expanded(flex: 1, child: _buildSidePanel(ticket, user)),
                     ],
                   )
                 else
@@ -145,7 +146,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                     children: [
                       _buildMainInfo(ticket),
                       const SizedBox(height: 24),
-                      _buildSidePanel(ticket),
+                      _buildSidePanel(ticket, user),
                     ],
                   ),
                 const SizedBox(height: 40),
@@ -196,15 +197,20 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     );
   }
 
-  Widget _buildSidePanel(TicketModel ticket) {
+  Widget _buildSidePanel(TicketModel ticket, UserModel user) {
     return Column(
       children: [
         _buildCard(
           title: 'ACTIONS',
-          child: Center(child: TicketActions(ticket: ticket)),
+          child: Center(
+            child: TicketActions(ticket: ticket, user: user),
+          ),
         ),
         const SizedBox(height: 24),
-        _buildCard(title: 'HISTORY', child: _buildHistoryTimeline()),
+        _buildCard(
+          title: 'TICKET PROGRESS',
+          child: _buildHistoryTimeline(ticket.status),
+        ),
       ],
     );
   }
@@ -267,43 +273,58 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     );
   }
 
-  Widget _buildHistoryTimeline() {
+  Widget _buildHistoryTimeline(String currentStatus) {
+    final status = currentStatus.toLowerCase();
+
+    bool isPassed(int step) {
+      if (status == 'closed') return true;
+      if (status == 'completed' && step <= 3) return true;
+      if (status == 'in_progress' && step <= 2) return true;
+      if (status == 'open' && step <= 1) return true;
+      return false;
+    }
+
     return Column(
       children: [
         _buildHistoryItem(
           icon: Icons.add_circle_outline,
           title: 'Ticket Created',
-          description: 'Ticket was created',
-          timestamp: 'Created',
+          description: 'The request has been logged in the system.',
+          timestamp: 'Step 1',
           color: ThemeColors.unifiedPrimary,
+          isActive: isPassed(1),
         ),
         _buildHistoryItem(
           icon: Icons.assignment_ind_outlined,
           title: 'Ticket Assigned',
-          description: 'Assigned to department',
-          timestamp: 'Status: Open',
+          description: 'Pending pick-up or assignment to a resolver.',
+          timestamp: 'Step 2',
           color: ThemeColors.unifiedSecondary,
+          isActive: isPassed(2),
         ),
         _buildHistoryItem(
           icon: Icons.hourglass_bottom_outlined,
           title: 'In Progress',
-          description: 'Work started on ticket',
-          timestamp: 'Status: In Progress',
+          description: 'A resolver is currently working on the task.',
+          timestamp: 'Step 3',
           color: ThemeColors.unifiedWarning,
+          isActive: isPassed(3),
         ),
         _buildHistoryItem(
           icon: Icons.check_circle_outline,
           title: 'Completed',
-          description: 'Work marked as complete',
-          timestamp: 'Status: Completed',
+          description: 'Task finished and awaiting final closure.',
+          timestamp: 'Step 4',
           color: ThemeColors.unifiedAccent,
+          isActive: isPassed(4),
         ),
         _buildHistoryItem(
           icon: Icons.lock_outline,
           title: 'Closed',
-          description: 'Ticket was closed',
-          timestamp: 'Status: Closed',
+          description: 'Ticket is resolved and archived.',
+          timestamp: 'Final',
           color: ThemeColors.unifiedTextMuted,
+          isActive: status == 'closed',
           isLast: true,
         ),
       ],
@@ -316,25 +337,35 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
     required String description,
     required String timestamp,
     required Color color,
+    required bool isActive,
     bool isLast = false,
   }) {
+    final displayColor = isActive ? color : ThemeColors.unifiedBorder;
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Column(
           children: [
-            Container(
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: isActive ? color.withOpacity(0.1) : Colors.transparent,
                 shape: BoxShape.circle,
-                border: Border.all(color: color, width: 2),
+                border: Border.all(color: displayColor, width: 2),
               ),
-              child: Icon(icon, color: color, size: 20),
+              child: Icon(icon, color: displayColor, size: 20),
             ),
             if (!isLast)
-              Container(width: 2, height: 30, color: ThemeColors.unifiedBorder),
+              Container(
+                width: 2,
+                height: 30,
+                color: isActive
+                    ? color.withOpacity(0.5)
+                    : ThemeColors.unifiedBorder,
+              ),
           ],
         ),
         const SizedBox(width: 16),

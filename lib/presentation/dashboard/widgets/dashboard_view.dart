@@ -19,7 +19,8 @@ import 'package:tasknest/presentation/login/bloc/login_event.dart';
 
 class DashboardView extends StatelessWidget {
   final DashboardLoaded state;
-  const DashboardView({super.key, required this.state});
+  final UserModel user;
+  const DashboardView({super.key, required this.state, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -264,7 +265,9 @@ class DashboardView extends StatelessWidget {
                   ),
                 )
               else
-                ...state.tickets.take(5).map((t) => TicketCard(ticket: t)),
+                ...state.tickets
+                    .take(5)
+                    .map((t) => TicketCard(ticket: t, user: user)),
               const SizedBox(height: 24),
               if (state.sentTickets.isNotEmpty) ...[
                 Row(
@@ -285,7 +288,9 @@ class DashboardView extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                ...state.sentTickets.take(5).map((t) => TicketCard(ticket: t)),
+                ...state.sentTickets
+                    .take(5)
+                    .map((t) => TicketCard(ticket: t, user: user)),
               ],
             ],
           );

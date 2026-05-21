@@ -60,7 +60,7 @@ final GoRouter appRouter = GoRouter(
       path: RouteNames.ticketDetail,
       builder: (context, state) {
         final id = int.parse(state.pathParameters['id']!);
-        return TicketDetailScreen(ticketId: id);
+        return TicketDetailScreen(ticketId: id, user: _user!);
       },
     ),
   ],
