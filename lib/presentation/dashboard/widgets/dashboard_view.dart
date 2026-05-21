@@ -536,7 +536,7 @@ class _StatsGrid extends StatelessWidget {
         crossAxisCount: isWide ? 4 : 2,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: isWide ? 1.9 : 1.8,
+        childAspectRatio: isWide ? 3.1 : 1.8,
       ),
       itemBuilder: (_, i) => _StatCard(item: items[i]),
     );

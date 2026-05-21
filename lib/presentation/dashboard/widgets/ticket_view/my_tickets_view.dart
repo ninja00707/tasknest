@@ -51,14 +51,16 @@ class MyTicketsView extends StatelessWidget {
                           style: TextStyle(color: ThemeColors.unifiedTextMuted),
                         ),
                       )
-                    : ListView.builder(
-                        itemCount: myTickets.length,
-                        itemBuilder: (context, index) {
-                          return TicketCard(
-                            ticket: myTickets[index],
-                            user: user,
-                          );
-                        },
+                    : Expanded(
+                        child: ListView.builder(
+                          itemCount: myTickets.length,
+                          itemBuilder: (context, index) {
+                            return TicketCard(
+                              ticket: myTickets[index],
+                              user: user,
+                            );
+                          },
+                        ),
                       ),
               ),
             ),

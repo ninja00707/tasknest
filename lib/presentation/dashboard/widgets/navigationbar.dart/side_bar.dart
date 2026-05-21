@@ -1,5 +1,7 @@
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/const_dep.dart';
+import 'package:tasknest/core/constant/name_by_id.dart';
 import 'package:tasknest/core/theme/color.dart';
 
 import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/nav_items.dart';
@@ -8,9 +10,9 @@ import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 class Sidebar extends StatelessWidget {
   final int selectedIndex;
   final void Function(int) onNav;
-  UserModel user;
+  final UserModel user;
 
-  Sidebar({
+  const Sidebar({
     super.key,
     required this.selectedIndex,
     required this.onNav,
@@ -19,6 +21,13 @@ class Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final departmentName = NameById.getNameById<Departments>(
+      id: user.departmentId,
+      items: departments,
+      idSelector: (e) => e.id,
+      nameSelector: (e) => e.name,
+    );
+
     return Container(
       width: 220,
       decoration: const BoxDecoration(
@@ -133,9 +142,9 @@ class Sidebar extends StatelessWidget {
                 CircleAvatar(
                   radius: 16,
                   backgroundColor: ThemeColors.unifiedPrimary,
-                  child: const Text(
-                    'M',
-                    style: TextStyle(
+                  child: Text(
+                    user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
@@ -143,21 +152,21 @@ class Sidebar extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Manager',
-                        style: TextStyle(
+                        user.name,
+                        style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: ThemeColors.unifiedTextPrimary,
                         ),
                       ),
                       Text(
-                        'Finance Dept',
-                        style: TextStyle(
+                        departmentName,
+                        style: const TextStyle(
                           fontSize: 11,
                           color: ThemeColors.unifiedTextMuted,
                         ),
