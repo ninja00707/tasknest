@@ -6,11 +6,12 @@ import 'package:tasknest/presentation/dashboard/dashboard_screen.dart.dart';
 import 'package:tasknest/presentation/dashboard/screens/manager_analytics_screen.dart';
 import 'package:tasknest/presentation/dashboard/screens/ceo_analytics_screen.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_detail_screen.dart';
+import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 import 'package:tasknest/presentation/login/login_view.dart';
 
 final LocalStorageService storage = LocalStorageService();
-
+UserModel? _user;
 final GoRouter appRouter = GoRouter(
   initialLocation: RouteNames.login,
 
@@ -25,7 +26,7 @@ final GoRouter appRouter = GoRouter(
     if (!loggedIn && !isLoginRoute) {
       return RouteNames.login;
     }
-
+    _user = await storage.getUser();
     // If already logged in
     if (loggedIn && isLoginRoute) {
       return RouteNames.dashboard;
@@ -42,21 +43,21 @@ final GoRouter appRouter = GoRouter(
 
     GoRoute(
       path: RouteNames.dashboard,
-      builder: (context, state) => const DashboardScreen(),
+      builder: (context, state) => DashboardScreen(user: _user!),
     ),
 
     GoRoute(
-      path: '/analytics/manager',
-      builder: (context, state) => const ManagerAnalyticsScreen(),
+      path: RouteNames.analyticsManager,
+      builder: (context, state) => ManagerAnalyticsScreen(user: _user),
     ),
 
     GoRoute(
-      path: '/analytics/ceo',
+      path: RouteNames.analyticsCeo,
       builder: (context, state) => const CeoAnalyticsScreen(),
     ),
 
     GoRoute(
-      path: '/ticket/:id',
+      path: RouteNames.ticketDetail,
       builder: (context, state) {
         final id = int.parse(state.pathParameters['id']!);
         return TicketDetailScreen(ticketId: id);

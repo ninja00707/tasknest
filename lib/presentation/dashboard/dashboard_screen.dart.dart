@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
+import 'package:tasknest/presentation/dashboard/screens/ceo_analytics_screen.dart';
+import 'package:tasknest/presentation/dashboard/screens/manager_analytics_screen.dart';
 import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/bottom_nav_bar.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/create_ticket.dart';
 import 'package:tasknest/presentation/dashboard/widgets/dashboard_view.dart';
 import 'package:tasknest/presentation/dashboard/widgets/mobile_top_bar.dart';
 import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/side_bar.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_Listview.dart';
+import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+  final UserModel user;
+  const DashboardScreen({super.key, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -22,6 +27,7 @@ class DashboardScreen extends StatelessWidget {
 
     return BlocConsumer<DashboardBloc, DashboardState>(
       listener: (context, state) {
+        // _loadUser();
         if (state is TicketActionSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -101,6 +107,7 @@ class DashboardScreen extends StatelessWidget {
                 ? Row(
                     children: [
                       Sidebar(
+                        user: user,
                         selectedIndex: selectedIndex,
                         onNav: (i) {
                           context.read<DashboardBloc>().add(
@@ -111,14 +118,14 @@ class DashboardScreen extends StatelessWidget {
                         },
                       ),
 
-                      Expanded(child: _buildBody(state, selectedIndex)),
+                      Expanded(child: _buildBody(state, selectedIndex, user)),
                     ],
                   )
                 : Column(
                     children: [
                       const MobileTopBar(),
 
-                      Expanded(child: _buildBody(state, selectedIndex)),
+                      Expanded(child: _buildBody(state, selectedIndex, user)),
 
                       BottomNav(
                         selectedIndex: selectedIndex,
@@ -138,7 +145,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBody(DashboardState state, int selectedIndex) {
+  Widget _buildBody(DashboardState state, int selectedIndex, UserModel user) {
     DashboardLoaded? loadedState;
 
     if (state is DashboardLoaded) {
@@ -162,16 +169,18 @@ class DashboardScreen extends StatelessWidget {
     if (loadedState == null) {
       return const Center(child: Text("Something went wrong"));
     }
-    // selectedIndexg = loadedState.selectedIndex;
+
     switch (loadedState.selectedIndex) {
       case 0:
         return DashboardView(state: loadedState);
-
       case 1:
         return TicketListView(state: loadedState);
-
       case 2:
-        return CreateTicketView();
+        return CreateTicketView(user: user);
+      case 3:
+        return user.roleId == 1
+            ? ManagerAnalyticsScreen(user: user)
+            : CeoAnalyticsScreen();
 
       default:
         return DashboardView(state: loadedState);

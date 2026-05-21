@@ -1,12 +1,21 @@
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import 'package:tasknest/core/theme/color.dart';
+
 import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/nav_items.dart';
+import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class Sidebar extends StatelessWidget {
   final int selectedIndex;
   final void Function(int) onNav;
-  const Sidebar({super.key, required this.selectedIndex, required this.onNav});
+  UserModel user;
+
+  Sidebar({
+    super.key,
+    required this.selectedIndex,
+    required this.onNav,
+    required this.user,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -86,13 +95,21 @@ class Sidebar extends StatelessWidget {
             selected: selectedIndex == 2,
             onTap: onNav,
           ),
-          NavItem(
-            icon: Icons.notifications_outlined,
-            label: 'Notifications',
-            index: 3,
-            selected: selectedIndex == 3,
-            onTap: onNav,
-          ),
+          // NavItem(
+          //   icon: Icons.notifications_outlined,
+          //   label: 'Notifications',
+          //   index: 3,
+          //   selected: selectedIndex == 3,
+          //   onTap: onNav,
+          // ),
+          if (user.roleId == 1 || user.roleId == 0)
+            NavItem(
+              icon: Icons.analytics_outlined,
+              label: 'Analytics',
+              index: 3,
+              selected: selectedIndex == 3,
+              onTap: onNav,
+            ),
 
           const Spacer(),
           Container(

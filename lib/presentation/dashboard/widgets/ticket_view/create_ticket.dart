@@ -16,8 +16,8 @@ import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 
 class CreateTicketView extends StatefulWidget {
-  // final List<DepartmentModel> departments;
-  const CreateTicketView({super.key});
+  final UserModel user;
+  const CreateTicketView({super.key, required this.user});
 
   @override
   State<CreateTicketView> createState() => CreateTicketViewState();
@@ -31,20 +31,7 @@ class CreateTicketViewState extends State<CreateTicketView> {
   String? _dueDate;
   Departments _selectedDepartment = Departments(id: 0, name: 'HR');
 
-  UserModel? _user;
   EmployeeModel? _selectedEmployee;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUser();
-    // No need to load employees here, they are loaded by DashboardBloc
-  }
-
-  void _loadUser() async {
-    _user = await LocalStorageService().getUser();
-    if (mounted) setState(() {});
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,7 +120,7 @@ class CreateTicketViewState extends State<CreateTicketView> {
                   },
                 ),
 
-                if (_user!.roleId == 1) ...[
+                if (widget.user.roleId == 1) ...[
                   // Show for managers and CEOs
                   const SizedBox(height: 16),
                   CommonText(
@@ -258,18 +245,7 @@ class CreateTicketViewState extends State<CreateTicketView> {
       return;
     }
 
-    final user = await LocalStorageService()
-        .getUser(); // Await the async call to ensure user data is loaded
-
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('User not found'),
-          backgroundColor: ThemeColors.unifiedDanger,
-        ),
-      );
-      return;
-    }
+    final user = widget.user;
     context.read<DashboardBloc>().add(
       CreateTicketEvent(
         title: _title.text.trim(),

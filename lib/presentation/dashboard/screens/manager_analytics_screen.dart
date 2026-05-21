@@ -11,25 +11,22 @@ import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class ManagerAnalyticsScreen extends StatefulWidget {
-  const ManagerAnalyticsScreen({super.key});
+  final UserModel? user;
+  const ManagerAnalyticsScreen({super.key, this.user});
 
   @override
   State<ManagerAnalyticsScreen> createState() => _ManagerAnalyticsScreenState();
 }
 
 class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
-  // FIX: Cache the user future so FutureBuilder doesn't re-fire on every rebuild
-  late final Future<UserModel?> _userFuture;
-
   @override
   void initState() {
     super.initState();
-    _userFuture = LocalStorageService().getUser();
     _loadAnalytics();
   }
 
   Future<void> _loadAnalytics() async {
-    final user = await LocalStorageService().getUser();
+    final user = widget.user ?? await LocalStorageService().getUser();
     if (user != null && mounted) {
       context.read<DashboardBloc>().add(
         LoadManagerAnalytics(user.departmentId),
@@ -104,7 +101,9 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
             // FIX: Use cached _userFuture instead of creating a new
             // LocalStorageService().getUser() on every rebuild
             child: FutureBuilder<UserModel?>(
-              future: _userFuture,
+              future: widget.user != null
+                  ? Future.value(widget.user)
+                  : LocalStorageService().getUser(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: Text('Loading user data...'));
