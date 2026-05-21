@@ -10,8 +10,13 @@ import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 class TicketCard extends StatelessWidget {
   final TicketModel ticket;
   final UserModel user;
-
-  const TicketCard({super.key, required this.ticket, required this.user});
+  final Function()? onTap;
+  const TicketCard({
+    super.key,
+    required this.ticket,
+    required this.user,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +24,7 @@ class TicketCard extends StatelessWidget {
     final isTransferred = ticket.transferredFromCode != null;
 
     return GestureDetector(
-      onTap: () => context.push('/ticket/${ticket.id}'),
+      onTap: onTap ?? () => context.push('/ticket/${ticket.id}'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
@@ -73,12 +78,13 @@ class TicketCard extends StatelessWidget {
                         children: [
                           _IdChip(id: ticket.id),
                           const SizedBox(width: 6),
-                          if (ticket.isOverdue) const _FlagChip(
-                            label: 'OVERDUE',
-                            bg: Color(0xFFFEE2E2),
-                            fg: ThemeColors.unifiedDanger,
-                            icon: Icons.schedule_rounded,
-                          ),
+                          if (ticket.isOverdue)
+                            const _FlagChip(
+                              label: 'OVERDUE',
+                              bg: Color(0xFFFEE2E2),
+                              fg: ThemeColors.unifiedDanger,
+                              icon: Icons.schedule_rounded,
+                            ),
                           if (isTransferred) ...[
                             const SizedBox(width: 4),
                             _FlagChip(
@@ -293,9 +299,13 @@ class _MetaDivider extends StatelessWidget {
 // ── Priority color helper ─────────────────────────────────────────────────────
 Color _priorityColor(String p) {
   switch (p) {
-    case 'urgent': return ThemeColors.unifiedDanger;
-    case 'high':   return const Color(0xFFEA580C);
-    case 'medium': return ThemeColors.unifiedWarning;
-    default:       return ThemeColors.unifiedPrimary;
+    case 'urgent':
+      return ThemeColors.unifiedDanger;
+    case 'high':
+      return const Color(0xFFEA580C);
+    case 'medium':
+      return ThemeColors.unifiedWarning;
+    default:
+      return ThemeColors.unifiedPrimary;
   }
 }

@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
-import 'package:tasknest/presentation/dashboard/screens/ceo_analytics_screen.dart';
-import 'package:tasknest/presentation/dashboard/screens/manager_analytics_screen.dart';
 import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/bottom_nav_bar.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/create_ticket.dart';
 import 'package:tasknest/presentation/dashboard/widgets/dashboard_view.dart';
@@ -189,25 +186,19 @@ class DashboardScreen extends StatelessWidget {
 
     switch (currentIndex) {
       case 0:
-        return DashboardView(state: loadedState!, user: user);
+        return DashboardView(state: loadedState!);
       case 1:
         return TicketListView(state: loadedState!, user: user);
       case 2:
         return CreateTicketView(user: user);
       case 3:
-        return RecentTicketsView(state: loadedState!);
+        return RecentTicketsView(state: loadedState!, userModel: user);
+
       case 4:
-        // Dispatch the correct analytics event based on user role
-        if (user.roleId == 1) return ManagerAnalyticsScreen(user: user);
-        if (user.roleId == 0) return CeoAnalyticsScreen(user: user);
-        return const Center(
-          child: Text("Access Denied: Analytics"),
-        ); // Fallback for non-manager/CEO
-      case 5:
         return MyTicketsView(state: loadedState!, user: user);
 
       default:
-        return DashboardView(state: loadedState!, user: user);
+        return DashboardView(state: loadedState!);
     }
   }
 }

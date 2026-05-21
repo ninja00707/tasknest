@@ -3,11 +3,18 @@ import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/routes/routes_name.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_card.dart';
+import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class RecentTicketsView extends StatelessWidget {
   final DashboardLoaded state;
+  final UserModel? userModel;
 
-  const RecentTicketsView({super.key, required this.state});
+  const RecentTicketsView({
+    super.key,
+    required this.state,
+    required this.userModel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -56,39 +63,49 @@ class RecentTicketsView extends StatelessWidget {
                         itemCount: displayTickets.length,
                         itemBuilder: (context, index) {
                           final ticket = displayTickets[index];
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(
-                              color: ThemeColors.unifiedSurface,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: ThemeColors.unifiedBorder,
-                              ),
-                            ),
-                            child: ListTile(
-                              title: Text(
-                                ticket.title,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              subtitle: Text(
-                                ticket.description,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              trailing: const Icon(
-                                Icons.arrow_forward_ios,
-                                size: 14,
-                              ),
-                              onTap: () => context.push(
-                                RouteNames.ticketDetail.replaceAll(
-                                  ':id',
-                                  ticket.id.toString(),
-                                ),
+                          return TicketCard(
+                            ticket: ticket,
+                            user: userModel!,
+                            onTap: () => context.push(
+                              RouteNames.ticketDetail.replaceAll(
+                                ':id',
+                                ticket.id.toString(),
                               ),
                             ),
                           );
+                          //  Container(
+                          //   margin: const EdgeInsets.only(bottom: 12),
+                          //   decoration: BoxDecoration(
+                          //     color: ThemeColors.unifiedSurface,
+                          //     borderRadius: BorderRadius.circular(12),
+                          //     border: Border.all(
+                          //       color: ThemeColors.unifiedBorder,
+                          //     ),
+                          //   ),
+                          //   child: ListTile(
+                          //     title: Text(
+                          //       ticket.title,
+                          //       style: const TextStyle(
+                          //         fontWeight: FontWeight.w700,
+                          //       ),
+                          //     ),
+                          //     subtitle: Text(
+                          //       ticket.description,
+                          //       maxLines: 1,
+                          //       overflow: TextOverflow.ellipsis,
+                          //     ),
+                          //     trailing: const Icon(
+                          //       Icons.arrow_forward_ios,
+                          //       size: 14,
+                          //     ),
+                          //     onTap: () => context.push(
+                          //       RouteNames.ticketDetail.replaceAll(
+                          //         ':id',
+                          //         ticket.id.toString(),
+                          //       ),
+                          //     ),
+                          //   ),
+                          // );
                         },
                       ),
               ),
