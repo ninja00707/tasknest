@@ -71,8 +71,8 @@ class TicketActions extends StatelessWidget {
                 ),
               ),
 
-            // 4. Resolver Action: Close.
-            if (ticket.isCompleted && isResolver)
+            // 4. Resolver Action: Close. Restricted for CEO.
+            if (ticket.isCompleted && isResolver && !isCeo)
               ActionBtn(
                 icon: Icons.lock_outline,
                 tooltip: 'Finalize & Close',
@@ -82,8 +82,10 @@ class TicketActions extends StatelessWidget {
                 ),
               ),
 
-            // 5. Transfer: Managers only, CEO restricted.
-            if (!ticket.isClosed && isManager && !isCeo)
+            // 5. Transfer: Only if unassigned (Manager) or if current user is the Resolver.
+            if (!ticket.isClosed &&
+                !isCeo &&
+                ((isManager && ticket.assignedToId == null) || isResolver))
               ActionBtn(
                 icon: Icons.swap_horiz_rounded,
                 tooltip: 'Transfer Dept',
@@ -273,6 +275,17 @@ class TicketActions extends StatelessWidget {
                 ),
                 ElevatedButton(
                   onPressed: () {
+                    if (selectedDeptId == ticket.assignedDeptId) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Ticket is already in the selected department.',
+                          ),
+                          backgroundColor: ThemeColors.unifiedDanger,
+                        ),
+                      );
+                      return;
+                    }
                     bloc.add(TransferTicket(ticket.id, selectedDeptId));
                     Navigator.pop(dialogContext);
                   },

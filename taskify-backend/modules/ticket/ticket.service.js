@@ -61,20 +61,22 @@ class TicketService {
       throw { statusCode: 400, message: 'Invalid status' };
     }
 
-    if (newStatus === 'closed') {
-      // Only the resolver (assigned_to_id) can close the ticket
+    console.log(`[TicketService] Attempting to update ticket ${ticketId} status from ${ticket.status} to ${newStatus} by user ${user.id}`);
+    if (newStatus === 'completed' || newStatus === 'closed') {
+      // Only the resolver (assigned_to_id) can complete or close the ticket
       const isResolver = ticket.assigned_to_id === user.id;
       const isCeo = user.role === 'ceo';
       
-      if (!isResolver && !isCeo) {
+      if (!isResolver) {
         throw {
           statusCode: 403,
-          message: 'Only the person assigned to this ticket can close it',
+          message: `Only the assigned resolver can mark this ticket as ${newStatus}`,
         };
       }
     }
 
     const oldStatus = ticket.status;
+    console.log(`[TicketService] Calling ticketRepo.updateStatus with ticketId: ${ticketId}, newStatus: ${newStatus}, userId: ${user.id}`);
     const updated = await ticketRepo.updateStatus(ticketId, newStatus, user);
     await ticketRepo.logAction(ticketId, user.id, 'status_changed', oldStatus, newStatus, null);
     return updated;
@@ -128,14 +130,19 @@ class TicketService {
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
-    // Prevent transferring open tickets
-    if (ticket.status === 'open') {
-      throw { statusCode: 400, message: 'Cannot transfer open tickets. Assign the ticket first.' };
+    if (user.role === 'ceo') {
+      throw { statusCode: 403, message: 'CEO is not authorized to transfer tickets' };
+    }
+
+    // If already assigned, only the resolver can transfer
+    if (ticket.assigned_to_id && ticket.assigned_to_id !== user.id) {
+      throw { statusCode: 403, message: 'Only the assigned resolver can transfer this ticket' };
     }
 
     if (Number(ticket.assigned_dept_id) === Number(targetDeptId)) {
       throw { statusCode: 400, message: 'Ticket is already in that department' };
     }
+
 
     const updated = await ticketRepo.transferTicket(ticketId, targetDeptId, user);
     if (!updated) throw { statusCode: 400, message: 'Unable to transfer ticket' };

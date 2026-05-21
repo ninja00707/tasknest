@@ -138,8 +138,9 @@ class TicketRepository {
     const isAssignedDept = ticket.assigned_dept_id === user.department_id;
     const isTransferredFromUsersDept =
       ticket.transferred_at && ticket.created_by_dept === user.department_id;
+    const isResolver = ticket.assigned_to_id === user.id;
 
-    if (!isAssignedDept && !isTransferredFromUsersDept) {
+    if (!isAssignedDept && !isTransferredFromUsersDept && !isResolver) {
       return { forbidden: true };
     }
 
@@ -162,6 +163,7 @@ class TicketRepository {
 
   // ── Update ticket status ─────────────────────────────────────────────────
   async updateStatus(ticketId, status, user) {
+    console.log(`[TicketRepository] Executing updateStatus for ticketId: ${ticketId}, status: ${status}, userId: ${user.id}`);
     await pool.query(`
       UPDATE tickets SET status = $1,
         closed_by_id = CASE WHEN $1 = 'closed' THEN $2 ELSE closed_by_id END,
