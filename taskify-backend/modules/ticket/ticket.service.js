@@ -193,6 +193,10 @@ class TicketService {
     return await ticketRepo.getEmployeesByDepartment(deptId);
   }
 
+  async getMyTickets(user, filters) {
+    return await ticketRepo.getMyTickets(user.id, filters);
+  }
+
   async getSentTickets(user) {
     return await ticketRepo.getSentTicketsByDepartment(user.department_id);
   }

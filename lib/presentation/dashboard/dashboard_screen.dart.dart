@@ -12,7 +12,9 @@ import 'package:tasknest/presentation/dashboard/widgets/ticket_view/create_ticke
 import 'package:tasknest/presentation/dashboard/widgets/dashboard_view.dart';
 import 'package:tasknest/presentation/dashboard/widgets/mobile_top_bar.dart';
 import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/side_bar.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/recent_tickets_view.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_Listview.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/my_tickets_view.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -178,9 +180,13 @@ class DashboardScreen extends StatelessWidget {
       case 2:
         return CreateTicketView(user: user);
       case 3:
+        return RecentTicketsView(state: loadedState);
+      case 4:
         return user.roleId == 1
             ? ManagerAnalyticsScreen(user: user)
             : CeoAnalyticsScreen();
+      case 5:
+        return MyTicketsView(state: loadedState, user: user);
 
       default:
         return DashboardView(state: loadedState, user: user);

@@ -166,131 +166,112 @@ class DashboardView extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final cols = constraints.maxWidth > 500 ? 4 : 4;
-                  return GridView.count(
-                    crossAxisCount: cols,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 1.5,
-                    children: [
-                      StatCard(
-                        label: 'Total',
-                        count: s.total,
-                        color: ThemeColors.unifiedAccent,
-                        icon: Icons.inbox_outlined,
-                      ),
-                      StatCard(
-                        label: 'Open',
-                        count: s.open,
-                        color: ThemeColors.unifiedSecondary,
-                        icon: Icons.radio_button_unchecked,
-                      ),
-                      StatCard(
-                        label: 'In Progress',
-                        count: s.inProgress,
-                        color: ThemeColors.unifiedWarning,
-                        icon: Icons.pending_outlined,
-                      ),
-                      StatCard(
-                        label: 'Completed',
-                        count: s.completed,
-                        color: ThemeColors.unifiedPrimary,
-                        icon: Icons.check_circle_outline,
-                      ),
-                      StatCard(
-                        label: 'Closed',
-                        count: s.closed,
-                        color: ThemeColors.unifiedTextMuted,
-                        icon: Icons.lock_outline,
-                      ),
-                      StatCard(
-                        label: 'Urgent',
-                        count: s.urgent,
-                        color: ThemeColors.unifiedDanger,
-                        icon: Icons.warning_amber_rounded,
-                      ),
-                      StatCard(
-                        label: 'High Pri.',
-                        count: s.highPriority,
-                        color: const Color(0xFFEA580C),
-                        icon: Icons.priority_high,
-                      ),
-                      StatCard(
-                        label: 'Overdue',
-                        count: s.overdue,
-                        color: ThemeColors.unifiedDanger,
-                        icon: Icons.access_time_rounded,
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Recent Tickets',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                      color: ThemeColors.unifiedTextPrimary,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => context.read<DashboardBloc>().add(
-                      SidebarSelectedIndexEvent(sidebarSelectedIndexEvent: 1),
-                    ),
-                    child: const Text(
-                      'View all',
-                      style: TextStyle(color: ThemeColors.unifiedSecondary),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (state.tickets.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(
-                    child: Text(
-                      'No tickets found.',
-                      style: TextStyle(color: ThemeColors.unifiedTextMuted),
-                    ),
-                  ),
-                )
-              else
-                ...state.tickets
-                    .take(5)
-                    .map((t) => TicketCard(ticket: t, user: user)),
-              const SizedBox(height: 24),
-              if (state.sentTickets.isNotEmpty) ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Transferred From Your Department',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: ThemeColors.unifiedTextPrimary,
-                      ),
-                    ),
-                    const Text(
-                      'Sent tickets',
-                      style: TextStyle(color: ThemeColors.unifiedTextMuted),
-                    ),
-                  ],
+
+              // 6) Show analytics on dashboard only for manager (1) and ceo (0)
+              if (user.roleId == 0 || user.roleId == 1) ...[
+                const SizedBox(height: 24),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final cols = constraints.maxWidth > 800 ? 4 : 2;
+                    return GridView.count(
+                      crossAxisCount: cols,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 1.8,
+                      children: [
+                        StatCard(
+                          label: 'Total',
+                          count: s.total,
+                          color: ThemeColors.unifiedAccent,
+                          icon: Icons.inbox_outlined,
+                        ),
+                        StatCard(
+                          label: 'Open',
+                          count: s.open,
+                          color: ThemeColors.unifiedSecondary,
+                          icon: Icons.radio_button_unchecked,
+                        ),
+                        StatCard(
+                          label: 'In Progress',
+                          count: s.inProgress,
+                          color: ThemeColors.unifiedWarning,
+                          icon: Icons.pending_outlined,
+                        ),
+                        StatCard(
+                          label: 'Completed',
+                          count: s.completed,
+                          color: ThemeColors.unifiedPrimary,
+                          icon: Icons.check_circle_outline,
+                        ),
+                        StatCard(
+                          label: 'Closed',
+                          count: s.closed,
+                          color: ThemeColors.unifiedTextMuted,
+                          icon: Icons.lock_outline,
+                        ),
+                        StatCard(
+                          label: 'Urgent',
+                          count: s.urgent,
+                          color: ThemeColors.unifiedDanger,
+                          icon: Icons.warning_amber_rounded,
+                        ),
+                        StatCard(
+                          label: 'High Pri.',
+                          count: s.highPriority,
+                          color: const Color(0xFFEA580C),
+                          icon: Icons.priority_high,
+                        ),
+                        StatCard(
+                          label: 'Overdue',
+                          count: s.overdue,
+                          color: ThemeColors.unifiedDanger,
+                          icon: Icons.access_time_rounded,
+                        ),
+                      ],
+                    );
+                  },
                 ),
-                const SizedBox(height: 12),
-                ...state.sentTickets
-                    .take(5)
-                    .map((t) => TicketCard(ticket: t, user: user)),
+              ],
+              const SizedBox(height: 24),
+
+              if (state.sentTickets.isNotEmpty) ...[
+                // 7) Constrain ticket width on Web for card shape look
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1000),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Transferred From Your Department',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: ThemeColors.unifiedTextPrimary,
+                              ),
+                            ),
+                            const Text(
+                              'Sent tickets',
+                              style: TextStyle(
+                                color: ThemeColors.unifiedTextMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ...state.sentTickets
+                            .take(5)
+                            .map((t) => TicketCard(ticket: t, user: user)),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ],
           );

@@ -99,6 +99,53 @@ class TicketRepository {
     return result.rows;
   }
 
+  // ── Get tickets assigned to a specific user ──────────────────────────────
+  async getMyTickets(userId, filters = {}) {
+    const { status, priority, page = 1, limit = 20 } = filters;
+    const offset = (Number(page) - 1) * Number(limit);
+    const params = [userId];
+    let whereClause = 'WHERE t.assigned_to_id = $1';
+
+    if (status) {
+      params.push(status);
+      whereClause += ` AND t.status = $${params.length}`;
+    }
+    if (priority) {
+      params.push(priority);
+      whereClause += ` AND t.priority = $${params.length}`;
+    }
+
+    params.push(Number(limit), offset);
+
+    const query = `
+      SELECT
+        t.id, t.title, t.description, t.status, t.priority,
+        t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
+        t.transferred_from, t.transferred_at,
+        t.due_date, t.created_at, t.updated_at,
+        t.reopen_count, t.closed_at,
+
+        creator.id   AS created_by_id,
+        creator.name AS created_by_name,
+        cd.name      AS created_by_dept_name,
+        ad.name      AS assigned_dept_name,
+        assignee.name AS assigned_to_name,
+        tf.code AS transferred_from_code
+      FROM tickets t
+      LEFT JOIN users       creator  ON creator.id  = t.created_by_id
+      LEFT JOIN departments cd       ON cd.id        = t.created_by_dept
+      LEFT JOIN departments ad       ON ad.id        = t.assigned_dept_id
+      LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
+      LEFT JOIN departments tf  ON tf.id        = t.transferred_from
+      ${whereClause}
+      ORDER BY t.created_at DESC
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+    `;
+
+    const result = await pool.query(query, params);
+    return result.rows;
+  }
+
   // ── Dashboard stats for a user ────────────────────────────────────────────
   async getDashboardStats(user) {
     let whereClause = '';

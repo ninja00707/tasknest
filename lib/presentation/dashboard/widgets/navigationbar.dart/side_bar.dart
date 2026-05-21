@@ -95,19 +95,28 @@ class Sidebar extends StatelessWidget {
             selected: selectedIndex == 2,
             onTap: onNav,
           ),
-          // NavItem(
-          //   icon: Icons.notifications_outlined,
-          //   label: 'Notifications',
-          //   index: 3,
-          //   selected: selectedIndex == 3,
-          //   onTap: onNav,
-          // ),
+          NavItem(
+            icon: Icons.assignment_ind_outlined,
+            label: 'Assigned to Me',
+            index: 5,
+            selected: selectedIndex == 5,
+            onTap: onNav,
+          ),
+          // Add this inside your Sidebar widget's item list
+          NavItem(
+            icon: Icons.history_rounded,
+            label: 'Recent Activity',
+            index: 3,
+            selected: selectedIndex == 3,
+            onTap: onNav,
+          ),
+
           if (user.roleId == 1 || user.roleId == 0)
             NavItem(
               icon: Icons.analytics_outlined,
               label: 'Analytics',
-              index: 3,
-              selected: selectedIndex == 3,
+              index: 4,
+              selected: selectedIndex == 4,
               onTap: onNav,
             ),
 
