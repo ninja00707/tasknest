@@ -45,7 +45,7 @@ final CompanyNames = [
 ];
 
 final roles = [
-  Roles(id: 0, name: 'ceo'),
+  Roles(id: 0, name: 'Director'),
   Roles(id: 1, name: 'manager'),
   Roles(id: 2, name: 'employee'),
 ];
@@ -85,4 +85,5 @@ final List<Departments> departments = [
   Departments(id: 13, name: 'FMPS'),
 
   Departments(id: 14, name: 'FMSG'),
+  Departments(id: 15, name: 'Directors'),
 ];

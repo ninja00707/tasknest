@@ -4,6 +4,7 @@ import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/dashboard/dashboard_screen.dart.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_detail_screen.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
+import 'package:tasknest/presentation/login/signup_screen.dart';
 
 import 'package:tasknest/presentation/login/login_view.dart';
 
@@ -37,6 +38,8 @@ final GoRouter appRouter = GoRouter(
       path: RouteNames.login,
       builder: (context, state) => const LoginScreen(),
     ),
+
+    GoRoute(path: '/signup', builder: (context, state) => const SignupScreen()),
 
     GoRoute(
       path: RouteNames.dashboard,

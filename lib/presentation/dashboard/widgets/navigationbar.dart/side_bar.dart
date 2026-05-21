@@ -21,12 +21,22 @@ class Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final departmentName = NameById.getNameById<Departments>(
-      id: user.departmentId,
-      items: departments,
-      idSelector: (e) => e.id,
-      nameSelector: (e) => e.name,
-    );
+    final departmentName =
+        NameById.getNameById<Departments>(
+          id: user.departmentId,
+          items: departments,
+          idSelector: (e) => e.id,
+          nameSelector: (e) => e.name,
+        ) ??
+        'Unknown Dept';
+    final roleName =
+        NameById.getNameById<Roles>(
+          id: user.roleId,
+          items: roles,
+          idSelector: (e) => e.id,
+          nameSelector: (e) => e.name,
+        ) ??
+        'No Role';
 
     return Container(
       width: 220,
@@ -159,13 +169,13 @@ class Sidebar extends StatelessWidget {
                       Text(
                         user.name,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: ThemeColors.unifiedTextPrimary,
                         ),
                       ),
                       Text(
-                        departmentName,
+                        '$roleName · $departmentName',
                         style: const TextStyle(
                           fontSize: 11,
                           color: ThemeColors.unifiedTextMuted,
