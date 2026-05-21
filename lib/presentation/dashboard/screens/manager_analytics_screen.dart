@@ -26,7 +26,8 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
   }
 
   Future<void> _loadAnalytics() async {
-    final user = widget.user ?? await LocalStorageService().getUser();
+    final user = widget
+        .user; // User is already passed and guaranteed non-null from DashboardScreen
     if (user != null && mounted) {
       context.read<DashboardBloc>().add(
         LoadManagerAnalytics(user.departmentId),
@@ -51,8 +52,8 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
   Widget build(BuildContext context) {
     return BlocBuilder<DashboardBloc, DashboardState>(
       builder: (context, state) {
-        // FIX: Removed duplicate loading/error/empty scaffold trees; unified into one
-        if (state is AnalyticsLoading) {
+        // Show loader if we are explicitly loading OR if we just entered from the Dashboard
+        if (state is AnalyticsLoading || state is DashboardLoaded) {
           return Scaffold(
             appBar: _buildAppBar(),
             body: const Center(
@@ -98,18 +99,11 @@ class _ManagerAnalyticsScreenState extends State<ManagerAnalyticsScreen> {
           appBar: _buildAppBar(),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            // FIX: Use cached _userFuture instead of creating a new
-            // LocalStorageService().getUser() on every rebuild
-            child: FutureBuilder<UserModel?>(
-              future: widget.user != null
-                  ? Future.value(widget.user)
-                  : LocalStorageService().getUser(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: Text('Loading user data...'));
-                }
+            child: Builder(
+              builder: (context) {
+                // User is guaranteed to be non-null because it's passed from DashboardScreen
+                final user = widget.user!;
 
-                final user = snapshot.data!;
                 final departmentName = NameById.getNameById<Departments>(
                   id: user.departmentId,
                   items:

@@ -161,6 +161,15 @@ class TicketController {
     }
   }
 
+  async getDepartmentAnalytics(req, res, next) {
+    try {
+      const stats = await ticketService.getDepartmentAnalytics(req.params.departmentId);
+      res.json({ success: true, data: stats });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async getOrganizationAnalytics(req, res, next) {
     try {
       const analytics = await ticketService.getOrganizationAnalytics();

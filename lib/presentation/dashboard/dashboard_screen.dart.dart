@@ -158,7 +158,10 @@ class DashboardScreen extends StatelessWidget {
       loadedState = state.previousState;
     }
 
-    if (state is DashboardLoading || state is DashboardInitial) {
+    // Allow the body to build if we are in analytics states,
+    // as those screens handle their own loading/error indicators internally.
+    if ((state is DashboardLoading || state is DashboardInitial) &&
+        state is! AnalyticsLoading) {
       return const Center(
         child: CircularProgressIndicator(color: ThemeColors.unifiedPrimary),
       );
@@ -168,19 +171,31 @@ class DashboardScreen extends StatelessWidget {
       return Center(child: Text(state.message));
     }
 
-    if (loadedState == null) {
+    if (loadedState == null &&
+        state is! AnalyticsLoading &&
+        state is! ManagerAnalyticsLoaded &&
+        state is! CeoAnalyticsLoaded) {
       return const Center(child: Text("Something went wrong"));
     }
 
-    switch (loadedState.selectedIndex) {
+    // Determine current index, defaulting to the loadedState or inferring from specialized analytics states
+    final currentIndex =
+        loadedState?.selectedIndex ??
+        (state is AnalyticsLoading ||
+                state is ManagerAnalyticsLoaded ||
+                state is CeoAnalyticsLoaded
+            ? 4
+            : 0);
+
+    switch (currentIndex) {
       case 0:
-        return DashboardView(state: loadedState, user: user);
+        return DashboardView(state: loadedState!, user: user);
       case 1:
-        return TicketListView(state: loadedState, user: user);
+        return TicketListView(state: loadedState!, user: user);
       case 2:
         return CreateTicketView(user: user);
       case 3:
-        return RecentTicketsView(state: loadedState);
+        return RecentTicketsView(state: loadedState!);
       case 4:
         // Dispatch the correct analytics event based on user role
         if (user.roleId == 1) return ManagerAnalyticsScreen(user: user);
@@ -189,10 +204,10 @@ class DashboardScreen extends StatelessWidget {
           child: Text("Access Denied: Analytics"),
         ); // Fallback for non-manager/CEO
       case 5:
-        return MyTicketsView(state: loadedState, user: user);
+        return MyTicketsView(state: loadedState!, user: user);
 
       default:
-        return DashboardView(state: loadedState, user: user);
+        return DashboardView(state: loadedState!, user: user);
     }
   }
 }

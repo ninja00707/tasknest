@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:tasknest/core/constant/api_client.dart';
 import 'package:tasknest/core/constant/api_constant.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';

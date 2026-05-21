@@ -6,13 +6,16 @@ const { authenticate, isManager, isCeo } = require('./Auth.middleware');
 // All ticket routes require authentication
 router.use(authenticate);
 
+// ── Analytics (MUST be defined above /:id) ───────────────────
+router.get('/analytics/by-department', isCeo, controller.getAnalyticsByDepartment);
+router.get('/analytics/organization', isCeo, controller.getOrganizationAnalytics);
+router.get('/analytics/department/:departmentId', isManager, controller.getDepartmentAnalytics);
+
 // ── Stats & Departments ───────────────────────────────────────
 router.get('/stats', controller.getStats);
 router.get('/departments', controller.getDepartments);
 router.get('/employees', isManager, controller.getEmployees);
 router.get('/sent-tickets', controller.getSentTickets);
-router.get('/analytics/by-department', isCeo, controller.getAnalyticsByDepartment);
-router.get('/analytics/organization', isCeo, controller.getOrganizationAnalytics);
 
 // ── CRUD ──────────────────────────────────────────────────────
 router.get('/', controller.getTickets);

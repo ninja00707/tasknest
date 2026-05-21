@@ -201,6 +201,13 @@ class TicketService {
     return await ticketRepo.getSentTicketsByDepartment(user.department_id);
   }
 
+  async getDepartmentAnalytics(departmentId) {
+    return await ticketRepo.getDashboardStats({ 
+      role: 'manager', 
+      department_id: Number(departmentId) 
+    });
+  }
+
   async getTicketLogs(ticketId, user) {
     const ticket = await ticketRepo.getTicketById(ticketId, user);
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
