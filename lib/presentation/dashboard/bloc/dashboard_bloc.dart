@@ -13,6 +13,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
   DashboardBloc(this._dataSource) : super(DashboardInitial()) {
     on<LoadDashboard>(_onLoad);
+    on<LoadEmployeesForDept>(_onLoadEmployeesForDept);
     on<FilterTickets>(_onFilter);
     on<SelfAssignTicket>(_onSelfAssign);
     on<UpdateTicketStatus>(_onUpdateStatus);
@@ -202,6 +203,23 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       add(LoadDashboard());
     } catch (e) {
       emit(TicketActionError(e.toString(), prev));
+    }
+  }
+
+  Future<void> _onLoadEmployeesForDept(
+    LoadEmployeesForDept event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is DashboardLoaded) {
+      try {
+        final employees = await _dataSource.getEmployees(
+          departmentId: event.deptId,
+        );
+        emit(currentState.copyWith(employees: employees));
+      } catch (e) {
+        // Silent fail or log error
+      }
     }
   }
 

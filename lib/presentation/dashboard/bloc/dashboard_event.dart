@@ -10,6 +10,11 @@ abstract class DashboardEvent extends Equatable {
 
 class LoadDashboard extends DashboardEvent {}
 
+class LoadEmployeesForDept extends DashboardEvent {
+  final int deptId;
+  LoadEmployeesForDept(this.deptId);
+}
+
 class FilterTickets extends DashboardEvent {
   final String? status;
   final String? priority;

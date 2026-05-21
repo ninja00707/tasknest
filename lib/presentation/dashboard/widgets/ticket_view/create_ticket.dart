@@ -29,7 +29,7 @@ class CreateTicketViewState extends State<CreateTicketView> {
   Priorities priority = Priorities(name: 'medium', id: 0);
 
   String? _dueDate;
-  Departments _selectedDepartment = Departments(id: 0, name: 'HR');
+  Departments? _selectedDepartment;
 
   EmployeeModel? _selectedEmployee;
 
@@ -116,15 +116,20 @@ class CreateTicketViewState extends State<CreateTicketView> {
                   onChanged: (Departments value) {
                     setState(() {
                       _selectedDepartment = value;
+                      _selectedEmployee = null; // Reset employee on dept change
                     });
+                    // Fetch employees for the selected department
+                    context.read<DashboardBloc>().add(
+                      LoadEmployeesForDept(value.id),
+                    );
                   },
                 ),
 
-                if (widget.user.roleId == 1) ...[
-                  // Show for managers and CEOs
+                if (widget.user.roleId == 1 || widget.user.roleId == 0) ...[
+                  // Managers and CEOs can assign to employees
                   const SizedBox(height: 16),
                   CommonText(
-                    'Assign to Employee (Optional)',
+                    'Assign to Employee in ${_selectedDepartment?.name ?? "Target Department"} (Optional)',
                     customeStyle: CommonDecoration().commonFormLabelStyle,
                   ),
                   const SizedBox(height: 6),
@@ -251,7 +256,7 @@ class CreateTicketViewState extends State<CreateTicketView> {
         title: _title.text.trim(),
         description: _description.text.trim(),
         priority: priority.name,
-        assignedDeptId: _selectedDepartment.id,
+        assignedDeptId: _selectedDepartment?.id ?? widget.user.departmentId,
         assignedToId: _selectedEmployee?.id,
 
         // FETCHED FROM STORAGE

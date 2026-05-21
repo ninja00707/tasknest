@@ -20,7 +20,10 @@ class TicketService {
   }
 
   async createTicket(data, user) {
-    const { title, description, priority = 'medium', assignedDeptId, dueDate, assignedToId } = data;
+    const { title, description, priority = 'medium', assignedDeptId, dueDate } = data;
+    
+    // Ensure assignedToId is handled as a number or null
+    const assignedToId = data.assignedToId != null ? Number(data.assignedToId) : null;
 
     if (!title || !description || title.trim() === '' || description.trim() === '' || assignedDeptId == null) {
       throw { statusCode: 400, message: 'title, description and assignedDeptId are required' };

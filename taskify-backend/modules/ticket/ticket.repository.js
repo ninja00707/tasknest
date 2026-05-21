@@ -148,8 +148,8 @@ class TicketRepository {
 
   // ── Create ticket ─────────────────────────────────────────────────────────
   async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId }) {
-    // Set status to 'in_progress' if assignedToId is provided, otherwise 'open'
-    const status = assignedToId ? 'in_progress' : 'open';
+    // Strict check for assignedToId to set correct status
+    const status = (assignedToId != null) ? 'in_progress' : 'open';
     const result = await pool.query(`
       INSERT INTO tickets
         (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status)
