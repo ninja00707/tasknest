@@ -25,6 +25,9 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isWide = screenWidth > 1000;
+
     return BlocBuilder<DashboardBloc, DashboardState>(
       builder: (context, state) {
         if (state is! DashboardLoaded) {
@@ -55,18 +58,8 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
           ),
         );
 
-        if (ticket == null) {
-          return Scaffold(
-            appBar: AppBar(
-              title: const Text('Ticket Details'),
-              backgroundColor: ThemeColors.unifiedSurface,
-              elevation: 0,
-            ),
-            body: const Center(child: Text('Ticket not found')),
-          );
-        }
-
         return Scaffold(
+          backgroundColor: ThemeColors.unifiedBackground,
           appBar: AppBar(
             title: Text('Ticket #${ticket.id}'),
             backgroundColor: ThemeColors.unifiedSurface,
@@ -77,160 +70,170 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
             ),
           ),
           body: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: isWide ? screenWidth * 0.1 : 16,
+              vertical: 24,
+            ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Card
+                // Gradient Header
                 Container(
-                  padding: const EdgeInsets.all(20),
-                  color: ThemeColors.unifiedSurface,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        ThemeColors.unifiedGradStart.withOpacity(0.3),
+                        ThemeColors.unifiedGradEnd.withOpacity(0.3),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: ThemeColors.unifiedBorder),
+                  ),
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  ticket.title,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    color: ThemeColors.unifiedTextPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  ticket.description,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: ThemeColors.unifiedTextMuted,
-                                    height: 1.5,
-                                  ),
-                                  maxLines: 4,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              ticket.title,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: ThemeColors.unifiedTextPrimary,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          Column(
-                            children: [
-                              PriorityBadge(priority: ticket.priority),
-                              const SizedBox(height: 8),
-                              StatusBadge(status: ticket.status),
-                            ],
-                          ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Tracking details and history for this request",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: ThemeColors.unifiedTextMuted.withOpacity(
+                                  0.8,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          PriorityBadge(priority: ticket.priority),
+                          const SizedBox(height: 8),
+                          StatusBadge(status: ticket.status),
                         ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                // Ticket Info Section
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: ThemeColors.unifiedSurface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: ThemeColors.unifiedBorder),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'TICKET INFORMATION',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: ThemeColors.unifiedTextMuted,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildInfoRow('Created By:', ticket.createdByName),
-                      _buildInfoRow('Department:', ticket.assignedDeptName),
-                      if (ticket.assignedToName != null)
-                        _buildInfoRow('Assigned To:', ticket.assignedToName!),
-                      _buildInfoRow(
-                        'Created:',
-                        '${ticket.createdAt}',
-
-                        // DateFormat(
-                        //   'MMM dd, yyyy HH:mm',
-                        // ).format(ticket.createdAt),
-                      ),
-                      if (ticket.dueDate != null)
-                        _buildInfoRow(
-                          'Due Date:',
-                          '${ticket.dueDate}',
-                          // DateFormat('MMM dd, yyyy').format(ticket.dueDate!),
-                        ),
-                      if (ticket.closedAt != null)
-                        _buildInfoRow(
-                          'Closed:',
-                          '${ticket.closedAt}',
-                          // DateFormat(
-                          //   'MMM dd, yyyy HH:mm',
-                          // ).format(ticket.closedAt!),
-                        ),
-                      _buildInfoRow('Reopen Count:', '${ticket.reopenCount}'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Actions
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: ThemeColors.unifiedSurface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: ThemeColors.unifiedBorder),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [TicketActions(ticket: ticket)],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Ticket History Timeline
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: ThemeColors.unifiedSurface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: ThemeColors.unifiedBorder),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'TICKET HISTORY',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: ThemeColors.unifiedTextMuted,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildHistoryTimeline(),
-                    ],
-                  ),
-                ),
                 const SizedBox(height: 24),
+
+                // Main Content Area
+                if (isWide)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 2, child: _buildMainInfo(ticket)),
+                      const SizedBox(width: 24),
+                      Expanded(flex: 1, child: _buildSidePanel(ticket)),
+                    ],
+                  )
+                else
+                  Column(
+                    children: [
+                      _buildMainInfo(ticket),
+                      const SizedBox(height: 24),
+                      _buildSidePanel(ticket),
+                    ],
+                  ),
+                const SizedBox(height: 40),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMainInfo(TicketModel ticket) {
+    return Column(
+      children: [
+        _buildCard(
+          title: 'DESCRIPTION',
+          child: Text(
+            ticket.description,
+            style: const TextStyle(
+              fontSize: 15,
+              color: ThemeColors.unifiedTextPrimary,
+              height: 1.6,
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+        _buildCard(
+          title: 'TICKET DETAILS',
+          child: Column(
+            children: [
+              _buildInfoRow('Created By:', ticket.createdByName),
+              _buildInfoRow('Department:', ticket.assignedDeptName),
+              if (ticket.assignedToName != null)
+                _buildInfoRow('Assigned To:', ticket.assignedToName!),
+              _buildInfoRow(
+                'Created At:',
+                ticket.createdAt.toString().split('.').first,
+              ),
+              if (ticket.dueDate != null)
+                _buildInfoRow('Due Date:', ticket.dueDate!.toString()),
+              if (ticket.closedAt != null)
+                _buildInfoRow('Closed At:', ticket.toString()),
+              _buildInfoRow('Reopen Count:', '${ticket.reopenCount}'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSidePanel(TicketModel ticket) {
+    return Column(
+      children: [
+        _buildCard(
+          title: 'ACTIONS',
+          child: Center(child: TicketActions(ticket: ticket)),
+        ),
+        const SizedBox(height: 24),
+        _buildCard(title: 'HISTORY', child: _buildHistoryTimeline()),
+      ],
+    );
+  }
+
+  Widget _buildCard({required String title, required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: ThemeColors.unifiedSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: ThemeColors.unifiedBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: ThemeColors.unifiedTextMuted,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 20),
+          child,
+        ],
+      ),
     );
   }
 
