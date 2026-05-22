@@ -92,95 +92,99 @@ class _DashboardBody extends StatelessWidget {
       nameSelector: (e) => e.name,
     );
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(isWide ? 28 : 16).copyWith(bottom: 48),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Top bar: welcome + actions ──────────────────────────────
-          _TopBar(user: user, isWide: isWide),
-          const SizedBox(height: 16),
+    return Container(
+      padding: EdgeInsets.all(isWide ? 28 : 16).copyWith(bottom: 24),
+      height: double.infinity,
+      width: double.infinity,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Top bar: welcome + actions ──────────────────────────────
+            _TopBar(user: user, isWide: isWide),
+            const SizedBox(height: 16),
 
-          // ── Identity pill ───────────────────────────────────────────
-          _IdentityPill(
-            userName: user.name,
-            departmentName: departmentName,
-            roleName: roleName,
-            companyName: companyName,
-          ),
-          const SizedBox(height: 24),
-
-          // ── Stats grid (manager/ceo only) ───────────────────────────
-          if (isManager) ...[
-            _SectionHeader(
-              icon: Icons.bar_chart_rounded,
-              title: 'Overview',
-              // trailing: isManager ? _AnalyticsLink(user: user) : null,
+            // ── Identity pill ───────────────────────────────────────────
+            _IdentityPill(
+              userName: user.name,
+              departmentName: departmentName,
+              roleName: roleName,
+              companyName: companyName,
             ),
-            const SizedBox(height: 12),
-            _StatsGrid(s: s, isWide: isWide),
             const SizedBox(height: 24),
 
-            // ── Avg resolution time card ────────────────────────────
-            _SectionHeader(
-              icon: Icons.av_timer_rounded,
-              title: 'Resolution Metrics',
-            ),
-            const SizedBox(height: 12),
-            _ResolutionMetricsRow(s: s, isWide: isWide),
-            const SizedBox(height: 24),
+            // ── Stats grid (manager/ceo only) ───────────────────────────
+            if (isManager) ...[
+              _SectionHeader(
+                icon: Icons.bar_chart_rounded,
+                title: 'Overview',
+                // trailing: isManager ? _AnalyticsLink(user: user) : null,
+              ),
+              const SizedBox(height: 12),
+              _StatsGrid(s: s, isWide: isWide),
+              const SizedBox(height: 24),
 
-            // ── Priority distribution ───────────────────────────────
-            _SectionHeader(
-              icon: Icons.flag_outlined,
-              title: 'Priority Breakdown',
-            ),
-            const SizedBox(height: 12),
-            isWide
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: _PriorityCard(s: s)),
-                      const SizedBox(width: 16),
-                      Expanded(child: _StatusSummaryCard(s: s)),
-                    ],
-                  )
-                : Column(
-                    children: [
-                      _PriorityCard(s: s),
-                      const SizedBox(height: 16),
-                      _StatusSummaryCard(s: s),
-                    ],
+              // ── Avg resolution time card ────────────────────────────
+              _SectionHeader(
+                icon: Icons.av_timer_rounded,
+                title: 'Resolution Metrics',
+              ),
+              const SizedBox(height: 12),
+              _ResolutionMetricsRow(s: s, isWide: isWide),
+              const SizedBox(height: 24),
+
+              // ── Priority distribution ───────────────────────────────
+              _SectionHeader(
+                icon: Icons.flag_outlined,
+                title: 'Priority Breakdown',
+              ),
+              const SizedBox(height: 12),
+              isWide
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: _PriorityCard(s: s)),
+                        const SizedBox(width: 16),
+                        Expanded(child: _StatusSummaryCard(s: s)),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        _PriorityCard(s: s),
+                        const SizedBox(height: 16),
+                        _StatusSummaryCard(s: s),
+                      ],
+                    ),
+              const SizedBox(height: 24),
+            ],
+
+            // ── Recent / transferred tickets ────────────────────────────
+            if (state.sentTickets.isNotEmpty) ...[
+              _SectionHeader(
+                icon: Icons.sync_alt_rounded,
+                title: 'Transferred From Your Department',
+                trailing: Text(
+                  '${state.sentTickets.length} tickets',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: ThemeColors.unifiedTextMuted,
+                    fontWeight: FontWeight.w600,
                   ),
-            const SizedBox(height: 24),
-          ],
-
-          // ── Recent / transferred tickets ────────────────────────────
-          if (state.sentTickets.isNotEmpty) ...[
-            _SectionHeader(
-              icon: Icons.sync_alt_rounded,
-              title: 'Transferred From Your Department',
-              trailing: Text(
-                '${state.sentTickets.length} tickets',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: ThemeColors.unifiedTextMuted,
-                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1000),
-              child: Column(
-                children: state.sentTickets
-                    .take(5)
-                    .map((t) => TicketCard(ticket: t, user: user))
-                    .toList(),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1000),
+                child: Column(
+                  children: state.sentTickets
+                      .take(5)
+                      .map((t) => TicketCard(ticket: t, user: user))
+                      .toList(),
+                ),
               ),
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
