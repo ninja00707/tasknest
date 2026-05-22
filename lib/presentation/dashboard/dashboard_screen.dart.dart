@@ -187,15 +187,25 @@ class DashboardScreen extends StatelessWidget {
     switch (currentIndex) {
       case 0:
         return DashboardView(state: loadedState!);
+
       case 1:
-        return TicketListView(state: loadedState!, user: user);
+        if (user.roleId == 0 || user.roleId == 1) {
+          return TicketListView(state: loadedState!, user: user);
+        } else {
+          return MyTicketsView(state: loadedState!, user: user);
+        }
       case 2:
         return CreateTicketView(user: user);
+
       case 3:
-        return RecentTicketsView(state: loadedState!, userModel: user);
+        if (user.roleId != 0) {
+          return SizedBox(child: Center(child: Text("Transfered Tickets")));
+        } else {
+          return SizedBox(child: Center(child: Text("Invalid Section")));
+        }
 
       case 4:
-        return MyTicketsView(state: loadedState!, user: user);
+        return RecentTicketsView(state: loadedState!, userModel: user);
 
       default:
         return DashboardView(state: loadedState!);

@@ -39,7 +39,7 @@ class Sidebar extends StatelessWidget {
         'No Role';
 
     return Container(
-      width: 220,
+      width: 280,
       decoration: const BoxDecoration(
         color: ThemeColors.unifiedSurface,
         border: Border(right: BorderSide(color: ThemeColors.unifiedBorder)),
@@ -101,8 +101,14 @@ class Sidebar extends StatelessWidget {
             onTap: onNav,
           ),
           NavItem(
-            icon: Icons.task_alt_outlined,
-            label: 'Tickets',
+            icon: Icons.auto_awesome_outlined,
+            label: user.roleId == 0
+                ? 'All Department Tickets'
+                : user.roleId == 1
+                ? 'Department\'s Tickets'
+                : user.roleId == 2
+                ? 'My Tickets'
+                : '',
             index: 1,
             selected: selectedIndex == 1,
             onTap: onNav,
@@ -116,28 +122,22 @@ class Sidebar extends StatelessWidget {
           ),
 
           // Add this inside your Sidebar widget's item list
+          if (user.roleId != 0)
+            NavItem(
+              icon: Icons.history_rounded,
+              label: 'Transfer Tickets',
+              index: 3,
+              selected: selectedIndex == 3,
+              onTap: onNav,
+            ),
           NavItem(
-            icon: Icons.history_rounded,
-            label: 'Recent Activity',
-            index: 3,
-            selected: selectedIndex == 3,
-            onTap: onNav,
-          ),
-          NavItem(
-            icon: Icons.assignment_ind_outlined,
-            label: 'Assigned to Me',
+            icon: Icons.task_alt_outlined,
+            label: 'Recent Activities',
             index: 4,
             selected: selectedIndex == 4,
             onTap: onNav,
           ),
-          // if (user.roleId == 1 || user.roleId == 0)
-          //   NavItem(
-          //     icon: Icons.analytics_outlined,
-          //     label: 'Analytics',
-          //     index: 4,
-          //     selected: selectedIndex == 4,
-          //     onTap: onNav,
-          //   ),
+
           const Spacer(),
           Container(
             margin: const EdgeInsets.all(12),
