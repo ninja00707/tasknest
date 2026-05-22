@@ -173,14 +173,11 @@ class _DashboardBody extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1000),
-                child: Column(
-                  children: state.sentTickets
-                      .take(5)
-                      .map((t) => TicketCard(ticket: t, user: user))
-                      .toList(),
-                ),
+              Column(
+                children: state.sentTickets
+                    .take(5)
+                    .map((t) => TicketCard(ticket: t, user: user))
+                    .toList(),
               ),
             ],
           ],
@@ -477,7 +474,7 @@ class _SectionHeader extends StatelessWidget {
 class _StatsGrid extends StatelessWidget {
   final DashboardStats s;
   final bool isWide;
-  const _StatsGrid({required this.s, required this.isWide});
+  const _StatsGrid({super.key, required this.s, required this.isWide});
 
   @override
   Widget build(BuildContext context) {
@@ -537,10 +534,12 @@ class _StatsGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       itemCount: items.length,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: isWide ? 4 : 2,
+        crossAxisCount: isWide
+            ? 4
+            : (MediaQuery.sizeOf(context).width > 480 ? 2 : 1),
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: isWide ? 3.1 : 1.8,
+        childAspectRatio: isWide ? 3.2 : 2.2,
       ),
       itemBuilder: (_, i) => _StatCard(item: items[i]),
     );
@@ -557,7 +556,7 @@ class _StatItem {
 
 class _StatCard extends StatelessWidget {
   final _StatItem item;
-  const _StatCard({required this.item});
+  const _StatCard({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
@@ -565,60 +564,40 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: ThemeColors.unifiedSurface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ThemeColors.unifiedBorder, width: 1.5),
+        border: Border.all(
+          color: ThemeColors.unifiedBorder.withOpacity(0.8),
+          width: 1.2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: item.color.withOpacity(0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            color: item.color.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(
         children: [
-          Container(height: 3, color: item.color.withOpacity(0.55)),
+          Container(height: 4, color: item.color.withOpacity(0.7)),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
-                    width: 34,
-                    height: 34,
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: item.color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(9),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(item.icon, size: 17, color: item.color),
+                    child: Icon(item.icon, size: 18, color: item.color),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${item.value}',
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            color: ThemeColors.unifiedTextPrimary,
-                            letterSpacing: -0.8,
-                            height: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          item.label,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: ThemeColors.unifiedTextMuted,
-                          ),
-                        ),
-                      ],
+                    child: _StatTextContent(
+                      value: item.value,
+                      label: item.label,
                     ),
                   ),
                 ],
@@ -627,6 +606,42 @@ class _StatCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _StatTextContent extends StatelessWidget {
+  final int value;
+  final String label;
+  const _StatTextContent({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$value',
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            color: ThemeColors.unifiedTextPrimary,
+            letterSpacing: -0.5,
+            height: 1,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: ThemeColors.unifiedTextMuted,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 }
