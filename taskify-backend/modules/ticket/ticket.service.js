@@ -67,7 +67,7 @@ class TicketService {
       const isResolver = ticket.assigned_to_id === user.id;
       const isCeo = user.role === 'ceo';
       
-      if (!isResolver) {
+      if (!isResolver && !isCeo) {
         throw {
           statusCode: 403,
           message: `Only the assigned resolver can mark this ticket as ${newStatus}`,
@@ -117,9 +117,9 @@ class TicketService {
       ticketId,
       user.id,
       'assigned',
-      null,
-      `employee:${employeeId}`,
-      'Manager assigned'
+      ticket.assigned_to_name || 'Unassigned',
+      `Employee ID: ${employeeId}`,
+      `Manager ${user.name} assigned the ticket.`
     );
 
     return updated;
@@ -151,19 +151,23 @@ class TicketService {
       ticketId,
       user.id,
       'transferred',
-      ticket.assigned_dept_code,
-      `dept:${targetDeptId}`,
-      'Department transfer'
+      ticket.assigned_dept_name,
+      `Dept ID: ${targetDeptId}`,
+      `Transferred from ${ticket.assigned_dept_name} to another department.`
     );
 
     return updated;
   }
 
   async reopenTicket(ticketId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    const oldStatus = ticket.status;
+
     const updated = await ticketRepo.reopenTicket(ticketId, user.id);
     if (!updated) throw { statusCode: 400, message: 'Unable to reopen ticket' };
 
-    await ticketRepo.logAction(ticketId, user.id, 'reopened', 'closed', 'open', 'Creator reopened');
+    await ticketRepo.logAction(ticketId, user.id, 'reopened', oldStatus, 'open', 'Creator reopened');
     return updated;
   }
 

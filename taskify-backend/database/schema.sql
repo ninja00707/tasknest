@@ -8,22 +8,12 @@ CREATE TABLE companies (
   slug       VARCHAR(50)  NOT NULL UNIQUE,
   created_at TIMESTAMPTZ  DEFAULT NOW()
 );
+
 INSERT INTO companies (id, name, slug) VALUES
   (0, 'UM Enterprises', 'um'),
   (1, 'Matrix Pharma',  'matrix');
 
 -- ── Departments ──────────────────────────────────────────────
-CREATE TABLE departments (
-  id            SERIAL PRIMARY KEY,
-  name          VARCHAR(100)  NOT NULL,
-  code          VARCHAR(20)   NOT NULL UNIQUE,
-  company_id    INT           REFERENCES companies(id),
-  parent_id     INT           REFERENCES departments(id),  -- for sub-depts
-  tier          VARCHAR(20)   NOT NULL CHECK (tier IN ('upper','lower')),
-  created_at    TIMESTAMPTZ   DEFAULT NOW()
-);
-
--- Recreate table
 CREATE TABLE departments (
   id            INT PRIMARY KEY,
   name          VARCHAR(100)  NOT NULL,
@@ -36,29 +26,31 @@ CREATE TABLE departments (
 
 -- Upper management
 INSERT INTO departments (id, name, code, company_id, parent_id, tier) VALUES
-  (0, 'HR',          'HR',   NULL, NULL, 'upper'),
-  (1, 'Admin',       'ADM',  NULL, NULL, 'upper'),
-  (2, 'IT',          'IT',   NULL, NULL, 'upper'),
-  (3, 'Procurement', 'PROC', NULL, NULL, 'upper');
-  -- Lower departments
+  (0, 'HR',          'HR',   0, NULL, 'upper'),
+  (1, 'Admin',       'ADM',  0, NULL, 'upper'),
+  (2, 'IT',          'IT',   1, NULL, 'upper'),
+  (3, 'Procurement', 'PROC', 1, NULL, 'upper');
+
+-- Lower departments (UM Enterprises)
 INSERT INTO departments (id, name, code, company_id, parent_id, tier) VALUES
-  (4, 'LA',      'LA',   1, NULL, 'lower'),
-  (5, 'Feed',    'FEED', 1, NULL, 'lower'),
-  (6, 'FM',      'FM',   1, NULL, 'lower'),
+  (4, 'LA',      'LA',   0, NULL, 'lower'),
+  (5, 'Feed',    'FEED', 0, NULL, 'lower'),
+  (6, 'FM',      'FM',   0, NULL, 'lower'),
   (7, 'Drag',    'DRAG', 1, NULL, 'lower'),
   (8, 'Finance', 'FIN',  1, NULL, 'lower');
-  -- LA sub-departments
-INSERT INTO departments (id, name, code, company_id, parent_id, tier) VALUES
-  (9,  'LARA', 'LARA', 1, 4, 'lower'),
-  (10, 'LAFM', 'LAFM', 1, 4, 'lower'),
-  (11, 'LBFM', 'LBFM', 1, 4, 'lower');
-  -- FM sub-departments
-INSERT INTO departments (id, name, code, company_id, parent_id, tier) VALUES
-  (12, 'FMAS', 'FMAS', 1, 6, 'lower'),
-  (13, 'FMPS', 'FMPS', 1, 6, 'lower'),
-  (14, 'FMSG', 'FMSG', 1, 6, 'lower');
 
+-- LA sub-departments
+INSERT INTO departments (id, name, code, company_id, parent_id, tier) VALUES
+  (9,  'LARA', 'LARA', 0, 4, 'lower'),
+  (10, 'LAFM', 'LAFM', 0, 4, 'lower'),
+  (11, 'LBFM', 'LBFM', 0, 4, 'lower');
 
+-- FM sub-departments
+INSERT INTO departments (id, name, code, company_id, parent_id, tier) VALUES
+  (12, 'FMAS', 'FMAS', 0, 6, 'lower'),
+  (13, 'FMPS', 'FMPS', 0, 6, 'lower'),
+  (14, 'FMSG', 'FMSG', 0, 6, 'lower'),
+  (15, 'Directors', 'DIR', 0, NULL, 'upper');
 
 -- ── Roles ────────────────────────────────────────────────────
 CREATE TABLE roles (

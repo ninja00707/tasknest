@@ -213,8 +213,8 @@ class TicketRepository {
     console.log(`[TicketRepository] Executing updateStatus for ticketId: ${ticketId}, status: ${status}, userId: ${user.id}`);
     await pool.query(`
       UPDATE tickets SET status = $1::VARCHAR,
-        closed_by_id = CASE WHEN $1::VARCHAR = 'closed' THEN $2 ELSE closed_by_id END,
-        closed_at    = CASE WHEN $1::VARCHAR = 'closed' THEN NOW() ELSE closed_at END
+        closed_by_id = CASE WHEN $1::VARCHAR IN ('closed', 'completed') THEN $2 ELSE closed_by_id END,
+        closed_at    = CASE WHEN $1::VARCHAR IN ('closed', 'completed') THEN NOW() ELSE closed_at END
       WHERE id = $3
     `, [status, user.id, ticketId]);
 
@@ -292,7 +292,8 @@ class TicketRepository {
     if (t.reopen_count >= 1) throw new Error('Ticket can only be reopened once');
     if (t.status !== 'closed' && t.status !== 'completed') throw new Error('Only closed/completed tickets can be reopened');
 
-    const hoursSinceClosed = (Date.now() - new Date(t.closed_at).getTime()) / 36e5;
+    const resolutionTime = t.closed_at || t.updated_at;
+    const hoursSinceClosed = (Date.now() - new Date(resolutionTime).getTime()) / 36e5;
     if (hoursSinceClosed > 48) throw new Error('Reopen window of 48 hours has passed');
 
     const result = await pool.query(`
