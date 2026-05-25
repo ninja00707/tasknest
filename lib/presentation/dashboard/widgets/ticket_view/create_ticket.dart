@@ -44,57 +44,62 @@ class _CreateTicketViewState extends State<CreateTicketView> {
     final canAssignEmployee =
         widget.user.roleId == 0 || widget.user.roleId == 1;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(isWide ? 28 : 16).copyWith(bottom: 48),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Page header ───────────────────────────────────────────
-          _PageHeader(),
-          const SizedBox(height: 24),
+    return SizedBox(
+      height: MediaQuery.sizeOf(context).height,
+      width: MediaQuery.sizeOf(context).width,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(isWide ? 28 : 16).copyWith(bottom: 48),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            // ── Page header ───────────────────────────────────────────
+            _PageHeader(),
+            const SizedBox(height: 24),
 
-          // ── Form card ─────────────────────────────────────────────
-          _FormCard(
-            child: Form(
-              key: _formKey,
-              child: isWide
-                  ? _WideFormLayout(
-                      titleCtrl: _title,
-                      descCtrl: _description,
-                      priority: _priority,
-                      selectedDept: _selectedDepartment,
-                      selectedEmployee: _selectedEmployee,
-                      dueDate: _dueDate,
-                      employeeList: employeeList,
-                      canAssignEmployee: canAssignEmployee,
-                      submitting: _submitting,
-                      onPriorityChanged: (v) => setState(() => _priority = v),
-                      onDeptChanged: _onDeptChanged,
-                      onEmployeeChanged: (v) =>
-                          setState(() => _selectedEmployee = v),
-                      onDateTap: _pickDate,
-                      onSubmit: _submit,
-                    )
-                  : _NarrowFormLayout(
-                      titleCtrl: _title,
-                      descCtrl: _description,
-                      priority: _priority,
-                      selectedDept: _selectedDepartment,
-                      selectedEmployee: _selectedEmployee,
-                      dueDate: _dueDate,
-                      employeeList: employeeList,
-                      canAssignEmployee: canAssignEmployee,
-                      submitting: _submitting,
-                      onPriorityChanged: (v) => setState(() => _priority = v),
-                      onDeptChanged: _onDeptChanged,
-                      onEmployeeChanged: (v) =>
-                          setState(() => _selectedEmployee = v),
-                      onDateTap: _pickDate,
-                      onSubmit: _submit,
-                    ),
+            // ── Form card ─────────────────────────────────────────────
+            _FormCard(
+              child: Form(
+                key: _formKey,
+                child: isWide
+                    ? _WideFormLayout(
+                        titleCtrl: _title,
+                        descCtrl: _description,
+                        priority: _priority,
+                        selectedDept: _selectedDepartment,
+                        selectedEmployee: _selectedEmployee,
+                        dueDate: _dueDate,
+                        employeeList: employeeList,
+                        canAssignEmployee: canAssignEmployee,
+                        submitting: _submitting,
+                        onPriorityChanged: (v) => setState(() => _priority = v),
+                        onDeptChanged: _onDeptChanged,
+                        onEmployeeChanged: (v) =>
+                            setState(() => _selectedEmployee = v),
+                        onDateTap: _pickDate,
+                        onSubmit: _submit,
+                      )
+                    : _NarrowFormLayout(
+                        titleCtrl: _title,
+                        descCtrl: _description,
+                        priority: _priority,
+                        selectedDept: _selectedDepartment,
+                        selectedEmployee: _selectedEmployee,
+                        dueDate: _dueDate,
+                        employeeList: employeeList,
+                        canAssignEmployee: canAssignEmployee,
+                        submitting: _submitting,
+                        onPriorityChanged: (v) => setState(() => _priority = v),
+                        onDeptChanged: _onDeptChanged,
+                        onEmployeeChanged: (v) =>
+                            setState(() => _selectedEmployee = v),
+                        onDateTap: _pickDate,
+                        onSubmit: _submit,
+                      ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

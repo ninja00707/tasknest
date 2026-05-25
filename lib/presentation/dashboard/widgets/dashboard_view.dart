@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/constant/name_by_id.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_section_headers.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
@@ -115,7 +116,7 @@ class _DashboardBody extends StatelessWidget {
 
             // ── Stats grid (manager/ceo only) ───────────────────────────
             if (isManager) ...[
-              _SectionHeader(
+              CommaonSectionHeader(
                 icon: Icons.bar_chart_rounded,
                 title: 'Overview',
                 // trailing: isManager ? _AnalyticsLink(user: user) : null,
@@ -125,7 +126,7 @@ class _DashboardBody extends StatelessWidget {
               const SizedBox(height: 24),
 
               // ── Avg resolution time card ────────────────────────────
-              _SectionHeader(
+              CommaonSectionHeader(
                 icon: Icons.av_timer_rounded,
                 title: 'Resolution Metrics',
               ),
@@ -134,7 +135,7 @@ class _DashboardBody extends StatelessWidget {
               const SizedBox(height: 24),
 
               // ── Priority distribution ───────────────────────────────
-              _SectionHeader(
+              CommaonSectionHeader(
                 icon: Icons.flag_outlined,
                 title: 'Priority Breakdown',
               ),
@@ -159,27 +160,28 @@ class _DashboardBody extends StatelessWidget {
             ],
 
             // ── Recent / transferred tickets ────────────────────────────
-            if (state.sentTickets.isNotEmpty) ...[
-              _SectionHeader(
-                icon: Icons.sync_alt_rounded,
-                title: 'Transferred From Your Department',
-                trailing: Text(
-                  '${state.sentTickets.length} tickets',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: ThemeColors.unifiedTextMuted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Column(
-                children: state.sentTickets
-                    .take(5)
-                    .map((t) => TicketCard(ticket: t, user: user))
-                    .toList(),
-              ),
-            ],
+            // if (state.sentTickets.isNotEmpty) ...[
+            //   CommaonSectionHeader(
+            //     icon: Icons.sync_alt_rounded,
+            //     title: 'Transferred From Your Department',
+            //     trailing: Text(
+            //       '${state.sentTickets.length} tickets',
+            //       style: const TextStyle(
+            //         fontSize: 12,
+            //         color: ThemeColors.unifiedTextMuted,
+            //         fontWeight: FontWeight.w600,
+            //       ),
+            //     ),
+            //   ),
+            //   const SizedBox(height: 12),
+            //   Column(
+            //     children: state.sentTickets
+            //         .take(5)
+            //         .map((t) => TicketCard(ticket: t, user: user))
+            //         .toList(),
+            //   ),
+
+            // ],
           ],
         ),
       ),
@@ -393,45 +395,45 @@ class _IdentityPill extends StatelessWidget {
 }
 
 // ── Section header ────────────────────────────────────────────────────────────
-class _SectionHeader extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final Widget? trailing;
+// class _SectionHeader extends StatelessWidget {
+//   final IconData icon;
+//   final String title;
+//   final Widget? trailing;
 
-  const _SectionHeader({
-    required this.icon,
-    required this.title,
-    this.trailing,
-  });
+//   const _SectionHeader({
+//     required this.icon,
+//     required this.title,
+//     this.trailing,
+//   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 28,
-          height: 28,
-          decoration: BoxDecoration(
-            color: ThemeColors.unifiedPrimary.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: Icon(icon, size: 15, color: ThemeColors.unifiedPrimary),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            color: ThemeColors.unifiedTextPrimary,
-            letterSpacing: -0.2,
-          ),
-        ),
-        if (trailing != null) ...[const Spacer(), trailing!],
-      ],
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return Row(
+//       children: [
+//         Container(
+//           width: 28,
+//           height: 28,
+//           decoration: BoxDecoration(
+//             color: ThemeColors.unifiedPrimary.withOpacity(0.08),
+//             borderRadius: BorderRadius.circular(7),
+//           ),
+//           child: Icon(icon, size: 15, color: ThemeColors.unifiedPrimary),
+//         ),
+//         const SizedBox(width: 10),
+//         Text(
+//           title,
+//           style: const TextStyle(
+//             fontSize: 15,
+//             fontWeight: FontWeight.w800,
+//             color: ThemeColors.unifiedTextPrimary,
+//             letterSpacing: -0.2,
+//           ),
+//         ),
+//         if (trailing != null) ...[const Spacer(), trailing!],
+//       ],
+//     );
+//   }
+// }
 
 // ── Analytics link (manager only) ────────────────────────────────────────────
 // class _AnalyticsLink extends StatelessWidget {

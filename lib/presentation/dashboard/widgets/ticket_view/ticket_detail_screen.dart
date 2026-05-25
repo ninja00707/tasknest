@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_detail_appbar.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
@@ -51,12 +52,14 @@ class TicketDetailScreen extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: ThemeColors.unifiedBackground,
-          appBar: _DetailAppBar(ticket: ticket),
+          appBar: CommonDetailAppbar(
+            ticket: ticket,
+            title: null,
+            issuffixStatus: true,
+          ),
           body: SingleChildScrollView(
             padding: EdgeInsets.symmetric(
-              horizontal: isWide
-                  ? MediaQuery.sizeOf(context).width * 0.1
-                  : 16,
+              horizontal: isWide ? MediaQuery.sizeOf(context).width * 0.1 : 16,
               vertical: 24,
             ),
             child: isWide
@@ -93,89 +96,89 @@ class _LoadingScaffold extends StatelessWidget {
   }
 }
 
-// ── App Bar ───────────────────────────────────────────────────────────────────
-class _DetailAppBar extends StatelessWidget implements PreferredSizeWidget {
-  final TicketModel ticket;
-  const _DetailAppBar({required this.ticket});
+// // ── App Bar ───────────────────────────────────────────────────────────────────
+// class _DetailAppBar extends StatelessWidget implements PreferredSizeWidget {
+//   final TicketModel ticket;
+//   const _DetailAppBar({required this.ticket});
 
-  @override
-  Size get preferredSize => const Size.fromHeight(60);
+//   @override
+//   Size get preferredSize => const Size.fromHeight(60);
 
-  @override
-  Widget build(BuildContext context) {
-    return AppBar(
-      backgroundColor: ThemeColors.unifiedSurface,
-      elevation: 0,
-      surfaceTintColor: Colors.transparent,
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(height: 1, color: ThemeColors.unifiedBorder),
-      ),
-      leading: GestureDetector(
-        onTap: () => context.pop(),
-        child: Container(
-          margin: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: ThemeColors.unifiedBackground,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: ThemeColors.unifiedBorder, width: 1.5),
-          ),
-          child: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 16,
-            color: ThemeColors.unifiedTextPrimary,
-          ),
-        ),
-      ),
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-            decoration: BoxDecoration(
-              color: ThemeColors.unifiedBackground,
-              borderRadius: BorderRadius.circular(7),
-              border: Border.all(color: ThemeColors.unifiedBorder, width: 1.5),
-            ),
-            child: Text(
-              '#${ticket.id}',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: ThemeColors.unifiedTextMuted,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              ticket.title,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: ThemeColors.unifiedTextPrimary,
-                letterSpacing: -0.2,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child: Row(
-            children: [
-              PriorityBadge(priority: ticket.priority),
-              const SizedBox(width: 6),
-              StatusBadge(status: ticket.status),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return AppBar(
+//       backgroundColor: ThemeColors.unifiedSurface,
+//       elevation: 0,
+//       surfaceTintColor: Colors.transparent,
+//       bottom: PreferredSize(
+//         preferredSize: const Size.fromHeight(1),
+//         child: Container(height: 1, color: ThemeColors.unifiedBorder),
+//       ),
+//       leading: GestureDetector(
+//         onTap: () => context.pop(),
+//         child: Container(
+//           margin: const EdgeInsets.all(10),
+//           decoration: BoxDecoration(
+//             color: ThemeColors.unifiedBackground,
+//             borderRadius: BorderRadius.circular(10),
+//             border: Border.all(color: ThemeColors.unifiedBorder, width: 1.5),
+//           ),
+//           child: const Icon(
+//             Icons.arrow_back_ios_new_rounded,
+//             size: 16,
+//             color: ThemeColors.unifiedTextPrimary,
+//           ),
+//         ),
+//       ),
+//       title: Row(
+//         children: [
+//           Container(
+//             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+//             decoration: BoxDecoration(
+//               color: ThemeColors.unifiedBackground,
+//               borderRadius: BorderRadius.circular(7),
+//               border: Border.all(color: ThemeColors.unifiedBorder, width: 1.5),
+//             ),
+//             child: Text(
+//               '#${ticket.id}',
+//               style: const TextStyle(
+//                 fontSize: 13,
+//                 fontWeight: FontWeight.w700,
+//                 color: ThemeColors.unifiedTextMuted,
+//                 letterSpacing: 0.3,
+//               ),
+//             ),
+//           ),
+//           const SizedBox(width: 10),
+//           Expanded(
+//             child: Text(
+//               ticket.title,
+//               style: const TextStyle(
+//                 fontSize: 15,
+//                 fontWeight: FontWeight.w700,
+//                 color: ThemeColors.unifiedTextPrimary,
+//                 letterSpacing: -0.2,
+//               ),
+//               overflow: TextOverflow.ellipsis,
+//             ),
+//           ),
+//         ],
+//       ),
+//       actions: [
+//         Padding(
+//           padding: const EdgeInsets.only(right: 16),
+//           child: Row(
+//             children: [
+//               PriorityBadge(priority: ticket.priority),
+//               const SizedBox(width: 6),
+//               StatusBadge(status: ticket.status),
+//             ],
+//           ),
+//         ),
+//       ],
+//     );
+//   }
+// }
 
 // ── Wide layout ───────────────────────────────────────────────────────────────
 class _WideLayout extends StatelessWidget {
@@ -194,7 +197,10 @@ class _WideLayout extends StatelessWidget {
           children: [
             Expanded(flex: 2, child: _MainInfoColumn(ticket: ticket)),
             const SizedBox(width: 20),
-            Expanded(flex: 1, child: _SidePanelColumn(ticket: ticket, user: user)),
+            Expanded(
+              flex: 1,
+              child: _SidePanelColumn(ticket: ticket, user: user),
+            ),
           ],
         ),
         const SizedBox(height: 40),
@@ -254,7 +260,10 @@ class _HeroCard extends StatelessWidget {
             height: 5,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [ThemeColors.unifiedGradStart, ThemeColors.unifiedGradEnd],
+                colors: [
+                  ThemeColors.unifiedGradStart,
+                  ThemeColors.unifiedGradEnd,
+                ],
               ),
             ),
           ),
@@ -331,27 +340,38 @@ class _HeroCard extends StatelessWidget {
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
-                                color: ThemeColors.unifiedDanger.withOpacity(0.1),
+                                color: ThemeColors.unifiedDanger.withOpacity(
+                                  0.1,
+                                ),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: ThemeColors.unifiedDanger.withOpacity(0.3),
+                                  color: ThemeColors.unifiedDanger.withOpacity(
+                                    0.3,
+                                  ),
                                 ),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: const [
-                                  Icon(Icons.schedule_rounded,
-                                      size: 10, color: ThemeColors.unifiedDanger),
+                                  Icon(
+                                    Icons.schedule_rounded,
+                                    size: 10,
+                                    color: ThemeColors.unifiedDanger,
+                                  ),
                                   SizedBox(width: 3),
-                                  Text('OVERDUE',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w800,
-                                        color: ThemeColors.unifiedDanger,
-                                        letterSpacing: 0.3,
-                                      )),
+                                  Text(
+                                    'OVERDUE',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: ThemeColors.unifiedDanger,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -499,7 +519,9 @@ class _SidePanelColumn extends StatelessWidget {
         _SectionCard(
           icon: Icons.bolt_rounded,
           title: 'Actions',
-          child: Center(child: TicketActions(ticket: ticket, user: user)),
+          child: Center(
+            child: TicketActions(ticket: ticket, user: user),
+          ),
         ),
         const SizedBox(height: 16),
         _SectionCard(
@@ -560,8 +582,11 @@ class _SectionCard extends StatelessWidget {
                     color: ThemeColors.unifiedPrimary.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(7),
                   ),
-                  child: Icon(icon,
-                      size: 15, color: ThemeColors.unifiedPrimary),
+                  child: Icon(
+                    icon,
+                    size: 15,
+                    color: ThemeColors.unifiedPrimary,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Text(
@@ -576,10 +601,7 @@ class _SectionCard extends StatelessWidget {
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: child,
-          ),
+          Padding(padding: const EdgeInsets.all(18), child: child),
         ],
       ),
     );
@@ -701,11 +723,15 @@ class _ProgressTimeline extends StatelessWidget {
     ];
 
     return Column(
-      children: steps.map((s) => _TimelineItem(
-        step: s,
-        isActive: _isPassed(s.step),
-        isCurrent: _isCurrentStep(s.step),
-      )).toList(),
+      children: steps
+          .map(
+            (s) => _TimelineItem(
+              step: s,
+              isActive: _isPassed(s.step),
+              isCurrent: _isCurrentStep(s.step),
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -782,10 +808,7 @@ class _TimelineItem extends StatelessWidget {
         // ── Right: text ───────────────────────────────────────────────
         Expanded(
           child: Padding(
-            padding: EdgeInsets.only(
-              top: 6,
-              bottom: step.isLast ? 0 : 22,
-            ),
+            padding: EdgeInsets.only(top: 6, bottom: step.isLast ? 0 : 22),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -819,12 +842,13 @@ class _TimelineItem extends StatelessWidget {
                   Container(
                     margin: const EdgeInsets.only(left: 8),
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 7, vertical: 3),
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: step.color.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                          color: step.color.withOpacity(0.3)),
+                      border: Border.all(color: step.color.withOpacity(0.3)),
                     ),
                     child: Text(
                       'NOW',
@@ -848,9 +872,13 @@ class _TimelineItem extends StatelessWidget {
 // ── Priority color helper ─────────────────────────────────────────────────────
 Color _priorityColor(String p) {
   switch (p.toLowerCase()) {
-    case 'urgent': return ThemeColors.unifiedDanger;
-    case 'high':   return const Color(0xFFEA580C);
-    case 'medium': return ThemeColors.unifiedWarning;
-    default:       return ThemeColors.unifiedPrimary;
+    case 'urgent':
+      return ThemeColors.unifiedDanger;
+    case 'high':
+      return const Color(0xFFEA580C);
+    case 'medium':
+      return ThemeColors.unifiedWarning;
+    default:
+      return ThemeColors.unifiedPrimary;
   }
 }

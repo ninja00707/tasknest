@@ -12,6 +12,7 @@ import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/side_
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/recent_tickets_view.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_Listview.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/my_tickets_view.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/transfered_depart_ticket.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -199,7 +200,7 @@ class DashboardScreen extends StatelessWidget {
 
       case 3:
         if (user.roleId != 0) {
-          return SizedBox(child: Center(child: Text("Transfered Tickets")));
+          return TransferedDepartTicket(state: loadedState!, user: user);
         } else {
           return SizedBox(child: Center(child: Text("Invalid Section")));
         }
