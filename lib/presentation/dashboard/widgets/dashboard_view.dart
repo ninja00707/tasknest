@@ -10,7 +10,7 @@ import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
-import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_card.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_Listview.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 import 'package:tasknest/presentation/login/bloc/login_event.dart';
@@ -54,21 +54,6 @@ class _DashboardBody extends StatelessWidget {
     required this.isManager,
   });
 
-  String? _resolve(
-    List items,
-    int id,
-    int Function(dynamic) idSel,
-    String Function(dynamic) nameSel,
-  ) {
-    try {
-      return items
-          .firstWhere((e) => idSel(e) == id, orElse: () => null)
-          ?.let((e) => nameSel(e));
-    } catch (_) {
-      return null;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.sizeOf(context).width > 768;
@@ -93,10 +78,9 @@ class _DashboardBody extends StatelessWidget {
       nameSelector: (e) => e.name,
     );
 
-    return Container(
+    return Padding(
       padding: EdgeInsets.all(isWide ? 28 : 16).copyWith(bottom: 24),
-      height: double.infinity,
-      width: double.infinity,
+
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,29 +143,17 @@ class _DashboardBody extends StatelessWidget {
               const SizedBox(height: 24),
             ],
 
-            // ── Recent / transferred tickets ────────────────────────────
-            // if (state.sentTickets.isNotEmpty) ...[
-            //   CommaonSectionHeader(
-            //     icon: Icons.sync_alt_rounded,
-            //     title: 'Transferred From Your Department',
-            //     trailing: Text(
-            //       '${state.sentTickets.length} tickets',
-            //       style: const TextStyle(
-            //         fontSize: 12,
-            //         color: ThemeColors.unifiedTextMuted,
-            //         fontWeight: FontWeight.w600,
-            //       ),
-            //     ),
-            //   ),
-            //   const SizedBox(height: 12),
-            //   Column(
-            //     children: state.sentTickets
-            //         .take(5)
-            //         .map((t) => TicketCard(ticket: t, user: user))
-            //         .toList(),
-            //   ),
-
-            // ],
+            if (user.roleId == 2)
+              LayoutBuilder(
+                builder: (context, constraints) => ConstrainedBox(
+                  constraints: BoxConstraints(
+                    // gives TicketListView a finite height so Expanded children work
+                    minHeight: 0,
+                    maxHeight: MediaQuery.sizeOf(context).height - 200,
+                  ),
+                  child: TicketListView(state: state, user: user),
+                ),
+              ),
           ],
         ),
       ),
@@ -393,84 +365,6 @@ class _IdentityPill extends StatelessWidget {
     );
   }
 }
-
-// ── Section header ────────────────────────────────────────────────────────────
-// class _SectionHeader extends StatelessWidget {
-//   final IconData icon;
-//   final String title;
-//   final Widget? trailing;
-
-//   const _SectionHeader({
-//     required this.icon,
-//     required this.title,
-//     this.trailing,
-//   });
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Row(
-//       children: [
-//         Container(
-//           width: 28,
-//           height: 28,
-//           decoration: BoxDecoration(
-//             color: ThemeColors.unifiedPrimary.withOpacity(0.08),
-//             borderRadius: BorderRadius.circular(7),
-//           ),
-//           child: Icon(icon, size: 15, color: ThemeColors.unifiedPrimary),
-//         ),
-//         const SizedBox(width: 10),
-//         Text(
-//           title,
-//           style: const TextStyle(
-//             fontSize: 15,
-//             fontWeight: FontWeight.w800,
-//             color: ThemeColors.unifiedTextPrimary,
-//             letterSpacing: -0.2,
-//           ),
-//         ),
-//         if (trailing != null) ...[const Spacer(), trailing!],
-//       ],
-//     );
-//   }
-// }
-
-// ── Analytics link (manager only) ────────────────────────────────────────────
-// class _AnalyticsLink extends StatelessWidget {
-//   final UserModel user;
-//   const _AnalyticsLink({required this.user});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return GestureDetector(
-//       onTap: () => context.push('/analytics', extra: user),
-//       child: Container(
-//         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-//         decoration: BoxDecoration(
-//           gradient: const LinearGradient(
-//             colors: [ThemeColors.unifiedGradStart, ThemeColors.unifiedGradEnd],
-//           ),
-//           borderRadius: BorderRadius.circular(8),
-//         ),
-//         // child: Row(
-//         //   mainAxisSize: MainAxisSize.min,
-//         //   children: const [
-//         //     // Text(
-//         //     //   'Full Analytics',
-//         //     //   style: TextStyle(
-//         //     //     fontSize: 11,
-//         //     //     fontWeight: FontWeight.w700,
-//         //     //     color: Colors.white,
-//         //     //   ),
-//         //     // ),
-//         //     SizedBox(width: 4),
-//         //     Icon(Icons.arrow_forward_rounded, size: 12, color: Colors.white),
-//         //   ],
-//         // ),
-//       ),
-//     );
-//   }
-// }
 
 // ── Stats grid ────────────────────────────────────────────────────────────────
 class _StatsGrid extends StatelessWidget {

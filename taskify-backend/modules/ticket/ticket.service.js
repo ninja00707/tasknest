@@ -16,6 +16,9 @@ class TicketService {
     const ticket = await ticketRepo.getTicketById(ticketId, user);
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied to this ticket' };
+    
+    // Automatically attach full history/logs whenever a ticket is viewed in detail
+    ticket.history = await ticketRepo.getTicketLogs(ticketId);
     return ticket;
   }
 
@@ -87,17 +90,29 @@ class TicketService {
       throw { statusCode: 400, message: 'CEO does not self-assign' };
     }
 
-    const ticket = await ticketRepo.getTicketById(ticketId, user);
-    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
-    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
-    if (ticket.status !== 'open') {
+    const ticketBeforeUpdate = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticketBeforeUpdate) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticketBeforeUpdate.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    if (ticketBeforeUpdate.status !== 'open') {
       throw { statusCode: 400, message: 'Only OPEN tickets can be self-assigned' };
     }
 
     const updated = await ticketRepo.selfAssign(ticketId, user.id);
     if (!updated) throw { statusCode: 400, message: 'Ticket already assigned' };
 
-    await ticketRepo.logAction(ticketId, user.id, 'assigned', null, user.name, 'Self-assigned');
+    // Log the assignment
+    await ticketRepo.logAction(
+      ticketId,
+      user.id, 
+      'assigned', 
+      'Unassigned', 
+      user.name, 
+      'Self-assigned'
+    );
+
+    // Log the automatic status change to in_progress
+    await ticketRepo.logAction(ticketId, user.id, 'status_changed', 'open', 'in_progress', 'Status changed via self-assignment');
+    
     return updated;
   }
 
@@ -106,56 +121,91 @@ class TicketService {
       throw { statusCode: 403, message: 'Only managers can assign tickets to employees' };
     }
 
-    const ticket = await ticketRepo.getTicketById(ticketId, user);
-    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
-    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    const ticketBeforeUpdate = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticketBeforeUpdate) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticketBeforeUpdate.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
     const updated = await ticketRepo.assignToEmployee(ticketId, employeeId, user.id);
     if (!updated) throw { statusCode: 400, message: 'Unable to assign ticket' };
+
+    const assignedEmployee = await ticketRepo.getUserById(employeeId);
+    const assignedEmployeeName = assignedEmployee ? assignedEmployee.name : `Unknown Employee (ID: ${employeeId})`;
 
     await ticketRepo.logAction(
       ticketId,
       user.id,
       'assigned',
-      ticket.assigned_to_name || 'Unassigned',
-      `Employee ID: ${employeeId}`,
+      ticketBeforeUpdate.assigned_to_name || 'Unassigned',
+      assignedEmployeeName,
       `Manager ${user.name} assigned the ticket.`
     );
+
+    // Log status change if it went from 'open' to 'in_progress'
+    if (ticketBeforeUpdate.status === 'open' && updated.status === 'in_progress') {
+        await ticketRepo.logAction(
+            ticketId,
+            user.id,
+            'status_changed',
+            ticketBeforeUpdate.status,
+            updated.status,
+            'Status changed due to assignment'
+        );
+    }
 
     return updated;
   }
 
   async transferTicket(ticketId, targetDeptId, user) {
-    const ticket = await ticketRepo.getTicketById(ticketId, user);
-    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
-    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    const ticketBeforeUpdate = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticketBeforeUpdate) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticketBeforeUpdate.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
-    if (user.role === 'ceo') {
-      throw { statusCode: 403, message: 'CEO is not authorized to transfer tickets' };
-    }
-
-    // If already assigned, only the resolver can transfer
-    if (ticket.assigned_to_id && ticket.assigned_to_id !== user.id) {
+    // Permission Check: CEO cannot transfer, and if assigned, only the resolver can transfer
+    if (user.role === 'ceo') throw { statusCode: 403, message: 'CEO is not authorized to transfer tickets' };
+    
+    if (ticketBeforeUpdate.assigned_to_id && ticketBeforeUpdate.assigned_to_id !== user.id) {
       throw { statusCode: 403, message: 'Only the assigned resolver can transfer this ticket' };
     }
-
-    if (Number(ticket.assigned_dept_id) === Number(targetDeptId)) {
+    if (Number(ticketBeforeUpdate.assigned_dept_id) === Number(targetDeptId)) {
       throw { statusCode: 400, message: 'Ticket is already in that department' };
     }
-
 
     const updated = await ticketRepo.transferTicket(ticketId, targetDeptId, user);
     if (!updated) throw { statusCode: 400, message: 'Unable to transfer ticket' };
 
+    // Log department transfer
     await ticketRepo.logAction(
       ticketId,
       user.id,
       'transferred',
-      ticket.assigned_dept_name,
-      `Dept ID: ${targetDeptId}`,
-      `Transferred from ${ticket.assigned_dept_name} to another department.`
+      ticketBeforeUpdate.assigned_dept_name,
+      updated.assigned_dept_name, // Use the name of the new department
+      `Transferred from ${ticketBeforeUpdate.assigned_dept_name} to ${updated.assigned_dept_name}.`
     );
 
+    // Log unassignment if it happened
+    if (ticketBeforeUpdate.assigned_to_id !== null) {
+      await ticketRepo.logAction(
+        ticketId,
+        user.id,
+        'assigned',
+        ticketBeforeUpdate.assigned_to_name,
+        'Unassigned',
+        'Unassigned due to transfer'
+      );
+    }
+
+    // Log status change to 'open'
+    if (ticketBeforeUpdate.status !== 'open') {
+      await ticketRepo.logAction(
+        ticketId,
+        user.id,
+        'status_changed',
+        ticketBeforeUpdate.status,
+        updated.status, // 'open'
+        'Status changed to open due to transfer'
+      );
+    }
     return updated;
   }
 
@@ -182,7 +232,17 @@ class TicketService {
     const ticket = await ticketRepo.getTicketById(ticketId, user);
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
-    return await ticketRepo.addComment(ticketId, user.id, message);
+    const comment = await ticketRepo.addComment(ticketId, user.id, message);
+
+    await ticketRepo.logAction(
+      ticketId,
+      user.id,
+      'comment_added',
+      null,
+      message.substring(0, 100), // Log first 100 chars of comment
+      `Comment added by ${user.name}`
+    );
+    return comment;
   }
 
   async getDepartments() {

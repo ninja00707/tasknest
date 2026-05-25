@@ -410,6 +410,17 @@ class TicketRepository {
     return result.rows;
   }
 
+  // ── Get user by ID ───────────────────────────────────────────────────────
+  async getUserById(userId) {
+    const result = await pool.query(`
+      SELECT id, name, email, department_id, company_id, is_active, r.name AS role
+      FROM users u
+      JOIN roles r ON r.id = u.role_id
+      WHERE u.id = $1
+    `, [userId]);
+    return result.rows[0] || null;
+  }
+
   // ── Get ticket logs/history ─────────────────────────────────────────────
   async getTicketLogs(ticketId) {
     const result = await pool.query(`
