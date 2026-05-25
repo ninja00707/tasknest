@@ -81,7 +81,7 @@ class TicketService {
     const oldStatus = ticket.status;
     console.log(`[TicketService] Calling ticketRepo.updateStatus with ticketId: ${ticketId}, newStatus: ${newStatus}, userId: ${user.id}`);
     const updated = await ticketRepo.updateStatus(ticketId, newStatus, user);
-    await ticketRepo.logAction(ticketId, user.id, 'status_changed', oldStatus, newStatus, null);
+    await ticketRepo.logAction(ticketId, user.id, 'status_changed', oldStatus, newStatus, `Status updated to ${newStatus} by ${user.name}`);
     return updated;
   }
 
@@ -212,12 +212,14 @@ class TicketService {
   async reopenTicket(ticketId, user) {
     const ticket = await ticketRepo.getTicketById(ticketId, user);
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+
     const oldStatus = ticket.status;
 
     const updated = await ticketRepo.reopenTicket(ticketId, user.id);
     if (!updated) throw { statusCode: 400, message: 'Unable to reopen ticket' };
 
-    await ticketRepo.logAction(ticketId, user.id, 'reopened', oldStatus, 'open', 'Creator reopened');
+    await ticketRepo.logAction(ticketId, user.id, 'reopened', oldStatus, 'open', `Ticket reopened by creator (${user.name})`);
     return updated;
   }
 

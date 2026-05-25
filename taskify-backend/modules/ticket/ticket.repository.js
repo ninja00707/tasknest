@@ -22,6 +22,10 @@ class TicketRepository {
         assignee.id   AS assigned_to_id,
         assignee.name AS assigned_to_name,
 
+        ll.action      AS last_action,
+        ll.created_at  AS last_updated_at,
+        ll.acted_by_name AS last_acted_by_name,
+
         tf.code AS transferred_from_code
       FROM tickets t
       LEFT JOIN users creator  ON creator.id = t.created_by_id
@@ -29,6 +33,14 @@ class TicketRepository {
       LEFT JOIN departments ad ON ad.id = t.assigned_dept_id
       LEFT JOIN users assignee ON assignee.id = t.assigned_to_id
       LEFT JOIN departments tf ON tf.id = t.transferred_from
+      LEFT JOIN LATERAL (
+        SELECT tl.action, tl.created_at, u.name as acted_by_name
+        FROM ticket_logs tl
+        JOIN users u ON u.id = tl.acted_by_id
+        WHERE tl.ticket_id = t.id
+        ORDER BY tl.created_at DESC
+        LIMIT 1
+      ) ll ON TRUE
       WHERE t.id = $1
     `, [ticketId]);
 
@@ -81,6 +93,10 @@ class TicketRepository {
         assignee.id   AS assigned_to_id,
         assignee.name AS assigned_to_name,
 
+        ll.action      AS last_action,
+        ll.created_at  AS last_updated_at,
+        ll.acted_by_name AS last_acted_by_name,
+
         tf.code AS transferred_from_code
       FROM tickets t
       LEFT JOIN users       creator  ON creator.id  = t.created_by_id
@@ -88,10 +104,18 @@ class TicketRepository {
       LEFT JOIN departments ad       ON ad.id        = t.assigned_dept_id
       LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
       LEFT JOIN departments tf  ON tf.id        = t.transferred_from
+      LEFT JOIN LATERAL (
+        SELECT tl.action, tl.created_at, u.name as acted_by_name
+        FROM ticket_logs tl
+        JOIN users u ON u.id = tl.acted_by_id
+        WHERE tl.ticket_id = t.id
+        ORDER BY tl.created_at DESC
+        LIMIT 1
+      ) ll ON TRUE
       ${whereClause}
       ORDER BY
-        CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,
-        t.created_at DESC
+        ll.created_at DESC NULLS LAST,
+        CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `;
 
@@ -130,13 +154,25 @@ class TicketRepository {
         cd.name      AS created_by_dept_name,
         ad.name      AS assigned_dept_name,
         assignee.name AS assigned_to_name,
-        tf.code AS transferred_from_code
+        tf.code AS transferred_from_code,
+
+        ll.action      AS last_action,
+        ll.created_at  AS last_updated_at,
+        ll.acted_by_name AS last_acted_by_name
       FROM tickets t
       LEFT JOIN users       creator  ON creator.id  = t.created_by_id
       LEFT JOIN departments cd       ON cd.id        = t.created_by_dept
       LEFT JOIN departments ad       ON ad.id        = t.assigned_dept_id
       LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
       LEFT JOIN departments tf  ON tf.id        = t.transferred_from
+      LEFT JOIN LATERAL (
+        SELECT tl.action, tl.created_at, u.name as acted_by_name
+        FROM ticket_logs tl
+        JOIN users u ON u.id = tl.acted_by_id
+        WHERE tl.ticket_id = t.id
+        ORDER BY tl.created_at DESC
+        LIMIT 1
+      ) ll ON TRUE
       ${whereClause}
       ORDER BY t.created_at DESC
       LIMIT $${params.length - 1} OFFSET $${params.length}
@@ -428,7 +464,8 @@ class TicketRepository {
         tl.id, tl.ticket_id, tl.action, tl.old_value, tl.new_value, tl.note, tl.created_at,
         u.id AS acted_by_id,
         u.name AS acted_by_name,
-        d.code AS dept_code
+        d.code AS dept_code,
+        d.name AS dept_name
       FROM ticket_logs tl
       LEFT JOIN users u ON u.id = tl.acted_by_id
       LEFT JOIN departments d ON d.id = u.department_id
