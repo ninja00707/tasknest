@@ -218,12 +218,14 @@ class TicketRepository {
       return ticket;
     }
 
-    const isAssignedDept = ticket.assigned_dept_id === user.department_id;
-    const isTransferredFromUsersDept =
-      ticket.transferred_at && ticket.created_by_dept === user.department_id;
+    // Ensure numeric comparison to avoid type mismatch
+    const isCreatorDept = Number(ticket.created_by_dept) === Number(user.department_id);
+    const isAssignedDept = Number(ticket.assigned_dept_id) === Number(user.department_id);
+    const isTransferrer  = Number(ticket.transferred_from) === Number(user.department_id);
     const isResolver = ticket.assigned_to_id === user.id;
 
-    if (!isAssignedDept && !isTransferredFromUsersDept && !isResolver) {
+    // Permission: Current Dept OR Creator Dept OR Previous Transferrer OR the Resolver
+    if (!isAssignedDept && !isCreatorDept && !isTransferrer && !isResolver) {
       return { forbidden: true };
     }
 
@@ -431,14 +433,26 @@ class TicketRepository {
         assignee.id   AS assigned_to_id,
         assignee.name AS assigned_to_name,
 
-        tf.code AS transferred_from_code
+        tf.code AS transferred_from_code,
+
+        ll.action      AS last_action,
+        ll.created_at  AS last_updated_at,
+        ll.acted_by_name AS last_acted_by_name
       FROM tickets t
       LEFT JOIN users       creator  ON creator.id  = t.created_by_id
       LEFT JOIN departments cd       ON cd.id        = t.created_by_dept
       LEFT JOIN departments ad       ON ad.id        = t.assigned_dept_id
       LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
       LEFT JOIN departments tf  ON tf.id        = t.transferred_from
-      WHERE t.created_by_dept = $1
+      LEFT JOIN LATERAL (
+        SELECT tl.action, tl.created_at, u.name as acted_by_name
+        FROM ticket_logs tl
+        JOIN users u ON u.id = tl.acted_by_id
+        WHERE tl.ticket_id = t.id
+        ORDER BY tl.created_at DESC
+        LIMIT 1
+      ) ll ON TRUE
+      WHERE (t.created_by_dept = $1 OR t.transferred_from = $1)
         AND t.assigned_dept_id <> $1
       ORDER BY t.transferred_at DESC, t.created_at DESC
     `, [departmentId]);

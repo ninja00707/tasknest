@@ -33,22 +33,24 @@ class TicketDetailScreen extends StatelessWidget {
           return const _LoadingScaffold();
         }
 
-        final ticket = state.tickets.firstWhere(
-          (t) => t.id == ticketId,
-          orElse: () => TicketModel(
-            id: 0,
-            title: 'Unknown Ticket',
-            description: 'No description available',
-            priority: 'low',
-            status: 'Unknown',
-            assignedDeptCode: '',
-            assignedDeptName: '',
-            createdByName: '',
-            createdByDeptCode: '',
-            createdAt: DateTime.now(),
-            reopenCount: 0,
-          ),
-        );
+        final ticket = state.tickets
+            .followedBy(state.sentTickets)
+            .firstWhere(
+              (t) => t.id == ticketId,
+              orElse: () => TicketModel(
+                id: 0,
+                title: 'Unknown Ticket',
+                description: 'No description available',
+                priority: 'low',
+                status: 'Unknown',
+                assignedDeptCode: '',
+                assignedDeptName: '',
+                createdByName: '',
+                createdByDeptCode: '',
+                createdAt: DateTime.now(),
+                reopenCount: 0,
+              ),
+            );
 
         return Scaffold(
           backgroundColor: ThemeColors.unifiedBackground,

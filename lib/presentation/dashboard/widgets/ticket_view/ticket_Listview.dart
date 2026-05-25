@@ -18,7 +18,6 @@ class TicketListView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Filter bar
         Container(
           color: ThemeColors.unifiedSurface,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

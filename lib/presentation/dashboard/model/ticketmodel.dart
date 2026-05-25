@@ -17,6 +17,10 @@ class TicketModel {
   final DateTime? closedAt;
   final int reopenCount;
 
+  final String? lastAction;
+  final DateTime? lastUpdatedAt;
+  final String? lastActedByName;
+
   const TicketModel({
     required this.id,
     required this.title,
@@ -35,6 +39,9 @@ class TicketModel {
     this.dueDate,
     this.closedAt,
     required this.reopenCount,
+    this.lastAction,
+    this.lastUpdatedAt,
+    this.lastActedByName,
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> j) => TicketModel(
@@ -49,12 +56,17 @@ class TicketModel {
     createdByName: j['created_by_name'] ?? '',
     createdByDeptCode: j['created_by_dept_code'] ?? '',
     assignedToId: j['assigned_to_id'],
-    assignedToName: j['assigned_to_name'],
-    transferredFromCode: j['transferred_from_code'],
+    assignedToName: j['assigned_to_name'] ?? 'Unassigned',
+    transferredFromCode: j['transferred_from_code'] ?? 'None',
     createdAt: DateTime.parse(j['created_at']),
     dueDate: j['due_date'] != null ? DateTime.parse(j['due_date']) : null,
     closedAt: j['closed_at'] != null ? DateTime.parse(j['closed_at']) : null,
     reopenCount: j['reopen_count'] ?? 0,
+    lastAction: j['last_action'] ?? 'Created',
+    lastUpdatedAt: j['last_updated_at'] != null
+        ? DateTime.parse(j['last_updated_at'])
+        : null,
+    lastActedByName: j['last_acted_by_name'] ?? 'System',
   );
 
   bool get isOpen => status == 'open';
