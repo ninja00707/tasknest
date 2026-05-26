@@ -9,6 +9,7 @@ import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_action.dart';
+
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class TicketDetailScreen extends StatelessWidget {
@@ -49,12 +50,20 @@ class TicketDetailScreen extends StatelessWidget {
                 createdByDeptCode: '',
                 createdAt: DateTime.now(),
                 reopenCount: 0,
+                history: const [],
+                createdById: 0,
+                assignedToId: 0,
               ),
             );
 
         return Scaffold(
           backgroundColor: ThemeColors.unifiedBackground,
           appBar: CommonDetailAppbar(
+            onHistoryPressed: () {
+              // You can implement scrolling to the history section
+              // or showing a modal with history here.
+              // For now, it's just a button.
+            },
             ticket: ticket,
             title: null,
             issuffixStatus: true,
@@ -62,7 +71,7 @@ class TicketDetailScreen extends StatelessWidget {
           body: SingleChildScrollView(
             padding: EdgeInsets.symmetric(
               horizontal: isWide ? MediaQuery.sizeOf(context).width * 0.1 : 16,
-              vertical: 24,
+              vertical: 24, // Increased vertical padding for better spacing
             ),
             child: isWide
                 ? _WideLayout(ticket: ticket, user: user)
@@ -503,6 +512,12 @@ class _MainInfoColumn extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        // _SectionCard(
+        //   icon: Icons.history_edu_rounded,
+        //   title: 'Traveling Department History',
+        //   child: TicketHistoryTimeline(history: ticket.history ?? []),
+        // ),
       ],
     );
   }

@@ -1,6 +1,23 @@
 const ticketRepo = require('./ticket.repository');
 
 class TicketService {
+  // ── Real-Time Notification Dispatcher ────────────────────────────────────
+  async _dispatch(ticketId, userIds, message, eventType = 'NOTIFICATION', payload = {}) {
+    for (const userId of userIds) {
+      // 1. Persist to DB
+      await ticketRepo.createNotification(userId, ticketId, message);
+      
+      // 2. Push Real-Time via Socket.io
+      if (global.io) {
+        global.io.to(`user_${userId}`).emit(eventType, {
+          ticketId,
+          message,
+          ...payload
+        });
+      }
+    }
+  }
+
   async getDashboardStats(user) {
     if (!user) throw { statusCode: 401, message: 'Unauthorized' };
     return await ticketRepo.getDashboardStats(user);
@@ -42,14 +59,17 @@ class TicketService {
       assignedToId,
     });
 
-    await ticketRepo.logAction(
-      ticket.id,
-      user.id,
-      'created',
-      null,
-      ticket.status,
-      `Created by ${user.name}${assignedToId ? ` and assigned to employee ID ${assignedToId}` : ''}`
-    );
+    const logNote = `Created by ${user.name}${assignedToId ? ` and assigned to ${ticket.assigned_to_name}` : ''}`;
+    await ticketRepo.logAction(ticket.id, user.id, 'created', null, ticket.status, logNote);
+
+    // Notify target department managers
+    const managers = await ticketRepo.getManagersByDepartment(assignedDeptId);
+    await this._dispatch(ticket.id, managers, `New Ticket Created: ${title}`, 'TICKET_CREATED', { ticket });
+
+    // If auto-assigned, notify the employee
+    if (assignedToId) {
+      await this._dispatch(ticket.id, [assignedToId], `You have been assigned to Ticket #${ticket.id}`, 'TICKET_ASSIGNED');
+    }
 
     return ticket;
   }
@@ -64,24 +84,44 @@ class TicketService {
       throw { statusCode: 400, message: 'Invalid status' };
     }
 
+    const isResolver = ticket.assigned_to_id === user.id;
+    const isCreator = ticket.created_by_id === user.id;
+    const isCeo = user.role === 'ceo';
+
     console.log(`[TicketService] Attempting to update ticket ${ticketId} status from ${ticket.status} to ${newStatus} by user ${user.id}`);
-    if (newStatus === 'completed' || newStatus === 'closed') {
-      // Only the resolver (assigned_to_id) can complete or close the ticket
-      const isResolver = ticket.assigned_to_id === user.id;
-      const isCeo = user.role === 'ceo';
-      
+
+    // Only the resolver or CEO can mark a ticket as completed
+    if (newStatus === 'completed') {
       if (!isResolver && !isCeo) {
-        throw {
-          statusCode: 403,
-          message: `Only the assigned resolver can mark this ticket as ${newStatus}`,
-        };
+        throw { statusCode: 403, message: 'Only the assigned resolver can mark this ticket as completed' };
       }
+    }
+
+    // Only the creator or CEO can mark a ticket as closed (finalize and close)
+    if (newStatus === 'closed') {
+      if (!isCreator && !isCeo) {
+        throw { statusCode: 403, message: 'Only the creator can finalize and close this ticket' };
+      }
+    }
+
+    // If ticket is completed, it can only be closed or reopened (reopen via different method)
+    if (ticket.status === 'completed' && newStatus !== 'closed') {
+      throw { statusCode: 400, message: 'Ticket is already completed. It can only be finalized and closed or reopened.' };
+    }
+
+    if (ticket.status === 'closed') {
+      throw { statusCode: 400, message: 'Ticket is already closed. It must be reopened first.' };
     }
 
     const oldStatus = ticket.status;
     console.log(`[TicketService] Calling ticketRepo.updateStatus with ticketId: ${ticketId}, newStatus: ${newStatus}, userId: ${user.id}`);
     const updated = await ticketRepo.updateStatus(ticketId, newStatus, user);
     await ticketRepo.logAction(ticketId, user.id, 'status_changed', oldStatus, newStatus, `Status updated to ${newStatus} by ${user.name}`);
+    
+    // Real-time update for creator and assignee
+    const participants = await ticketRepo.getTicketParticipants(ticketId);
+    await this._dispatch(ticketId, participants, `Ticket #${ticketId} status changed to ${newStatus}`, 'TICKET_STATUS_UPDATED', { ticket: updated });
+
     return updated;
   }
 
@@ -125,6 +165,11 @@ class TicketService {
     if (!ticketBeforeUpdate) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticketBeforeUpdate.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
+    // Actions are disabled for completed or closed tickets
+    if (ticketBeforeUpdate.status === 'completed' || ticketBeforeUpdate.status === 'closed') {
+      throw { statusCode: 400, message: 'Cannot assign a ticket that is already completed or closed' };
+    }
+
     const updated = await ticketRepo.assignToEmployee(ticketId, employeeId, user.id);
     if (!updated) throw { statusCode: 400, message: 'Unable to assign ticket' };
 
@@ -139,6 +184,9 @@ class TicketService {
       assignedEmployeeName,
       `Manager ${user.name} assigned the ticket.`
     );
+
+    // Notify employee
+    await this._dispatch(ticketId, [employeeId], `Manager ${user.name} assigned you to Ticket #${ticketId}`, 'TICKET_ASSIGNED');
 
     // Log status change if it went from 'open' to 'in_progress'
     if (ticketBeforeUpdate.status === 'open' && updated.status === 'in_progress') {
@@ -159,6 +207,11 @@ class TicketService {
     const ticketBeforeUpdate = await ticketRepo.getTicketById(ticketId, user);
     if (!ticketBeforeUpdate) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticketBeforeUpdate.forbidden) throw { statusCode: 403, message: 'Access denied' };
+
+    // Actions are disabled for completed or closed tickets
+    if (ticketBeforeUpdate.status === 'completed' || ticketBeforeUpdate.status === 'closed') {
+      throw { statusCode: 400, message: 'Cannot transfer a ticket that is already completed or closed' };
+    }
 
     // Permission Check: CEO cannot transfer, and if assigned, only the resolver can transfer
     if (user.role === 'ceo') throw { statusCode: 403, message: 'CEO is not authorized to transfer tickets' };
@@ -182,6 +235,11 @@ class TicketService {
       updated.assigned_dept_name, // Use the name of the new department
       `Transferred from ${ticketBeforeUpdate.assigned_dept_name} to ${updated.assigned_dept_name}.`
     );
+
+    // Notify new department managers
+    const newManagers = await ticketRepo.getManagersByDepartment(targetDeptId);
+    await this._dispatch(ticketId, newManagers, `Ticket #${ticketId} transferred to your department`, 'TICKET_TRANSFERRED');
+    await this._dispatch(ticketId, [ticketBeforeUpdate.created_by_id], `Your ticket was transferred to ${updated.assigned_dept_name}`, 'TICKET_UPDATED');
 
     // Log unassignment if it happened
     if (ticketBeforeUpdate.assigned_to_id !== null) {
@@ -219,7 +277,12 @@ class TicketService {
     const updated = await ticketRepo.reopenTicket(ticketId, user.id);
     if (!updated) throw { statusCode: 400, message: 'Unable to reopen ticket' };
 
-    await ticketRepo.logAction(ticketId, user.id, 'reopened', oldStatus, 'open', `Ticket reopened by creator (${user.name})`);
+    await ticketRepo.logAction(ticketId, user.id, 'reopened', oldStatus, 'in_progress', `Ticket reopened by creator (${user.name}) and returned to "In Progress" status.`);
+
+    // Notify participants (Creator and Resolver) that the ticket is active again
+    const participants = await ticketRepo.getTicketParticipants(ticketId);
+    await this._dispatch(ticketId, participants, `Ticket #${ticketId} has been reopened and is now In Progress.`, 'TICKET_REOPENED', { ticket: updated });
+
     return updated;
   }
 
@@ -244,6 +307,11 @@ class TicketService {
       message.substring(0, 100), // Log first 100 chars of comment
       `Comment added by ${user.name}`
     );
+
+    // Notify participants
+    const participants = (await ticketRepo.getTicketParticipants(ticketId)).filter(id => id !== user.id);
+    await this._dispatch(ticketId, participants, `${user.name} commented on Ticket #${ticketId}`, 'COMMENT_ADDED');
+
     return comment;
   }
 

@@ -9,6 +9,7 @@ class TicketModel {
   final String assignedDeptName;
   final String createdByName;
   final String createdByDeptCode;
+  final int createdById;
   final int? assignedToId;
   final String? assignedToName;
   final String? transferredFromCode;
@@ -20,6 +21,7 @@ class TicketModel {
   final String? lastAction;
   final DateTime? lastUpdatedAt;
   final String? lastActedByName;
+  final List<dynamic>? history;
 
   const TicketModel({
     required this.id,
@@ -32,6 +34,7 @@ class TicketModel {
     required this.assignedDeptName,
     required this.createdByName,
     required this.createdByDeptCode,
+    required this.createdById,
     this.assignedToId,
     this.assignedToName,
     this.transferredFromCode,
@@ -42,6 +45,7 @@ class TicketModel {
     this.lastAction,
     this.lastUpdatedAt,
     this.lastActedByName,
+    this.history,
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> j) => TicketModel(
@@ -54,6 +58,7 @@ class TicketModel {
     assignedDeptCode: j['assigned_dept_code'] ?? '',
     assignedDeptName: j['assigned_dept_name'] ?? '',
     createdByName: j['created_by_name'] ?? '',
+    createdById: j['created_by_id'],
     createdByDeptCode: j['created_by_dept_code'] ?? '',
     assignedToId: j['assigned_to_id'],
     assignedToName: j['assigned_to_name'] ?? 'Unassigned',
@@ -67,12 +72,17 @@ class TicketModel {
         ? DateTime.parse(j['last_updated_at'])
         : null,
     lastActedByName: j['last_acted_by_name'] ?? 'System',
+    history: j['history'],
   );
 
   bool get isOpen => status == 'open';
   bool get isInProgress => status == 'in_progress';
   bool get isCompleted => status == 'completed';
   bool get isClosed => status == 'closed';
+
+  /// Logic to disable management actions (Transfer/Assign)
+  bool get isManagementDisabled => isCompleted || isClosed;
+
   bool get isUrgent => priority == 'urgent';
   bool get isOverdue =>
       dueDate != null &&
@@ -81,6 +91,7 @@ class TicketModel {
       !isCompleted;
 
   bool canReopenBy(int userId) {
+    if (createdById != userId) return false;
     if (reopenCount >= 1) return false;
     if (!isClosed && !isCompleted) return false;
     if (closedAt == null) return false;
@@ -190,4 +201,29 @@ class EmployeeModel {
     deptCode: j['dept_code'] ?? '',
     deptName: j['dept_name'] ?? '',
   );
+}
+
+class NotificationModel {
+  final int id;
+  final int? ticketId;
+  final String message;
+  final bool isRead;
+  final DateTime createdAt;
+
+  const NotificationModel({
+    required this.id,
+    this.ticketId,
+    required this.message,
+    required this.isRead,
+    required this.createdAt,
+  });
+
+  factory NotificationModel.fromJson(Map<String, dynamic> j) =>
+      NotificationModel(
+        id: j['id'],
+        ticketId: j['ticket_id'],
+        message: j['message'] ?? '',
+        isRead: j['is_read'] ?? false,
+        createdAt: DateTime.parse(j['created_at']),
+      );
 }

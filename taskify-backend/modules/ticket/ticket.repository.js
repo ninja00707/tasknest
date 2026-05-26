@@ -336,7 +336,7 @@ class TicketRepository {
 
     const result = await pool.query(`
       UPDATE tickets
-      SET status = 'open', reopened_at = NOW(), reopen_count = reopen_count + 1, closed_by_id = NULL, closed_at = NULL
+      SET status = 'in_progress', reopened_at = NOW(), reopen_count = reopen_count + 1, closed_by_id = NULL, closed_at = NULL
       WHERE id = $1
       RETURNING id
     `, [ticketId]);
@@ -460,10 +460,38 @@ class TicketRepository {
     return result.rows;
   }
 
+  // ── Notification Persistence ─────────────────────────────────────────────
+  async createNotification(userId, ticketId, message) {
+    const result = await pool.query(`
+      INSERT INTO notifications (user_id, ticket_id, message)
+      VALUES ($1, $2, $3) RETURNING *
+    `, [userId, ticketId, message]);
+    return result.rows[0];
+  }
+
+  // ── Find Users to Notify ─────────────────────────────────────────────────
+  async getManagersByDepartment(departmentId) {
+    const result = await pool.query(`
+      SELECT u.id FROM users u
+      JOIN roles r ON r.id = u.role_id
+      WHERE u.department_id = $1 AND r.name = 'manager'
+    `, [departmentId]);
+    return result.rows.map(r => r.id);
+  }
+
+  async getTicketParticipants(ticketId) {
+    const result = await pool.query(`
+      SELECT created_by_id, assigned_to_id FROM tickets WHERE id = $1
+    `, [ticketId]);
+    const row = result.rows[0];
+    if (!row) return [];
+    return [...new Set([row.created_by_id, row.assigned_to_id])].filter(id => id != null);
+  }
+
   // ── Get user by ID ───────────────────────────────────────────────────────
   async getUserById(userId) {
     const result = await pool.query(`
-      SELECT id, name, email, department_id, company_id, is_active, r.name AS role
+      SELECT u.id, u.name, u.email, u.department_id, u.company_id, u.is_active, r.name AS role
       FROM users u
       JOIN roles r ON r.id = u.role_id
       WHERE u.id = $1

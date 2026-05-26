@@ -21,7 +21,11 @@ class TransferedDepartTicket extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(16),
-
+      decoration: BoxDecoration(
+        color: ThemeColors.unifiedBackground,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.withOpacity(0.5), width: 1.5),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -38,14 +42,11 @@ class TransferedDepartTicket extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Expanded(
-            child: ListView.builder(
-              itemBuilder: (context, index) {
-                return TicketCard(ticket: state.sentTickets[index], user: user);
-              },
-              itemCount: state.sentTickets.length,
-              shrinkWrap: true,
-            ),
+          Column(
+            children: state.sentTickets
+                .take(5)
+                .map((t) => TicketCard(ticket: t, user: user))
+                .toList(),
           ),
         ],
       ),

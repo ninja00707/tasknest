@@ -11,11 +11,14 @@ class CommonDetailAppbar extends StatelessWidget
   final TicketModel? ticket;
   final String? title;
   final bool issuffixStatus;
+  final VoidCallback? onHistoryPressed;
+
   const CommonDetailAppbar({
     super.key,
     required this.ticket,
     required this.title,
     required this.issuffixStatus,
+    this.onHistoryPressed,
   });
 
   @override
@@ -87,6 +90,18 @@ class CommonDetailAppbar extends StatelessWidget
           ],
         ),
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: onHistoryPressed != null
+                ? IconButton(
+                    icon: const Icon(
+                      Icons.history_rounded,
+                      color: ThemeColors.unifiedTextPrimary,
+                    ),
+                    onPressed: onHistoryPressed,
+                  )
+                : const SizedBox.shrink(),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: issuffixStatus && ticket != null

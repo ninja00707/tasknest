@@ -28,7 +28,9 @@ class TicketActions extends StatelessWidget {
 
         final bool isManager = user.roleId == 1;
         final bool isCeo = user.roleId == 0;
-        final bool isResolver = ticket.assignedToId == user.id;
+        final bool isResolver =
+            ticket.assignedToId == user.id && ticket.assignedToId != null;
+        final bool isCreator = ticket.createdById == user.id;
         final bool isAssignedToMyDept =
             ticket.assignedDeptId == user.departmentId;
 
@@ -37,6 +39,7 @@ class TicketActions extends StatelessWidget {
           children: [
             // 1. Self Assign: Open to employees/managers in the department
             if (ticket.isOpen &&
+                !ticket.isManagementDisabled &&
                 ticket.assignedToId == null &&
                 isAssignedToMyDept)
               ActionBtn(
@@ -50,6 +53,7 @@ class TicketActions extends StatelessWidget {
 
             // 2. Managerial Assign: Only for Managers
             if (isManager &&
+                !ticket.isManagementDisabled &&
                 ticket.assignedToId == null &&
                 state.employees.isNotEmpty &&
                 isAssignedToMyDept)
@@ -61,7 +65,7 @@ class TicketActions extends StatelessWidget {
               ),
 
             // 3. Resolver Action: Mark Completed (Done). CEO is restricted.
-            if (ticket.isInProgress && isResolver && !isCeo)
+            if (ticket.isInProgress && (isResolver || isCeo))
               ActionBtn(
                 icon: Icons.check_circle_outline,
                 tooltip: 'Mark Done',
@@ -71,19 +75,19 @@ class TicketActions extends StatelessWidget {
                 ),
               ),
 
-            // 4. Resolver Action: Close. Restricted for CEO.
-            if (ticket.isCompleted && isResolver && !isCeo)
+            // 4. Creator/CEO Action: Finalize & Close
+            if (ticket.isCompleted && (isCreator || isCeo))
               ActionBtn(
                 icon: Icons.lock_outline,
                 tooltip: 'Finalize & Close',
-                color: ThemeColors.unifiedTextMuted,
+                color: ThemeColors.unifiedPrimary,
                 onTap: () => context.read<DashboardBloc>().add(
                   UpdateTicketStatus(ticket.id, 'closed'),
                 ),
               ),
 
-            // 5. Transfer: Only if unassigned (Manager) or if current user is the Resolver.
-            if (!ticket.isClosed &&
+            // 5. Transfer: Disabled if Completed/Closed
+            if (!ticket.isManagementDisabled &&
                 !isCeo &&
                 ((isManager && ticket.assignedToId == null) || isResolver))
               ActionBtn(
@@ -93,9 +97,8 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showTransferDialog(context, ticket),
               ),
 
-            // 6. Reopen: For those who need to resume work
-            if ((ticket.isClosed || ticket.isCompleted) &&
-                ticket.reopenCount < 1)
+            // 6. Reopen: Restricted to Creator/CEO based on model rules
+            if ((isCreator || isCeo) && ticket.canReopenBy(user.id))
               ActionBtn(
                 icon: Icons.replay_rounded,
                 tooltip: 'Reopen',
