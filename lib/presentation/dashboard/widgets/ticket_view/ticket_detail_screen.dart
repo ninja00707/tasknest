@@ -3,12 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_detail_appbar.dart';
+import 'package:tasknest/core/theme/common_date_format.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_action.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_history_timeline.dart';
 
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
@@ -486,13 +488,13 @@ class _MainInfoColumn extends StatelessWidget {
               _DetailRow(
                 icon: Icons.calendar_today_outlined,
                 label: 'Created At',
-                value: ticket.createdAt.toString().split('.').first,
+                value: CommonDateFormat.formatDateTime(ticket.createdAt),
               ),
               if (ticket.dueDate != null)
                 _DetailRow(
                   icon: Icons.event_outlined,
                   label: 'Due Date',
-                  value: ticket.dueDate!.toString().split('.').first,
+                  value: CommonDateFormat.formatDateTime(ticket.dueDate),
                   valueColor: ticket.isOverdue
                       ? ThemeColors.unifiedDanger
                       : null,
@@ -501,7 +503,7 @@ class _MainInfoColumn extends StatelessWidget {
                 _DetailRow(
                   icon: Icons.lock_outline_rounded,
                   label: 'Closed At',
-                  value: ticket.closedAt!.toString().split('.').first,
+                  value: CommonDateFormat.formatDateTime(ticket.closedAt),
                 ),
               _DetailRow(
                 icon: Icons.replay_rounded,
@@ -513,11 +515,11 @@ class _MainInfoColumn extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        // _SectionCard(
-        //   icon: Icons.history_edu_rounded,
-        //   title: 'Traveling Department History',
-        //   child: TicketHistoryTimeline(history: ticket.history ?? []),
-        // ),
+        _SectionCard(
+          icon: Icons.history_edu_rounded,
+          title: 'Traveling Department History',
+          child: TicketHistoryTimeline(history: ticket.history ?? []),
+        ),
       ],
     );
   }
