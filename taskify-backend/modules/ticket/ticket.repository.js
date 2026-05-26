@@ -277,8 +277,8 @@ class TicketRepository {
   async assignToEmployee(ticketId, employeeId, managerId) {
     // Verify employee is in same dept as manager
     const empCheck = await pool.query(
-      `SELECT id FROM users WHERE id = $1 AND department_id = (
-         SELECT department_id FROM users WHERE id = $2
+      `SELECT u.id FROM users u WHERE u.id = $1 AND u.department_id = (
+         SELECT u2.department_id FROM users u2 WHERE u2.id = $2
        )`,
       [employeeId, managerId]
     );
