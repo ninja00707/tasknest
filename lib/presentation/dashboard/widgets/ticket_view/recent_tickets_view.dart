@@ -114,47 +114,5 @@ class RecentTicketsView extends StatelessWidget {
         ],
       ),
     );
-    //           )
-    //         )
-    //       : ListView.builder(
-    //           itemCount: displayTickets.length,
-    //           itemBuilder: (context, index) {
-    //             final ticket = displayTickets[index];
-    //             return Container(
-    //               margin: const EdgeInsets.only(bottom: 12),
-    //               decoration: BoxDecoration(
-    //                 color: ThemeColors.unifiedSurface,
-    //                 borderRadius: BorderRadius.circular(12),
-    //                 border: Border.all(color: ThemeColors.unifiedBorder),
-    //               ),
-    //               child: ListTile(
-    //                 title: Text(
-    //                   ticket.title,
-    //                   style: const TextStyle(fontWeight: FontWeight.w700),
-    //                 ),
-    //                 subtitle: Text(
-    //                   ticket.description,
-    //                   maxLines: 1,
-    //                   overflow: TextOverflow.ellipsis,
-    //                 ),
-    //                 trailing: const Icon(
-    //                   Icons.arrow_forward_ios,
-    //                   size: 14,
-    //                 ),
-    //                 onTap: () => context.push(
-    //                   RouteNames.ticketDetail.replaceAll(
-    //                     ':id',
-    //                     ticket.id.toString(),
-    //                   ),
-    //                 ),
-    //               ),
-    //             );
-    //           },
-    //         ),
-    // ),
-
-    //     ],
-    //   ),
-    // );
   }
 }
