@@ -15,9 +15,6 @@ class TransferedDepartTicket extends StatelessWidget {
   final UserModel user;
   @override
   Widget build(BuildContext context) {
-    // If no tickets are available, we return an empty widget to save space
-    if (state.sentTickets.isEmpty) return const SizedBox.shrink();
-
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(16),
@@ -42,12 +39,22 @@ class TransferedDepartTicket extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Column(
-            children: state.sentTickets
-                .take(5)
-                .map((t) => TicketCard(ticket: t, user: user))
-                .toList(),
-          ),
+          state.sentTickets.isEmpty
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Text(
+                      'no ticket in transfer dep',
+                      style: TextStyle(color: ThemeColors.unifiedTextMuted),
+                    ),
+                  ),
+                )
+              : Column(
+                  children: state.sentTickets
+                      .take(5)
+                      .map((t) => TicketCard(ticket: t, user: user))
+                      .toList(),
+                ),
         ],
       ),
     );
