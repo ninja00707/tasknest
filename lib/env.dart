@@ -5,7 +5,7 @@ class Env {
     if (isLive) {
       return 'https://your-production-api.com/api/';
     } else {
-      return 'http://localhost:5000/api/';
+      return 'http://localhost:5050/api/';
     }
   }
 }
