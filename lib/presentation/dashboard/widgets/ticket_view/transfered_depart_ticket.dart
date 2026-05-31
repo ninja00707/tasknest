@@ -18,11 +18,8 @@ class TransferedDepartTicket extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: ThemeColors.unifiedBackground,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.orange.withOpacity(0.5), width: 1.5),
-      ),
+      color: ThemeColors.unifiedBackground,
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
