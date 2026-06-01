@@ -39,25 +39,25 @@ const authenticate = async (req, res, next) => {
 };
 
 // ── Role Guards ───────────────────────────────────────────────────────────────
-const isCeo = (req, res, next) => {
-    if (req.user.role !== 'ceo') {
-        return res.status(403).json({ success: false, message: 'CEO access required' });
+const isDirector = (req, res, next) => {
+    if (req.user.role !== 'directors') {
+        return res.status(403).json({ success: false, message: 'Director access required' });
     }
     next();
 };
 
 const isManager = (req, res, next) => {
-    if (!['ceo', 'manager'].includes(req.user.role)) {
+    if (!['directors', 'manager'].includes(req.user.role)) {
         return res.status(403).json({ success: false, message: 'Manager access required' });
     }
     next();
 };
 
 const isEmployee = (req, res, next) => {
-    if (!['ceo', 'manager', 'employee'].includes(req.user.role)) {
+    if (!['directors', 'manager', 'employee'].includes(req.user.role)) {
         return res.status(403).json({ success: false, message: 'Access denied' });
     }
     next();
 };
 
-module.exports = { authenticate, isCeo, isManager, isEmployee };
+module.exports = { authenticate, isDirector, isManager, isEmployee };

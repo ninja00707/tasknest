@@ -34,7 +34,8 @@ class TicketRemoteDataSource {
     required String title,
     required String description,
     required String priority,
-    required int assignedDeptId,
+    int? assignedDeptId,
+    List<int>? assignedDeptIds,
     required int createdById,
     required int createdByDept,
     String? dueDate,
@@ -46,7 +47,8 @@ class TicketRemoteDataSource {
         'title': title,
         'description': description,
         'priority': priority,
-        'assignedDeptId': assignedDeptId,
+        if (assignedDeptId != null) 'assignedDeptId': assignedDeptId,
+        if (assignedDeptIds != null) 'assignedDeptIds': assignedDeptIds,
         'createdById': createdById, // Explicitly adding this
         'createdByDept': createdByDept, // Explicitly adding this
         if (assignedToId != null)

@@ -1,208 +1,245 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/data/datasource/socket_service.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/data/datasource/ticketdatasource/ticket_remote_data_source.dart';
-import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
-import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
+import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
-// ══════════════════════════════════════════════════════════════
-//  BLOC
-// ══════════════════════════════════════════════════════════════
+import 'dashboard_event.dart';
+import 'dashboard_state.dart';
+
 class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
-  final TicketRemoteDataSource _dataSource;
+  final TicketRemoteDataSource _remoteDataSource;
+  final SocketService _socketService;
 
-  DashboardBloc(this._dataSource) : super(DashboardInitial()) {
-    on<LoadDashboard>(_onLoad);
+  DashboardBloc(
+    this._remoteDataSource,
+    this._socketService, {
+    required String? token,
+  }) : super(DashboardLoading()) {
+    on<LoadDashboard>(_onLoadDashboard);
+    on<SocketUpdateReceived>(_onSocketUpdateReceived);
+    on<SelfAssignTicket>(_onSelfAssignTicket);
+    on<UpdateTicketStatus>(_onUpdateTicketStatus);
+    on<ReopenTicket>(_onReopenTicket);
+    on<AssignTicketToEmployee>(_onAssignTicketToEmployee);
+    on<TransferTicket>(_onTransferTicket);
+    on<FilterTickets>(_onFilterTickets);
+    on<SidebarSelectedIndexEvent>(_onSidebarSelectedIndex);
     on<LoadEmployeesForDept>(_onLoadEmployeesForDept);
-    on<FilterTickets>(_onFilter);
-    on<SelfAssignTicket>(_onSelfAssign);
-    on<UpdateTicketStatus>(_onUpdateStatus);
-    on<AssignTicketToEmployee>(_onAssignEmployee);
-    on<TransferTicket>(_onTransfer);
-    on<ReopenTicket>(_onReopen);
-    on<CreateTicketEvent>(_onCreate);
-    on<SidebarSelectedIndexEvent>(_onSelectedIndex);
-    on<LoadManagerAnalytics>(_onLoadManagerAnalytics);
-    on<LoadCeoAnalytics>(_onLoadCeoAnalytics);
-  }
-  // Add this method:
-  Future<void> _onSelectedIndex(
-    SidebarSelectedIndexEvent event,
-    Emitter<DashboardState> emit,
-  ) async {
-    final currentState = state;
-    if (currentState is DashboardLoaded) {
-      emit(
-        currentState.copyWith(selectedIndex: event.sidebarSelectedIndexEvent),
-      );
-    }
+    on<CreateTicketEvent>(_onCreateTicket);
+
+    // Trigger initial load so the Stateless DashboardScreen gets data immediately
+    add(LoadDashboard());
+
+    // Initialize Socket Connection
+    _socketService.initSocket(token, {
+      // Pass the token to the socket service
+      'ticket_data_changed': (data) {
+        if (!isClosed) {
+          add(SocketUpdateReceived());
+        }
+      },
+    });
   }
 
-  // ── Load ──────────────────────────────────────────────────────
-  Future<void> _onLoad(
+  /// Helper to extract the data-bearing state regardless of current UI status
+  DashboardLoaded? _getLastValidState() {
+    final currentState = state;
+    if (currentState is DashboardLoaded) return currentState;
+    if (currentState is TicketActionError) return currentState.previousState;
+    if (currentState is TicketActionSuccess) return currentState.previousState;
+    return null;
+  }
+
+  Future<void> _onLoadDashboard(
     LoadDashboard event,
     Emitter<DashboardState> emit,
   ) async {
-    emit(DashboardLoading());
-
     try {
-      final user = await LocalStorageService().getUser();
-      if (user == null) throw Exception('User not found');
+      int selectedIndex = 0;
+      String? filterStatus;
+      String? filterPriority;
 
-      // ✅ Sequential — a 401 on one won't nuke the token for others
-      final stats = await _dataSource.getStats();
-      final tickets = await _dataSource.getTickets();
-      final departments = await _dataSource.getDepartments();
-      final employees = user.roleId == 1
-          ? await _dataSource.getEmployees(departmentId: user.departmentId)
-          : <EmployeeModel>[];
-      final sentTickets = await _dataSource.getSentTickets();
+      // Preserve existing filters and tab selection during a background refresh
+      final lastValidState = _getLastValidState();
+
+      if (lastValidState != null) {
+        selectedIndex = lastValidState.selectedIndex;
+        filterStatus = lastValidState.filterStatus;
+        filterPriority = lastValidState.filterPriority;
+      }
+
+      // Execute all API calls in parallel for better performance
+      final results = await Future.wait([
+        LocalStorageService().getUser(),
+        _remoteDataSource.getStats(),
+        _remoteDataSource.getTickets(),
+        _remoteDataSource.getSentTickets(),
+        _remoteDataSource.getEmployees(),
+        _remoteDataSource.getDepartments(),
+      ]);
+
+      final user = results[0] as UserModel?;
+      if (user == null) {
+        throw Exception("User session not found");
+      }
 
       emit(
         DashboardLoaded(
-          stats: stats,
-          tickets: tickets,
-          departments: departments,
-          employees: employees,
-          sentTickets: sentTickets,
+          user: user,
+          stats: results[1] as DashboardStats,
+          tickets: results[2] as List<TicketModel>,
+          sentTickets: results[3] as List<TicketModel>,
+          employees: results[4] as List<EmployeeModel>,
+          departments: results[5] as List<DepartmentModel>,
+          selectedIndex: selectedIndex,
+          filterStatus: filterStatus,
+          filterPriority: filterPriority,
         ),
       );
     } catch (e) {
-      emit(DashboardError(e.toString()));
+      final validState = _getLastValidState();
+      if (validState != null) {
+        emit(TicketActionError("Refresh failed: ${e.toString()}", validState));
+      } else {
+        emit(DashboardError(e.toString()));
+      }
     }
   }
-  // Future<void> _onLoad(
-  //   LoadDashboard event,
-  //   Emitter<DashboardState> emit,
-  // ) async {
-  //   emit(DashboardLoading());
 
-  //   try {
-  //     final user = await LocalStorageService().getUser();
-  //     if (user == null) {
-  //       throw Exception('User not found');
-  //     }
+  void _onSocketUpdateReceived(
+    SocketUpdateReceived event,
+    Emitter<DashboardState> emit,
+  ) {
+    // Automatically re-fetch data without user interaction
+    add(LoadDashboard());
+  }
 
-  //     final futures = <Future<dynamic>>[
-  //       _dataSource.getStats(),
-  //       _dataSource.getTickets(),
-  //       _dataSource.getDepartments(),
-  //       user.roleId == 1
-  //           ? _dataSource.getEmployees(departmentId: user.departmentId)
-  //           : Future.value(<EmployeeModel>[]),
-  //       _dataSource.getSentTickets(),
-  //     ];
-
-  //     final results = await Future.wait(futures);
-  //     emit(
-  //       DashboardLoaded(
-  //         stats: results[0] as DashboardStats,
-  //         tickets: results[1] as List<TicketModel>,
-  //         departments: results[2] as List<DepartmentModel>,
-  //         employees: results[3] as List<EmployeeModel>,
-  //         sentTickets: results[4] as List<TicketModel>,
-  //       ),
-  //     );
-  //   } catch (e) {
-  //     emit(DashboardError(e.toString()));
-  //   }
-  // }
-
-  // ── Filter ────────────────────────────────────────────────────
-  Future<void> _onFilter(
-    FilterTickets event,
+  Future<void> _onSelfAssignTicket(
+    SelfAssignTicket event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = state as DashboardLoaded;
+    final currentState = state;
     try {
-      final tickets = await _dataSource.getTickets(
-        status: event.status,
-        priority: event.priority,
+      await _remoteDataSource.assignToEmployee(event.ticketId, event.userId);
+      if (currentState is DashboardLoaded) {
+        emit(TicketActionSuccess("Ticket assigned successfully", currentState));
+        add(LoadDashboard());
+      }
+    } catch (e) {
+      if (currentState is DashboardLoaded) {
+        emit(TicketActionError(e.toString(), currentState));
+      } else {
+        emit(DashboardError(e.toString()));
+      }
+    }
+  }
+
+  Future<void> _onUpdateTicketStatus(
+    UpdateTicketStatus event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final currentState = state;
+    try {
+      await _remoteDataSource.updateStatus(event.ticketId, event.status);
+      if (currentState is DashboardLoaded) {
+        emit(TicketActionSuccess("Status updated", currentState));
+        add(LoadDashboard());
+      }
+    } catch (e) {
+      if (currentState is DashboardLoaded) {
+        emit(TicketActionError(e.toString(), currentState));
+      } else {
+        emit(DashboardError(e.toString()));
+      }
+    }
+  }
+
+  Future<void> _onReopenTicket(
+    ReopenTicket event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final currentState = state;
+    try {
+      await _remoteDataSource.reopenTicket(event.ticketId);
+      if (currentState is DashboardLoaded) {
+        emit(TicketActionSuccess("Ticket reopened", currentState));
+        add(LoadDashboard());
+      }
+    } catch (e) {
+      if (currentState is DashboardLoaded) {
+        emit(TicketActionError(e.toString(), currentState));
+      } else {
+        emit(DashboardError(e.toString()));
+      }
+    }
+  }
+
+  Future<void> _onAssignTicketToEmployee(
+    AssignTicketToEmployee event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final currentState = state;
+    try {
+      await _remoteDataSource.assignToEmployee(
+        event.ticketId,
+        event.employeeId,
       );
+      if (currentState is DashboardLoaded) {
+        emit(TicketActionSuccess("Ticket assigned to employee", currentState));
+        add(LoadDashboard());
+      }
+    } catch (e) {
+      if (currentState is DashboardLoaded) {
+        emit(TicketActionError(e.toString(), currentState));
+      } else {
+        emit(DashboardError(e.toString()));
+      }
+    }
+  }
+
+  Future<void> _onTransferTicket(
+    TransferTicket event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final currentState = state;
+    try {
+      await _remoteDataSource.transferTicket(event.ticketId, event.deptId);
+      if (currentState is DashboardLoaded) {
+        emit(TicketActionSuccess("Ticket transferred", currentState));
+        add(LoadDashboard());
+      }
+    } catch (e) {
+      if (currentState is DashboardLoaded) {
+        emit(TicketActionError(e.toString(), currentState));
+      } else {
+        emit(DashboardError(e.toString()));
+      }
+    }
+  }
+
+  void _onFilterTickets(FilterTickets event, Emitter<DashboardState> emit) {
+    final currentState = _getLastValidState();
+    if (currentState != null) {
       emit(
-        prev.copyWith(
-          tickets: tickets,
+        currentState.copyWith(
           filterStatus: event.status,
           filterPriority: event.priority,
         ),
       );
-    } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
     }
   }
 
-  // ── Self Assign ───────────────────────────────────────────────
-  Future<void> _onSelfAssign(
-    SelfAssignTicket event,
+  void _onSidebarSelectedIndex(
+    SidebarSelectedIndexEvent event,
     Emitter<DashboardState> emit,
-  ) async {
-    final prev = state as DashboardLoaded;
-    try {
-      await _dataSource.selfAssign(event.ticketId);
-      emit(TicketActionSuccess('Ticket self-assigned!', prev));
-      add(LoadDashboard());
-    } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
-    }
-  }
-
-  // ── Update Status ─────────────────────────────────────────────
-  Future<void> _onUpdateStatus(
-    UpdateTicketStatus event,
-    Emitter<DashboardState> emit,
-  ) async {
-    final prev = state as DashboardLoaded;
-    try {
-      await _dataSource.updateStatus(event.ticketId, event.status);
-      emit(TicketActionSuccess('Status updated to ${event.status}', prev));
-      add(LoadDashboard());
-    } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
-    }
-  }
-
-  // ── Assign to employee ────────────────────────────────────────
-  Future<void> _onAssignEmployee(
-    AssignTicketToEmployee event,
-    Emitter<DashboardState> emit,
-  ) async {
-    final prev = state as DashboardLoaded;
-    try {
-      await _dataSource.assignToEmployee(event.ticketId, event.employeeId);
-      emit(TicketActionSuccess('Ticket assigned successfully', prev));
-      add(LoadDashboard());
-    } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
-    }
-  }
-
-  // ── Transfer ──────────────────────────────────────────────────
-  Future<void> _onTransfer(
-    TransferTicket event,
-    Emitter<DashboardState> emit,
-  ) async {
-    final prev = state as DashboardLoaded;
-    try {
-      await _dataSource.transferTicket(event.ticketId, event.targetDeptId);
-      emit(TicketActionSuccess('Ticket transferred!', prev));
-      add(LoadDashboard());
-    } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
-    }
-  }
-
-  // ── Reopen ────────────────────────────────────────────────────
-  Future<void> _onReopen(
-    ReopenTicket event,
-    Emitter<DashboardState> emit,
-  ) async {
-    final prev = state as DashboardLoaded;
-    try {
-      await _dataSource.reopenTicket(event.ticketId);
-      emit(TicketActionSuccess('Ticket reopened!', prev));
-      add(LoadDashboard());
-    } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+  ) {
+    final currentState = _getLastValidState();
+    if (currentState != null) {
+      emit(
+        currentState.copyWith(selectedIndex: event.sidebarSelectedIndexEvent),
+      );
     }
   }
 
@@ -210,74 +247,56 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     LoadEmployeesForDept event,
     Emitter<DashboardState> emit,
   ) async {
-    final currentState = state;
-    if (currentState is DashboardLoaded) {
+    final currentState = _getLastValidState();
+    if (currentState != null) {
       try {
-        final employees = await _dataSource.getEmployees(
+        final employees = await _remoteDataSource.getEmployees(
           departmentId: event.deptId,
         );
         emit(currentState.copyWith(employees: employees));
       } catch (e) {
-        // Silent fail or log error
+        // Handle error
       }
     }
   }
 
-  // ── Create ────────────────────────────────────────────────────
-  Future<void> _onCreate(
+  Future<void> _onCreateTicket(
     CreateTicketEvent event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = state as DashboardLoaded;
-
+    final currentState = _getLastValidState();
     try {
-      await _dataSource.createTicket(
+      await _remoteDataSource.createTicket(
         title: event.title,
         description: event.description,
         priority: event.priority,
         assignedDeptId: event.assignedDeptId,
-
+        assignedDeptIds: event.assignedDeptIds,
+        assignedToId: event.assignedToId,
         createdById: event.createdById,
         createdByDept: event.createdByDept,
-        assignedToId: event.assignedToId, // Correctly access assignedToId
         dueDate: event.dueDate,
       );
-
-      emit(TicketActionSuccess('Ticket created!', prev));
-
-      add(LoadDashboard());
+      if (currentState != null) {
+        // Switch to Dashboard (Index 0) automatically after creation
+        emit(
+          TicketActionSuccess(
+            "Ticket created successfully",
+            currentState.copyWith(selectedIndex: 0),
+          ),
+        );
+        add(LoadDashboard());
+      }
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      if (currentState != null) {
+        emit(TicketActionError(e.toString(), currentState));
+      }
     }
   }
 
-  // ── Manager Analytics ─────────────────────────────────────────
-  Future<void> _onLoadManagerAnalytics(
-    LoadManagerAnalytics event,
-    Emitter<DashboardState> emit,
-  ) async {
-    emit(AnalyticsLoading()); // Indicate loading state for analytics
-    try {
-      final stats = await _dataSource.getDepartmentAnalytics(
-        event.departmentId,
-      );
-      emit(ManagerAnalyticsLoaded(stats));
-    } catch (e) {
-      emit(AnalyticsError(e.toString()));
-    }
-  }
-
-  // ── CEO Analytics ─────────────────────────────────────────────
-  Future<void> _onLoadCeoAnalytics(
-    LoadCeoAnalytics event,
-    Emitter<DashboardState> emit,
-  ) async {
-    emit(AnalyticsLoading());
-    try {
-      final analytics = await _dataSource.getOrganizationAnalytics();
-      emit(CeoAnalyticsLoaded(analytics));
-    } catch (e) {
-      emit(AnalyticsError(e.toString()));
-    }
+  @override
+  Future<void> close() {
+    _socketService.dispose();
+    return super.close();
   }
 }

@@ -2,6 +2,7 @@
 //  STATES
 // ══════════════════════════════════════════════════════════════
 import 'package:equatable/equatable.dart';
+import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 
 abstract class DashboardState extends Equatable {
@@ -14,6 +15,7 @@ class DashboardInitial extends DashboardState {}
 class DashboardLoading extends DashboardState {}
 
 class DashboardLoaded extends DashboardState {
+  final UserModel user;
   final DashboardStats stats;
   final List<TicketModel> tickets;
   final List<DepartmentModel> departments;
@@ -24,6 +26,7 @@ class DashboardLoaded extends DashboardState {
   final int selectedIndex;
 
   DashboardLoaded({
+    required this.user,
     required this.stats,
     required this.tickets,
     required this.departments,
@@ -35,6 +38,7 @@ class DashboardLoaded extends DashboardState {
   });
 
   DashboardLoaded copyWith({
+    UserModel? user,
     DashboardStats? stats,
     List<TicketModel>? tickets,
     List<DepartmentModel>? departments,
@@ -45,6 +49,7 @@ class DashboardLoaded extends DashboardState {
     int? selectedIndex,
   }) {
     return DashboardLoaded(
+      user: user ?? this.user,
       stats: stats ?? this.stats,
       tickets: tickets ?? this.tickets,
       departments: departments ?? this.departments,
@@ -58,6 +63,7 @@ class DashboardLoaded extends DashboardState {
 
   @override
   List<Object?> get props => [
+    user,
     stats,
     tickets,
     departments,
@@ -81,7 +87,7 @@ class TicketActionSuccess extends DashboardState {
   final DashboardLoaded previousState;
   TicketActionSuccess(this.message, this.previousState);
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, previousState, DateTime.now()];
 }
 
 class TicketActionError extends DashboardState {
@@ -89,7 +95,7 @@ class TicketActionError extends DashboardState {
   final DashboardLoaded previousState;
   TicketActionError(this.message, this.previousState);
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, previousState, DateTime.now()];
 }
 
 class SidebarSelectedIndexState extends DashboardState {
@@ -115,9 +121,9 @@ class ManagerAnalyticsLoaded extends DashboardState {
   List<Object?> get props => [stats];
 }
 
-class CeoAnalyticsLoaded extends DashboardState {
+class DirectorAnalyticsLoaded extends DashboardState {
   final List<dynamic> departmentAnalytics;
-  CeoAnalyticsLoaded(this.departmentAnalytics);
+  DirectorAnalyticsLoaded(this.departmentAnalytics);
   @override
   List<Object?> get props => [departmentAnalytics];
 }
@@ -128,4 +134,3 @@ class AnalyticsError extends DashboardState {
   @override
   List<Object?> get props => [message];
 }
-

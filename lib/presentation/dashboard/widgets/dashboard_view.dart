@@ -10,6 +10,7 @@ import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
+import 'package:tasknest/presentation/dashboard/responsive.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_Listview.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
@@ -21,24 +22,9 @@ class DashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<UserModel?>(
-      future: LocalStorageService().getUser(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: ThemeColors.unifiedPrimary),
-          );
-        }
-        if (!snapshot.hasData || snapshot.hasError) {
-          return const Center(child: Text('Failed to load user'));
-        }
-
-        final user = snapshot.data!;
-        final isManager = user.roleId == 0 || user.roleId == 1;
-
-        return _DashboardBody(state: state, user: user, isManager: isManager);
-      },
-    );
+    final user = state.user;
+    final isManager = user.roleId == 0 || user.roleId == 1;
+    return _DashboardBody(state: state, user: user, isManager: isManager);
   }
 }
 
@@ -56,7 +42,8 @@ class _DashboardBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.sizeOf(context).width > 768;
+    final isWide =
+        Responsive.isDesktop(context) || Responsive.isTablet(context);
     final s = state.stats;
 
     final departmentName = NameById.getNameById<Departments>(
@@ -418,8 +405,8 @@ class _StatsGrid extends StatelessWidget {
         Icons.priority_high_rounded,
       ),
       _StatItem(
-        'Overdue',
-        s.overdue,
+        'Transferred',
+        s.transferred,
         ThemeColors.unifiedDanger,
         Icons.access_time_rounded,
       ),
@@ -566,8 +553,11 @@ class _ResolutionMetricsRow extends StatelessWidget {
     final completionRate = s.total > 0
         ? ((s.completed / s.total) * 100).toStringAsFixed(1)
         : '0.0';
-    final overdueRate = s.total > 0
-        ? ((s.overdue / s.total) * 100).toStringAsFixed(1)
+
+    // Calculate rate based on all tickets that passed through the department
+    final totalHandled = s.total + s.transferred;
+    final overdueRate = totalHandled > 0
+        ? ((s.transferred / totalHandled) * 100).toStringAsFixed(1)
         : '0.0';
 
     final tiles = [
@@ -587,9 +577,9 @@ class _ResolutionMetricsRow extends StatelessWidget {
       ),
       _ResolItem(
         icon: Icons.access_time_rounded,
-        label: 'Overdue Rate',
+        label: 'Transfer Rate',
         value: '$overdueRate%',
-        sub: '${s.overdue} overdue tickets',
+        sub: '${s.transferred} Transfer tickets',
         color: ThemeColors.unifiedDanger,
       ),
       _ResolItem(

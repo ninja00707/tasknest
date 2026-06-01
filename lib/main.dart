@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider<AuthBloc>(create: (_) => AuthBloc(authRepository)),
-        BlocProvider<DashboardBloc>(create: (_) => createDashboardBloc()),
+        BlocProvider<DashboardBloc>(create: (_) => createDashboardBloc(null)),
       ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,

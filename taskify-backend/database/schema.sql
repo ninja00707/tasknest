@@ -96,6 +96,8 @@ CREATE TABLE tickets (
   -- which individual is working on it (optional self-assign)
   assigned_to_id    INT           REFERENCES users(id),
 
+  parent_id         INT           REFERENCES tickets(id),
+
   -- transfer tracking
   transferred_from  INT           REFERENCES departments(id),
   transferred_at    TIMESTAMPTZ,

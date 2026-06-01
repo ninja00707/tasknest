@@ -1,3 +1,5 @@
+import 'package:equatable/equatable.dart';
+
 class TicketModel {
   final int id;
   final String title;
@@ -12,6 +14,9 @@ class TicketModel {
   final int createdById;
   final int? assignedToId;
   final String? assignedToName;
+  final int? parentId; // Added for sub-ticket logic
+  final int subTicketCount;
+  final int completedSubTicketCount;
   final String? transferredFromCode;
   final DateTime createdAt;
   final DateTime? dueDate;
@@ -21,6 +26,7 @@ class TicketModel {
   final String? lastAction;
   final DateTime? lastUpdatedAt;
   final String? lastActedByName;
+  final List<dynamic>? subTickets;
   final List<dynamic>? history;
 
   const TicketModel({
@@ -37,6 +43,9 @@ class TicketModel {
     required this.createdById,
     this.assignedToId,
     this.assignedToName,
+    this.parentId, // Added for sub-ticket logic
+    this.subTicketCount = 0,
+    this.completedSubTicketCount = 0,
     this.transferredFromCode,
     required this.createdAt,
     this.dueDate,
@@ -45,6 +54,7 @@ class TicketModel {
     this.lastAction,
     this.lastUpdatedAt,
     this.lastActedByName,
+    this.subTickets,
     this.history,
   });
 
@@ -61,6 +71,9 @@ class TicketModel {
     createdById: j['created_by_id'],
     createdByDeptCode: j['created_by_dept_code'] ?? '',
     assignedToId: j['assigned_to_id'],
+    parentId: j['parent_id'], // Parse parent_id from JSON
+    subTicketCount: j['sub_ticket_count'] ?? 0,
+    completedSubTicketCount: j['completed_sub_ticket_count'] ?? 0,
     assignedToName: j['assigned_to_name'] ?? 'Unassigned',
     transferredFromCode: j['transferred_from_code'] ?? 'None',
     createdAt: DateTime.parse(j['created_at']),
@@ -72,6 +85,7 @@ class TicketModel {
         ? DateTime.parse(j['last_updated_at'])
         : null,
     lastActedByName: j['last_acted_by_name'] ?? 'System',
+    subTickets: j['sub_tickets'],
     history: j['history'],
   );
 
@@ -90,6 +104,10 @@ class TicketModel {
       !isClosed &&
       !isCompleted;
 
+  bool get isMaster => subTicketCount > 0;
+  double get subTicketProgress =>
+      isMaster ? (completedSubTicketCount / subTicketCount) : 0.0;
+
   bool canReopenBy(int userId) {
     if (createdById != userId) return false;
     if (reopenCount >= 1) return false;
@@ -107,7 +125,7 @@ class DashboardStats {
   final int closed;
   final int urgent;
   final int highPriority;
-  final int overdue;
+  final int transferred;
 
   const DashboardStats({
     required this.total,
@@ -117,7 +135,7 @@ class DashboardStats {
     required this.closed,
     required this.urgent,
     required this.highPriority,
-    required this.overdue,
+    required this.transferred,
   });
 
   factory DashboardStats.fromJson(Map<String, dynamic> j) => DashboardStats(
@@ -128,7 +146,7 @@ class DashboardStats {
     closed: int.parse(j['closed'].toString()),
     urgent: int.parse(j['urgent'].toString()),
     highPriority: int.parse(j['high_priority'].toString()),
-    overdue: int.parse(j['overdue'].toString()),
+    transferred: int.parse(j['transferred'].toString()),
   );
 
   factory DashboardStats.empty() => const DashboardStats(
@@ -139,11 +157,11 @@ class DashboardStats {
     closed: 0,
     urgent: 0,
     highPriority: 0,
-    overdue: 0,
+    transferred: 0,
   );
 }
 
-class DepartmentModel {
+class DepartmentModel extends Equatable {
   final int id;
   final String name;
   final String code;
@@ -165,6 +183,9 @@ class DepartmentModel {
     tier: j['tier'],
     parentId: j['parent_id'],
   );
+
+  @override
+  List<Object?> get props => [id, name, code, tier, parentId];
 }
 
 class EmployeeModel {

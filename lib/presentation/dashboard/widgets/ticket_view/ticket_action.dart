@@ -27,7 +27,7 @@ class TicketActions extends StatelessWidget {
         }
 
         final bool isManager = user.roleId == 1;
-        final bool isCeo = user.roleId == 0;
+        final bool isDirector = user.roleId == 0;
         final bool isResolver =
             ticket.assignedToId == user.id && ticket.assignedToId != null;
         final bool isCreator = ticket.createdById == user.id;
@@ -47,7 +47,7 @@ class TicketActions extends StatelessWidget {
                 tooltip: 'Self Assign',
                 color: ThemeColors.unifiedSecondary,
                 onTap: () => context.read<DashboardBloc>().add(
-                  SelfAssignTicket(ticket.id),
+                  SelfAssignTicket(ticket.id, user.id),
                 ),
               ),
 
@@ -64,8 +64,9 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showAssignDialog(context, state),
               ),
 
-            // 3. Resolver Action: Mark Completed (Done). CEO is restricted.
-            if (ticket.isInProgress && (isResolver || isCeo))
+            // 3. Resolver Action: Mark Completed (Done). Directors restricted to their own created tickets.
+            if (ticket.isInProgress &&
+                (isResolver || (isDirector && isCreator)))
               ActionBtn(
                 icon: Icons.check_circle_outline,
                 tooltip: 'Mark Done',
@@ -75,11 +76,12 @@ class TicketActions extends StatelessWidget {
                 ),
               ),
 
-            // 4. Creator/CEO Action: Finalize & Close
-            if (ticket.isCompleted && (isCreator || isCeo))
+            // 4. Creator / Dept Manager Action: Finalize & Close (Approval)
+            if (ticket.isCompleted &&
+                (isCreator || (isManager && isAssignedToMyDept)))
               ActionBtn(
                 icon: Icons.lock_outline,
-                tooltip: 'Finalize & Close',
+                tooltip: isCreator ? 'Finalize & Close' : 'Approve & Close',
                 color: ThemeColors.unifiedPrimary,
                 onTap: () => context.read<DashboardBloc>().add(
                   UpdateTicketStatus(ticket.id, 'closed'),
@@ -88,7 +90,7 @@ class TicketActions extends StatelessWidget {
 
             // 5. Transfer: Disabled if Completed/Closed
             if (!ticket.isManagementDisabled &&
-                !isCeo &&
+                !isDirector &&
                 ((isManager && ticket.assignedToId == null) || isResolver))
               ActionBtn(
                 icon: Icons.swap_horiz_rounded,
@@ -97,14 +99,23 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showTransferDialog(context, ticket),
               ),
 
-            // 6. Reopen: Restricted to Creator/CEO based on model rules
-            if ((isCreator || isCeo) && ticket.canReopenBy(user.id))
+            // 6. Reopen: Restricted to Creator/Director based on model rules
+            if ((isCreator || isDirector) && ticket.canReopenBy(user.id))
               ActionBtn(
                 icon: Icons.replay_rounded,
                 tooltip: 'Reopen',
                 color: ThemeColors.unifiedAccent,
                 onTap: () =>
                     context.read<DashboardBloc>().add(ReopenTicket(ticket.id)),
+              ),
+
+            // 7. View Sub-tickets Progress: For Master Tickets
+            if (ticket.isMaster)
+              ActionBtn(
+                icon: Icons.account_tree_outlined,
+                tooltip: 'View Progress',
+                color: ThemeColors.unifiedPrimary,
+                onTap: () => _showSubTicketProgress(context, ticket),
               ),
           ],
         );
@@ -304,6 +315,134 @@ class TicketActions extends StatelessWidget {
           },
         );
       },
+    );
+  }
+
+  void _showSubTicketProgress(BuildContext context, TicketModel master) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Departmental Progress',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Ticket #${master.id}',
+              style: TextStyle(
+                color: ThemeColors.unifiedTextMuted,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Progress Bar
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value: master.subTicketProgress,
+                  minHeight: 10,
+                  backgroundColor: ThemeColors.unifiedBorder,
+                  valueColor: const AlwaysStoppedAnimation(
+                    ThemeColors.unifiedPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${(master.subTicketProgress * 100).toInt()}% Completed',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const Divider(height: 32),
+
+              // List of Sub-tickets
+              if (master.subTickets != null)
+                ...master.subTickets!.map((st) {
+                  final bool isDone = st['status'] == 'closed';
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isDone
+                              ? Icons.check_circle_rounded
+                              : Icons.pending_actions_rounded,
+                          color: isDone
+                              ? ThemeColors.unifiedAccent
+                              : ThemeColors.unifiedWarning,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+                              // This triggers a view of that specific sub-ticket
+                              context.read<DashboardBloc>().add(
+                                LoadDashboard(),
+                              );
+                            },
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  st['dept_name'] ?? 'Unknown Dept',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                Text(
+                                  st['status'].toString().toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: ThemeColors.unifiedTextMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (isDone)
+                          const Text(
+                            'APPROVED',
+                            style: TextStyle(
+                              color: ThemeColors.unifiedAccent,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 10,
+                            ),
+                          )
+                        else
+                          const Text(
+                            'PENDING',
+                            style: TextStyle(
+                              color: ThemeColors.unifiedTextMuted,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 10,
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 }

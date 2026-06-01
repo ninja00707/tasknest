@@ -16,6 +16,20 @@ class TicketListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Apply real-time filtering to the list provided by the state
+    final filteredTickets = state.tickets.where((ticket) {
+      final matchesStatus =
+          state.filterStatus == null ||
+          state.filterStatus == 'All' ||
+          ticket.status.toLowerCase() == state.filterStatus!.toLowerCase();
+
+      final matchesPriority =
+          state.filterPriority == null ||
+          ticket.priority.toLowerCase() == state.filterPriority!.toLowerCase();
+
+      return matchesStatus && matchesPriority;
+    }).toList();
+
     return Column(
       children: [
         Container(
@@ -98,7 +112,7 @@ class TicketListView extends StatelessWidget {
 
         // Ticket list
         Expanded(
-          child: state.tickets.isEmpty
+          child: filteredTickets.isEmpty
               ? const Center(
                   child: Text(
                     'No tickets found.',
@@ -107,9 +121,9 @@ class TicketListView extends StatelessWidget {
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: state.tickets.length,
+                  itemCount: filteredTickets.length,
                   itemBuilder: (_, i) =>
-                      TicketCard(ticket: state.tickets[i], user: user),
+                      TicketCard(ticket: filteredTickets[i], user: user),
                 ),
         ),
       ],

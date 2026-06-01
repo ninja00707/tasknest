@@ -7,8 +7,12 @@ class TicketRepository {
         t.id, t.title, t.description, t.status, t.priority,
         t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
         t.transferred_from, t.transferred_at,
+        t.parent_id,
         t.due_date, t.created_at, t.updated_at,
         t.closed_at, t.reopened_at, t.reopen_count,
+
+        COALESCE(subs.count, 0) AS sub_ticket_count,
+        COALESCE(subs.closed_count, 0) AS completed_sub_ticket_count,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -26,7 +30,9 @@ class TicketRepository {
         ll.created_at  AS last_updated_at,
         ll.acted_by_name AS last_acted_by_name,
 
-        tf.code AS transferred_from_code
+        tf.code AS transferred_from_code,
+        COALESCE(subs.list, '[]'::json) AS sub_tickets
+
       FROM tickets t
       LEFT JOIN users creator  ON creator.id = t.created_by_id
       LEFT JOIN departments cd ON cd.id = t.created_by_dept
@@ -41,6 +47,20 @@ class TicketRepository {
         ORDER BY tl.created_at DESC
         LIMIT 1
       ) ll ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT 
+          json_agg(json_build_object(
+            'id', st.id,
+            'status', st.status,
+            'dept_name', d.name,
+            'dept_code', d.code
+          )) AS list,
+          COUNT(*) AS count,
+          COUNT(*) FILTER (WHERE st.status = 'closed') AS closed_count
+        FROM tickets st
+        LEFT JOIN departments d ON d.id = st.assigned_dept_id
+        WHERE st.parent_id = t.id
+      ) subs ON TRUE
       WHERE t.id = $1
     `, [ticketId]);
 
@@ -54,8 +74,8 @@ class TicketRepository {
     const params = [];
     let whereClause = '';
 
-    if (user.role === 'ceo') {
-      // CEO sees everything
+    if (user.role === 'directors') {
+      // Directors see everything
       whereClause = 'WHERE 1=1';
     } else {
       params.push(user.department_id);
@@ -77,6 +97,7 @@ class TicketRepository {
       SELECT
         t.id, t.title, t.description, t.status, t.priority,
         t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
+        t.parent_id,
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.reopen_count, t.closed_at,
@@ -90,6 +111,9 @@ class TicketRepository {
         ad.code      AS assigned_dept_code,
         ad.name      AS assigned_dept_name,
 
+        COALESCE(subs.count, 0) AS sub_ticket_count,
+        COALESCE(subs.closed_count, 0) AS completed_sub_ticket_count,
+
         assignee.id   AS assigned_to_id,
         assignee.name AS assigned_to_name,
 
@@ -97,7 +121,9 @@ class TicketRepository {
         ll.created_at  AS last_updated_at,
         ll.acted_by_name AS last_acted_by_name,
 
-        tf.code AS transferred_from_code
+        tf.code AS transferred_from_code,
+        COALESCE(subs.list, '[]'::json) AS sub_tickets
+
       FROM tickets t
       LEFT JOIN users       creator  ON creator.id  = t.created_by_id
       LEFT JOIN departments cd       ON cd.id        = t.created_by_dept
@@ -112,6 +138,20 @@ class TicketRepository {
         ORDER BY tl.created_at DESC
         LIMIT 1
       ) ll ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT 
+          json_agg(json_build_object(
+            'id', st.id,
+            'status', st.status,
+            'dept_name', d.name,
+            'dept_code', d.code
+          )) AS list,
+          COUNT(*) AS count,
+          COUNT(*) FILTER (WHERE st.status = 'closed') AS closed_count
+        FROM tickets st
+        LEFT JOIN departments d ON d.id = st.assigned_dept_id
+        WHERE st.parent_id = t.id
+      ) subs ON TRUE
       ${whereClause}
       ORDER BY
         ll.created_at DESC NULLS LAST,
@@ -145,6 +185,7 @@ class TicketRepository {
       SELECT
         t.id, t.title, t.description, t.status, t.priority,
         t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
+        t.parent_id,
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.reopen_count, t.closed_at,
@@ -155,6 +196,9 @@ class TicketRepository {
         ad.name      AS assigned_dept_name,
         assignee.name AS assigned_to_name,
         tf.code AS transferred_from_code,
+
+        COALESCE(subs.count, 0) AS sub_ticket_count,
+        COALESCE(subs.closed_count, 0) AS completed_sub_ticket_count,
 
         ll.action      AS last_action,
         ll.created_at  AS last_updated_at,
@@ -173,6 +217,13 @@ class TicketRepository {
         ORDER BY tl.created_at DESC
         LIMIT 1
       ) ll ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT 
+          COUNT(*) AS count,
+          COUNT(*) FILTER (WHERE st.status = 'closed') AS closed_count
+        FROM tickets st
+        WHERE st.parent_id = t.id
+      ) subs ON TRUE
       ${whereClause}
       ORDER BY t.created_at DESC
       LIMIT $${params.length - 1} OFFSET $${params.length}
@@ -187,10 +238,15 @@ class TicketRepository {
     let whereClause = '';
     const params = [];
 
-    if (user.role !== 'ceo') {
+    if (user.role !== 'directors') {
       params.push(user.department_id);
       whereClause = `WHERE assigned_dept_id = $1`;
     }
+
+    // Subquery to count tickets transferred away from this department
+    const transferredSql = user.role === 'directors'
+      ? `(SELECT COUNT(*) FROM tickets WHERE transferred_from IS NOT NULL)`
+      : `(SELECT COUNT(*) FROM tickets WHERE (created_by_dept = $1 OR transferred_from = $1) AND assigned_dept_id <> $1)`;
 
     const result = await pool.query(`
       SELECT
@@ -201,7 +257,7 @@ class TicketRepository {
         COUNT(*) FILTER (WHERE status = 'closed')        AS closed,
         COUNT(*) FILTER (WHERE priority = 'urgent')      AS urgent,
         COUNT(*) FILTER (WHERE priority = 'high')        AS high_priority,
-        COUNT(*) FILTER (WHERE due_date < NOW() AND status NOT IN ('completed','closed')) AS overdue
+        ${transferredSql} AS transferred
       FROM tickets ${whereClause}
     `, params);
 
@@ -214,14 +270,14 @@ class TicketRepository {
 
     if (!ticket) return null;
 
-    if (user.role === 'ceo') {
+    if (user.role === 'directors') {
       return ticket;
     }
 
     // Ensure numeric comparison to avoid type mismatch
     const isCreatorDept = Number(ticket.created_by_dept) === Number(user.department_id);
     const isAssignedDept = Number(ticket.assigned_dept_id) === Number(user.department_id);
-    const isTransferrer  = Number(ticket.transferred_from) === Number(user.department_id);
+    const isTransferrer = Number(ticket.transferred_from) === Number(user.department_id);
     const isResolver = ticket.assigned_to_id === user.id;
 
     // Permission: Current Dept OR Creator Dept OR Previous Transferrer OR the Resolver
@@ -233,15 +289,15 @@ class TicketRepository {
   }
 
   // ── Create ticket ─────────────────────────────────────────────────────────
-  async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId }) {
+  async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId, parentId = null }) {
     // Strict check for assignedToId to set correct status
     const status = (assignedToId != null) ? 'in_progress' : 'open';
     const result = await pool.query(`
       INSERT INTO tickets
-        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status, parent_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING id
-    `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status]);
+    `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status, parentId]);
 
     return await this.getTicketDetails(result.rows[0].id);
   }
@@ -417,6 +473,7 @@ class TicketRepository {
       SELECT
         t.id, t.title, t.description, t.status, t.priority,
         t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
+        t.parent_id,
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.reopen_count, t.closed_at,
@@ -429,6 +486,9 @@ class TicketRepository {
         ad.id        AS assigned_dept_id,
         ad.code      AS assigned_dept_code,
         ad.name      AS assigned_dept_name,
+
+        COALESCE(subs.count, 0) AS sub_ticket_count,
+        COALESCE(subs.closed_count, 0) AS completed_sub_ticket_count,
 
         assignee.id   AS assigned_to_id,
         assignee.name AS assigned_to_name,
@@ -452,6 +512,13 @@ class TicketRepository {
         ORDER BY tl.created_at DESC
         LIMIT 1
       ) ll ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT 
+          COUNT(*) AS count,
+          COUNT(*) FILTER (WHERE st.status = 'closed') AS closed_count
+        FROM tickets st
+        WHERE st.parent_id = t.id
+      ) subs ON TRUE
       WHERE (t.created_by_dept = $1 OR t.transferred_from = $1)
         AND t.assigned_dept_id <> $1
       ORDER BY t.transferred_at DESC, t.created_at DESC
@@ -532,7 +599,10 @@ class TicketRepository {
         COUNT(t.id) FILTER (WHERE t.status = 'closed')      AS closed,
         COUNT(t.id) FILTER (WHERE t.priority = 'urgent')    AS urgent,
         COUNT(t.id) FILTER (WHERE t.priority = 'high')      AS high_priority,
-        COUNT(t.id) FILTER (WHERE t.due_date < NOW() AND t.status NOT IN ('completed','closed')) AS overdue,
+        (
+          SELECT COUNT(*) FROM tickets st 
+          WHERE (st.created_by_dept = d.id OR st.transferred_from = d.id) AND st.assigned_dept_id <> d.id
+        ) AS transferred,
         ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(t.closed_at, t.updated_at) - t.created_at)) / 3600)::numeric, 2) AS avg_resolution_hours
       FROM departments d
       LEFT JOIN tickets t ON t.assigned_dept_id = d.id
@@ -540,6 +610,13 @@ class TicketRepository {
       ORDER BY d.name ASC
     `);
 
+    return result.rows;
+  }
+
+  async getSubTickets(parentId) {
+    const result = await pool.query(`
+      SELECT id, status FROM tickets WHERE parent_id = $1
+    `, [parentId]);
     return result.rows;
   }
 }

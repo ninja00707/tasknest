@@ -1,13 +1,19 @@
 import 'package:tasknest/core/constant/api_client.dart';
 import 'package:tasknest/data/datasource/authdatasource/auth_data_source.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
+import 'package:tasknest/data/datasource/socket_service.dart';
 import 'package:tasknest/data/datasource/ticketdatasource/ticket_remote_data_source.dart';
 import 'package:tasknest/domain/repositories_impl/auth_impl/auth_impl.dart';
+import 'package:tasknest/env.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 
 // ── Storage & API ─────────────────────────────────────────────────────────────
 final storage = LocalStorageService();
 final apiClient = ApiClient();
+final socketService = SocketService(
+  // Replace with your actual backend URL (e.g. http://192.168.1.5:3000)
+  baseUrl: Env.baseUrl,
+);
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 final authRemoteDataSource = AuthRemoteDataSource();
@@ -20,4 +26,5 @@ final authRepository = AuthRepositoryImpl(
 final ticketRemoteDataSource = TicketRemoteDataSource(apiClient);
 
 // Factory: create a new DashboardBloc whenever needed
-DashboardBloc createDashboardBloc() => DashboardBloc(ticketRemoteDataSource);
+DashboardBloc createDashboardBloc(String? token) =>
+    DashboardBloc(ticketRemoteDataSource, socketService, token: token);

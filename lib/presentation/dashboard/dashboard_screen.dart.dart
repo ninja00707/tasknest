@@ -4,6 +4,7 @@ import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
+import 'package:tasknest/presentation/dashboard/responsive.dart';
 import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/bottom_nav_bar.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/create_ticket.dart';
 import 'package:tasknest/presentation/dashboard/widgets/dashboard_view.dart';
@@ -21,14 +22,11 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width > 768;
-
-    context.read<DashboardBloc>().add(LoadDashboard());
-
     return BlocConsumer<DashboardBloc, DashboardState>(
       listener: (context, state) {
+        final currentState = state;
         // _loadUser();
-        if (state is TicketActionSuccess) {
+        if (currentState is TicketActionSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: ThemeColors.unifiedPrimary,
@@ -45,7 +43,7 @@ class DashboardScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    state.message,
+                    currentState.message,
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -57,7 +55,7 @@ class DashboardScreen extends StatelessWidget {
           );
         }
 
-        if (state is TicketActionError) {
+        if (currentState is TicketActionError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: ThemeColors.unifiedDanger,
@@ -75,7 +73,7 @@ class DashboardScreen extends StatelessWidget {
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      state.message,
+                      currentState.message,
                       style: const TextStyle(color: Colors.white),
                     ),
                   ),
@@ -86,14 +84,15 @@ class DashboardScreen extends StatelessWidget {
         }
       },
       builder: (context, state) {
+        final currentState = state;
         DashboardLoaded? loadedState;
 
-        if (state is DashboardLoaded) {
-          loadedState = state;
-        } else if (state is TicketActionSuccess) {
-          loadedState = state.previousState;
-        } else if (state is TicketActionError) {
-          loadedState = state.previousState;
+        if (currentState is DashboardLoaded) {
+          loadedState = currentState;
+        } else if (currentState is TicketActionSuccess) {
+          loadedState = currentState.previousState;
+        } else if (currentState is TicketActionError) {
+          loadedState = currentState.previousState;
         }
 
         // INITIAL VALUE = 0
@@ -101,115 +100,108 @@ class DashboardScreen extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: ThemeColors.unifiedBackground,
-
           body: SafeArea(
-            child: isWide
-                ? Row(
-                    children: [
-                      Sidebar(
-                        user: user,
-                        selectedIndex: selectedIndex,
-                        onNav: (i) {
-                          context.read<DashboardBloc>().add(
-                            SidebarSelectedIndexEvent(
-                              sidebarSelectedIndexEvent: i,
-                            ),
-                          );
-                        },
-                      ),
-
-                      Expanded(child: _buildBody(state, selectedIndex, user)),
-                    ],
-                  )
-                : Column(
-                    children: [
-                      const MobileTopBar(),
-
-                      Expanded(child: _buildBody(state, selectedIndex, user)),
-
-                      BottomNav(
-                        selectedIndex: selectedIndex,
-                        onNav: (i) {
-                          context.read<DashboardBloc>().add(
-                            SidebarSelectedIndexEvent(
-                              sidebarSelectedIndexEvent: i,
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+            child: Responsive(
+              mobile: Column(
+                children: [
+                  const MobileTopBar(),
+                  Expanded(child: _DashboardBody(state: state)),
+                  BottomNav(
+                    selectedIndex: selectedIndex,
+                    onNav: (i) {
+                      context.read<DashboardBloc>().add(
+                        SidebarSelectedIndexEvent(sidebarSelectedIndexEvent: i),
+                      );
+                    },
                   ),
+                ],
+              ),
+              desktop: Row(
+                children: [
+                  Sidebar(
+                    user: user,
+                    selectedIndex: selectedIndex,
+                    onNav: (i) {
+                      context.read<DashboardBloc>().add(
+                        SidebarSelectedIndexEvent(sidebarSelectedIndexEvent: i),
+                      );
+                    },
+                  ),
+                  Expanded(child: _DashboardBody(state: state)),
+                ],
+              ),
+            ),
           ),
         );
       },
     );
   }
+}
 
-  Widget _buildBody(DashboardState state, int selectedIndex, UserModel user) {
+class _DashboardBody extends StatelessWidget {
+  final DashboardState state;
+  const _DashboardBody({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final currentState = state;
     DashboardLoaded? loadedState;
 
-    if (state is DashboardLoaded) {
-      loadedState = state;
-    } else if (state is TicketActionSuccess) {
-      loadedState = state.previousState;
-    } else if (state is TicketActionError) {
-      loadedState = state.previousState;
+    if (currentState is DashboardLoaded) {
+      loadedState = currentState;
+    } else if (currentState is TicketActionSuccess) {
+      loadedState = currentState.previousState;
+    } else if (currentState is TicketActionError) {
+      loadedState = currentState.previousState;
     }
 
-    // Allow the body to build if we are in analytics states,
-    // as those screens handle their own loading/error indicators internally.
-    if ((state is DashboardLoading || state is DashboardInitial) &&
-        state is! AnalyticsLoading) {
+    if (loadedState == null) {
+      if (currentState is DashboardError) {
+        return Center(child: Text(currentState.message));
+      }
       return const Center(
         child: CircularProgressIndicator(color: ThemeColors.unifiedPrimary),
       );
     }
 
-    if (state is DashboardError) {
-      return Center(child: Text(state.message));
-    }
+    // Navigation logic is unified within the DashboardLoaded state.
+    final currentIndex = loadedState.selectedIndex;
 
-    if (loadedState == null &&
-        state is! AnalyticsLoading &&
-        state is! ManagerAnalyticsLoaded &&
-        state is! CeoAnalyticsLoaded) {
-      return const Center(child: Text("Something went wrong"));
-    }
+    return _RouteSwitcher(currentIndex: currentIndex, state: loadedState);
+  }
+}
 
-    // Determine current index, defaulting to the loadedState or inferring from specialized analytics states
-    final currentIndex =
-        loadedState?.selectedIndex ??
-        (state is AnalyticsLoading ||
-                state is ManagerAnalyticsLoaded ||
-                state is CeoAnalyticsLoaded
-            ? 4
-            : 0);
+class _RouteSwitcher extends StatelessWidget {
+  final int currentIndex;
+  final DashboardLoaded state;
+
+  const _RouteSwitcher({required this.currentIndex, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final user = state.user;
 
     switch (currentIndex) {
       case 0:
-        return DashboardView(state: loadedState!);
-
+        return DashboardView(state: state);
       case 1:
         if (user.roleId == 0 || user.roleId == 1) {
-          return TicketListView(state: loadedState!, user: user);
+          return TicketListView(state: state, user: user);
         } else {
-          return MyTicketsView(state: loadedState!, user: user);
+          return MyTicketsView(state: state, user: user);
         }
       case 2:
         return CreateTicketView(user: user);
-
       case 3:
         if (user.roleId != 0) {
-          return TransferedDepartTicket(state: loadedState!, user: user);
+          return TransferedDepartTicket(state: state, user: user);
         } else {
-          return SizedBox(child: Center(child: Text("Invalid Section")));
+          return const Center(child: Text("Invalid Section"));
         }
-
       case 4:
-        return RecentTicketsView(state: loadedState!, userModel: user);
-
+        return RecentTicketsView(state: state, userModel: user);
       default:
-        return DashboardView(state: loadedState!);
+        return DashboardView(state: state);
     }
   }
 }

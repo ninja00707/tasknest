@@ -6,7 +6,7 @@ class TicketService {
     for (const userId of userIds) {
       // 1. Persist to DB
       await ticketRepo.createNotification(userId, ticketId, message);
-      
+
       // 2. Push Real-Time via Socket.io
       if (global.io) {
         global.io.to(`user_${userId}`).emit(eventType, {
@@ -33,20 +33,50 @@ class TicketService {
     const ticket = await ticketRepo.getTicketById(ticketId, user);
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied to this ticket' };
-    
+
     // Automatically attach full history/logs whenever a ticket is viewed in detail
     ticket.history = await ticketRepo.getTicketLogs(ticketId);
     return ticket;
   }
 
   async createTicket(data, user) {
-    const { title, description, priority = 'medium', assignedDeptId, dueDate } = data;
-    
+    const { title, description, priority = 'medium', assignedDeptId, assignedDeptIds, dueDate } = data;
+
     // Ensure assignedToId is handled as a number or null
     const assignedToId = data.assignedToId != null ? Number(data.assignedToId) : null;
 
-    if (!title || !description || title.trim() === '' || description.trim() === '' || assignedDeptId == null) {
-      throw { statusCode: 400, message: 'title, description and assignedDeptId are required' };
+    if (!title || !description || title.trim() === '' || description.trim() === '' || (assignedDeptId == null && (!assignedDeptIds || assignedDeptIds.length === 0))) {
+      throw { statusCode: 400, message: 'title, description and target department(s) are required' };
+    }
+
+    // If multiple departments are provided, create a parent ticket and multiple sub-tickets
+    if (assignedDeptIds && assignedDeptIds.length > 0) {
+      const parentTicket = await ticketRepo.createTicket({
+        title: `[MASTER] ${title}`,
+        description,
+        priority,
+        assignedDeptId: user.department_id, // Rooted in creator's dept
+        dueDate,
+        createdBy: user,
+        assignedToId: null,
+      });
+
+      for (const deptId of assignedDeptIds) {
+        await ticketRepo.createTicket({
+          title,
+          description,
+          priority,
+          assignedDeptId: deptId,
+          dueDate,
+          createdBy: user,
+          assignedToId: null,
+          parentId: parentTicket.id
+        });
+        const managers = await ticketRepo.getManagersByDepartment(deptId);
+        await this._dispatch(parentTicket.id, managers, `New Task for your department: ${title}`, 'TICKET_CREATED');
+      }
+
+      return parentTicket;
     }
 
     const ticket = await ticketRepo.createTicket({
@@ -86,21 +116,22 @@ class TicketService {
 
     const isResolver = ticket.assigned_to_id === user.id;
     const isCreator = ticket.created_by_id === user.id;
-    const isCeo = user.role === 'ceo';
+    const isDirector = user.role === 'directors';
+    const isDeptManager = user.role === 'manager' && Number(user.department_id) === Number(ticket.assigned_dept_id);
 
     console.log(`[TicketService] Attempting to update ticket ${ticketId} status from ${ticket.status} to ${newStatus} by user ${user.id}`);
 
-    // Only the resolver or CEO can mark a ticket as completed
+    // Only the resolver or a Director who created the ticket can mark it as completed
     if (newStatus === 'completed') {
-      if (!isResolver && !isCeo) {
-        throw { statusCode: 403, message: 'Only the assigned resolver can mark this ticket as completed' };
+      if (!isResolver && !(isDirector && isCreator)) {
+        throw { statusCode: 403, message: 'Only the assigned resolver or the creator (if Director) can mark this ticket as completed' };
       }
     }
 
-    // Only the creator or CEO can mark a ticket as closed (finalize and close)
+    // Only the creator or the department manager (approval) can mark a ticket as closed
     if (newStatus === 'closed') {
-      if (!isCreator && !isCeo) {
-        throw { statusCode: 403, message: 'Only the creator can finalize and close this ticket' };
+      if (!isCreator && !isDeptManager) {
+        throw { statusCode: 403, message: 'Only the creator or department manager can approve/finalize this ticket' };
       }
     }
 
@@ -117,8 +148,29 @@ class TicketService {
     console.log(`[TicketService] Calling ticketRepo.updateStatus with ticketId: ${ticketId}, newStatus: ${newStatus}, userId: ${user.id}`);
     const updated = await ticketRepo.updateStatus(ticketId, newStatus, user);
     await ticketRepo.logAction(ticketId, user.id, 'status_changed', oldStatus, newStatus, `Status updated to ${newStatus} by ${user.name}`);
-    
-    // Real-time update for creator and assignee
+
+    // Hierarchy Logic: If a sub-ticket is closed (Approved), check if parent should be marked as 100% complete
+    if (updated.parent_id && newStatus === 'closed') {
+      const siblings = await ticketRepo.getSubTickets(updated.parent_id);
+      const allClosed = siblings.every(s => s.status === 'closed');
+
+      if (allClosed) {
+        const parentTicket = await ticketRepo.getTicketById(updated.parent_id, { role: 'directors' });
+        if (parentTicket && parentTicket.status !== 'completed') {
+          // Automatically mark parent as completed once all departments are approved
+          await ticketRepo.updateStatus(parentTicket.id, 'completed', { id: user.id, name: 'System (Auto)' });
+          await ticketRepo.logAction(parentTicket.id, user.id, 'status_changed', parentTicket.status, 'completed', 'All departmental tasks approved. Ticket is 100% completed.');
+
+          // Notify HR (original creator)
+          await this._dispatch(parentTicket.id, [parentTicket.created_by_id], `Master Ticket #${parentTicket.id} is now 100% completed.`, 'TICKET_STATUS_UPDATED');
+        }
+      } else {
+        // Notify HR (creator) that one department has finished their task
+        const creatorId = (await ticketRepo.getTicketById(updated.parent_id, { role: 'directors' })).created_by_id;
+        await this._dispatch(updated.parent_id, [creatorId], `Department ${updated.assigned_dept_name} has approved completion of their task for Ticket #${updated.parent_id}`, 'TICKET_UPDATED');
+      }
+    }
+
     const participants = await ticketRepo.getTicketParticipants(ticketId);
     await this._dispatch(ticketId, participants, `Ticket #${ticketId} status changed to ${newStatus}`, 'TICKET_STATUS_UPDATED', { ticket: updated });
 
@@ -126,8 +178,8 @@ class TicketService {
   }
 
   async selfAssign(ticketId, user) {
-    if (user.role === 'ceo') {
-      throw { statusCode: 400, message: 'CEO does not self-assign' };
+    if (user.role === 'directors') {
+      throw { statusCode: 400, message: 'Directors do not self-assign' };
     }
 
     const ticketBeforeUpdate = await ticketRepo.getTicketById(ticketId, user);
@@ -143,21 +195,21 @@ class TicketService {
     // Log the assignment
     await ticketRepo.logAction(
       ticketId,
-      user.id, 
-      'assigned', 
-      'Unassigned', 
-      user.name, 
+      user.id,
+      'assigned',
+      'Unassigned',
+      user.name,
       'Self-assigned'
     );
 
     // Log the automatic status change to in_progress
     await ticketRepo.logAction(ticketId, user.id, 'status_changed', 'open', 'in_progress', 'Status changed via self-assignment');
-    
+
     return updated;
   }
 
   async assignToEmployee(ticketId, employeeId, user) {
-    if (!['manager', 'ceo'].includes(user.role)) {
+    if (!['manager', 'directors'].includes(user.role)) {
       throw { statusCode: 403, message: 'Only managers can assign tickets to employees' };
     }
 
@@ -190,14 +242,14 @@ class TicketService {
 
     // Log status change if it went from 'open' to 'in_progress'
     if (ticketBeforeUpdate.status === 'open' && updated.status === 'in_progress') {
-        await ticketRepo.logAction(
-            ticketId,
-            user.id,
-            'status_changed',
-            ticketBeforeUpdate.status,
-            updated.status,
-            'Status changed due to assignment'
-        );
+      await ticketRepo.logAction(
+        ticketId,
+        user.id,
+        'status_changed',
+        ticketBeforeUpdate.status,
+        updated.status,
+        'Status changed due to assignment'
+      );
     }
 
     return updated;
@@ -213,9 +265,9 @@ class TicketService {
       throw { statusCode: 400, message: 'Cannot transfer a ticket that is already completed or closed' };
     }
 
-    // Permission Check: CEO cannot transfer, and if assigned, only the resolver can transfer
-    if (user.role === 'ceo') throw { statusCode: 403, message: 'CEO is not authorized to transfer tickets' };
-    
+    // Permission Check: Directors cannot transfer, and if assigned, only the resolver can transfer
+    if (user.role === 'directors') throw { statusCode: 403, message: 'Directors are not authorized to transfer tickets' };
+
     if (ticketBeforeUpdate.assigned_to_id && ticketBeforeUpdate.assigned_to_id !== user.id) {
       throw { statusCode: 403, message: 'Only the assigned resolver can transfer this ticket' };
     }
@@ -336,9 +388,9 @@ class TicketService {
   }
 
   async getDepartmentAnalytics(departmentId) {
-    return await ticketRepo.getDashboardStats({ 
-      role: 'manager', 
-      department_id: Number(departmentId) 
+    return await ticketRepo.getDashboardStats({
+      role: 'manager',
+      department_id: Number(departmentId)
     });
   }
 
