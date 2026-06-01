@@ -9,6 +9,7 @@ class TicketRepository {
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.closed_at, t.reopened_at, t.reopen_count,
+        t.parent_id,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -44,7 +45,48 @@ class TicketRepository {
       WHERE t.id = $1
     `, [ticketId]);
 
-    return result.rows[0] || null;
+    const ticket = result.rows[0];
+    if (ticket) {
+      // Fetch sub-tickets if any
+      const subTicketsResult = await pool.query(`
+        SELECT 
+          t.id, t.title, t.description, t.status, t.priority,
+          t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
+          t.due_date, t.created_at, t.updated_at, t.closed_at,
+          ad.code AS assigned_dept_code,
+          ad.name AS assigned_dept_name,
+          assignee.name AS assigned_to_name
+        FROM tickets t
+        LEFT JOIN departments ad ON ad.id = t.assigned_dept_id
+        LEFT JOIN users assignee ON assignee.id = t.assigned_to_id
+        WHERE t.parent_id = $1
+        ORDER BY t.created_at ASC
+      `, [ticketId]);
+      
+      ticket.sub_tickets = subTicketsResult.rows;
+
+      if (ticket.sub_tickets.length > 0) {
+        const completed = ticket.sub_tickets.filter(st => st.status === 'completed' || st.status === 'closed').length;
+        ticket.completion_percentage = Math.round((completed / ticket.sub_tickets.length) * 100);
+      } else {
+        ticket.completion_percentage = null;
+      }
+
+      // Fetch parent ticket details if this is a sub-ticket
+      if (ticket.parent_id) {
+        const parentResult = await pool.query(`
+          SELECT t.id, t.title, t.status, ad.name AS assigned_dept_name
+          FROM tickets t
+          LEFT JOIN departments ad ON ad.id = t.assigned_dept_id
+          WHERE t.id = $1
+        `, [ticket.parent_id]);
+        ticket.parent_ticket = parentResult.rows[0] || null;
+      } else {
+        ticket.parent_ticket = null;
+      }
+    }
+
+    return ticket || null;
   }
 
   // ── Get tickets visible to this user based on role ────────────────────────
@@ -80,6 +122,17 @@ class TicketRepository {
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.reopen_count, t.closed_at,
+        t.parent_id,
+        (
+          SELECT CASE WHEN COUNT(*) > 0 THEN ROUND(COUNT(CASE WHEN st.status IN ('completed', 'closed') THEN 1 END) * 100.0 / COUNT(*)) ELSE NULL END
+          FROM tickets st
+          WHERE st.parent_id = t.id
+        ) AS completion_percentage,
+        (
+          SELECT COUNT(*)
+          FROM tickets st
+          WHERE st.parent_id = t.id
+        ) AS sub_tickets_count,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -148,6 +201,17 @@ class TicketRepository {
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.reopen_count, t.closed_at,
+        t.parent_id,
+        (
+          SELECT CASE WHEN COUNT(*) > 0 THEN ROUND(COUNT(CASE WHEN st.status IN ('completed', 'closed') THEN 1 END) * 100.0 / COUNT(*)) ELSE NULL END
+          FROM tickets st
+          WHERE st.parent_id = t.id
+        ) AS completion_percentage,
+        (
+          SELECT COUNT(*)
+          FROM tickets st
+          WHERE st.parent_id = t.id
+        ) AS sub_tickets_count,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -233,17 +297,24 @@ class TicketRepository {
   }
 
   // ── Create ticket ─────────────────────────────────────────────────────────
-  async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId }) {
+  async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId, parentId = null }) {
     // Strict check for assignedToId to set correct status
     const status = (assignedToId != null) ? 'in_progress' : 'open';
     const result = await pool.query(`
       INSERT INTO tickets
-        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status, parent_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING id
-    `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status]);
+    `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status, parentId]);
 
     return await this.getTicketDetails(result.rows[0].id);
+  }
+
+  async getSubTicketsByParentId(parentId) {
+    const result = await pool.query(`
+      SELECT id, status FROM tickets WHERE parent_id = $1
+    `, [parentId]);
+    return result.rows;
   }
 
   // ── Update ticket status ─────────────────────────────────────────────────
@@ -420,6 +491,17 @@ class TicketRepository {
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.reopen_count, t.closed_at,
+        t.parent_id,
+        (
+          SELECT CASE WHEN COUNT(*) > 0 THEN ROUND(COUNT(CASE WHEN st.status IN ('completed', 'closed') THEN 1 END) * 100.0 / COUNT(*)) ELSE NULL END
+          FROM tickets st
+          WHERE st.parent_id = t.id
+        ) AS completion_percentage,
+        (
+          SELECT COUNT(*)
+          FROM tickets st
+          WHERE st.parent_id = t.id
+        ) AS sub_tickets_count,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,

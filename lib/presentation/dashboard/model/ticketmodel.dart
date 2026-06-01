@@ -23,6 +23,12 @@ class TicketModel {
   final String? lastActedByName;
   final List<dynamic>? history;
 
+  final int? parentId;
+  final List<TicketModel>? subTickets;
+  final double? completionPercentage;
+  final int? subTicketsCount;
+  final Map<String, dynamic>? parentTicket;
+
   const TicketModel({
     required this.id,
     required this.title,
@@ -46,6 +52,11 @@ class TicketModel {
     this.lastUpdatedAt,
     this.lastActedByName,
     this.history,
+    this.parentId,
+    this.subTickets,
+    this.completionPercentage,
+    this.subTicketsCount,
+    this.parentTicket,
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> j) => TicketModel(
@@ -73,6 +84,19 @@ class TicketModel {
         : null,
     lastActedByName: j['last_acted_by_name'] ?? 'System',
     history: j['history'],
+    parentId: j['parent_id'],
+    subTickets: j['sub_tickets'] != null
+        ? (j['sub_tickets'] as List)
+            .map((e) => TicketModel.fromJson(e))
+            .toList()
+        : null,
+    completionPercentage: j['completion_percentage'] != null
+        ? double.parse(j['completion_percentage'].toString())
+        : null,
+    subTicketsCount: j['sub_tickets_count'] != null
+        ? int.parse(j['sub_tickets_count'].toString())
+        : null,
+    parentTicket: j['parent_ticket'],
   );
 
   bool get isOpen => status == 'open';

@@ -94,6 +94,15 @@ class TicketCard extends StatelessWidget {
                               icon: Icons.sync_alt_rounded,
                             ),
                           ],
+                          if (ticket.subTicketsCount != null && ticket.subTicketsCount! > 0) ...[
+                            const SizedBox(width: 4),
+                            _FlagChip(
+                              label: '${(ticket.completionPercentage ?? 0.0).round()}% DONE',
+                              bg: ThemeColors.unifiedSuccess.withOpacity(0.12),
+                              fg: ThemeColors.unifiedSuccess,
+                              icon: Icons.donut_large_rounded,
+                            ),
+                          ],
                           const Spacer(),
                           PriorityBadge(priority: ticket.priority),
                           const SizedBox(width: 6),

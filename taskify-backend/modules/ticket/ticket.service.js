@@ -39,39 +39,129 @@ class TicketService {
     return ticket;
   }
 
+  async syncParentTicketStatus(parentId, user) {
+    try {
+      const subTickets = await ticketRepo.getSubTicketsByParentId(parentId);
+      if (subTickets.length === 0) return;
+
+      const parent = await ticketRepo.getTicketDetails(parentId);
+      if (!parent) return;
+
+      let newStatus = 'open';
+      const allClosed = subTickets.every(st => st.status === 'closed');
+      const allCompletedOrClosed = subTickets.every(st => st.status === 'completed' || st.status === 'closed');
+      const anyInProgressOrCompleted = subTickets.some(st => st.status === 'in_progress' || st.status === 'completed');
+
+      if (allClosed) {
+        newStatus = 'closed';
+      } else if (allCompletedOrClosed) {
+        newStatus = 'completed';
+      } else if (anyInProgressOrCompleted) {
+        newStatus = 'in_progress';
+      } else {
+        newStatus = 'open';
+      }
+
+      if (parent.status !== newStatus) {
+        console.log(`[TicketService] Auto-syncing parent ticket ${parentId} status from ${parent.status} to ${newStatus}`);
+        await ticketRepo.updateStatus(parentId, newStatus, user);
+        await ticketRepo.logAction(
+          parentId,
+          user.id,
+          'status_changed',
+          parent.status,
+          newStatus,
+          `Parent ticket status automatically synced to ${newStatus} based on sub-tickets.`
+        );
+        
+        // Notify creator of parent ticket
+        const participants = await ticketRepo.getTicketParticipants(parentId);
+        await this._dispatch(parentId, participants, `Parent Ticket #${parentId} status changed to ${newStatus}`, 'TICKET_STATUS_UPDATED', { ticket: await ticketRepo.getTicketDetails(parentId) });
+      }
+    } catch (err) {
+      console.error('Error syncing parent ticket status:', err);
+    }
+  }
+
   async createTicket(data, user) {
-    const { title, description, priority = 'medium', assignedDeptId, dueDate } = data;
+    const { title, description, priority = 'medium', assignedDeptId, assignedDeptIds, dueDate } = data;
     
     // Ensure assignedToId is handled as a number or null
     const assignedToId = data.assignedToId != null ? Number(data.assignedToId) : null;
 
-    if (!title || !description || title.trim() === '' || description.trim() === '' || assignedDeptId == null) {
-      throw { statusCode: 400, message: 'title, description and assignedDeptId are required' };
+    if (!title || !description || title.trim() === '' || description.trim() === '') {
+      throw { statusCode: 400, message: 'title and description are required' };
     }
 
-    const ticket = await ticketRepo.createTicket({
-      title,
-      description,
-      priority,
-      assignedDeptId,
-      dueDate,
-      createdBy: user,
-      assignedToId,
-    });
+    // Check if we are creating a multi-department ticket
+    if (assignedDeptIds && Array.isArray(assignedDeptIds) && assignedDeptIds.length > 0) {
+      // 1. Create the Main Ticket (assigned to creator's own department)
+      const mainTicket = await ticketRepo.createTicket({
+        title,
+        description,
+        priority,
+        assignedDeptId: user.department_id,
+        dueDate,
+        createdBy: user,
+        assignedToId: null,
+        parentId: null
+      });
 
-    const logNote = `Created by ${user.name}${assignedToId ? ` and assigned to ${ticket.assigned_to_name}` : ''}`;
-    await ticketRepo.logAction(ticket.id, user.id, 'created', null, ticket.status, logNote);
+      const logNote = `Created multi-department main ticket by ${user.name}`;
+      await ticketRepo.logAction(mainTicket.id, user.id, 'created', null, mainTicket.status, logNote);
 
-    // Notify target department managers
-    const managers = await ticketRepo.getManagersByDepartment(assignedDeptId);
-    await this._dispatch(ticket.id, managers, `New Ticket Created: ${title}`, 'TICKET_CREATED', { ticket });
+      // 2. Create sub-tickets for each assigned department
+      for (const deptId of assignedDeptIds) {
+        const subTicket = await ticketRepo.createTicket({
+          title,
+          description,
+          priority,
+          assignedDeptId: deptId,
+          dueDate,
+          createdBy: user,
+          assignedToId: null,
+          parentId: mainTicket.id
+        });
 
-    // If auto-assigned, notify the employee
-    if (assignedToId) {
-      await this._dispatch(ticket.id, [assignedToId], `You have been assigned to Ticket #${ticket.id}`, 'TICKET_ASSIGNED');
+        const subLogNote = `Sub-ticket created for department ${deptId} under Main Ticket #${mainTicket.id}`;
+        await ticketRepo.logAction(subTicket.id, user.id, 'created', null, subTicket.status, subLogNote);
+
+        // Notify target department managers for the sub-ticket
+        const managers = await ticketRepo.getManagersByDepartment(deptId);
+        await this._dispatch(subTicket.id, managers, `New Sub-Ticket Created: ${title}`, 'TICKET_CREATED', { ticket: subTicket });
+      }
+
+      return mainTicket;
+    } else {
+      if (assignedDeptId == null) {
+        throw { statusCode: 400, message: 'assignedDeptId is required' };
+      }
+
+      const ticket = await ticketRepo.createTicket({
+        title,
+        description,
+        priority,
+        assignedDeptId,
+        dueDate,
+        createdBy: user,
+        assignedToId,
+        parentId: null
+      });
+
+      const logNote = `Created by ${user.name}${assignedToId ? ` and assigned to ${ticket.assigned_to_name}` : ''}`;
+      await ticketRepo.logAction(ticket.id, user.id, 'created', null, ticket.status, logNote);
+
+      // Notify target department managers
+      const managers = await ticketRepo.getManagersByDepartment(assignedDeptId);
+      await this._dispatch(ticket.id, managers, `New Ticket Created: ${title}`, 'TICKET_CREATED', { ticket });
+
+      // If auto-assigned, notify the employee
+      if (assignedToId) {
+        await this._dispatch(ticket.id, [assignedToId], `You have been assigned to Ticket #${ticket.id}`, 'TICKET_ASSIGNED');
+      }
+
+      return ticket;
     }
-
-    return ticket;
   }
 
   async updateStatus(ticketId, newStatus, user) {
@@ -122,6 +212,10 @@ class TicketService {
     const participants = await ticketRepo.getTicketParticipants(ticketId);
     await this._dispatch(ticketId, participants, `Ticket #${ticketId} status changed to ${newStatus}`, 'TICKET_STATUS_UPDATED', { ticket: updated });
 
+    if (updated.parent_id) {
+      await this.syncParentTicketStatus(updated.parent_id, user);
+    }
+
     return updated;
   }
 
@@ -153,6 +247,10 @@ class TicketService {
     // Log the automatic status change to in_progress
     await ticketRepo.logAction(ticketId, user.id, 'status_changed', 'open', 'in_progress', 'Status changed via self-assignment');
     
+    if (updated.parent_id) {
+      await this.syncParentTicketStatus(updated.parent_id, user);
+    }
+
     return updated;
   }
 
@@ -198,6 +296,10 @@ class TicketService {
             updated.status,
             'Status changed due to assignment'
         );
+    }
+
+    if (updated.parent_id) {
+      await this.syncParentTicketStatus(updated.parent_id, user);
     }
 
     return updated;
@@ -264,6 +366,11 @@ class TicketService {
         'Status changed to open due to transfer'
       );
     }
+
+    if (updated.parent_id) {
+      await this.syncParentTicketStatus(updated.parent_id, user);
+    }
+
     return updated;
   }
 
@@ -282,6 +389,10 @@ class TicketService {
     // Notify participants (Creator and Resolver) that the ticket is active again
     const participants = await ticketRepo.getTicketParticipants(ticketId);
     await this._dispatch(ticketId, participants, `Ticket #${ticketId} has been reopened and is now In Progress.`, 'TICKET_REOPENED', { ticket: updated });
+
+    if (updated.parent_id) {
+      await this.syncParentTicketStatus(updated.parent_id, user);
+    }
 
     return updated;
   }

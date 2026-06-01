@@ -22,7 +22,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   final _description = TextEditingController();
 
   Priorities _priority = Priorities(name: 'medium', id: 0);
-  Departments? _selectedDepartment;
+  final List<Departments> _selectedDepartments = [];
   EmployeeModel? _selectedEmployee;
   String? _dueDate;
   bool _submitting = false;
@@ -42,7 +42,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
         ? blocState.employees
         : <EmployeeModel>[];
     final canAssignEmployee =
-        widget.user.roleId == 0 || widget.user.roleId == 1;
+        (widget.user.roleId == 0 || widget.user.roleId == 1) && _selectedDepartments.length <= 1;
 
     return SizedBox(
       height: MediaQuery.sizeOf(context).height,
@@ -66,7 +66,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                         titleCtrl: _title,
                         descCtrl: _description,
                         priority: _priority,
-                        selectedDept: _selectedDepartment,
+                        selectedDepts: _selectedDepartments,
                         selectedEmployee: _selectedEmployee,
                         dueDate: _dueDate,
                         employeeList: employeeList,
@@ -74,6 +74,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                         submitting: _submitting,
                         onPriorityChanged: (v) => setState(() => _priority = v),
                         onDeptChanged: _onDeptChanged,
+                        onDeptRemoved: _onDeptRemoved,
                         onEmployeeChanged: (v) =>
                             setState(() => _selectedEmployee = v),
                         onDateTap: _pickDate,
@@ -83,7 +84,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                         titleCtrl: _title,
                         descCtrl: _description,
                         priority: _priority,
-                        selectedDept: _selectedDepartment,
+                        selectedDepts: _selectedDepartments,
                         selectedEmployee: _selectedEmployee,
                         dueDate: _dueDate,
                         employeeList: employeeList,
@@ -91,6 +92,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                         submitting: _submitting,
                         onPriorityChanged: (v) => setState(() => _priority = v),
                         onDeptChanged: _onDeptChanged,
+                        onDeptRemoved: _onDeptRemoved,
                         onEmployeeChanged: (v) =>
                             setState(() => _selectedEmployee = v),
                         onDateTap: _pickDate,
@@ -106,10 +108,24 @@ class _CreateTicketViewState extends State<CreateTicketView> {
 
   void _onDeptChanged(Departments value) {
     setState(() {
-      _selectedDepartment = value;
+      if (!_selectedDepartments.any((d) => d.id == value.id)) {
+        _selectedDepartments.add(value);
+      }
       _selectedEmployee = null;
     });
-    context.read<DashboardBloc>().add(LoadEmployeesForDept(value.id));
+    if (_selectedDepartments.length == 1) {
+      context.read<DashboardBloc>().add(LoadEmployeesForDept(value.id));
+    }
+  }
+
+  void _onDeptRemoved(Departments value) {
+    setState(() {
+      _selectedDepartments.removeWhere((d) => d.id == value.id);
+      _selectedEmployee = null;
+    });
+    if (_selectedDepartments.length == 1) {
+      context.read<DashboardBloc>().add(LoadEmployeesForDept(_selectedDepartments.first.id));
+    }
   }
 
   Future<void> _pickDate() async {
@@ -136,25 +152,40 @@ class _CreateTicketViewState extends State<CreateTicketView> {
 
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_selectedDepartment == null) {
-      _showSnack('Please select a department', isError: true);
+    if (_selectedDepartments.isEmpty) {
+      _showSnack('Please select at least one department', isError: true);
       return;
     }
 
     setState(() => _submitting = true);
 
-    context.read<DashboardBloc>().add(
-      CreateTicketEvent(
-        title: _title.text.trim(),
-        description: _description.text.trim(),
-        priority: _priority.name,
-        assignedDeptId: _selectedDepartment?.id ?? widget.user.departmentId,
-        assignedToId: _selectedEmployee?.id,
-        createdById: widget.user.id,
-        createdByDept: widget.user.departmentId,
-        dueDate: _dueDate,
-      ),
-    );
+    if (_selectedDepartments.length == 1) {
+      context.read<DashboardBloc>().add(
+        CreateTicketEvent(
+          title: _title.text.trim(),
+          description: _description.text.trim(),
+          priority: _priority.name,
+          assignedDeptId: _selectedDepartments.first.id,
+          assignedToId: _selectedEmployee?.id,
+          createdById: widget.user.id,
+          createdByDept: widget.user.departmentId,
+          dueDate: _dueDate,
+        ),
+      );
+    } else {
+      context.read<DashboardBloc>().add(
+        CreateTicketEvent(
+          title: _title.text.trim(),
+          description: _description.text.trim(),
+          priority: _priority.name,
+          assignedDeptIds: _selectedDepartments.map((d) => d.id).toList(),
+          assignedToId: null,
+          createdById: widget.user.id,
+          createdByDept: widget.user.departmentId,
+          dueDate: _dueDate,
+        ),
+      );
+    }
 
     setState(() => _submitting = false);
   }
@@ -270,13 +301,14 @@ class _FormCard extends StatelessWidget {
 class _WideFormLayout extends StatelessWidget {
   final TextEditingController titleCtrl, descCtrl;
   final Priorities priority;
-  final Departments? selectedDept;
+  final List<Departments> selectedDepts;
   final EmployeeModel? selectedEmployee;
   final String? dueDate;
   final List<EmployeeModel> employeeList;
   final bool canAssignEmployee, submitting;
   final ValueChanged<Priorities> onPriorityChanged;
   final ValueChanged<Departments> onDeptChanged;
+  final ValueChanged<Departments> onDeptRemoved;
   final ValueChanged<EmployeeModel> onEmployeeChanged;
   final VoidCallback onDateTap, onSubmit;
 
@@ -284,7 +316,7 @@ class _WideFormLayout extends StatelessWidget {
     required this.titleCtrl,
     required this.descCtrl,
     required this.priority,
-    required this.selectedDept,
+    required this.selectedDepts,
     required this.selectedEmployee,
     required this.dueDate,
     required this.employeeList,
@@ -292,6 +324,7 @@ class _WideFormLayout extends StatelessWidget {
     required this.submitting,
     required this.onPriorityChanged,
     required this.onDeptChanged,
+    required this.onDeptRemoved,
     required this.onEmployeeChanged,
     required this.onDateTap,
     required this.onSubmit,
@@ -336,18 +369,44 @@ class _WideFormLayout extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _FieldLabel(
-                    label: 'Assign to Department',
+                    label: 'Assign to Department(s)',
                     icon: Icons.business_outlined,
                     required: true,
                   ),
                   const SizedBox(height: 8),
                   _StyledDropdown<Departments>(
                     hint: 'Select Department',
-                    value: selectedDept,
+                    value: null,
                     items: departments,
                     labelBuilder: (e) => e.name,
                     onChanged: onDeptChanged,
                   ),
+                  if (selectedDepts.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: selectedDepts.map((dept) {
+                        return Chip(
+                          label: Text(
+                            dept.name,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: ThemeColors.unifiedPrimary,
+                            ),
+                          ),
+                          backgroundColor: ThemeColors.unifiedPrimary.withOpacity(0.08),
+                          deleteIcon: const Icon(Icons.close, size: 14, color: ThemeColors.unifiedPrimary),
+                          onDeleted: () => onDeptRemoved(dept),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                            side: BorderSide(color: ThemeColors.unifiedPrimary.withOpacity(0.2)),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ]
                 ],
               ),
             ),
@@ -377,34 +436,60 @@ class _WideFormLayout extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (canAssignEmployee)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _FieldLabel(
-                      label: 'Assign to Employee',
-                      icon: Icons.person_outline_rounded,
+            Expanded(
+              child: selectedDepts.length > 1
+                  ? Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: ThemeColors.unifiedInfo.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: ThemeColors.unifiedInfo.withOpacity(0.2)),
+                      ),
+                      child: Row(
+                        children: const [
+                          Icon(Icons.info_outline_rounded, color: ThemeColors.unifiedInfo, size: 18),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Employee assignment is handled by resolving department managers.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: ThemeColors.unifiedTextPrimary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (canAssignEmployee) ...[
+                          _FieldLabel(
+                            label: 'Assign to Employee',
+                            icon: Icons.person_outline_rounded,
+                          ),
+                          const SizedBox(height: 8),
+                          _StyledDropdown<EmployeeModel>(
+                            hint: selectedDepts.isEmpty
+                                ? 'Select dept first'
+                                : employeeList.isEmpty
+                                ? 'No employees found'
+                                : 'Select Employee',
+                            value: selectedEmployee,
+                            items: employeeList,
+                            labelBuilder: (e) => e.name,
+                            onChanged: employeeList.isEmpty
+                                ? (_) {}
+                                : onEmployeeChanged,
+                            enabled: employeeList.isNotEmpty && selectedDepts.isNotEmpty,
+                          ),
+                        ],
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    _StyledDropdown<EmployeeModel>(
-                      hint: selectedDept == null
-                          ? 'Select dept first'
-                          : employeeList.isEmpty
-                          ? 'No employees found'
-                          : 'Select Employee',
-                      value: selectedEmployee,
-                      items: employeeList,
-                      labelBuilder: (e) => e.name,
-                      onChanged: employeeList.isEmpty
-                          ? (_) {}
-                          : onEmployeeChanged,
-                      enabled: employeeList.isNotEmpty,
-                    ),
-                  ],
-                ),
-              ),
-            if (canAssignEmployee) const SizedBox(width: 16),
+            ),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -439,13 +524,14 @@ class _WideFormLayout extends StatelessWidget {
 class _NarrowFormLayout extends StatelessWidget {
   final TextEditingController titleCtrl, descCtrl;
   final Priorities priority;
-  final Departments? selectedDept;
+  final List<Departments> selectedDepts;
   final EmployeeModel? selectedEmployee;
   final String? dueDate;
   final List<EmployeeModel> employeeList;
   final bool canAssignEmployee, submitting;
   final ValueChanged<Priorities> onPriorityChanged;
   final ValueChanged<Departments> onDeptChanged;
+  final ValueChanged<Departments> onDeptRemoved;
   final ValueChanged<EmployeeModel> onEmployeeChanged;
   final VoidCallback onDateTap, onSubmit;
 
@@ -453,7 +539,7 @@ class _NarrowFormLayout extends StatelessWidget {
     required this.titleCtrl,
     required this.descCtrl,
     required this.priority,
-    required this.selectedDept,
+    required this.selectedDepts,
     required this.selectedEmployee,
     required this.dueDate,
     required this.employeeList,
@@ -461,6 +547,7 @@ class _NarrowFormLayout extends StatelessWidget {
     required this.submitting,
     required this.onPriorityChanged,
     required this.onDeptChanged,
+    required this.onDeptRemoved,
     required this.onEmployeeChanged,
     required this.onDateTap,
     required this.onSubmit,
@@ -496,18 +583,44 @@ class _NarrowFormLayout extends StatelessWidget {
         const SizedBox(height: 20),
 
         _FieldLabel(
-          label: 'Assign to Department',
+          label: 'Assign to Department(s)',
           icon: Icons.business_outlined,
           required: true,
         ),
         const SizedBox(height: 8),
         _StyledDropdown<Departments>(
           hint: 'Select Department',
-          value: selectedDept,
+          value: null,
           items: departments,
           labelBuilder: (e) => e.name,
           onChanged: onDeptChanged,
         ),
+        if (selectedDepts.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: selectedDepts.map((dept) {
+              return Chip(
+                label: Text(
+                  dept.name,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: ThemeColors.unifiedPrimary,
+                  ),
+                ),
+                backgroundColor: ThemeColors.unifiedPrimary.withOpacity(0.08),
+                deleteIcon: const Icon(Icons.close, size: 14, color: ThemeColors.unifiedPrimary),
+                onDeleted: () => onDeptRemoved(dept),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(color: ThemeColors.unifiedPrimary.withOpacity(0.2)),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
         const SizedBox(height: 20),
 
         _FieldLabel(
@@ -519,14 +632,40 @@ class _NarrowFormLayout extends StatelessWidget {
         _PrioritySelector(selected: priority, onChanged: onPriorityChanged),
         const SizedBox(height: 20),
 
-        if (canAssignEmployee) ...[
+        if (selectedDepts.length > 1) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: ThemeColors.unifiedInfo.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: ThemeColors.unifiedInfo.withOpacity(0.2)),
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.info_outline_rounded, color: ThemeColors.unifiedInfo, size: 18),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Employee assignment is handled by resolving department managers.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: ThemeColors.unifiedTextPrimary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+        ] else if (canAssignEmployee) ...[
           _FieldLabel(
             label: 'Assign to Employee',
             icon: Icons.person_outline_rounded,
           ),
           const SizedBox(height: 8),
           _StyledDropdown<EmployeeModel>(
-            hint: selectedDept == null
+            hint: selectedDepts.isEmpty
                 ? 'Select dept first'
                 : employeeList.isEmpty
                 ? 'No employees found'
@@ -535,7 +674,7 @@ class _NarrowFormLayout extends StatelessWidget {
             items: employeeList,
             labelBuilder: (e) => e.name,
             onChanged: employeeList.isEmpty ? (_) {} : onEmployeeChanged,
-            enabled: employeeList.isNotEmpty,
+            enabled: employeeList.isNotEmpty && selectedDepts.isNotEmpty,
           ),
           const SizedBox(height: 20),
         ],

@@ -391,6 +391,39 @@ class _HeroCard extends StatelessWidget {
                           ],
                         ],
                       ),
+                      if (ticket.parentId != null && ticket.parentTicket != null) ...[
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () => context.push('/ticket/${ticket.parentId}'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: ThemeColors.unifiedPrimary.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: ThemeColors.unifiedPrimary.withOpacity(0.2)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.link_rounded,
+                                  size: 13,
+                                  color: ThemeColors.unifiedPrimary,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Sub-ticket of Main Ticket #${ticket.parentId} (${ticket.parentTicket!['assigned_dept_name'] ?? 'HR'})',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: ThemeColors.unifiedPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -463,6 +496,132 @@ class _MainInfoColumn extends StatelessWidget {
             ),
           ),
         ),
+        if (ticket.subTickets != null && ticket.subTickets!.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _SectionCard(
+            icon: Icons.donut_large_rounded,
+            title: 'Completion Progress',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Overall Progress',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: ThemeColors.unifiedTextPrimary,
+                      ),
+                    ),
+                    Text(
+                      '${(ticket.completionPercentage ?? 0.0).round()}%',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: ThemeColors.unifiedPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: LinearProgressIndicator(
+                    value: (ticket.completionPercentage ?? 0.0) / 100,
+                    minHeight: 10,
+                    backgroundColor: ThemeColors.unifiedBorder.withOpacity(0.3),
+                    color: ThemeColors.unifiedPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Tracks the resolution of all department sub-tickets.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: ThemeColors.unifiedTextMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _SectionCard(
+            icon: Icons.corporate_fare_rounded,
+            title: 'Department Assignments (Sub-Tickets)',
+            child: Column(
+              children: ticket.subTickets!.asMap().entries.map((entry) {
+                final idx = entry.key;
+                final st = entry.value;
+                return Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: idx == ticket.subTickets!.length - 1
+                      ? null
+                      : const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: ThemeColors.unifiedBorder, width: 1),
+                          ),
+                        ),
+                  child: InkWell(
+                    onTap: () => context.push('/ticket/${st.id}'),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: ThemeColors.unifiedSecondary.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            st.assignedDeptCode,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: ThemeColors.unifiedSecondary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                st.assignedDeptName,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: ThemeColors.unifiedTextPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                children: [
+                                  const Icon(Icons.person_outline_rounded, size: 12, color: ThemeColors.unifiedTextMuted),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    st.assignedToName ?? 'Unassigned',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: ThemeColors.unifiedTextMuted,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        StatusBadge(status: st.status),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         _SectionCard(
           icon: Icons.info_outline_rounded,

@@ -72,7 +72,8 @@ class CreateTicketEvent extends DashboardEvent {
   final String title;
   final String description;
   final String priority;
-  final int assignedDeptId;
+  final int? assignedDeptId;
+  final List<int>? assignedDeptIds; // Added assignedDeptIds
 
   // ADD THESE
   final int createdById;
@@ -84,7 +85,8 @@ class CreateTicketEvent extends DashboardEvent {
     required this.title,
     required this.description,
     required this.priority,
-    required this.assignedDeptId,
+    this.assignedDeptId,
+    this.assignedDeptIds, // Added assignedDeptIds
     required this.assignedToId, // Make assignedToId required in the constructor
     // ADD THESE
     required this.createdById,
@@ -99,6 +101,7 @@ class CreateTicketEvent extends DashboardEvent {
     description,
     priority,
     assignedDeptId,
+    assignedDeptIds,
     createdById,
     createdByDept,
     dueDate,

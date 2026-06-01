@@ -236,6 +236,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         description: event.description,
         priority: event.priority,
         assignedDeptId: event.assignedDeptId,
+        assignedDeptIds: event.assignedDeptIds, // Pass the list of department IDs
 
         createdById: event.createdById,
         createdByDept: event.createdByDept,
