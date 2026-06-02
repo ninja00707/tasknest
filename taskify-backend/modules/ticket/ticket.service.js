@@ -90,13 +90,25 @@ class TicketService {
       throw { statusCode: 400, message: 'Sub-tickets require at least 2 departments with task descriptions' };
     }
 
-    for (const dept of departments) {
-      if (!dept.departmentId || !dept.taskDescription || dept.taskDescription.trim() === '') {
+    const normalizedDepts = departments.map((d) => ({
+      departmentId: d.departmentId ?? d.department_id,
+      taskDescription: String(d.taskDescription ?? d.task_description ?? '').trim(),
+    }));
+
+    for (const dept of normalizedDepts) {
+      const deptId = dept.departmentId;
+      const hasValidId =
+        deptId !== null &&
+        deptId !== undefined &&
+        deptId !== '' &&
+        !Number.isNaN(Number(deptId));
+
+      if (!hasValidId || !dept.taskDescription) {
         throw { statusCode: 400, message: 'Each department must have a departmentId and taskDescription' };
       }
     }
 
-    const deptIds = departments.map(d => Number(d.departmentId));
+    const deptIds = normalizedDepts.map((d) => Number(d.departmentId));
     if (new Set(deptIds).size !== deptIds.length) {
       throw { statusCode: 400, message: 'Duplicate departments are not allowed' };
     }
@@ -107,9 +119,9 @@ class TicketService {
       priority,
       dueDate,
       createdBy: user,
-      departments: departments.map(d => ({
+      departments: normalizedDepts.map((d) => ({
         departmentId: Number(d.departmentId),
-        taskDescription: d.taskDescription.trim(),
+        taskDescription: d.taskDescription,
       })),
     });
 

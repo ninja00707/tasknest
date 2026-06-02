@@ -170,10 +170,6 @@ CREATE INDEX idx_sub_ticket_dept ON sub_ticket_departments(ticket_id);
 CREATE INDEX idx_sub_ticket_dept_id ON sub_ticket_departments(department_id);
 CREATE INDEX idx_notifications   ON notifications(user_id, is_read);
 
-CREATE TRIGGER sub_ticket_departments_updated_at
-  BEFORE UPDATE ON sub_ticket_departments
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
 
 -- ── Auto-update updated_at ───────────────────────────────────
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -183,6 +179,10 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER tickets_updated_at
   BEFORE UPDATE ON tickets
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER sub_ticket_departments_updated_at
+  BEFORE UPDATE ON sub_ticket_departments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 --//OLD 
 -- -- ============================================================

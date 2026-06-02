@@ -88,7 +88,8 @@ class TicketModel {
     overallProgress: j['overall_progress'] ?? 0,
     departmentCount: j['department_count'] ?? 0,
     completedDepartmentCount: j['completed_department_count'] ?? 0,
-    subDepartments: (j['sub_departments'] as List<dynamic>?)
+    subDepartments:
+        (j['sub_departments'] as List<dynamic>?)
             ?.map((e) => SubTicketDepartmentModel.fromJson(e))
             .toList() ??
         const [],
@@ -168,6 +169,11 @@ class SubTicketDepartmentModel {
             ? DateTime.parse(j['completed_at'])
             : null,
       );
+
+  Map<String, dynamic> toJson() => {
+    'departmentId': departmentId,
+    'taskDescription': taskDescription,
+  };
 
   bool get isCompleted => status == 'completed';
   bool get isInProgress => status == 'in_progress';
