@@ -16,6 +16,8 @@ class TransferedDepartTicket extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: MediaQuery.of(context).size.height,
+      width: MediaQuery.of(context).size.width,
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(16),
       color: ThemeColors.unifiedBackground,
@@ -46,11 +48,16 @@ class TransferedDepartTicket extends StatelessWidget {
                     ),
                   ),
                 )
-              : Column(
-                  children: state.sentTickets
-                      .take(5)
-                      .map((t) => TicketCard(ticket: t, user: user))
-                      .toList(),
+              : Expanded(
+                  child: ListView.builder(
+                    itemCount: state.sentTickets.length,
+                    itemBuilder: (context, index) {
+                      return TicketCard(
+                        ticket: state.sentTickets[index],
+                        user: user,
+                      );
+                    },
+                  ),
                 ),
         ],
       ),

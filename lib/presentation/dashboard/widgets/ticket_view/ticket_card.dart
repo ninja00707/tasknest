@@ -161,9 +161,9 @@ class TicketCard extends StatelessWidget {
                           _MetaDivider(),
                           // To dept
                           _MetaChip(
-                            icon: Icons.arrow_forward_rounded,
+                            icon: Icons.business_rounded,
                             iconColor: ThemeColors.unifiedSecondary,
-                            label: ticket.assignedDeptCode,
+                            label: ticket.assignedDeptName,
                           ),
                           if (ticket.assignedToName != null) ...[
                             _MetaDivider(),

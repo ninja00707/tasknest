@@ -106,6 +106,10 @@ CREATE TABLE tickets (
   reopened_at       TIMESTAMPTZ,
   reopen_count      INT           DEFAULT 0,
 
+  -- Sub-ticket identification and hierarchy
+  tag               VARCHAR(50), -- Stores 'parent' or 'subticket'
+  parent_id         INT           REFERENCES tickets(id),
+
   due_date          DATE,
   created_at        TIMESTAMPTZ   DEFAULT NOW(),
   updated_at        TIMESTAMPTZ   DEFAULT NOW()
@@ -118,6 +122,19 @@ CREATE TABLE ticket_comments (
   user_id    INT         NOT NULL REFERENCES users(id),
   message    TEXT        NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ── Department Assignments (The "Separate Table" for Sub-ticket details) ──
+CREATE TABLE ticket_department_assignments (
+  id                SERIAL PRIMARY KEY,
+  ticket_id         INT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+  dept_id           INT NOT NULL REFERENCES departments(id),
+  employee_done     BOOLEAN DEFAULT FALSE,
+  manager_approved  BOOLEAN DEFAULT FALSE,
+  completed_at      TIMESTAMPTZ,
+  notes             TEXT,
+  
+  UNIQUE(ticket_id, dept_id)
 );
 
 -- ── Ticket Activity Log ──────────────────────────────────────

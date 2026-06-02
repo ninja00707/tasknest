@@ -117,3 +117,18 @@ class LoadManagerAnalytics extends DashboardEvent {
 }
 
 class LoadCeoAnalytics extends DashboardEvent {}
+
+class MarkDeptTaskDone extends DashboardEvent {
+  final int ticketId;
+  MarkDeptTaskDone(this.ticketId);
+  @override
+  List<Object?> get props => [ticketId];
+}
+
+class ApproveDeptTask extends DashboardEvent {
+  final int ticketId;
+  final int deptId;
+  ApproveDeptTask(this.ticketId, this.deptId);
+  @override
+  List<Object?> get props => [ticketId, deptId];
+}

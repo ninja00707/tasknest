@@ -1,3 +1,34 @@
+class DeptAssignment {
+  final int deptId;
+  final String deptName;
+  final String deptCode;
+  final bool employeeDone;
+  final bool managerApproved;
+  final DateTime? completedAt;
+
+  DeptAssignment({
+    required this.deptId,
+    required this.deptName,
+    required this.deptCode,
+    required this.employeeDone,
+    required this.managerApproved,
+    this.completedAt,
+  });
+
+  factory DeptAssignment.fromJson(Map<String, dynamic> json) {
+    return DeptAssignment(
+      deptId: json['dept_id'],
+      deptName: json['dept_name'] ?? '',
+      deptCode: json['dept_code'] ?? '',
+      employeeDone: json['employee_done'] ?? false,
+      managerApproved: json['manager_approved'] ?? false,
+      completedAt: json['completed_at'] != null
+          ? DateTime.parse(json['completed_at'])
+          : null,
+    );
+  }
+}
+
 class TicketModel {
   final int id;
   final String title;
@@ -25,6 +56,7 @@ class TicketModel {
 
   final int? parentId;
   final List<TicketModel>? subTickets;
+  final List<DeptAssignment>? deptAssignments;
   final double? completionPercentage;
   final int? subTicketsCount;
   final Map<String, dynamic>? parentTicket;
@@ -54,6 +86,7 @@ class TicketModel {
     this.history,
     this.parentId,
     this.subTickets,
+    this.deptAssignments,
     this.completionPercentage,
     this.subTicketsCount,
     this.parentTicket,
@@ -87,8 +120,13 @@ class TicketModel {
     parentId: j['parent_id'],
     subTickets: j['sub_tickets'] != null
         ? (j['sub_tickets'] as List)
-            .map((e) => TicketModel.fromJson(e))
-            .toList()
+              .map((e) => TicketModel.fromJson(e))
+              .toList()
+        : null,
+    deptAssignments: j['dept_assignments'] != null
+        ? (j['dept_assignments'] as List)
+              .map((e) => DeptAssignment.fromJson(e))
+              .toList()
         : null,
     completionPercentage: j['completion_percentage'] != null
         ? double.parse(j['completion_percentage'].toString())

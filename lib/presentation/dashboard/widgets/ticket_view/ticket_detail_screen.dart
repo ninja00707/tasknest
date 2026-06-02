@@ -282,151 +282,136 @@ class _HeroCard extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(22),
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Priority color circle icon
                 Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: priorityColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: priorityColor.withOpacity(0.25),
-                      width: 1.5,
-                    ),
-                  ),
+                  color: priorityColor.withOpacity(0.25),
+                  width: 1.5,
+
                   child: Icon(
                     Icons.confirmation_number_rounded,
                     color: priorityColor,
                     size: 24,
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        ticket.title,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: ThemeColors.unifiedTextPrimary,
-                          letterSpacing: -0.4,
-                          height: 1.2,
-                        ),
+                Text(
+                  '${ticket.title} ',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: ThemeColors.unifiedTextPrimary,
+                    letterSpacing: -0.4,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Tracking details and history for this request',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: ThemeColors.unifiedTextMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Route row
+                Row(
+                  children: [
+                    _RouteChip(
+                      icon: Icons.arrow_upward_rounded,
+                      label: ticket.createdByDeptCode,
+                      color: ThemeColors.unifiedPrimary,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 14,
+                        color: ThemeColors.unifiedTextMuted,
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Tracking details and history for this request',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: ThemeColors.unifiedTextMuted,
-                          fontWeight: FontWeight.w500,
+                    ),
+                    _RouteChip(
+                      icon: Icons.arrow_forward_rounded,
+                      label: ticket.assignedDeptCode,
+                      color: ThemeColors.unifiedSecondary,
+                    ),
+                    if (ticket.isOverdue) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      // Route row
-                      Row(
-                        children: [
-                          _RouteChip(
-                            icon: Icons.arrow_upward_rounded,
-                            label: ticket.createdByDeptCode,
-                            color: ThemeColors.unifiedPrimary,
+                        decoration: BoxDecoration(
+                          color: ThemeColors.unifiedDanger.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: ThemeColors.unifiedDanger.withOpacity(0.3),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: Icon(
-                              Icons.arrow_forward_rounded,
-                              size: 14,
-                              color: ThemeColors.unifiedTextMuted,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(
+                              Icons.schedule_rounded,
+                              size: 10,
+                              color: ThemeColors.unifiedDanger,
                             ),
-                          ),
-                          _RouteChip(
-                            icon: Icons.arrow_forward_rounded,
-                            label: ticket.assignedDeptCode,
-                            color: ThemeColors.unifiedSecondary,
-                          ),
-                          if (ticket.isOverdue) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: ThemeColors.unifiedDanger.withOpacity(
-                                  0.1,
-                                ),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: ThemeColors.unifiedDanger.withOpacity(
-                                    0.3,
-                                  ),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: const [
-                                  Icon(
-                                    Icons.schedule_rounded,
-                                    size: 10,
-                                    color: ThemeColors.unifiedDanger,
-                                  ),
-                                  SizedBox(width: 3),
-                                  Text(
-                                    'OVERDUE',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      color: ThemeColors.unifiedDanger,
-                                      letterSpacing: 0.3,
-                                    ),
-                                  ),
-                                ],
+                            SizedBox(width: 3),
+                            Text(
+                              'OVERDUE',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: ThemeColors.unifiedDanger,
+                                letterSpacing: 0.3,
                               ),
                             ),
                           ],
-                        ],
+                        ),
                       ),
-                      if (ticket.parentId != null && ticket.parentTicket != null) ...[
-                        const SizedBox(height: 12),
-                        GestureDetector(
-                          onTap: () => context.push('/ticket/${ticket.parentId}'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: ThemeColors.unifiedPrimary.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: ThemeColors.unifiedPrimary.withOpacity(0.2)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.link_rounded,
-                                  size: 13,
-                                  color: ThemeColors.unifiedPrimary,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Sub-ticket of Main Ticket #${ticket.parentId} (${ticket.parentTicket!['assigned_dept_name'] ?? 'HR'})',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: ThemeColors.unifiedPrimary,
-                                  ),
-                                ),
-                              ],
+                    ],
+                  ],
+                ),
+                if (ticket.parentId != null && ticket.parentTicket != null) ...[
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () => context.push('/ticket/${ticket.parentId}'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: ThemeColors.unifiedPrimary.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: ThemeColors.unifiedPrimary.withOpacity(0.2),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.link_rounded,
+                            size: 13,
+                            color: ThemeColors.unifiedPrimary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Sub-ticket of Main Ticket #${ticket.parentId} (${ticket.parentTicket!['assigned_dept_name'] ?? 'HR'})',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: ThemeColors.unifiedPrimary,
                             ),
                           ),
-                        ),
-                      ],
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -551,74 +536,68 @@ class _MainInfoColumn extends StatelessWidget {
             icon: Icons.corporate_fare_rounded,
             title: 'Department Assignments (Sub-Tickets)',
             child: Column(
-              children: ticket.subTickets!.asMap().entries.map((entry) {
-                final idx = entry.key;
-                final st = entry.value;
-                return Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: idx == ticket.subTickets!.length - 1
-                      ? null
-                      : const BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(color: ThemeColors.unifiedBorder, width: 1),
-                          ),
-                        ),
-                  child: InkWell(
-                    onTap: () => context.push('/ticket/${st.id}'),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${ticket.subTickets?.length ?? 0} Departments Assigned',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: ThemeColors.unifiedTextPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...ticket.subTickets!
+                    .map(
+                      (st) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: ThemeColors.unifiedSecondary.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            st.assignedDeptCode,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: ThemeColors.unifiedSecondary,
+                            color: ThemeColors.unifiedSurface,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: ThemeColors.unifiedBorder,
+                              width: 1,
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 st.assignedDeptName,
                                 style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
                                   color: ThemeColors.unifiedTextPrimary,
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  const Icon(Icons.person_outline_rounded, size: 12, color: ThemeColors.unifiedTextMuted),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    st.assignedToName ?? 'Unassigned',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: ThemeColors.unifiedTextMuted,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                              const SizedBox(height: 6),
+                              LinearProgressIndicator(
+                                value: (st.completionPercentage ?? 0) / 100,
+                                minHeight: 6,
+                                backgroundColor: ThemeColors.unifiedBorder
+                                    .withOpacity(0.2),
+                                color: ThemeColors.unifiedPrimary,
+                              ),
+                              const SizedBox(height: 4),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  '${(st.completionPercentage ?? 0).toStringAsFixed(0)}%',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: ThemeColors.unifiedTextMuted,
                                   ),
-                                ],
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        StatusBadge(status: st.status),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
+                      ),
+                    )
+                    .toList(),
+              ],
             ),
           ),
         ],

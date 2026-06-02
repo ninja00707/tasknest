@@ -34,9 +34,41 @@ class TicketActions extends StatelessWidget {
         final bool isAssignedToMyDept =
             ticket.assignedDeptId == user.departmentId;
 
+        // Sub-ticket Trail Logic: Find if the current user's dept is in the trail
+        final deptAssignment = ticket.deptAssignments
+            ?.where((d) => d.deptId == user.departmentId)
+            .firstOrNull;
+
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // 1. Employee Action: Mark Dept Task Done
+            if (!isManager &&
+                deptAssignment != null &&
+                !deptAssignment.employeeDone)
+              ActionBtn(
+                icon: Icons.assignment_turned_in_outlined,
+                tooltip: 'Mark Dept Task Done',
+                color: ThemeColors.unifiedSecondary,
+                onTap: () => context.read<DashboardBloc>().add(
+                  MarkDeptTaskDone(ticket.id),
+                ),
+              ),
+
+            // 2. Manager Action: Approve Dept Task
+            if (isManager &&
+                deptAssignment != null &&
+                deptAssignment.employeeDone &&
+                !deptAssignment.managerApproved)
+              ActionBtn(
+                icon: Icons.verified_user_outlined,
+                tooltip: 'Approve Dept Task',
+                color: ThemeColors.unifiedAccent,
+                onTap: () => context.read<DashboardBloc>().add(
+                  ApproveDeptTask(ticket.id, user.departmentId),
+                ),
+              ),
+
             // 1. Self Assign: Open to employees/managers in the department
             if (ticket.isOpen &&
                 !ticket.isManagementDisabled &&
