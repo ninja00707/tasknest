@@ -174,6 +174,14 @@ class TicketRemoteDataSource {
     return TicketModel.fromJson(res['data']);
   }
 
+  Future<TicketModel> selfAssignSubDept(int ticketId, int departmentId) async {
+    final res = await _api.patch(
+      'tickets/$ticketId/sub-departments/$departmentId/self-assign',
+      body: {},
+    );
+    return TicketModel.fromJson(res['data']);
+  }
+
   Future<TicketModel> assignSubDeptToEmployee({
     required int ticketId,
     required int departmentId,
@@ -184,5 +192,9 @@ class TicketRemoteDataSource {
       body: {'employeeId': employeeId},
     );
     return TicketModel.fromJson(res['data']);
+  }
+
+  Future<void> addComment(int ticketId, String message) async {
+    await _api.post('tickets/$ticketId/comments', body: {'message': message});
   }
 }

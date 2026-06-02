@@ -232,9 +232,11 @@ class TicketRepository {
 
   // ── Get single ticket (with permission check) ─────────────────────────────
   async getTicketById(ticketId, user) {
-    const ticket = await this.getTicketDetails(ticketId);
+    let ticket = await this.getTicketDetails(ticketId);
 
     if (!ticket) return null;
+
+    ticket = await this.enrichTicketWithSubData(ticket);
 
     if (user.role === 'ceo') {
       return ticket;
@@ -242,7 +244,7 @@ class TicketRepository {
 
     const isCreatorDept = Number(ticket.created_by_dept) === Number(user.department_id);
     const isAssignedDept = Number(ticket.assigned_dept_id) === Number(user.department_id);
-    const isTransferrer  = Number(ticket.transferred_from) === Number(user.department_id);
+    const isTransferrer = Number(ticket.transferred_from) === Number(user.department_id);
     const isResolver = ticket.assigned_to_id === user.id;
 
     let isSubTicketDept = false;
@@ -617,7 +619,7 @@ class TicketRepository {
         COALESCE(ROUND(AVG(progress_percent)), 0)::int AS avg_progress,
         COUNT(*) FILTER (WHERE status = 'completed') AS completed_count,
         COUNT(*) AS total_count,
-        COUNT(*) FILTER (WHERE status = 'in_progress') AS in_progress_count
+        COUNT(*) FILTER (WHERE status IN ('in_progress', 'pending_approval')) AS in_progress_count
       FROM sub_ticket_departments
       WHERE ticket_id = $1
     `, [ticketId]);
@@ -633,9 +635,9 @@ class TicketRepository {
     await client.query(`
       UPDATE tickets
       SET overall_progress = $1, status = $2,
-          closed_at = CASE WHEN $2 = 'completed' THEN NOW() ELSE closed_at END
+          closed_at = CASE WHEN $4 THEN NOW() ELSE closed_at END
       WHERE id = $3 AND is_sub_ticket = TRUE
-    `, [avg_progress, newStatus, ticketId]);
+    `, [avg_progress, newStatus, ticketId, newStatus === 'completed']);
 
     return { avg_progress, newStatus };
   }
@@ -689,6 +691,7 @@ class TicketRepository {
       const updates = [];
       const params = [ticketId, departmentId];
       let paramIdx = 3;
+      const now = new Date();
 
       if (status != null) {
         updates.push(`status = $${paramIdx}`);
@@ -697,6 +700,10 @@ class TicketRepository {
         if (status === 'completed') {
           updates.push(`completed_at = NOW()`);
           updates.push(`progress_percent = 100`);
+          updates.push(`updated_at = NOW()`);
+        } else if (status === 'pending_approval') {
+          updates.push(`progress_percent = 100`);
+          updates.push(`updated_at = NOW()`);
         } else if (status === 'in_progress') {
           updates.push(`progress_percent = GREATEST(progress_percent, 1)`);
         } else if (status === 'open') {
@@ -747,7 +754,10 @@ class TicketRepository {
 
     const result = await pool.query(`
       UPDATE sub_ticket_departments
-      SET assigned_to_id = $1
+      SET assigned_to_id = $1,
+          status = 'in_progress',
+          progress_percent = GREATEST(progress_percent, 1),
+          updated_at = NOW()
       WHERE ticket_id = $2 AND department_id = $3
       RETURNING *
     `, [employeeId, ticketId, departmentId]);
@@ -756,6 +766,7 @@ class TicketRepository {
       throw new Error('Department assignment not found');
     }
 
+    await this._recalculateSubTicketProgress(ticketId);
     const ticket = await this.getTicketDetails(ticketId);
     return await this.enrichTicketWithSubData(ticket);
   }

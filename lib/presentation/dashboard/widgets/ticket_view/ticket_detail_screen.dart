@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_detail_appbar.dart';
 import 'package:tasknest/core/theme/common_date_format.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
-import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
-import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_action.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/sub_ticket_detail_section.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_history_timeline.dart';
@@ -529,6 +527,8 @@ class _MainInfoColumn extends StatelessWidget {
           title: 'Traveling Department History',
           child: TicketHistoryTimeline(history: ticket.history ?? []),
         ),
+        const SizedBox(height: 16),
+        _CommentSection(ticket: ticket),
       ],
     );
   }
@@ -902,6 +902,73 @@ class _TimelineItem extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Comment section ───────────────────────────────────────────────────────────
+class _CommentSection extends StatefulWidget {
+  final TicketModel ticket;
+  const _CommentSection({required this.ticket});
+
+  @override
+  State<_CommentSection> createState() => _CommentSectionState();
+}
+
+class _CommentSectionState extends State<_CommentSection> {
+  final _commentController = TextEditingController();
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
+  }
+
+  void _submitComment() {
+    final msg = _commentController.text.trim();
+    if (msg.isEmpty) return;
+    context.read<DashboardBloc>().add(AddTicketComment(widget.ticket.id, msg));
+    _commentController.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      icon: Icons.chat_outlined,
+      title: 'Add Comment',
+      child: Column(
+        children: [
+          TextField(
+            controller: _commentController,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: 'Write a comment or update...',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              filled: true,
+              fillColor: ThemeColors.unifiedInputBg,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton.icon(
+              onPressed: _submitComment,
+              icon: const Icon(Icons.send_rounded, size: 16),
+              label: const Text('Post Comment'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ThemeColors.unifiedPrimary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

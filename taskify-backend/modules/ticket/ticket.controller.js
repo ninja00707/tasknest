@@ -92,6 +92,19 @@ class TicketController {
     }
   }
 
+  async selfAssignSubDept(req, res, next) {
+    try {
+      const ticket = await ticketService.selfAssignSubDept(
+        req.params.id,
+        req.params.deptId,
+        req.user
+      );
+      res.json({ success: true, data: ticket });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async updateStatus(req, res, next) {
     try {
       const ticket = await ticketService.updateStatus(

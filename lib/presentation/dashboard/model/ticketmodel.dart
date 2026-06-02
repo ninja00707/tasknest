@@ -177,6 +177,10 @@ class SubTicketDepartmentModel {
 
   bool get isCompleted => status == 'completed';
   bool get isInProgress => status == 'in_progress';
+  bool get isOpen => status == 'open';
+  bool get isPendingApproval => status == 'pending_approval';
+
+  bool get isAssigned => assignedToId != null;
 }
 
 class DashboardStats {

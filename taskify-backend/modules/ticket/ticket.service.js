@@ -6,7 +6,7 @@ class TicketService {
     for (const userId of userIds) {
       // 1. Persist to DB
       await ticketRepo.createNotification(userId, ticketId, message);
-      
+
       // 2. Push Real-Time via Socket.io
       if (global.io) {
         global.io.to(`user_${userId}`).emit(eventType, {
@@ -34,7 +34,7 @@ class TicketService {
     const ticket = await ticketRepo.getTicketById(ticketId, user);
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied to this ticket' };
-    
+
     await ticketRepo.enrichTicketWithSubData(ticket);
     ticket.history = await ticketRepo.getTicketLogs(ticketId);
     return ticket;
@@ -42,7 +42,7 @@ class TicketService {
 
   async createTicket(data, user) {
     const { title, description, priority = 'medium', assignedDeptId, dueDate } = data;
-    
+
     // Ensure assignedToId is handled as a number or null
     const assignedToId = data.assignedToId != null ? Number(data.assignedToId) : null;
 
@@ -158,36 +158,128 @@ class TicketService {
     const isCreatorDept = Number(ticket.created_by_dept) === Number(user.department_id);
     const isTargetDept = Number(departmentId) === Number(user.department_id);
     const isCeo = user.role === 'ceo';
+    const isManager = user.role === 'manager';
 
     if (!isCeo && !isCreatorDept && !isTargetDept) {
       throw { statusCode: 403, message: 'You can only update progress for your own department' };
     }
 
+    const deptRow = ticket.sub_departments.find(d => Number(d.department_id) === Number(departmentId));
+    if (!deptRow) throw { statusCode: 404, message: 'Department task not found in this sub-ticket' };
+
     const { status, note } = data;
-    if (!['open', 'in_progress', 'completed'].includes(status)) {
-      throw { statusCode: 400, message: 'Status must be open, in_progress, or completed' };
+    if (!['open', 'in_progress', 'pending_approval', 'completed'].includes(status)) {
+      throw { statusCode: 400, message: 'Status must be open, in_progress, pending_approval, or completed' };
     }
+
+    const isAssignedEmployee = Number(deptRow.assigned_to_id) === Number(user.id);
+
+    // RULES for status transitions:
+    // in_progress -> pending_approval: only assigned employee (mark done)
+    if (status === 'pending_approval') {
+      if (!isAssignedEmployee && !isCeo) {
+        throw { statusCode: 403, message: 'Only the assigned employee can mark this task as done' };
+      }
+      if (!note || String(note).trim() === '') {
+        throw { statusCode: 400, message: 'A completion remark is required when marking as done' };
+      }
+    }
+    // pending_approval -> completed: only manager/ceo (approve)
+    if (status === 'completed') {
+      if (!isManager && !isCeo && !isCreatorDept) {
+        throw { statusCode: 403, message: 'Only a manager can approve completed work' };
+      }
+    }
+    // completed -> open: only ceo (reopen)
+    if (status === 'open' && deptRow.status === 'completed' && !isCeo) {
+      throw { statusCode: 403, message: 'Only CEO can reopen a completed department task' };
+    }
+
     const updated = await ticketRepo.updateSubDeptProgress(
       ticketId,
       Number(departmentId),
       { status }
     );
 
-    const deptRow = updated.sub_departments.find(d => Number(d.department_id) === Number(departmentId));
-    const deptName = deptRow ? deptRow.department_name : `Dept ${departmentId}`;
+    const deptName = deptRow.department_name || `Dept ${departmentId}`;
+
+    // Log the progress change
+    const progressLog = status === 'pending_approval'
+      ? `${user.name} submitted ${deptName} work as done${note ? `. Remark: ${note}` : ''}`
+      : status === 'completed'
+      ? `${user.name} approved ${deptName} completion`
+      : `${user.name} changed ${deptName} status from ${deptRow.status} to ${status}${note ? `. Remark: ${note}` : ''}`;
 
     await ticketRepo.logAction(
       ticketId, user.id, 'status_changed',
-      null,
+      deptRow.status,
       `${deptName}: ${updated.overall_progress}% overall`,
-      `${user.name} marked ${deptName} as ${status}${note ? `. Remark: ${note}` : ''}`
+      progressLog
     );
+
+    // Transparency: add note as a formal comment
+    if (note && note.trim()) {
+      let commentMsg;
+      if (status === 'pending_approval') {
+        commentMsg = `[DEPT COMPLETION - ${deptName}]: ${note.trim()}`;
+      } else if (status === 'completed') {
+        commentMsg = `[DEPT APPROVED - ${deptName}]: Approved by ${user.name}`;
+      } else {
+        commentMsg = `[DEPT PROGRESS - ${deptName}]: ${note.trim()}`;
+      }
+      await ticketRepo.addComment(ticketId, user.id, commentMsg);
+      await ticketRepo.logAction(
+        ticketId, user.id, 'comment_added', null,
+        commentMsg.substring(0, 100),
+        status === 'completed'
+          ? `Manager ${user.name} approved ${deptName} work`
+          : `Note added by ${user.name} for ${deptName}`
+      );
+    }
 
     const participants = await ticketRepo.getTicketParticipants(ticketId);
     await this._dispatch(
       ticketId, participants.filter(id => id !== user.id),
       `Sub-Ticket #${ticketId}: ${deptName} progress updated (${updated.overall_progress}% complete)`,
       'SUB_TICKET_PROGRESS', { ticket: updated }
+    );
+
+    return updated;
+  }
+
+  async selfAssignSubDept(ticketId, departmentId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    if (!ticket.is_sub_ticket) throw { statusCode: 400, message: 'This is not a sub-ticket' };
+
+    const deptRow = ticket.sub_departments.find(d => Number(d.department_id) === Number(departmentId));
+    if (!deptRow) throw { statusCode: 404, message: 'Department task not found in this sub-ticket' };
+    if (deptRow.assigned_to_id) throw { statusCode: 400, message: 'This department task already has an assigned employee' };
+    if (deptRow.status !== 'open') throw { statusCode: 400, message: 'Only open department tasks can be self-assigned' };
+
+    const updated = await ticketRepo.assignSubDeptToEmployee(
+      Number(ticketId),
+      Number(departmentId),
+      user.id,
+      user.id
+    );
+
+    await ticketRepo.logAction(
+      ticketId, user.id, 'assigned',
+      'Unassigned', user.name,
+      `Employee ${user.name} self-assigned to ${deptRow.department_name || `Dept ${departmentId}`}`
+    );
+    await ticketRepo.logAction(
+      ticketId, user.id, 'status_changed',
+      'open', 'in_progress',
+      `Status auto-changed to in_progress due to self-assignment by ${user.name}`
+    );
+
+    await this._dispatch(
+      ticketId, [user.id],
+      `You have been assigned to ${deptRow.department_name || `Dept ${departmentId}`} task for Ticket #${ticketId}`,
+      'SUB_TICKET_ASSIGNED'
     );
 
     return updated;
@@ -219,6 +311,11 @@ class TicketService {
       assignedEmployee?.name || `Employee ${employeeId}`,
       `Department manager ${user.name} assigned ${deptRow?.department_name || departmentId} work`
     );
+    await ticketRepo.logAction(
+      ticketId, user.id, 'status_changed',
+      'open', 'in_progress',
+      `Status auto-changed to in_progress due to assignment by ${user.name}`
+    );
 
     if (assignedEmployee?.id) {
       await this._dispatch(
@@ -246,7 +343,7 @@ class TicketService {
     const isCreator = ticket.created_by_id === user.id;
     const isCeo = user.role === 'ceo';
 
-    console.log(`[TicketService] Attempting to update ticket ${ticketId} status from ${ticket.status} to ${newStatus} by user ${user.id}`);
+    console.log(`[TicketService] Status update: ${ticket.status} -> ${newStatus} by ${user.name} (ID: ${user.id})`);
 
     // Only the resolver or CEO can mark a ticket as completed
     if (newStatus === 'completed') {
@@ -286,9 +383,20 @@ class TicketService {
       'status_changed',
       oldStatus,
       newStatus,
-      `Status updated to ${newStatus} by ${user.name}${remark ? `. Remark: ${String(remark).trim()}` : ''}`
+      `Status updated to ${newStatus} by ${user.name}${remark ? `. Final Remark: ${remark}` : ''}`
     );
-    
+
+    // Transparency: Add the closing/completion remark as a formal comment so it is visible in the thread
+    if ((newStatus === 'completed' || newStatus === 'closed') && remark) {
+      const commentMsg = `[${newStatus.toUpperCase()} REMARK]: ${remark}`;
+      await ticketRepo.addComment(ticketId, user.id, commentMsg);
+      await ticketRepo.logAction(
+        ticketId, user.id, 'comment_added', null,
+        commentMsg.substring(0, 100),
+        `${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)} remark added by ${user.name}`
+      );
+    }
+
     // Real-time update for creator and assignee
     const participants = await ticketRepo.getTicketParticipants(ticketId);
     await this._dispatch(ticketId, participants, `Ticket #${ticketId} status changed to ${newStatus}`, 'TICKET_STATUS_UPDATED', { ticket: updated });
@@ -314,16 +422,16 @@ class TicketService {
     // Log the assignment
     await ticketRepo.logAction(
       ticketId,
-      user.id, 
-      'assigned', 
-      'Unassigned', 
-      user.name, 
+      user.id,
+      'assigned',
+      'Unassigned',
+      user.name,
       'Self-assigned'
     );
 
     // Log the automatic status change to in_progress
     await ticketRepo.logAction(ticketId, user.id, 'status_changed', 'open', 'in_progress', 'Status changed via self-assignment');
-    
+
     return updated;
   }
 
@@ -361,14 +469,14 @@ class TicketService {
 
     // Log status change if it went from 'open' to 'in_progress'
     if (ticketBeforeUpdate.status === 'open' && updated.status === 'in_progress') {
-        await ticketRepo.logAction(
-            ticketId,
-            user.id,
-            'status_changed',
-            ticketBeforeUpdate.status,
-            updated.status,
-            'Status changed due to assignment'
-        );
+      await ticketRepo.logAction(
+        ticketId,
+        user.id,
+        'status_changed',
+        ticketBeforeUpdate.status,
+        updated.status,
+        'Status changed due to assignment'
+      );
     }
 
     return updated;
@@ -390,7 +498,7 @@ class TicketService {
 
     // Permission Check: CEO cannot transfer, and if assigned, only the resolver can transfer
     if (user.role === 'ceo') throw { statusCode: 403, message: 'CEO is not authorized to transfer tickets' };
-    
+
     if (ticketBeforeUpdate.assigned_to_id && ticketBeforeUpdate.assigned_to_id !== user.id) {
       throw { statusCode: 403, message: 'Only the assigned resolver can transfer this ticket' };
     }
@@ -512,9 +620,9 @@ class TicketService {
   }
 
   async getDepartmentAnalytics(departmentId) {
-    return await ticketRepo.getDashboardStats({ 
-      role: 'manager', 
-      department_id: Number(departmentId) 
+    return await ticketRepo.getDashboardStats({
+      role: 'manager',
+      department_id: Number(departmentId)
     });
   }
 

@@ -166,3 +166,21 @@ class AssignSubDeptEmployeeEvent extends DashboardEvent {
   @override
   List<Object?> get props => [ticketId, departmentId, employeeId];
 }
+
+class SelfAssignSubDept extends DashboardEvent {
+  final int ticketId;
+  final int departmentId;
+  SelfAssignSubDept(this.ticketId, this.departmentId);
+  @override
+  List<Object?> get props => [ticketId, departmentId];
+}
+
+class AddTicketComment extends DashboardEvent {
+  final int ticketId;
+  final String message;
+
+  AddTicketComment(this.ticketId, this.message);
+
+  @override
+  List<Object?> get props => [ticketId, message];
+}

@@ -150,37 +150,64 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
   final _noteController = TextEditingController();
   int? _selectedEmployeeId;
 
+  bool get _isAssignedToMe =>
+      widget.dept.assignedToId == widget.user.id && widget.dept.isAssigned;
+
+  bool get _isMyDept =>
+      widget.user.departmentId == widget.dept.departmentId;
+
+  bool get _isManager => widget.user.roleId == 1;
+  bool get _isCeo => widget.user.roleId == 0;
+  bool get _isEmployee => widget.user.roleId == 2;
+
   bool get _canEdit {
     if (widget.ticket.isClosed || widget.ticket.isCompleted) return false;
-    if (widget.user.roleId == 0) return true;
-    return widget.user.departmentId == widget.dept.departmentId ||
-        widget.user.departmentId == widget.ticket.assignedDeptId;
+    if (_isCeo) return true;
+    if (widget.dept.isCompleted) return false;
+    return _isMyDept || _isAssignedToMe || widget.user.departmentId == widget.ticket.assignedDeptId;
   }
 
-  bool get _canAssignEmployee =>
-      widget.user.roleId == 1 &&
-      widget.user.departmentId == widget.dept.departmentId &&
-      !widget.dept.isCompleted;
+  // in_progress -> pending_approval: only assigned employee
+  bool get _canMarkDone =>
+      _canEdit && widget.dept.isInProgress && _isAssignedToMe;
 
-  void _markInProgress() {
+  // pending_approval -> completed: only manager/ceo
+  bool get _canApprove =>
+      _canEdit && widget.dept.isPendingApproval && (_isManager || _isCeo);
+
+  // Self-assign: employee in same dept, task is open and unassigned
+  bool get _canSelfAssign =>
+      _isEmployee && _isMyDept && widget.dept.isOpen && !widget.dept.isAssigned;
+
+  // Manager assign: manager in same dept, task is open and unassigned
+  bool get _canAssignEmployee =>
+      _isManager && _isMyDept && widget.dept.isOpen && !widget.dept.isAssigned;
+
+  void _markDone() {
     context.read<DashboardBloc>().add(
       UpdateSubDeptProgressEvent(
         ticketId: widget.ticket.id,
         departmentId: widget.dept.departmentId,
-        status: 'in_progress',
+        status: 'pending_approval',
         note: _noteController.text.trim(),
       ),
     );
   }
 
-  void _markComplete() {
+  void _approveCompletion() {
     context.read<DashboardBloc>().add(
       UpdateSubDeptProgressEvent(
         ticketId: widget.ticket.id,
         departmentId: widget.dept.departmentId,
         status: 'completed',
-        note: _noteController.text.trim(),
+        note: 'Approved by ${widget.user.name}',
       ),
+    );
+  }
+
+  void _selfAssign() {
+    context.read<DashboardBloc>().add(
+      SelfAssignSubDept(widget.ticket.id, widget.dept.departmentId),
     );
   }
 
@@ -200,9 +227,19 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
     final dept = widget.dept;
     final statusColor = dept.isCompleted
         ? const Color(0xFF16A34A)
+        : dept.isPendingApproval
+        ? const Color(0xFFF59E0B)
         : dept.isInProgress
         ? const Color(0xFF7C3AED)
         : ThemeColors.unifiedTextMuted;
+
+    final statusLabel = dept.isCompleted
+        ? 'COMPLETED'
+        : dept.isPendingApproval
+        ? 'PENDING APPROVAL'
+        : dept.isInProgress
+        ? 'IN PROGRESS'
+        : 'OPEN';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -250,7 +287,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  dept.status.replaceAll('_', ' ').toUpperCase(),
+                  statusLabel,
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
@@ -269,6 +306,24 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
               height: 1.5,
             ),
           ),
+          // Assigned employee info
+          if (dept.isAssigned && dept.assignedToName != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.person_outline, size: 14, color: ThemeColors.unifiedTextMuted),
+                const SizedBox(width: 4),
+                Text(
+                  'Assigned to: ${dept.assignedToName}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: ThemeColors.unifiedTextPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 10),
           Row(
             children: [
@@ -334,50 +389,106 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
               },
             ),
           ],
-          if (_canEdit && !dept.isCompleted) ...[
+          // ── Self-Assign Button (employee, open, unassigned) ─────
+          if (_canSelfAssign)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _selfAssign,
+                  icon: const Icon(Icons.person_add_outlined, size: 16),
+                  label: const Text('Self-Assign to this Task'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: ThemeColors.unifiedPrimary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          // ── Mark as Done (in_progress + assigned employee) ──
+          if (_canMarkDone) ...[
             const SizedBox(height: 10),
             TextField(
               controller: _noteController,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                hintText: 'Work remark (what was done)',
-                border: OutlineInputBorder(),
+              maxLines: 3,
+              decoration: InputDecoration(
+                hintText: 'Last comment before marking as done (required)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                filled: true,
+                fillColor: ThemeColors.unifiedInputBg,
               ),
             ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton.icon(
-                    onPressed: _markInProgress,
-                    icon: const Icon(Icons.play_arrow_rounded, size: 16),
-                    label: const Text('Start Work'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF7C3AED),
-                      textStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _markDone,
+                icon: const Icon(Icons.check_circle_outline, size: 18),
+                label: const Text('Mark as Done'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C3AED),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: _markComplete,
-                    icon: const Icon(Icons.check_circle_outline, size: 16),
-                    label: const Text('Mark Complete'),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF16A34A),
-                      textStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ],
+          // ── Approve Button (pending_approval + manager/ceo) ────
+          if (_canApprove)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _approveCompletion,
+                  icon: const Icon(Icons.verified_outlined, size: 18),
+                  label: const Text('Approve Completion'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF16A34A),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          // ── Info for pending_approval state ────────────────────
+          if (dept.isPendingApproval && !_canApprove)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.hourglass_empty, size: 16, color: Color(0xFF92400E)),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Work submitted. Waiting for manager approval.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
