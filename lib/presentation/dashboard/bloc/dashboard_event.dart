@@ -114,3 +114,39 @@ class LoadManagerAnalytics extends DashboardEvent {
 }
 
 class LoadCeoAnalytics extends DashboardEvent {}
+
+class CreateSubTicketEvent extends DashboardEvent {
+  final String title;
+  final String description;
+  final String priority;
+  final List<Map<String, dynamic>> departments;
+  final String? dueDate;
+
+  CreateSubTicketEvent({
+    required this.title,
+    required this.description,
+    required this.priority,
+    required this.departments,
+    this.dueDate,
+  });
+
+  @override
+  List<Object?> get props => [title, description, priority, departments, dueDate];
+}
+
+class UpdateSubDeptProgressEvent extends DashboardEvent {
+  final int ticketId;
+  final int departmentId;
+  final int? progressPercent;
+  final String? status;
+
+  UpdateSubDeptProgressEvent({
+    required this.ticketId,
+    required this.departmentId,
+    this.progressPercent,
+    this.status,
+  });
+
+  @override
+  List<Object?> get props => [ticketId, departmentId, progressPercent, status];
+}

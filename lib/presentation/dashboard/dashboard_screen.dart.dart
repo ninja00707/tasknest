@@ -5,7 +5,7 @@ import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/bottom_nav_bar.dart';
-import 'package:tasknest/presentation/dashboard/widgets/ticket_view/create_ticket.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/create_ticket_tab_view.dart';
 import 'package:tasknest/presentation/dashboard/widgets/dashboard_view.dart';
 import 'package:tasknest/presentation/dashboard/widgets/mobile_top_bar.dart';
 import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/side_bar.dart';
@@ -196,7 +196,7 @@ class DashboardScreen extends StatelessWidget {
           return MyTicketsView(state: loadedState!, user: user);
         }
       case 2:
-        return CreateTicketView(user: user);
+        return CreateTicketTabView(user: user);
 
       case 3:
         if (user.roleId != 0) {

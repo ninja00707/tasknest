@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('./ticket.controller');
-const { authenticate, isManager, isCeo } = require('./Auth.middleware');
+const { authenticate, isManager, isCeo, isDepManager } = require('./Auth.middleware');
 
 // All ticket routes require authentication
 router.use(authenticate);
@@ -16,6 +16,10 @@ router.get('/stats', controller.getStats);
 router.get('/departments', controller.getDepartments);
 router.get('/employees', isManager, controller.getEmployees);
 router.get('/sent-tickets', controller.getSentTickets);
+
+// ── Sub-Tickets (MUST be above /:id) ─────────────────────────
+router.post('/sub-tickets', isDepManager, controller.createSubTicket);
+router.patch('/:id/sub-departments/:deptId', controller.updateSubDeptProgress);
 
 // ── CRUD ──────────────────────────────────────────────────────
 router.get('/', controller.getTickets);

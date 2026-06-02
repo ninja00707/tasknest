@@ -60,4 +60,12 @@ const isEmployee = (req, res, next) => {
     next();
 };
 
-module.exports = { authenticate, isCeo, isManager, isEmployee };
+// Department manager only (not CEO)
+const isDepManager = (req, res, next) => {
+    if (req.user.role !== 'manager') {
+        return res.status(403).json({ success: false, message: 'Department manager access required' });
+    }
+    next();
+};
+
+module.exports = { authenticate, isCeo, isManager, isEmployee, isDepManager };

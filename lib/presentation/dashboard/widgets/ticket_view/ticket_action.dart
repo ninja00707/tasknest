@@ -20,6 +20,10 @@ class TicketActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (ticket.isSubTicket) {
+      return const SizedBox.shrink();
+    }
+
     return BlocBuilder<DashboardBloc, DashboardState>(
       builder: (context, state) {
         if (state is! DashboardLoaded) {

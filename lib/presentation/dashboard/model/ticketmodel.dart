@@ -23,6 +23,12 @@ class TicketModel {
   final String? lastActedByName;
   final List<dynamic>? history;
 
+  final bool isSubTicket;
+  final int overallProgress;
+  final int departmentCount;
+  final int completedDepartmentCount;
+  final List<SubTicketDepartmentModel> subDepartments;
+
   const TicketModel({
     required this.id,
     required this.title,
@@ -46,6 +52,11 @@ class TicketModel {
     this.lastUpdatedAt,
     this.lastActedByName,
     this.history,
+    this.isSubTicket = false,
+    this.overallProgress = 0,
+    this.departmentCount = 0,
+    this.completedDepartmentCount = 0,
+    this.subDepartments = const [],
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> j) => TicketModel(
@@ -73,6 +84,14 @@ class TicketModel {
         : null,
     lastActedByName: j['last_acted_by_name'] ?? 'System',
     history: j['history'],
+    isSubTicket: j['is_sub_ticket'] == true,
+    overallProgress: j['overall_progress'] ?? 0,
+    departmentCount: j['department_count'] ?? 0,
+    completedDepartmentCount: j['completed_department_count'] ?? 0,
+    subDepartments: (j['sub_departments'] as List<dynamic>?)
+            ?.map((e) => SubTicketDepartmentModel.fromJson(e))
+            .toList() ??
+        const [],
   );
 
   bool get isOpen => status == 'open';
@@ -97,6 +116,61 @@ class TicketModel {
     if (closedAt == null) return false;
     return DateTime.now().difference(closedAt!).inHours <= 48;
   }
+
+  SubTicketDepartmentModel? subDeptFor(int departmentId) {
+    for (final d in subDepartments) {
+      if (d.departmentId == departmentId) return d;
+    }
+    return null;
+  }
+}
+
+class SubTicketDepartmentModel {
+  final int id;
+  final int ticketId;
+  final int departmentId;
+  final String departmentName;
+  final String departmentCode;
+  final String taskDescription;
+  final String status;
+  final int progressPercent;
+  final int? assignedToId;
+  final String? assignedToName;
+  final DateTime? completedAt;
+
+  const SubTicketDepartmentModel({
+    required this.id,
+    required this.ticketId,
+    required this.departmentId,
+    required this.departmentName,
+    required this.departmentCode,
+    required this.taskDescription,
+    required this.status,
+    required this.progressPercent,
+    this.assignedToId,
+    this.assignedToName,
+    this.completedAt,
+  });
+
+  factory SubTicketDepartmentModel.fromJson(Map<String, dynamic> j) =>
+      SubTicketDepartmentModel(
+        id: j['id'],
+        ticketId: j['ticket_id'],
+        departmentId: j['department_id'],
+        departmentName: j['department_name'] ?? '',
+        departmentCode: j['department_code'] ?? '',
+        taskDescription: j['task_description'] ?? '',
+        status: j['status'] ?? 'open',
+        progressPercent: j['progress_percent'] ?? 0,
+        assignedToId: j['assigned_to_id'],
+        assignedToName: j['assigned_to_name'],
+        completedAt: j['completed_at'] != null
+            ? DateTime.parse(j['completed_at'])
+            : null,
+      );
+
+  bool get isCompleted => status == 'completed';
+  bool get isInProgress => status == 'in_progress';
 }
 
 class DashboardStats {

@@ -25,7 +25,8 @@ class TicketService {
 
   async getTickets(user, filters) {
     if (!user) throw { statusCode: 401, message: 'Unauthorized' };
-    return await ticketRepo.getVisibleTickets(user, filters);
+    const tickets = await ticketRepo.getVisibleTickets(user, filters);
+    return await ticketRepo.enrichTicketsWithSubData(tickets);
   }
 
   async getTicket(ticketId, user) {
@@ -34,7 +35,7 @@ class TicketService {
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied to this ticket' };
     
-    // Automatically attach full history/logs whenever a ticket is viewed in detail
+    await ticketRepo.enrichTicketWithSubData(ticket);
     ticket.history = await ticketRepo.getTicketLogs(ticketId);
     return ticket;
   }
@@ -72,6 +73,105 @@ class TicketService {
     }
 
     return ticket;
+  }
+
+  async createSubTicket(data, user) {
+    if (user.role !== 'manager') {
+      throw { statusCode: 403, message: 'Only department managers can create sub-tickets' };
+    }
+
+    const { title, description, priority = 'medium', dueDate, departments } = data;
+
+    if (!title || !description || title.trim() === '' || description.trim() === '') {
+      throw { statusCode: 400, message: 'title and description are required' };
+    }
+
+    if (!Array.isArray(departments) || departments.length < 2) {
+      throw { statusCode: 400, message: 'Sub-tickets require at least 2 departments with task descriptions' };
+    }
+
+    for (const dept of departments) {
+      if (!dept.departmentId || !dept.taskDescription || dept.taskDescription.trim() === '') {
+        throw { statusCode: 400, message: 'Each department must have a departmentId and taskDescription' };
+      }
+    }
+
+    const deptIds = departments.map(d => Number(d.departmentId));
+    if (new Set(deptIds).size !== deptIds.length) {
+      throw { statusCode: 400, message: 'Duplicate departments are not allowed' };
+    }
+
+    const ticket = await ticketRepo.createSubTicket({
+      title: title.trim(),
+      description: description.trim(),
+      priority,
+      dueDate,
+      createdBy: user,
+      departments: departments.map(d => ({
+        departmentId: Number(d.departmentId),
+        taskDescription: d.taskDescription.trim(),
+      })),
+    });
+
+    const deptNames = ticket.sub_departments.map(d => d.department_name).join(', ');
+    await ticketRepo.logAction(
+      ticket.id, user.id, 'created', null, 'sub_ticket',
+      `Sub-ticket created by ${user.name} for departments: ${deptNames}`
+    );
+
+    for (const dept of ticket.sub_departments) {
+      const managers = await ticketRepo.getManagersByDepartment(dept.department_id);
+      await this._dispatch(
+        ticket.id, managers,
+        `New Sub-Ticket #${ticket.id} assigned to your department (${dept.department_name})`,
+        'SUB_TICKET_CREATED', { ticket }
+      );
+    }
+
+    return ticket;
+  }
+
+  async updateSubDeptProgress(ticketId, departmentId, data, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    if (!ticket.is_sub_ticket) {
+      throw { statusCode: 400, message: 'This is not a sub-ticket' };
+    }
+
+    const isCreatorDept = Number(ticket.created_by_dept) === Number(user.department_id);
+    const isTargetDept = Number(departmentId) === Number(user.department_id);
+    const isCeo = user.role === 'ceo';
+
+    if (!isCeo && !isCreatorDept && !isTargetDept) {
+      throw { statusCode: 403, message: 'You can only update progress for your own department' };
+    }
+
+    const { progressPercent, status } = data;
+    const updated = await ticketRepo.updateSubDeptProgress(
+      ticketId,
+      Number(departmentId),
+      { progressPercent, status }
+    );
+
+    const deptRow = updated.sub_departments.find(d => Number(d.department_id) === Number(departmentId));
+    const deptName = deptRow ? deptRow.department_name : `Dept ${departmentId}`;
+
+    await ticketRepo.logAction(
+      ticketId, user.id, 'status_changed',
+      null,
+      `${deptName}: ${updated.overall_progress}% overall`,
+      `${user.name} updated ${deptName} progress to ${deptRow?.progress_percent ?? progressPercent}%`
+    );
+
+    const participants = await ticketRepo.getTicketParticipants(ticketId);
+    await this._dispatch(
+      ticketId, participants.filter(id => id !== user.id),
+      `Sub-Ticket #${ticketId}: ${deptName} progress updated (${updated.overall_progress}% complete)`,
+      'SUB_TICKET_PROGRESS', { ticket: updated }
+    );
+
+    return updated;
   }
 
   async updateStatus(ticketId, newStatus, user) {
@@ -208,6 +308,10 @@ class TicketService {
     if (!ticketBeforeUpdate) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticketBeforeUpdate.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
+    if (ticketBeforeUpdate.is_sub_ticket) {
+      throw { statusCode: 400, message: 'Sub-tickets cannot be transferred. Update department progress instead.' };
+    }
+
     // Actions are disabled for completed or closed tickets
     if (ticketBeforeUpdate.status === 'completed' || ticketBeforeUpdate.status === 'closed') {
       throw { statusCode: 400, message: 'Cannot transfer a ticket that is already completed or closed' };
@@ -332,7 +436,8 @@ class TicketService {
   }
 
   async getSentTickets(user) {
-    return await ticketRepo.getSentTicketsByDepartment(user.department_id);
+    const tickets = await ticketRepo.getSentTicketsByDepartment(user.department_id);
+    return await ticketRepo.enrichTicketsWithSubData(tickets);
   }
 
   async getDepartmentAnalytics(departmentId) {

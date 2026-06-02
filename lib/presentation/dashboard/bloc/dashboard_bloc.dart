@@ -21,6 +21,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<TransferTicket>(_onTransfer);
     on<ReopenTicket>(_onReopen);
     on<CreateTicketEvent>(_onCreate);
+    on<CreateSubTicketEvent>(_onCreateSubTicket);
+    on<UpdateSubDeptProgressEvent>(_onUpdateSubDeptProgress);
     on<SidebarSelectedIndexEvent>(_onSelectedIndex);
     on<LoadManagerAnalytics>(_onLoadManagerAnalytics);
     on<LoadCeoAnalytics>(_onLoadCeoAnalytics);
@@ -245,6 +247,45 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
       emit(TicketActionSuccess('Ticket created!', prev));
 
+      add(LoadDashboard());
+    } catch (e) {
+      emit(TicketActionError(e.toString(), prev));
+    }
+  }
+
+  Future<void> _onCreateSubTicket(
+    CreateSubTicketEvent event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final prev = state as DashboardLoaded;
+    try {
+      await _dataSource.createSubTicket(
+        title: event.title,
+        description: event.description,
+        priority: event.priority,
+        departments: event.departments,
+        dueDate: event.dueDate,
+      );
+      emit(TicketActionSuccess('Sub-ticket created!', prev));
+      add(LoadDashboard());
+    } catch (e) {
+      emit(TicketActionError(e.toString(), prev));
+    }
+  }
+
+  Future<void> _onUpdateSubDeptProgress(
+    UpdateSubDeptProgressEvent event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final prev = state as DashboardLoaded;
+    try {
+      await _dataSource.updateSubDeptProgress(
+        ticketId: event.ticketId,
+        departmentId: event.departmentId,
+        progressPercent: event.progressPercent,
+        status: event.status,
+      );
+      emit(TicketActionSuccess('Department progress updated!', prev));
       add(LoadDashboard());
     } catch (e) {
       emit(TicketActionError(e.toString(), prev));

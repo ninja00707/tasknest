@@ -44,12 +44,9 @@ class _CreateTicketViewState extends State<CreateTicketView> {
     final canAssignEmployee =
         widget.user.roleId == 0 || widget.user.roleId == 1;
 
-    return SizedBox(
-      height: MediaQuery.sizeOf(context).height,
-      width: MediaQuery.sizeOf(context).width,
-      child: SingleChildScrollView(
-        padding: EdgeInsets.all(isWide ? 28 : 16).copyWith(bottom: 48),
-        child: Column(
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(isWide ? 28 : 16).copyWith(bottom: 48),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
@@ -100,7 +97,6 @@ class _CreateTicketViewState extends State<CreateTicketView> {
             ),
           ],
         ),
-      ),
     );
   }
 

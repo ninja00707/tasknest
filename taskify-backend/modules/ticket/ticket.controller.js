@@ -55,6 +55,29 @@ class TicketController {
     }
   }
 
+  async createSubTicket(req, res, next) {
+    try {
+      const ticket = await ticketService.createSubTicket(req.body, req.user);
+      res.status(201).json({ success: true, data: ticket });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async updateSubDeptProgress(req, res, next) {
+    try {
+      const ticket = await ticketService.updateSubDeptProgress(
+        req.params.id,
+        req.params.deptId,
+        req.body,
+        req.user
+      );
+      res.json({ success: true, data: ticket });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async updateStatus(req, res, next) {
     try {
       const ticket = await ticketService.updateStatus(

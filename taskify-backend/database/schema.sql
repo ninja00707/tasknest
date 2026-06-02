@@ -107,8 +107,27 @@ CREATE TABLE tickets (
   reopen_count      INT           DEFAULT 0,
 
   due_date          DATE,
+  is_sub_ticket     BOOLEAN       DEFAULT FALSE,
+  overall_progress  INT           DEFAULT 0 CHECK (overall_progress >= 0 AND overall_progress <= 100),
   created_at        TIMESTAMPTZ   DEFAULT NOW(),
   updated_at        TIMESTAMPTZ   DEFAULT NOW()
+);
+
+-- ── Sub-Ticket Department Assignments ─────────────────────────
+CREATE TABLE sub_ticket_departments (
+  id                SERIAL PRIMARY KEY,
+  ticket_id         INT           NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+  department_id     INT           NOT NULL REFERENCES departments(id),
+  task_description  TEXT          NOT NULL,
+  status            VARCHAR(20)   NOT NULL DEFAULT 'open'
+                    CHECK (status IN ('open','in_progress','completed')),
+  progress_percent  INT           NOT NULL DEFAULT 0
+                    CHECK (progress_percent >= 0 AND progress_percent <= 100),
+  assigned_to_id    INT           REFERENCES users(id),
+  completed_at      TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ   DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ   DEFAULT NOW(),
+  UNIQUE(ticket_id, department_id)
 );
 
 -- ── Ticket Comments ──────────────────────────────────────────
@@ -146,7 +165,14 @@ CREATE TABLE notifications (
 CREATE INDEX idx_tickets_dept    ON tickets(assigned_dept_id);
 CREATE INDEX idx_tickets_status  ON tickets(status);
 CREATE INDEX idx_tickets_creator ON tickets(created_by_id);
+CREATE INDEX idx_tickets_sub     ON tickets(is_sub_ticket);
+CREATE INDEX idx_sub_ticket_dept ON sub_ticket_departments(ticket_id);
+CREATE INDEX idx_sub_ticket_dept_id ON sub_ticket_departments(department_id);
 CREATE INDEX idx_notifications   ON notifications(user_id, is_read);
+
+CREATE TRIGGER sub_ticket_departments_updated_at
+  BEFORE UPDATE ON sub_ticket_departments
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 
 -- ── Auto-update updated_at ───────────────────────────────────

@@ -10,6 +10,7 @@ import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_action.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/sub_ticket_detail_section.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_history_timeline.dart';
 
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
@@ -204,6 +205,10 @@ class _WideLayout extends StatelessWidget {
     return Column(
       children: [
         _HeroCard(ticket: ticket),
+        if (ticket.isSubTicket) ...[
+          const SizedBox(height: 24),
+          SubTicketDetailSection(ticket: ticket, user: user),
+        ],
         const SizedBox(height: 24),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,6 +238,10 @@ class _NarrowLayout extends StatelessWidget {
     return Column(
       children: [
         _HeroCard(ticket: ticket),
+        if (ticket.isSubTicket) ...[
+          const SizedBox(height: 20),
+          SubTicketDetailSection(ticket: ticket, user: user),
+        ],
         const SizedBox(height: 20),
         _MainInfoColumn(ticket: ticket),
         const SizedBox(height: 20),
@@ -538,9 +547,18 @@ class _SidePanelColumn extends StatelessWidget {
         _SectionCard(
           icon: Icons.bolt_rounded,
           title: 'Actions',
-          child: Center(
-            child: TicketActions(ticket: ticket, user: user),
-          ),
+          child: ticket.isSubTicket
+              ? const Text(
+                  'Update your department progress in the breakdown section above.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: ThemeColors.unifiedTextMuted,
+                    height: 1.5,
+                  ),
+                )
+              : Center(
+                  child: TicketActions(ticket: ticket, user: user),
+                ),
         ),
         const SizedBox(height: 16),
         _SectionCard(

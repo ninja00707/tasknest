@@ -9,6 +9,7 @@ class TicketRepository {
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.closed_at, t.reopened_at, t.reopen_count,
+        t.is_sub_ticket, t.overall_progress,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -59,7 +60,17 @@ class TicketRepository {
       whereClause = 'WHERE 1=1';
     } else {
       params.push(user.department_id);
-      whereClause = `WHERE t.assigned_dept_id = $${params.length}`;
+      const deptParam = `$${params.length}`;
+      whereClause = `WHERE (
+        t.assigned_dept_id = ${deptParam}
+        OR t.created_by_dept = ${deptParam}
+        OR (
+          t.is_sub_ticket = TRUE AND EXISTS (
+            SELECT 1 FROM sub_ticket_departments std
+            WHERE std.ticket_id = t.id AND std.department_id = ${deptParam}
+          )
+        )
+      )`;
     }
 
     if (status) {
@@ -80,6 +91,7 @@ class TicketRepository {
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.reopen_count, t.closed_at,
+        t.is_sub_ticket, t.overall_progress,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -148,6 +160,7 @@ class TicketRepository {
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.reopen_count, t.closed_at,
+        t.is_sub_ticket, t.overall_progress,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -189,7 +202,16 @@ class TicketRepository {
 
     if (user.role !== 'ceo') {
       params.push(user.department_id);
-      whereClause = `WHERE assigned_dept_id = $1`;
+      whereClause = `WHERE (
+        assigned_dept_id = $1
+        OR created_by_dept = $1
+        OR (
+          is_sub_ticket = TRUE AND EXISTS (
+            SELECT 1 FROM sub_ticket_departments std
+            WHERE std.ticket_id = tickets.id AND std.department_id = $1
+          )
+        )
+      )`;
     }
 
     const result = await pool.query(`
@@ -218,14 +240,21 @@ class TicketRepository {
       return ticket;
     }
 
-    // Ensure numeric comparison to avoid type mismatch
     const isCreatorDept = Number(ticket.created_by_dept) === Number(user.department_id);
     const isAssignedDept = Number(ticket.assigned_dept_id) === Number(user.department_id);
     const isTransferrer  = Number(ticket.transferred_from) === Number(user.department_id);
     const isResolver = ticket.assigned_to_id === user.id;
 
-    // Permission: Current Dept OR Creator Dept OR Previous Transferrer OR the Resolver
-    if (!isAssignedDept && !isCreatorDept && !isTransferrer && !isResolver) {
+    let isSubTicketDept = false;
+    if (ticket.is_sub_ticket) {
+      const subDeptCheck = await pool.query(
+        `SELECT 1 FROM sub_ticket_departments WHERE ticket_id = $1 AND department_id = $2 LIMIT 1`,
+        [ticketId, user.department_id]
+      );
+      isSubTicketDept = subDeptCheck.rows.length > 0;
+    }
+
+    if (!isAssignedDept && !isCreatorDept && !isTransferrer && !isResolver && !isSubTicketDept) {
       return { forbidden: true };
     }
 
@@ -420,6 +449,7 @@ class TicketRepository {
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.reopen_count, t.closed_at,
+        t.is_sub_ticket, t.overall_progress,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -516,6 +546,194 @@ class TicketRepository {
     `, [ticketId]);
 
     return result.rows;
+  }
+
+  // ── Sub-Ticket: get department assignments ────────────────────────────────
+  async getSubTicketDepartments(ticketId) {
+    const result = await pool.query(`
+      SELECT
+        std.id, std.ticket_id, std.department_id, std.task_description,
+        std.status, std.progress_percent, std.assigned_to_id, std.completed_at,
+        std.created_at, std.updated_at,
+        d.name AS department_name, d.code AS department_code,
+        u.name AS assigned_to_name
+      FROM sub_ticket_departments std
+      JOIN departments d ON d.id = std.department_id
+      LEFT JOIN users u ON u.id = std.assigned_to_id
+      WHERE std.ticket_id = $1
+      ORDER BY d.name ASC
+    `, [ticketId]);
+    return result.rows;
+  }
+
+  async enrichTicketWithSubData(ticket) {
+    if (!ticket || !ticket.is_sub_ticket) return ticket;
+    const departments = await this.getSubTicketDepartments(ticket.id);
+    ticket.sub_departments = departments;
+    ticket.department_count = departments.length;
+    ticket.completed_department_count = departments.filter(d => d.status === 'completed').length;
+    return ticket;
+  }
+
+  async enrichTicketsWithSubData(tickets) {
+    const subTickets = tickets.filter(t => t.is_sub_ticket);
+    if (subTickets.length === 0) return tickets;
+
+    const ids = subTickets.map(t => t.id);
+    const result = await pool.query(`
+      SELECT
+        std.id, std.ticket_id, std.department_id, std.task_description,
+        std.status, std.progress_percent, std.assigned_to_id, std.completed_at,
+        d.name AS department_name, d.code AS department_code,
+        u.name AS assigned_to_name
+      FROM sub_ticket_departments std
+      JOIN departments d ON d.id = std.department_id
+      LEFT JOIN users u ON u.id = std.assigned_to_id
+      WHERE std.ticket_id = ANY($1::int[])
+      ORDER BY std.ticket_id, d.name ASC
+    `, [ids]);
+
+    const byTicket = {};
+    for (const row of result.rows) {
+      if (!byTicket[row.ticket_id]) byTicket[row.ticket_id] = [];
+      byTicket[row.ticket_id].push(row);
+    }
+
+    return tickets.map(t => {
+      if (!t.is_sub_ticket) return t;
+      const depts = byTicket[t.id] || [];
+      return {
+        ...t,
+        sub_departments: depts,
+        department_count: depts.length,
+        completed_department_count: depts.filter(d => d.status === 'completed').length,
+      };
+    });
+  }
+
+  async _recalculateSubTicketProgress(ticketId, client = pool) {
+    const agg = await client.query(`
+      SELECT
+        COALESCE(ROUND(AVG(progress_percent)), 0)::int AS avg_progress,
+        COUNT(*) FILTER (WHERE status = 'completed') AS completed_count,
+        COUNT(*) AS total_count,
+        COUNT(*) FILTER (WHERE status = 'in_progress') AS in_progress_count
+      FROM sub_ticket_departments
+      WHERE ticket_id = $1
+    `, [ticketId]);
+
+    const { avg_progress, completed_count, total_count, in_progress_count } = agg.rows[0];
+    let newStatus = 'open';
+    if (Number(completed_count) === Number(total_count) && total_count > 0) {
+      newStatus = 'completed';
+    } else if (Number(in_progress_count) > 0 || Number(avg_progress) > 0) {
+      newStatus = 'in_progress';
+    }
+
+    await client.query(`
+      UPDATE tickets
+      SET overall_progress = $1, status = $2,
+          closed_at = CASE WHEN $2 = 'completed' THEN NOW() ELSE closed_at END
+      WHERE id = $3 AND is_sub_ticket = TRUE
+    `, [avg_progress, newStatus, ticketId]);
+
+    return { avg_progress, newStatus };
+  }
+
+  async createSubTicket({ title, description, priority, dueDate, createdBy, departments }) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const ticketResult = await client.query(`
+        INSERT INTO tickets
+          (title, description, priority, assigned_dept_id, due_date,
+           created_by_id, created_by_dept, status, is_sub_ticket, overall_progress)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', TRUE, 0)
+        RETURNING id
+      `, [
+        title, description, priority,
+        createdBy.department_id,
+        dueDate || null,
+        createdBy.id,
+        createdBy.department_id,
+      ]);
+
+      const ticketId = ticketResult.rows[0].id;
+
+      for (const dept of departments) {
+        await client.query(`
+          INSERT INTO sub_ticket_departments
+            (ticket_id, department_id, task_description, status, progress_percent)
+          VALUES ($1, $2, $3, 'open', 0)
+        `, [ticketId, dept.departmentId, dept.taskDescription]);
+      }
+
+      await client.query('COMMIT');
+      const ticket = await this.getTicketDetails(ticketId);
+      return await this.enrichTicketWithSubData(ticket);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async updateSubDeptProgress(ticketId, departmentId, { progressPercent, status }) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const updates = [];
+      const params = [ticketId, departmentId];
+      let paramIdx = 3;
+
+      if (progressPercent != null) {
+        updates.push(`progress_percent = $${paramIdx}`);
+        params.push(Math.min(100, Math.max(0, Number(progressPercent))));
+        paramIdx++;
+      }
+
+      if (status != null) {
+        updates.push(`status = $${paramIdx}`);
+        params.push(status);
+        paramIdx++;
+        if (status === 'completed') {
+          updates.push(`completed_at = NOW()`);
+          updates.push(`progress_percent = 100`);
+        } else if (status === 'in_progress' && progressPercent == null) {
+          updates.push(`progress_percent = GREATEST(progress_percent, 1)`);
+        }
+      }
+
+      if (updates.length === 0) {
+        throw new Error('No updates provided');
+      }
+
+      const result = await client.query(`
+        UPDATE sub_ticket_departments
+        SET ${updates.join(', ')}
+        WHERE ticket_id = $1 AND department_id = $2
+        RETURNING *
+      `, params);
+
+      if (result.rows.length === 0) {
+        throw new Error('Department assignment not found');
+      }
+
+      await this._recalculateSubTicketProgress(ticketId, client);
+
+      await client.query('COMMIT');
+
+      const ticket = await this.getTicketDetails(ticketId);
+      return await this.enrichTicketWithSubData(ticket);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   // ── Get analytics grouped by department ──────────────────────────────────

@@ -134,4 +134,40 @@ class TicketRemoteDataSource {
     ); // Changed endpoint to be more specific
     return res['data'] ?? [];
   }
+
+  Future<TicketModel> createSubTicket({
+    required String title,
+    required String description,
+    required String priority,
+    required List<Map<String, dynamic>> departments,
+    String? dueDate,
+  }) async {
+    final res = await _api.post(
+      'tickets/sub-tickets',
+      body: {
+        'title': title,
+        'description': description,
+        'priority': priority,
+        'departments': departments,
+        if (dueDate != null) 'dueDate': dueDate,
+      },
+    );
+    return TicketModel.fromJson(res['data']);
+  }
+
+  Future<TicketModel> updateSubDeptProgress({
+    required int ticketId,
+    required int departmentId,
+    int? progressPercent,
+    String? status,
+  }) async {
+    final res = await _api.patch(
+      'tickets/$ticketId/sub-departments/$departmentId',
+      body: {
+        if (progressPercent != null) 'progressPercent': progressPercent,
+        if (status != null) 'status': status,
+      },
+    );
+    return TicketModel.fromJson(res['data']);
+  }
 }
