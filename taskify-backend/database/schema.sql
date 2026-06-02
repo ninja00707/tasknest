@@ -120,7 +120,7 @@ CREATE TABLE sub_ticket_departments (
   department_id     INT           NOT NULL REFERENCES departments(id),
   task_description  TEXT          NOT NULL,
   status            VARCHAR(20)   NOT NULL DEFAULT 'open'
-                    CHECK (status IN ('open','in_progress','completed','pending_approval')),
+                    CHECK (status IN ('open','in_progress','completed','pending_approval','approved')),
   progress_percent  INT           NOT NULL DEFAULT 0
                     CHECK (progress_percent >= 0 AND progress_percent <= 100),
   assigned_to_id    INT           REFERENCES users(id),

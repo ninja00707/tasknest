@@ -22,6 +22,8 @@ router.post('/sub-tickets', isDepManager, controller.createSubTicket);
 router.patch('/:id/sub-departments/:deptId', controller.updateSubDeptProgress);
 router.patch('/:id/sub-departments/:deptId/assign', isManager, controller.assignSubDeptToEmployee);
 router.patch('/:id/sub-departments/:deptId/self-assign', controller.selfAssignSubDept);
+router.post('/:id/complete', controller.completeSubTicket);
+router.patch('/:id/sub-departments/:deptId/reopen', controller.reopenSubDept);
 
 // ── CRUD ──────────────────────────────────────────────────────
 router.get('/', controller.getTickets);

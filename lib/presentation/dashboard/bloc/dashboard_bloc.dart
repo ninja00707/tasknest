@@ -25,6 +25,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<UpdateSubDeptProgressEvent>(_onUpdateSubDeptProgress);
     on<AssignSubDeptEmployeeEvent>(_onAssignSubDeptEmployee);
     on<SelfAssignSubDept>(_onSelfAssignSubDept);
+    on<CompleteSubTicket>(_onCompleteSubTicket);
+    on<ReopenSubDept>(_onReopenSubDept);
     on<AddTicketComment>(_onAddComment);
     on<SidebarSelectedIndexEvent>(_onSelectedIndex);
     on<LoadManagerAnalytics>(_onLoadManagerAnalytics);
@@ -326,6 +328,36 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       await _dataSource.selfAssignSubDept(event.ticketId, event.departmentId);
       emit(TicketActionSuccess('Task self-assigned!', prev));
+      add(LoadDashboard());
+    } catch (e) {
+      emit(TicketActionError(e.toString(), prev));
+    }
+  }
+
+  // ── Reopen Sub-Dept (creator only, 48h window) ────────────────
+  Future<void> _onReopenSubDept(
+    ReopenSubDept event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final prev = state as DashboardLoaded;
+    try {
+      await _dataSource.reopenSubDept(event.ticketId, event.departmentId);
+      emit(TicketActionSuccess('Department task reopened!', prev));
+      add(LoadDashboard());
+    } catch (e) {
+      emit(TicketActionError(e.toString(), prev));
+    }
+  }
+
+  // ── Complete Sub-Ticket (creator finalizes) ───────────────────
+  Future<void> _onCompleteSubTicket(
+    CompleteSubTicket event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final prev = state as DashboardLoaded;
+    try {
+      await _dataSource.completeSubTicket(event.ticketId);
+      emit(TicketActionSuccess('Sub-ticket completed!', prev));
       add(LoadDashboard());
     } catch (e) {
       emit(TicketActionError(e.toString(), prev));

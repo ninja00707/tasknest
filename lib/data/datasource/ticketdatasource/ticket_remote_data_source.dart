@@ -194,6 +194,19 @@ class TicketRemoteDataSource {
     return TicketModel.fromJson(res['data']);
   }
 
+  Future<TicketModel> completeSubTicket(int ticketId) async {
+    final res = await _api.post('tickets/$ticketId/complete', body: {});
+    return TicketModel.fromJson(res['data']);
+  }
+
+  Future<TicketModel> reopenSubDept(int ticketId, int departmentId) async {
+    final res = await _api.patch(
+      'tickets/$ticketId/sub-departments/$departmentId/reopen',
+      body: {},
+    );
+    return TicketModel.fromJson(res['data']);
+  }
+
   Future<void> addComment(int ticketId, String message) async {
     await _api.post('tickets/$ticketId/comments', body: {'message': message});
   }

@@ -17,6 +17,15 @@ class SubTicketDetailSection extends StatelessWidget {
     required this.user,
   });
 
+  bool _canCompleteTicket(UserModel user, TicketModel t) {
+    if (t.isClosed || t.isCompleted) return false;
+    final isCreator = t.createdById == user.id;
+    final isCeo = user.roleId == 0;
+    if (!isCreator && !isCeo) return false;
+    if (t.subDepartments.isEmpty) return false;
+    return t.subDepartments.every((d) => d.isApproved || d.isCompleted);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -122,6 +131,30 @@ class SubTicketDetailSection extends StatelessWidget {
                     user: user,
                   ),
                 ),
+                // ── Creator "Complete Ticket" Button ────────────
+                if (_canCompleteTicket(user, ticket))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => context.read<DashboardBloc>().add(
+                          CompleteSubTicket(ticket.id),
+                        ),
+                        icon: const Icon(Icons.verified, size: 20),
+                        label: const Text('Complete Ticket'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF16A34A),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -147,8 +180,15 @@ class _DeptProgressCard extends StatefulWidget {
 }
 
 class _DeptProgressCardState extends State<_DeptProgressCard> {
+  final _formKey = GlobalKey<FormState>();
   final _noteController = TextEditingController();
   int? _selectedEmployeeId;
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
 
   bool get _isAssignedToMe =>
       widget.dept.assignedToId == widget.user.id && widget.dept.isAssigned;
@@ -159,11 +199,12 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
   bool get _isManager => widget.user.roleId == 1;
   bool get _isCeo => widget.user.roleId == 0;
   bool get _isEmployee => widget.user.roleId == 2;
+  bool get _isCreator => widget.ticket.createdById == widget.user.id;
 
   bool get _canEdit {
     if (widget.ticket.isClosed || widget.ticket.isCompleted) return false;
     if (_isCeo) return true;
-    if (widget.dept.isCompleted) return false;
+    if (widget.dept.isCompleted || widget.dept.isApproved) return false;
     return _isMyDept || _isAssignedToMe || widget.user.departmentId == widget.ticket.assignedDeptId;
   }
 
@@ -171,9 +212,24 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
   bool get _canMarkDone =>
       _canEdit && widget.dept.isInProgress && _isAssignedToMe;
 
-  // pending_approval -> completed: only manager/ceo
+  // pending_approval -> approved: only this department's manager or CEO
   bool get _canApprove =>
-      _canEdit && widget.dept.isPendingApproval && (_isManager || _isCeo);
+      _canEdit && widget.dept.isPendingApproval && (_isManager || _isCeo) && _isMyDept;
+
+  // Creator can reopen an approved/completed department (48h, once)
+  bool get _canCreatorReopen {
+    if (!_isCreator && !_isCeo) return false;
+    if (!widget.dept.isApproved && !widget.dept.isCompleted) return false;
+    return true;
+  }
+
+  // Creator can complete the overall ticket when all depts are approved/completed
+  bool get _canCompleteTicket {
+    if (widget.ticket.isClosed || widget.ticket.isCompleted) return false;
+    if (!_isCreator && !_isCeo) return false;
+    if (widget.ticket.subDepartments.isEmpty) return false;
+    return widget.ticket.subDepartments.every((d) => d.isApproved || d.isCompleted);
+  }
 
   // Self-assign: employee in same dept, task is open and unassigned
   bool get _canSelfAssign =>
@@ -184,6 +240,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
       _isManager && _isMyDept && widget.dept.isOpen && !widget.dept.isAssigned;
 
   void _markDone() {
+    if (!_formKey.currentState!.validate()) return;
     context.read<DashboardBloc>().add(
       UpdateSubDeptProgressEvent(
         ticketId: widget.ticket.id,
@@ -199,7 +256,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
       UpdateSubDeptProgressEvent(
         ticketId: widget.ticket.id,
         departmentId: widget.dept.departmentId,
-        status: 'completed',
+        status: 'approved',
         note: 'Approved by ${widget.user.name}',
       ),
     );
@@ -208,6 +265,21 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
   void _selfAssign() {
     context.read<DashboardBloc>().add(
       SelfAssignSubDept(widget.ticket.id, widget.dept.departmentId),
+    );
+  }
+
+  void _completeTicket() {
+    context.read<DashboardBloc>().add(
+      CompleteSubTicket(widget.ticket.id),
+    );
+  }
+
+  void _reopenDept() {
+    context.read<DashboardBloc>().add(
+      ReopenSubDept(
+        ticketId: widget.ticket.id,
+        departmentId: widget.dept.departmentId,
+      ),
     );
   }
 
@@ -227,6 +299,8 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
     final dept = widget.dept;
     final statusColor = dept.isCompleted
         ? const Color(0xFF16A34A)
+        : dept.isApproved
+        ? const Color(0xFF2563EB)
         : dept.isPendingApproval
         ? const Color(0xFFF59E0B)
         : dept.isInProgress
@@ -235,6 +309,8 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
 
     final statusLabel = dept.isCompleted
         ? 'COMPLETED'
+        : dept.isApproved
+        ? 'APPROVED'
         : dept.isPendingApproval
         ? 'PENDING APPROVAL'
         : dept.isInProgress
@@ -413,16 +489,23 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
           // ── Mark as Done (in_progress + assigned employee) ──
           if (_canMarkDone) ...[
             const SizedBox(height: 10),
-            TextField(
-              controller: _noteController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Last comment before marking as done (required)',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
+            Form(
+              key: _formKey,
+              child: TextFormField(
+                controller: _noteController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Last comment before marking as done (required)',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  filled: true,
+                  fillColor: ThemeColors.unifiedInputBg,
                 ),
-                filled: true,
-                fillColor: ThemeColors.unifiedInputBg,
+                validator: (value) =>
+                    value == null || value.trim().isEmpty
+                        ? 'A completion remark is required'
+                        : null,
               ),
             ),
             const SizedBox(height: 8),
@@ -465,7 +548,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
                 ),
               ),
             ),
-          // ── Info for pending_approval state ────────────────────
+          // ── Info for pending_approval state (non-manager view) ──
           if (dept.isPendingApproval && !_canApprove)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -486,6 +569,52 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
                       ),
                     ),
                   ],
+                ),
+              ),
+            ),
+          // ── Info for approved state (non-creator view) ──────────
+          if (dept.isApproved && !_isCreator && !_isCeo)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDBEAFE),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF1E40AF)),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Manager approved. Waiting for creator to finalize.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF1E40AF)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          // ── Creator Reopen Button (approved/completed) ─────────
+          if (_canCreatorReopen)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _reopenDept,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Reopen this Department'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFDC2626),
+                    side: const BorderSide(color: Color(0xFFDC2626)),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                 ),
               ),
             ),

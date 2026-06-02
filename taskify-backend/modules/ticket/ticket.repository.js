@@ -573,7 +573,7 @@ class TicketRepository {
     const departments = await this.getSubTicketDepartments(ticket.id);
     ticket.sub_departments = departments;
     ticket.department_count = departments.length;
-    ticket.completed_department_count = departments.filter(d => d.status === 'completed').length;
+    ticket.completed_department_count = departments.filter(d => d.status === 'completed' || d.status === 'approved').length;
     return ticket;
   }
 
@@ -608,7 +608,7 @@ class TicketRepository {
         ...t,
         sub_departments: depts,
         department_count: depts.length,
-        completed_department_count: depts.filter(d => d.status === 'completed').length,
+        completed_department_count: depts.filter(d => d.status === 'completed' || d.status === 'approved').length,
       };
     });
   }
@@ -617,14 +617,15 @@ class TicketRepository {
     const agg = await client.query(`
       SELECT
         COALESCE(ROUND(AVG(progress_percent)), 0)::int AS avg_progress,
-        COUNT(*) FILTER (WHERE status = 'completed') AS completed_count,
+        COUNT(*) FILTER (WHERE status IN ('completed')) AS completed_count,
+        COUNT(*) FILTER (WHERE status IN ('approved')) AS approved_count,
         COUNT(*) AS total_count,
         COUNT(*) FILTER (WHERE status IN ('in_progress', 'pending_approval')) AS in_progress_count
       FROM sub_ticket_departments
       WHERE ticket_id = $1
     `, [ticketId]);
 
-    const { avg_progress, completed_count, total_count, in_progress_count } = agg.rows[0];
+    const { avg_progress, completed_count, approved_count, total_count, in_progress_count } = agg.rows[0];
     let newStatus = 'open';
     if (Number(completed_count) === Number(total_count) && total_count > 0) {
       newStatus = 'completed';
@@ -634,12 +635,11 @@ class TicketRepository {
 
     await client.query(`
       UPDATE tickets
-      SET overall_progress = $1, status = $2,
-          closed_at = CASE WHEN $4 THEN NOW() ELSE closed_at END
+      SET overall_progress = $1, status = $2
       WHERE id = $3 AND is_sub_ticket = TRUE
-    `, [avg_progress, newStatus, ticketId, newStatus === 'completed']);
+    `, [avg_progress, newStatus, ticketId]);
 
-    return { avg_progress, newStatus };
+    return { avg_progress, newStatus, approved_count };
   }
 
   async createSubTicket({ title, description, priority, dueDate, createdBy, departments }) {
@@ -699,6 +699,9 @@ class TicketRepository {
         paramIdx++;
         if (status === 'completed') {
           updates.push(`completed_at = NOW()`);
+          updates.push(`progress_percent = 100`);
+          updates.push(`updated_at = NOW()`);
+        } else if (status === 'approved') {
           updates.push(`progress_percent = 100`);
           updates.push(`updated_at = NOW()`);
         } else if (status === 'pending_approval') {
@@ -769,6 +772,59 @@ class TicketRepository {
     await this._recalculateSubTicketProgress(ticketId);
     const ticket = await this.getTicketDetails(ticketId);
     return await this.enrichTicketWithSubData(ticket);
+  }
+
+  async completeSubTicket(ticketId, userId) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      await client.query(`
+        UPDATE sub_ticket_departments
+        SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+        WHERE ticket_id = $1 AND status = 'approved'
+      `, [ticketId]);
+
+      await client.query(`
+        UPDATE tickets
+        SET status = 'completed', overall_progress = 100, closed_at = NOW()
+        WHERE id = $1 AND is_sub_ticket = TRUE
+      `, [ticketId]);
+
+      await client.query('COMMIT');
+
+      const ticket = await this.getTicketDetails(ticketId);
+      return await this.enrichTicketWithSubData(ticket);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async reopenSubDept(ticketId, departmentId) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      await client.query(`
+        UPDATE sub_ticket_departments
+        SET status = 'in_progress', progress_percent = 1,
+            completed_at = NULL, updated_at = NOW()
+        WHERE ticket_id = $1 AND department_id = $2
+      `, [ticketId, departmentId]);
+
+      await client.query('COMMIT');
+
+      const ticket = await this.getTicketDetails(ticketId);
+      return await this.enrichTicketWithSubData(ticket);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   // ── Get analytics grouped by department ──────────────────────────────────

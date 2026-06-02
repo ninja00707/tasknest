@@ -168,8 +168,8 @@ class TicketService {
     if (!deptRow) throw { statusCode: 404, message: 'Department task not found in this sub-ticket' };
 
     const { status, note } = data;
-    if (!['open', 'in_progress', 'pending_approval', 'completed'].includes(status)) {
-      throw { statusCode: 400, message: 'Status must be open, in_progress, pending_approval, or completed' };
+    if (!['open', 'in_progress', 'pending_approval', 'approved', 'completed'].includes(status)) {
+      throw { statusCode: 400, message: 'Status must be open, in_progress, pending_approval, approved, or completed' };
     }
 
     const isAssignedEmployee = Number(deptRow.assigned_to_id) === Number(user.id);
@@ -184,11 +184,18 @@ class TicketService {
         throw { statusCode: 400, message: 'A completion remark is required when marking as done' };
       }
     }
-    // pending_approval -> completed: only manager/ceo (approve)
-    if (status === 'completed') {
-      if (!isManager && !isCeo && !isCreatorDept) {
+    // pending_approval -> approved: only the department's manager or CEO
+    if (status === 'approved') {
+      if (!isManager && !isCeo) {
         throw { statusCode: 403, message: 'Only a manager can approve completed work' };
       }
+      if (!isTargetDept && !isCeo) {
+        throw { statusCode: 403, message: 'You can only approve work for your own department' };
+      }
+    }
+    // completed: only CEO override (normal flow uses pending_approval -> approved -> creator completes)
+    if (status === 'completed' && !isCeo) {
+      throw { statusCode: 403, message: 'Only CEO can directly complete a department task' };
     }
     // completed -> open: only ceo (reopen)
     if (status === 'open' && deptRow.status === 'completed' && !isCeo) {
@@ -206,8 +213,10 @@ class TicketService {
     // Log the progress change
     const progressLog = status === 'pending_approval'
       ? `${user.name} submitted ${deptName} work as done${note ? `. Remark: ${note}` : ''}`
+      : status === 'approved'
+      ? `${user.name} approved ${deptName} work`
       : status === 'completed'
-      ? `${user.name} approved ${deptName} completion`
+      ? `${user.name} marked ${deptName} as completed`
       : `${user.name} changed ${deptName} status from ${deptRow.status} to ${status}${note ? `. Remark: ${note}` : ''}`;
 
     await ticketRepo.logAction(
@@ -222,8 +231,10 @@ class TicketService {
       let commentMsg;
       if (status === 'pending_approval') {
         commentMsg = `[DEPT COMPLETION - ${deptName}]: ${note.trim()}`;
-      } else if (status === 'completed') {
+      } else if (status === 'approved') {
         commentMsg = `[DEPT APPROVED - ${deptName}]: Approved by ${user.name}`;
+      } else if (status === 'completed') {
+        commentMsg = `[DEPT COMPLETED - ${deptName}]: Finalized by ${user.name}`;
       } else {
         commentMsg = `[DEPT PROGRESS - ${deptName}]: ${note.trim()}`;
       }
@@ -231,8 +242,10 @@ class TicketService {
       await ticketRepo.logAction(
         ticketId, user.id, 'comment_added', null,
         commentMsg.substring(0, 100),
-        status === 'completed'
+        status === 'approved'
           ? `Manager ${user.name} approved ${deptName} work`
+          : status === 'completed'
+          ? `CEO ${user.name} finalized ${deptName}`
           : `Note added by ${user.name} for ${deptName}`
       );
     }
@@ -325,6 +338,104 @@ class TicketService {
         'SUB_TICKET_ASSIGNED'
       );
     }
+
+    return updated;
+  }
+
+  async completeSubTicket(ticketId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    if (!ticket.is_sub_ticket) throw { statusCode: 400, message: 'This is not a sub-ticket' };
+
+    const isCreator = Number(ticket.created_by_id) === Number(user.id);
+    if (!isCreator && user.role !== 'ceo') {
+      throw { statusCode: 403, message: 'Only the ticket creator can mark the overall ticket as done' };
+    }
+
+    const allApprovedOrCompleted = ticket.sub_departments.every(
+      d => d.status === 'approved' || d.status === 'completed'
+    );
+    if (!allApprovedOrCompleted) {
+      throw { statusCode: 400, message: 'All departments must be approved before completing the ticket' };
+    }
+
+    const updated = await ticketRepo.completeSubTicket(ticketId, user.id);
+
+    const doneDepts = ticket.sub_departments.map(d => d.department_name || `Dept ${d.department_id}`).join(', ');
+    await ticketRepo.logAction(
+      ticketId, user.id, 'status_changed',
+      'in_progress', 'completed',
+      `Creator ${user.name} marked the sub-ticket as completed. Departments: ${doneDepts}`
+    );
+
+    const participants = await ticketRepo.getTicketParticipants(ticketId);
+    await this._dispatch(
+      ticketId, participants.filter(id => id !== user.id),
+      `Sub-Ticket #${ticketId} has been completed by the creator`,
+      'SUB_TICKET_COMPLETED', { ticket: updated }
+    );
+
+    return updated;
+  }
+
+  async reopenSubDept(ticketId, departmentId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    if (!ticket.is_sub_ticket) throw { statusCode: 400, message: 'This is not a sub-ticket' };
+
+    const isCreator = Number(ticket.created_by_id) === Number(user.id);
+    if (!isCreator && user.role !== 'ceo') {
+      throw { statusCode: 403, message: 'Only the ticket creator can reopen a department task' };
+    }
+
+    const deptRow = ticket.sub_departments.find(d => Number(d.department_id) === Number(departmentId));
+    if (!deptRow) throw { statusCode: 404, message: 'Department task not found in this sub-ticket' };
+
+    if (deptRow.status !== 'approved' && deptRow.status !== 'completed') {
+      throw { statusCode: 400, message: 'Only approved or completed department tasks can be reopened' };
+    }
+
+    // Check 48-hour window
+    const completedTime = deptRow.completed_at || deptRow.updated_at;
+    if (!completedTime) {
+      throw { statusCode: 400, message: 'Cannot determine when this task was completed' };
+    }
+    const hoursSince = (Date.now() - new Date(completedTime).getTime()) / 36e5;
+    if (hoursSince > 48) {
+      throw { statusCode: 400, message: 'Reopen window of 48 hours has passed' };
+    }
+
+    // Check if already reopened once
+    const logs = await ticketRepo.getTicketLogs(ticketId);
+    const reopenedBefore = logs.some(
+      l => l.action === 'sub_dept_reopened' && String(l.old_value) === String(departmentId)
+    );
+    if (reopenedBefore) {
+      throw { statusCode: 400, message: 'This department task can only be reopened once' };
+    }
+
+    const updated = await ticketRepo.reopenSubDept(ticketId, Number(departmentId));
+
+    const deptName = deptRow.department_name || `Dept ${departmentId}`;
+    await ticketRepo.logAction(
+      ticketId, user.id, 'sub_dept_reopened',
+      String(departmentId), 'in_progress',
+      `Creator ${user.name} reopened ${deptName} work`
+    );
+    await ticketRepo.logAction(
+      ticketId, user.id, 'status_changed',
+      deptRow.status, 'in_progress',
+      `${deptName} status changed to in_progress (reopened by creator ${user.name})`
+    );
+
+    const participants = await ticketRepo.getTicketParticipants(ticketId);
+    await this._dispatch(
+      ticketId, participants.filter(id => id !== user.id),
+      `Sub-Ticket #${ticketId}: ${deptName} reopened by creator`,
+      'SUB_TICKET_REOPENED', { ticket: updated }
+    );
 
     return updated;
   }

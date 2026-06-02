@@ -105,6 +105,31 @@ class TicketController {
     }
   }
 
+  async completeSubTicket(req, res, next) {
+    try {
+      const ticket = await ticketService.completeSubTicket(
+        req.params.id,
+        req.user
+      );
+      res.json({ success: true, data: ticket });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async reopenSubDept(req, res, next) {
+    try {
+      const ticket = await ticketService.reopenSubDept(
+        req.params.id,
+        req.params.deptId,
+        req.user
+      );
+      res.json({ success: true, data: ticket });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async updateStatus(req, res, next) {
     try {
       const ticket = await ticketService.updateStatus(

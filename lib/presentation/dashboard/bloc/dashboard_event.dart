@@ -175,6 +175,21 @@ class SelfAssignSubDept extends DashboardEvent {
   List<Object?> get props => [ticketId, departmentId];
 }
 
+class CompleteSubTicket extends DashboardEvent {
+  final int ticketId;
+  CompleteSubTicket(this.ticketId);
+  @override
+  List<Object?> get props => [ticketId];
+}
+
+class ReopenSubDept extends DashboardEvent {
+  final int ticketId;
+  final int departmentId;
+  ReopenSubDept({required this.ticketId, required this.departmentId});
+  @override
+  List<Object?> get props => [ticketId, departmentId];
+}
+
 class AddTicketComment extends DashboardEvent {
   final int ticketId;
   final String message;
