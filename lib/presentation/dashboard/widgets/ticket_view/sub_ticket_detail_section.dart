@@ -572,8 +572,8 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
                 ),
               ),
             ),
-          // ── Info for approved state (non-creator view) ──────────
-          if (dept.isApproved && !_isCreator && !_isCeo)
+          // ── Info for approved state ────────────────────────────
+          if (dept.isApproved)
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Container(
@@ -582,14 +582,16 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
                   color: const Color(0xFFDBEAFE),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF1E40AF)),
-                    SizedBox(width: 8),
+                    const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF1E40AF)),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Manager approved. Waiting for creator to finalize.',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF1E40AF)),
+                        _isCreator || _isCeo
+                            ? 'Manager approved. You can complete the ticket or reopen this department.'
+                            : 'Manager approved. Waiting for creator to finalize.',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF1E40AF)),
                       ),
                     ),
                   ],
