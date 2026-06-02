@@ -20,6 +20,7 @@ router.get('/sent-tickets', controller.getSentTickets);
 // ── Sub-Tickets (MUST be above /:id) ─────────────────────────
 router.post('/sub-tickets', isDepManager, controller.createSubTicket);
 router.patch('/:id/sub-departments/:deptId', controller.updateSubDeptProgress);
+router.patch('/:id/sub-departments/:deptId/assign', isManager, controller.assignSubDeptToEmployee);
 
 // ── CRUD ──────────────────────────────────────────────────────
 router.get('/', controller.getTickets);

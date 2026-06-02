@@ -40,9 +40,10 @@ class SelfAssignTicket extends DashboardEvent {
 class UpdateTicketStatus extends DashboardEvent {
   final int ticketId;
   final String status;
-  UpdateTicketStatus(this.ticketId, this.status);
+  final String? remark;
+  UpdateTicketStatus(this.ticketId, this.status, {this.remark});
   @override
-  List<Object?> get props => [ticketId, status];
+  List<Object?> get props => [ticketId, status, remark];
 }
 
 class AssignTicketToEmployee extends DashboardEvent {
@@ -137,16 +138,31 @@ class CreateSubTicketEvent extends DashboardEvent {
 class UpdateSubDeptProgressEvent extends DashboardEvent {
   final int ticketId;
   final int departmentId;
-  final int? progressPercent;
   final String? status;
+  final String? note;
 
   UpdateSubDeptProgressEvent({
     required this.ticketId,
     required this.departmentId,
-    this.progressPercent,
     this.status,
+    this.note,
   });
 
   @override
-  List<Object?> get props => [ticketId, departmentId, progressPercent, status];
+  List<Object?> get props => [ticketId, departmentId, status, note];
+}
+
+class AssignSubDeptEmployeeEvent extends DashboardEvent {
+  final int ticketId;
+  final int departmentId;
+  final int employeeId;
+
+  AssignSubDeptEmployeeEvent({
+    required this.ticketId,
+    required this.departmentId,
+    required this.employeeId,
+  });
+
+  @override
+  List<Object?> get props => [ticketId, departmentId, employeeId];
 }

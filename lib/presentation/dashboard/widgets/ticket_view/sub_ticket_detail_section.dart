@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
@@ -146,13 +147,8 @@ class _DeptProgressCard extends StatefulWidget {
 }
 
 class _DeptProgressCardState extends State<_DeptProgressCard> {
-  late double _sliderValue;
-
-  @override
-  void initState() {
-    super.initState();
-    _sliderValue = widget.dept.progressPercent.toDouble();
-  }
+  final _noteController = TextEditingController();
+  int? _selectedEmployeeId;
 
   bool get _canEdit {
     if (widget.ticket.isClosed || widget.ticket.isCompleted) return false;
@@ -161,17 +157,18 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
         widget.user.departmentId == widget.ticket.assignedDeptId;
   }
 
-  void _updateProgress(int percent) {
+  bool get _canAssignEmployee =>
+      widget.user.roleId == 1 &&
+      widget.user.departmentId == widget.dept.departmentId &&
+      !widget.dept.isCompleted;
+
+  void _markInProgress() {
     context.read<DashboardBloc>().add(
       UpdateSubDeptProgressEvent(
         ticketId: widget.ticket.id,
         departmentId: widget.dept.departmentId,
-        progressPercent: percent,
-        status: percent >= 100
-            ? 'completed'
-            : percent > 0
-            ? 'in_progress'
-            : 'open',
+        status: 'in_progress',
+        note: _noteController.text.trim(),
       ),
     );
   }
@@ -181,8 +178,19 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
       UpdateSubDeptProgressEvent(
         ticketId: widget.ticket.id,
         departmentId: widget.dept.departmentId,
-        progressPercent: 100,
         status: 'completed',
+        note: _noteController.text.trim(),
+      ),
+    );
+  }
+
+  void _assignEmployee() {
+    if (_selectedEmployeeId == null) return;
+    context.read<DashboardBloc>().add(
+      AssignSubDeptEmployeeEvent(
+        ticketId: widget.ticket.id,
+        departmentId: widget.dept.departmentId,
+        employeeId: _selectedEmployeeId!,
       ),
     );
   }
@@ -286,32 +294,87 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
               ),
             ],
           ),
+          if (_canAssignEmployee) ...[
+            const SizedBox(height: 10),
+            BlocBuilder<DashboardBloc, DashboardState>(
+              builder: (context, state) {
+                final employees = state is DashboardLoaded
+                    ? state.employees
+                    : <EmployeeModel>[];
+                if (employees.isEmpty) return const SizedBox.shrink();
+                _selectedEmployeeId ??= dept.assignedToId ?? employees.first.id;
+                return Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<int>(
+                        value: _selectedEmployeeId,
+                        items: employees
+                            .map(
+                              (e) => DropdownMenuItem<int>(
+                                value: e.id,
+                                child: Text(e.name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setState(() => _selectedEmployeeId = v),
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          labelText: 'Assign to employee',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: _assignEmployee,
+                      child: const Text('Assign'),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ],
           if (_canEdit && !dept.isCompleted) ...[
             const SizedBox(height: 10),
-            Slider(
-              value: _sliderValue,
-              min: 0,
-              max: 100,
-              divisions: 20,
-              activeColor: const Color(0xFF7C3AED),
-              inactiveColor: const Color(0xFFEDE9FE),
-              label: '${_sliderValue.round()}%',
-              onChanged: (v) => setState(() => _sliderValue = v),
-              onChangeEnd: (v) => _updateProgress(v.round()),
+            TextField(
+              controller: _noteController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                hintText: 'Work remark (what was done)',
+                border: OutlineInputBorder(),
+              ),
             ),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: _markComplete,
-                icon: const Icon(Icons.check_circle_outline, size: 16),
-                label: const Text('Mark Complete'),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF16A34A),
-                  textStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: _markInProgress,
+                    icon: const Icon(Icons.play_arrow_rounded, size: 16),
+                    label: const Text('Start Work'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF7C3AED),
+                      textStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: _markComplete,
+                    icon: const Icon(Icons.check_circle_outline, size: 16),
+                    label: const Text('Mark Complete'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF16A34A),
+                      textStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

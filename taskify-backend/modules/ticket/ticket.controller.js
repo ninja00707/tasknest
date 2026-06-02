@@ -78,12 +78,27 @@ class TicketController {
     }
   }
 
+  async assignSubDeptToEmployee(req, res, next) {
+    try {
+      const ticket = await ticketService.assignSubDeptToEmployee(
+        req.params.id,
+        req.params.deptId,
+        req.body.employeeId,
+        req.user
+      );
+      res.json({ success: true, data: ticket });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async updateStatus(req, res, next) {
     try {
       const ticket = await ticketService.updateStatus(
         req.params.id,
         req.body.status,
-        req.user
+        req.user,
+        req.body.remark
       );
       res.json({ success: true, data: ticket });
     } catch (err) {

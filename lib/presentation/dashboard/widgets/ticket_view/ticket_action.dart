@@ -74,9 +74,7 @@ class TicketActions extends StatelessWidget {
                 icon: Icons.check_circle_outline,
                 tooltip: 'Mark Done',
                 color: ThemeColors.unifiedPrimary,
-                onTap: () => context.read<DashboardBloc>().add(
-                  UpdateTicketStatus(ticket.id, 'completed'),
-                ),
+                onTap: () => _showStatusRemarkDialog(context, 'completed'),
               ),
 
             // 4. Creator/CEO Action: Finalize & Close
@@ -85,9 +83,7 @@ class TicketActions extends StatelessWidget {
                 icon: Icons.lock_outline,
                 tooltip: 'Finalize & Close',
                 color: ThemeColors.unifiedPrimary,
-                onTap: () => context.read<DashboardBloc>().add(
-                  UpdateTicketStatus(ticket.id, 'closed'),
-                ),
+                onTap: () => _showStatusRemarkDialog(context, 'closed'),
               ),
 
             // 5. Transfer: Disabled if Completed/Closed
@@ -194,6 +190,44 @@ class TicketActions extends StatelessWidget {
               ],
             );
           },
+        );
+      },
+    );
+  }
+
+  void _showStatusRemarkDialog(BuildContext context, String status) {
+    final controller = TextEditingController();
+    final label = status == 'completed' ? 'done' : 'close';
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text('Add remark before $label'),
+          content: TextField(
+            controller: controller,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Write work summary / closing remark',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final remark = controller.text.trim();
+                if (remark.isEmpty) return;
+                Navigator.pop(dialogContext);
+                context.read<DashboardBloc>().add(
+                  UpdateTicketStatus(ticket.id, status, remark: remark),
+                );
+              },
+              child: const Text('Submit'),
+            ),
+          ],
         );
       },
     );

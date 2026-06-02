@@ -130,6 +130,10 @@ class TicketService {
       ticket.id, user.id, 'created', null, 'sub_ticket',
       `Sub-ticket created by ${user.name} for departments: ${deptNames}`
     );
+    await ticketRepo.logAction(
+      ticket.id, user.id, 'assigned', 'Unassigned', user.name,
+      `Sub-ticket auto-assigned to creator (${user.name})`
+    );
 
     for (const dept of ticket.sub_departments) {
       const managers = await ticketRepo.getManagersByDepartment(dept.department_id);
@@ -159,11 +163,14 @@ class TicketService {
       throw { statusCode: 403, message: 'You can only update progress for your own department' };
     }
 
-    const { progressPercent, status } = data;
+    const { status, note } = data;
+    if (!['open', 'in_progress', 'completed'].includes(status)) {
+      throw { statusCode: 400, message: 'Status must be open, in_progress, or completed' };
+    }
     const updated = await ticketRepo.updateSubDeptProgress(
       ticketId,
       Number(departmentId),
-      { progressPercent, status }
+      { status }
     );
 
     const deptRow = updated.sub_departments.find(d => Number(d.department_id) === Number(departmentId));
@@ -173,7 +180,7 @@ class TicketService {
       ticketId, user.id, 'status_changed',
       null,
       `${deptName}: ${updated.overall_progress}% overall`,
-      `${user.name} updated ${deptName} progress to ${deptRow?.progress_percent ?? progressPercent}%`
+      `${user.name} marked ${deptName} as ${status}${note ? `. Remark: ${note}` : ''}`
     );
 
     const participants = await ticketRepo.getTicketParticipants(ticketId);
@@ -186,7 +193,46 @@ class TicketService {
     return updated;
   }
 
-  async updateStatus(ticketId, newStatus, user) {
+  async assignSubDeptToEmployee(ticketId, departmentId, employeeId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    if (!ticket.is_sub_ticket) throw { statusCode: 400, message: 'This is not a sub-ticket' };
+    if (!['manager', 'ceo'].includes(user.role)) {
+      throw { statusCode: 403, message: 'Only managers can assign sub-ticket work' };
+    }
+
+    const updated = await ticketRepo.assignSubDeptToEmployee(
+      Number(ticketId),
+      Number(departmentId),
+      Number(employeeId),
+      user.id
+    );
+
+    const assignedEmployee = await ticketRepo.getUserById(Number(employeeId));
+    const deptRow = updated.sub_departments.find(d => Number(d.department_id) === Number(departmentId));
+    await ticketRepo.logAction(
+      ticketId,
+      user.id,
+      'assigned',
+      deptRow?.assigned_to_name || 'Unassigned',
+      assignedEmployee?.name || `Employee ${employeeId}`,
+      `Department manager ${user.name} assigned ${deptRow?.department_name || departmentId} work`
+    );
+
+    if (assignedEmployee?.id) {
+      await this._dispatch(
+        ticketId,
+        [assignedEmployee.id],
+        `You have been assigned sub-ticket work for Ticket #${ticketId}`,
+        'SUB_TICKET_ASSIGNED'
+      );
+    }
+
+    return updated;
+  }
+
+  async updateStatus(ticketId, newStatus, user, remark) {
     const ticket = await ticketRepo.getTicketById(ticketId, user);
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
@@ -207,12 +253,18 @@ class TicketService {
       if (!isResolver && !isCeo) {
         throw { statusCode: 403, message: 'Only the assigned resolver can mark this ticket as completed' };
       }
+      if (!remark || String(remark).trim() === '') {
+        throw { statusCode: 400, message: 'Completion remark is required when marking done' };
+      }
     }
 
     // Only the creator or CEO can mark a ticket as closed (finalize and close)
     if (newStatus === 'closed') {
       if (!isCreator && !isCeo) {
         throw { statusCode: 403, message: 'Only the creator can finalize and close this ticket' };
+      }
+      if (!remark || String(remark).trim() === '') {
+        throw { statusCode: 400, message: 'Closing remark is required when closing ticket' };
       }
     }
 
@@ -228,7 +280,14 @@ class TicketService {
     const oldStatus = ticket.status;
     console.log(`[TicketService] Calling ticketRepo.updateStatus with ticketId: ${ticketId}, newStatus: ${newStatus}, userId: ${user.id}`);
     const updated = await ticketRepo.updateStatus(ticketId, newStatus, user);
-    await ticketRepo.logAction(ticketId, user.id, 'status_changed', oldStatus, newStatus, `Status updated to ${newStatus} by ${user.name}`);
+    await ticketRepo.logAction(
+      ticketId,
+      user.id,
+      'status_changed',
+      oldStatus,
+      newStatus,
+      `Status updated to ${newStatus} by ${user.name}${remark ? `. Remark: ${String(remark).trim()}` : ''}`
+    );
     
     // Real-time update for creator and assignee
     const participants = await ticketRepo.getTicketParticipants(ticketId);

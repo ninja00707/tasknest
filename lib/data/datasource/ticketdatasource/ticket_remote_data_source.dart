@@ -58,10 +58,13 @@ class TicketRemoteDataSource {
     return TicketModel.fromJson(res['data']);
   }
 
-  Future<TicketModel> updateStatus(int id, String status) async {
+  Future<TicketModel> updateStatus(int id, String status, {String? remark}) async {
     final res = await _api.patch(
       'tickets/$id/status',
-      body: {'status': status},
+      body: {
+        'status': status,
+        if (remark != null && remark.trim().isNotEmpty) 'remark': remark.trim(),
+      },
     );
     return TicketModel.fromJson(res['data']);
   }
@@ -158,15 +161,27 @@ class TicketRemoteDataSource {
   Future<TicketModel> updateSubDeptProgress({
     required int ticketId,
     required int departmentId,
-    int? progressPercent,
     String? status,
+    String? note,
   }) async {
     final res = await _api.patch(
       'tickets/$ticketId/sub-departments/$departmentId',
       body: {
-        if (progressPercent != null) 'progressPercent': progressPercent,
         if (status != null) 'status': status,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
       },
+    );
+    return TicketModel.fromJson(res['data']);
+  }
+
+  Future<TicketModel> assignSubDeptToEmployee({
+    required int ticketId,
+    required int departmentId,
+    required int employeeId,
+  }) async {
+    final res = await _api.patch(
+      'tickets/$ticketId/sub-departments/$departmentId/assign',
+      body: {'employeeId': employeeId},
     );
     return TicketModel.fromJson(res['data']);
   }

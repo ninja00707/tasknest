@@ -23,6 +23,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<CreateTicketEvent>(_onCreate);
     on<CreateSubTicketEvent>(_onCreateSubTicket);
     on<UpdateSubDeptProgressEvent>(_onUpdateSubDeptProgress);
+    on<AssignSubDeptEmployeeEvent>(_onAssignSubDeptEmployee);
     on<SidebarSelectedIndexEvent>(_onSelectedIndex);
     on<LoadManagerAnalytics>(_onLoadManagerAnalytics);
     on<LoadCeoAnalytics>(_onLoadCeoAnalytics);
@@ -155,7 +156,11 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   ) async {
     final prev = state as DashboardLoaded;
     try {
-      await _dataSource.updateStatus(event.ticketId, event.status);
+      await _dataSource.updateStatus(
+        event.ticketId,
+        event.status,
+        remark: event.remark,
+      );
       emit(TicketActionSuccess('Status updated to ${event.status}', prev));
       add(LoadDashboard());
     } catch (e) {
@@ -282,10 +287,28 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       await _dataSource.updateSubDeptProgress(
         ticketId: event.ticketId,
         departmentId: event.departmentId,
-        progressPercent: event.progressPercent,
         status: event.status,
+        note: event.note,
       );
       emit(TicketActionSuccess('Department progress updated!', prev));
+      add(LoadDashboard());
+    } catch (e) {
+      emit(TicketActionError(e.toString(), prev));
+    }
+  }
+
+  Future<void> _onAssignSubDeptEmployee(
+    AssignSubDeptEmployeeEvent event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final prev = state as DashboardLoaded;
+    try {
+      await _dataSource.assignSubDeptToEmployee(
+        ticketId: event.ticketId,
+        departmentId: event.departmentId,
+        employeeId: event.employeeId,
+      );
+      emit(TicketActionSuccess('Department work assigned!', prev));
       add(LoadDashboard());
     } catch (e) {
       emit(TicketActionError(e.toString(), prev));

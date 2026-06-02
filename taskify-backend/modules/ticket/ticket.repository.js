@@ -648,8 +648,8 @@ class TicketRepository {
       const ticketResult = await client.query(`
         INSERT INTO tickets
           (title, description, priority, assigned_dept_id, due_date,
-           created_by_id, created_by_dept, status, is_sub_ticket, overall_progress)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, 'open', TRUE, 0)
+           created_by_id, created_by_dept, assigned_to_id, status, is_sub_ticket, overall_progress)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'in_progress', TRUE, 0)
         RETURNING id
       `, [
         title, description, priority,
@@ -657,6 +657,7 @@ class TicketRepository {
         dueDate || null,
         createdBy.id,
         createdBy.department_id,
+        createdBy.id,
       ]);
 
       const ticketId = ticketResult.rows[0].id;
@@ -680,7 +681,7 @@ class TicketRepository {
     }
   }
 
-  async updateSubDeptProgress(ticketId, departmentId, { progressPercent, status }) {
+  async updateSubDeptProgress(ticketId, departmentId, { status }) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -689,12 +690,6 @@ class TicketRepository {
       const params = [ticketId, departmentId];
       let paramIdx = 3;
 
-      if (progressPercent != null) {
-        updates.push(`progress_percent = $${paramIdx}`);
-        params.push(Math.min(100, Math.max(0, Number(progressPercent))));
-        paramIdx++;
-      }
-
       if (status != null) {
         updates.push(`status = $${paramIdx}`);
         params.push(status);
@@ -702,8 +697,10 @@ class TicketRepository {
         if (status === 'completed') {
           updates.push(`completed_at = NOW()`);
           updates.push(`progress_percent = 100`);
-        } else if (status === 'in_progress' && progressPercent == null) {
+        } else if (status === 'in_progress') {
           updates.push(`progress_percent = GREATEST(progress_percent, 1)`);
+        } else if (status === 'open') {
+          updates.push(`completed_at = NULL`);
         }
       }
 
@@ -734,6 +731,33 @@ class TicketRepository {
     } finally {
       client.release();
     }
+  }
+
+  async assignSubDeptToEmployee(ticketId, departmentId, employeeId, managerId) {
+    const empCheck = await pool.query(
+      `SELECT u.id FROM users u WHERE u.id = $1 AND u.department_id = (
+         SELECT u2.department_id FROM users u2 WHERE u2.id = $2
+       )`,
+      [employeeId, managerId]
+    );
+
+    if (empCheck.rows.length === 0) {
+      throw new Error('Employee not in same department');
+    }
+
+    const result = await pool.query(`
+      UPDATE sub_ticket_departments
+      SET assigned_to_id = $1
+      WHERE ticket_id = $2 AND department_id = $3
+      RETURNING *
+    `, [employeeId, ticketId, departmentId]);
+
+    if (result.rows.length === 0) {
+      throw new Error('Department assignment not found');
+    }
+
+    const ticket = await this.getTicketDetails(ticketId);
+    return await this.enrichTicketWithSubData(ticket);
   }
 
   // ── Get analytics grouped by department ──────────────────────────────────
