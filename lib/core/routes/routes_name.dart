@@ -7,4 +7,5 @@ class RouteNames {
   static const analyticsManager = '/analytics/manager';
   static const analyticsCeo = '/analytics/ceo';
   static const ticketDetail = '/ticket/:id';
+  static const standardTickets = '/standard-tickets';
 }

@@ -512,6 +512,19 @@ class TicketService {
     const participants = await ticketRepo.getTicketParticipants(ticketId);
     await this._dispatch(ticketId, participants, `Ticket #${ticketId} status changed to ${newStatus}`, 'TICKET_STATUS_UPDATED', { ticket: updated });
 
+    // Auto-close propagation up the hierarchy
+    if ((newStatus === 'completed' || newStatus === 'closed') && updated.parent_ticket_id) {
+      const parentId = await ticketRepo.autoCloseHierarchy(ticketId);
+      if (parentId) {
+        const parent = await ticketRepo.getTicketDetails(parentId);
+        await ticketRepo.logAction(
+          parentId, ticket.created_by_id, 'status_changed',
+          'in_progress', 'completed',
+          `Auto-closed: all child tickets completed`
+        );
+      }
+    }
+
     return updated;
   }
 
@@ -750,6 +763,271 @@ class TicketService {
 
   async getOrganizationAnalytics() {
     return await ticketRepo.getAnalyticsByDepartment(); // Reusing the existing repo method for now
+  }
+
+  // ── Standard Tickets ───────────────────────────────────────────────────
+
+  async createStandardTicket(data, user) {
+    const { title, description, priority = 'medium', departmentIds, dueDate } = data;
+
+    if (!title || !description || title.trim() === '' || description.trim() === '') {
+      throw { statusCode: 400, message: 'title and description are required' };
+    }
+
+    if (!Array.isArray(departmentIds) || departmentIds.length === 0) {
+      throw { statusCode: 400, message: 'At least one department must be assigned' };
+    }
+
+    // Deduplicate
+    const uniqueDeptIds = [...new Set(departmentIds.map(Number))];
+    if (uniqueDeptIds.length !== departmentIds.length) {
+      throw { statusCode: 400, message: 'Duplicate departments are not allowed' };
+    }
+
+    const ticket = await ticketRepo.createStandardTicket({
+      title: title.trim(),
+      description: description.trim(),
+      priority,
+      dueDate,
+      createdBy: user,
+      departmentIds: uniqueDeptIds,
+    });
+
+    const deptNames = (ticket.standard_departments || [])
+      .map(d => d.department_name || `Dept ${d.department_id}`)
+      .join(', ');
+
+    await ticketRepo.logAction(
+      ticket.id, user.id, 'created', null, 'standard_ticket',
+      `Standard ticket created by ${user.name} for departments: ${deptNames}`
+    );
+
+    // Notify all assigned department managers
+    for (const dept of uniqueDeptIds) {
+      const managers = await ticketRepo.getManagersByDepartment(dept);
+      await this._dispatch(
+        ticket.id, managers,
+        `New Standard Ticket #${ticket.id}: ${title} assigned to your department`,
+        'TICKET_CREATED', { ticket }
+      );
+    }
+
+    return ticket;
+  }
+
+  async getStandardTickets(user) {
+    if (!user) throw { statusCode: 401, message: 'Unauthorized' };
+    const tickets = await ticketRepo.getStandardTickets(user);
+
+    // Enrich each with assigned departments
+    for (const t of tickets) {
+      t.standard_departments = await ticketRepo.getStandardTicketDepartments(t.id);
+      t.child_count = (await ticketRepo.getChildTickets(t.id)).length;
+    }
+
+    return tickets;
+  }
+
+  async createChildTicket(ticketId, data, user) {
+    const parent = await ticketRepo.getTicketDetails(ticketId);
+    if (!parent) throw { statusCode: 404, message: 'Standard ticket not found' };
+    if (!parent.is_standard_ticket) {
+      throw { statusCode: 400, message: 'Child tickets can only be created from standard tickets' };
+    }
+    if (parent.status === 'completed' || parent.status === 'closed') {
+      throw { statusCode: 400, message: 'Cannot create child tickets from a completed or closed standard ticket' };
+    }
+
+    const { title, description, priority = 'medium', dueDate } = data;
+    if (!title || !description || title.trim() === '' || description.trim() === '') {
+      throw { statusCode: 400, message: 'title and description are required' };
+    }
+
+    const child = await ticketRepo.createChildTicket({
+      title: title.trim(),
+      description: description.trim(),
+      priority,
+      dueDate,
+      createdBy: user,
+      parentTicketId: ticketId,
+    });
+
+    await ticketRepo.logAction(
+      child.id, user.id, 'created', null, 'child_ticket',
+      `Child ticket created by ${user.name} referencing Standard Ticket #${ticketId}`
+    );
+
+    await ticketRepo.logAction(
+      ticketId, user.id, 'child_created', null, String(child.id),
+      `Child Ticket #${child.id} created by ${user.name} from department ${user.department_id}`
+    );
+
+    await this._dispatch(
+      ticketId, [parent.created_by_id],
+      `New child ticket #${child.id} created from your standard ticket #${ticketId}`,
+      'CHILD_CREATED', { ticket: child }
+    );
+
+    return child;
+  }
+
+  async getChildTickets(ticketId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    return await ticketRepo.getChildTickets(ticketId);
+  }
+
+  async _propagateAutoClose(ticketId) {
+    const parentId = await ticketRepo.autoCloseHierarchy(ticketId);
+    if (parentId) {
+      const parent = await ticketRepo.getTicketDetails(parentId);
+      await ticketRepo.logAction(
+        parentId, parent.created_by_id, 'status_changed',
+        'in_progress', 'completed',
+        `Auto-closed: all child tickets are completed`
+      );
+    }
+  }
+
+  // ── V2 Flow: Create Multi Ticket ───────────────────────────────────────
+
+  async createMultiTicket(data, user) {
+    const { title, description, priority = 'medium', departmentIds, dueDate } = data;
+    if (!title || !description || title.trim() === '' || description.trim() === '') {
+      throw { statusCode: 400, message: 'title and description are required' };
+    }
+    if (!Array.isArray(departmentIds) || departmentIds.length === 0) {
+      throw { statusCode: 400, message: 'At least one department must be assigned' };
+    }
+    const uniqueDeptIds = [...new Set(departmentIds.map(Number))];
+
+    const ticket = await ticketRepo.createMultiTicket({
+      title: title.trim(), description: description.trim(),
+      priority, dueDate, createdBy: user, departmentIds: uniqueDeptIds,
+    });
+
+    const deptNames = (ticket.assigned_departments || [])
+      .map(d => d.department_name).join(', ');
+    await ticketRepo.logAction(ticket.id, user.id, 'created', null, 'multi_ticket',
+      `Multi-ticket created by ${user.name} for departments: ${deptNames}`);
+
+    for (const deptId of uniqueDeptIds) {
+      const managers = await ticketRepo.getManagersByDepartment(deptId);
+      await this._dispatch(ticket.id, managers,
+        `New Multi-Ticket #${ticket.id}: ${title}`, 'TICKET_CREATED', { ticket });
+    }
+    return ticket;
+  }
+
+  // ── V2 Flow: Mark Complete ─────────────────────────────────────────────
+
+  async markComplete(ticketId, label, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    if (ticket.status === 'completed' || ticket.status === 'closed') {
+      throw { statusCode: 400, message: 'Ticket is already completed or closed' };
+    }
+    if (!label || String(label).trim() === '') {
+      throw { statusCode: 400, message: 'A completion label/remark is required' };
+    }
+
+    const updated = await ticketRepo.markComplete(ticketId, label.trim(), user.id);
+    await ticketRepo.logAction(ticketId, user.id, 'status_changed',
+      ticket.status, 'completed', `Marked complete by ${user.name}. Label: ${label}`);
+
+    await this._dispatch(ticketId, [ticket.created_by_id],
+      `Ticket #${ticketId} marked as complete`, 'TICKET_COMPLETED', { ticket: updated });
+    return updated;
+  }
+
+  // ── V2 Flow: Close Ticket ──────────────────────────────────────────────
+
+  async closeTicket(ticketId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    if (ticket.status !== 'completed') {
+      throw { statusCode: 400, message: 'Only completed tickets can be closed' };
+    }
+
+    // Check all descendants recursively — must all be closed
+    const descendants = await ticketRepo.getDescendantIds(ticketId);
+    const openDescendants = descendants.filter(
+      d => d.status !== 'completed' && d.status !== 'closed'
+    );
+    if (openDescendants.length > 0) {
+      throw {
+        statusCode: 400,
+        message: `Cannot close: ${openDescendants.length} descendant sub-ticket(s) still open (IDs: ${openDescendants.map(d => d.id).join(', ')})`
+      };
+    }
+
+    const updated = await ticketRepo.closeTicket(ticketId, user.id);
+    await ticketRepo.logAction(ticketId, user.id, 'status_changed',
+      'completed', 'closed', `Closed by ${user.name}`);
+
+    // Propagate up: check if parent can now close
+    if (ticket.parent_ticket_id) {
+      await this._propagateAutoClose(ticketId);
+    }
+
+    await this._dispatch(ticketId, [ticket.created_by_id],
+      `Ticket #${ticketId} closed`, 'TICKET_CLOSED', { ticket: updated });
+    return updated;
+  }
+
+  // ── V2 Flow: Create Sub Ticket (infinite chain) ────────────────────────
+
+  async createSubTicket(ticketId, data, user) {
+    const parent = await ticketRepo.getTicketById(ticketId, user);
+    if (!parent) throw { statusCode: 404, message: 'Parent ticket not found' };
+    if (parent.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    if (parent.status === 'completed' || parent.status === 'closed') {
+      throw { statusCode: 400, message: 'Cannot create sub-tickets from a completed or closed ticket' };
+    }
+
+    const { title, description, priority = 'medium', dueDate, targetDeptId, assignedToId } = data;
+    if (!title || !description || title.trim() === '' || description.trim() === '') {
+      throw { statusCode: 400, message: 'title and description are required' };
+    }
+
+    const resolvedDept = targetDeptId || user.department_id;
+    const child = await ticketRepo.createSubTicket({
+      title: title.trim(), description: description.trim(),
+      priority, dueDate, createdBy: user,
+      parentTicketId: ticketId,
+      targetDeptId: resolvedDept,
+      assignedToId: assignedToId ? Number(assignedToId) : null,
+    });
+
+    await ticketRepo.logAction(child.id, user.id, 'created', null, 'sub_ticket',
+      `Sub-ticket #${child.id} created by ${user.name} from #${ticketId}`);
+    await ticketRepo.logAction(ticketId, user.id, 'sub_ticket_created', null, String(child.id),
+      `Sub-ticket #${child.id} created by ${user.name}`);
+
+    const managers = await ticketRepo.getManagersByDepartment(resolvedDept);
+    await this._dispatch(child.id, managers,
+      `New Sub-Ticket #${child.id} created from #${ticketId}`, 'SUB_TICKET_CREATED', { ticket: child });
+
+    return child;
+  }
+
+  // ── V2 Flow: Get child tickets ─────────────────────────────────────────
+
+  async getDescendants(ticketId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    return await ticketRepo.getDescendantIds(ticketId);
+  }
+
+  async getChildren(ticketId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    return await ticketRepo.getChildTickets(ticketId);
   }
 }
 

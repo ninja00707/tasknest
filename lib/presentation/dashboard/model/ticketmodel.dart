@@ -18,6 +18,14 @@ class TicketModel {
   final DateTime? closedAt;
   final int reopenCount;
 
+  final int? parentTicketId;
+  final bool isStandardTicket;
+  final bool isMultiTicket;
+  final String? closedLabel;
+  final int? childCount;
+  final List<StandardTicketDepartmentModel>? standardDepartments;
+  final List<StandardTicketDepartmentModel>? assignedDepartments;
+
   final String? lastAction;
   final DateTime? lastUpdatedAt;
   final String? lastActedByName;
@@ -48,6 +56,13 @@ class TicketModel {
     this.dueDate,
     this.closedAt,
     required this.reopenCount,
+    this.parentTicketId,
+    this.isStandardTicket = false,
+    this.isMultiTicket = false,
+    this.closedLabel,
+    this.childCount,
+    this.standardDepartments,
+    this.assignedDepartments,
     this.lastAction,
     this.lastUpdatedAt,
     this.lastActedByName,
@@ -78,6 +93,21 @@ class TicketModel {
     dueDate: j['due_date'] != null ? DateTime.parse(j['due_date']) : null,
     closedAt: j['closed_at'] != null ? DateTime.parse(j['closed_at']) : null,
     reopenCount: j['reopen_count'] ?? 0,
+    parentTicketId: j['parent_ticket_id'],
+    isStandardTicket: j['is_standard_ticket'] == true,
+    isMultiTicket: j['is_multi_ticket'] == true,
+    closedLabel: j['closed_label'],
+    childCount: j['child_count'],
+    standardDepartments: j['standard_departments'] != null
+        ? (j['standard_departments'] as List)
+            .map((e) => StandardTicketDepartmentModel.fromJson(e))
+            .toList()
+        : null,
+    assignedDepartments: j['assigned_departments'] != null
+        ? (j['assigned_departments'] as List)
+            .map((e) => StandardTicketDepartmentModel.fromJson(e))
+            .toList()
+        : null,
     lastAction: j['last_action'] ?? 'Created',
     lastUpdatedAt: j['last_updated_at'] != null
         ? DateTime.parse(j['last_updated_at'])
@@ -226,6 +256,37 @@ class DashboardStats {
     highPriority: 0,
     overdue: 0,
   );
+}
+
+class StandardTicketDepartmentModel {
+  final int id;
+  final int ticketId;
+  final int departmentId;
+  final String departmentName;
+  final String departmentCode;
+  final String status;
+  final DateTime? createdAt;
+
+  const StandardTicketDepartmentModel({
+    required this.id,
+    required this.ticketId,
+    required this.departmentId,
+    required this.departmentName,
+    required this.departmentCode,
+    required this.status,
+    this.createdAt,
+  });
+
+  factory StandardTicketDepartmentModel.fromJson(Map<String, dynamic> j) =>
+      StandardTicketDepartmentModel(
+        id: j['id'],
+        ticketId: j['ticket_id'],
+        departmentId: j['department_id'],
+        departmentName: j['department_name'] ?? '',
+        departmentCode: j['department_code'] ?? '',
+        status: j['status'] ?? 'assigned',
+        createdAt: j['created_at'] != null ? DateTime.parse(j['created_at']) : null,
+      );
 }
 
 class DepartmentModel {

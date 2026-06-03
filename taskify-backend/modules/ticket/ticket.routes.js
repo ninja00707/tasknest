@@ -25,6 +25,18 @@ router.patch('/:id/sub-departments/:deptId/self-assign', controller.selfAssignSu
 router.post('/:id/complete', controller.completeSubTicket);
 router.patch('/:id/sub-departments/:deptId/reopen', controller.reopenSubDept);
 
+// ── Standard & Multi Tickets (MUST be above /:id) ─────────────
+router.post('/standard-tickets', controller.createStandardTicket);
+router.get('/standard-tickets', controller.getStandardTickets);
+router.post('/multi-tickets', controller.createMultiTicket);
+
+// ── V2 Flow Actions ───────────────────────────────────────────
+router.patch('/:id/mark-complete', controller.markComplete);
+router.patch('/:id/close', controller.closeTicket);
+router.post('/:id/sub-tickets', controller.createSubTicketV2);
+router.get('/:id/descendants', controller.getDescendants);
+router.get('/:id/children', controller.getChildren);
+
 // ── CRUD ──────────────────────────────────────────────────────
 router.get('/', controller.getTickets);
 router.get('/:id', controller.getTicket);
@@ -36,6 +48,10 @@ router.patch('/:id/self-assign', controller.selfAssign);
 router.patch('/:id/assign', isManager, controller.assignToEmployee);
 router.patch('/:id/transfer', controller.transferTicket);
 router.patch('/:id/reopen', controller.reopenTicket);
+
+// ── Child tickets & Hierarchy ─────────────────────────────────
+router.post('/:id/child-tickets', controller.createChildTicket);
+router.get('/:id/children', controller.getChildTickets);
 
 // ── Comments & History ────────────────────────────────────────
 router.get('/:id/comments', controller.getComments);

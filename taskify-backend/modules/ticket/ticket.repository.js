@@ -9,7 +9,9 @@ class TicketRepository {
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.closed_at, t.reopened_at, t.reopen_count,
-        t.is_sub_ticket, t.overall_progress,
+        t.is_sub_ticket, t.is_standard_ticket, t.is_multi_ticket, t.closed_label,
+        t.parent_ticket_id,
+        t.overall_progress,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -91,7 +93,9 @@ class TicketRepository {
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.reopen_count, t.closed_at,
-        t.is_sub_ticket, t.overall_progress,
+        t.is_sub_ticket, t.is_standard_ticket, t.is_multi_ticket, t.closed_label,
+        t.parent_ticket_id,
+        t.overall_progress,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -160,11 +164,17 @@ class TicketRepository {
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.reopen_count, t.closed_at,
-        t.is_sub_ticket, t.overall_progress,
+        t.is_sub_ticket, t.is_standard_ticket, t.is_multi_ticket, t.closed_label,
+        t.parent_ticket_id,
+        t.overall_progress,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
+        cd.code      AS created_by_dept_code,
         cd.name      AS created_by_dept_name,
+
+        ad.id        AS assigned_dept_id,
+        ad.code      AS assigned_dept_code,
         ad.name      AS assigned_dept_name,
         assignee.name AS assigned_to_name,
         tf.code AS transferred_from_code,
@@ -256,7 +266,26 @@ class TicketRepository {
       isSubTicketDept = subDeptCheck.rows.length > 0;
     }
 
-    if (!isAssignedDept && !isCreatorDept && !isTransferrer && !isResolver && !isSubTicketDept) {
+    let isMultiDept = false;
+    if (ticket.is_multi_ticket || ticket.is_standard_ticket) {
+      const deptCheck = await pool.query(
+        `SELECT 1 FROM ticket_departments WHERE ticket_id = $1 AND department_id = $2 LIMIT 1`,
+        [ticketId, user.department_id]
+      );
+      isMultiDept = deptCheck.rows.length > 0;
+    }
+
+    // Also check if user has a parent_ticket_id pointing here (child ticket visibility)
+    let isParentOfUserTicket = false;
+    if (ticket.parent_ticket_id == null) {
+      const parentCheck = await pool.query(
+        `SELECT 1 FROM tickets WHERE parent_ticket_id = $1 AND assigned_dept_id = $2 LIMIT 1`,
+        [ticketId, user.department_id]
+      );
+      isParentOfUserTicket = parentCheck.rows.length > 0;
+    }
+
+    if (!isAssignedDept && !isCreatorDept && !isTransferrer && !isResolver && !isSubTicketDept && !isMultiDept && !isParentOfUserTicket) {
       return { forbidden: true };
     }
 
@@ -451,7 +480,9 @@ class TicketRepository {
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
         t.reopen_count, t.closed_at,
-        t.is_sub_ticket, t.overall_progress,
+        t.is_sub_ticket, t.is_standard_ticket, t.is_multi_ticket, t.closed_label,
+        t.parent_ticket_id,
+        t.overall_progress,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -819,6 +850,288 @@ class TicketRepository {
 
       const ticket = await this.getTicketDetails(ticketId);
       return await this.enrichTicketWithSubData(ticket);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  // ── Standard Tickets ─────────────────────────────────────────────────────
+
+  async getStandardTickets(user) {
+    const params = [];
+    let whereClause = '';
+    if (user.role !== 'ceo') {
+      params.push(user.department_id);
+      whereClause = `WHERE t.is_standard_ticket = TRUE AND (
+        t.created_by_dept = $1
+        OR EXISTS (SELECT 1 FROM ticket_departments td WHERE td.ticket_id = t.id AND td.department_id = $1)
+      )`;
+    } else {
+      whereClause = 'WHERE t.is_standard_ticket = TRUE';
+    }
+
+    const result = await pool.query(`
+      SELECT
+        t.id, t.title, t.description, t.status, t.priority,
+        t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
+        t.due_date, t.created_at, t.updated_at, t.closed_at,
+        t.reopen_count, t.is_sub_ticket, t.is_standard_ticket, t.is_multi_ticket, t.closed_label,
+        t.parent_ticket_id,
+        t.overall_progress,
+        creator.id   AS created_by_id,
+        creator.name AS created_by_name,
+        cd.code      AS created_by_dept_code,
+        cd.name      AS created_by_dept_name,
+        assignee.name AS assigned_to_name,
+        ll.action      AS last_action,
+        ll.created_at  AS last_updated_at,
+        ll.acted_by_name AS last_acted_by_name
+      FROM tickets t
+      LEFT JOIN users       creator  ON creator.id  = t.created_by_id
+      LEFT JOIN departments cd       ON cd.id        = t.created_by_dept
+      LEFT JOIN departments ad       ON ad.id        = t.assigned_dept_id
+      LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
+      LEFT JOIN LATERAL (
+        SELECT tl.action, tl.created_at, u.name as acted_by_name
+        FROM ticket_logs tl
+        JOIN users u ON u.id = tl.acted_by_id
+        WHERE tl.ticket_id = t.id
+        ORDER BY tl.created_at DESC
+        LIMIT 1
+      ) ll ON TRUE
+      ${whereClause}
+      ORDER BY t.created_at DESC
+    `, params);
+
+    return result.rows;
+  }
+
+  async getStandardTicketDepartments(ticketId) {
+    const result = await pool.query(`
+      SELECT
+        td.id, td.ticket_id, td.department_id, td.status,
+        td.created_at, td.updated_at,
+        d.name AS department_name, d.code AS department_code
+      FROM ticket_departments td
+      JOIN departments d ON d.id = td.department_id
+      WHERE td.ticket_id = $1
+      ORDER BY d.name ASC
+    `, [ticketId]);
+    return result.rows;
+  }
+
+  async getChildTickets(ticketId) {
+    const result = await pool.query(`
+      SELECT
+        t.id, t.title, t.description, t.status, t.priority,
+        t.assigned_dept_id, t.assigned_to_id,
+        t.created_by_id, t.created_by_dept,
+        t.due_date, t.created_at, t.closed_at, t.closed_label,
+        t.is_sub_ticket, t.is_multi_ticket, t.is_standard_ticket,
+        t.parent_ticket_id,
+        assignee.name AS assigned_to_name,
+        ad.code AS assigned_dept_code,
+        ad.name AS assigned_dept_name
+      FROM tickets t
+      LEFT JOIN departments ad ON ad.id = t.assigned_dept_id
+      LEFT JOIN users assignee ON assignee.id = t.assigned_to_id
+      WHERE t.parent_ticket_id = $1
+      ORDER BY t.created_at DESC
+    `, [ticketId]);
+    return result.rows;
+  }
+
+  async createStandardTicket({ title, description, priority, dueDate, createdBy, departmentIds }) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const status = 'open';
+      const result = await client.query(`
+        INSERT INTO tickets
+          (title, description, priority, assigned_dept_id, due_date,
+           created_by_id, created_by_dept, assigned_to_id, status,
+           is_standard_ticket, overall_progress)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, 0)
+        RETURNING id
+      `, [
+        title, description, priority,
+        createdBy.department_id,
+        dueDate || null,
+        createdBy.id, createdBy.department_id,
+        createdBy.id,
+        status,
+      ]);
+
+      const ticketId = result.rows[0].id;
+
+      for (const deptId of departmentIds) {
+        await client.query(`
+          INSERT INTO ticket_departments
+            (ticket_id, department_id, status)
+          VALUES ($1, $2, 'assigned')
+        `, [ticketId, Number(deptId)]);
+      }
+
+      await client.query('COMMIT');
+
+      const ticket = await this.getTicketDetails(ticketId);
+      ticket.standard_departments = await this.getStandardTicketDepartments(ticketId);
+      return ticket;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async createChildTicket({ title, description, priority, dueDate, createdBy, parentTicketId }) {
+    const result = await pool.query(`
+      INSERT INTO tickets
+        (title, description, priority, assigned_dept_id, due_date,
+         created_by_id, created_by_dept, assigned_to_id, status,
+         parent_ticket_id, is_standard_ticket, overall_progress)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'open', $9, FALSE, 0)
+      RETURNING id
+    `, [
+      title, description, priority,
+      createdBy.department_id,
+      dueDate || null,
+      createdBy.id, createdBy.department_id,
+      createdBy.id,
+      parentTicketId,
+    ]);
+    return await this.getTicketDetails(result.rows[0].id);
+  }
+
+  async autoCloseHierarchy(ticketId) {
+    const ticket = await this.getTicketDetails(ticketId);
+    if (!ticket || !ticket.parent_ticket_id) return null;
+
+    const parentId = ticket.parent_ticket_id;
+
+    const siblings = await pool.query(`
+      SELECT id, status FROM tickets
+      WHERE parent_ticket_id = $1
+    `, [parentId]);
+
+    const allClosed = siblings.rows.every(s => s.status === 'completed' || s.status === 'closed');
+    if (allClosed && siblings.rows.length > 0) {
+      await pool.query(`
+        UPDATE tickets
+        SET status = 'completed', closed_at = NOW(), overall_progress = 100
+        WHERE id = $1
+      `, [parentId]);
+
+      await this.autoCloseHierarchy(parentId);
+    }
+
+    return parentId;
+  }
+
+  // ── V2 Flow Methods ──────────────────────────────────────────────────────
+
+  async getDescendantIds(ticketId) {
+    const result = await pool.query(`
+      WITH RECURSIVE ticket_tree AS (
+        SELECT id, parent_ticket_id FROM tickets WHERE parent_ticket_id = $1
+        UNION ALL
+        SELECT t.id, t.parent_ticket_id
+        FROM tickets t
+        JOIN ticket_tree tt ON tt.id = t.parent_ticket_id
+      )
+      SELECT id, status FROM ticket_tree
+    `, [ticketId]);
+    return result.rows;
+  }
+
+  async markComplete(ticketId, label, userId) {
+    await pool.query(`
+      UPDATE tickets
+      SET status = 'completed', closed_label = $1,
+          closed_by_id = $2, closed_at = NOW()
+      WHERE id = $3
+    `, [label, userId, ticketId]);
+    return await this.getTicketDetails(ticketId);
+  }
+
+  async closeTicket(ticketId, userId) {
+    await pool.query(`
+      UPDATE tickets
+      SET status = 'closed',
+          closed_by_id = $1, closed_at = NOW()
+      WHERE id = $2
+    `, [userId, ticketId]);
+    return await this.getTicketDetails(ticketId);
+  }
+
+  async createSubTicket({ title, description, priority, dueDate, createdBy, parentTicketId, targetDeptId, assignedToId }) {
+    const status = assignedToId ? 'in_progress' : 'open';
+    const result = await pool.query(`
+      INSERT INTO tickets
+        (title, description, priority, assigned_dept_id, due_date,
+         created_by_id, created_by_dept, assigned_to_id, status,
+         parent_ticket_id, is_sub_ticket, overall_progress)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, 0)
+      RETURNING id
+    `, [
+      title, description, priority,
+      targetDeptId || createdBy.department_id,
+      dueDate || null,
+      createdBy.id, createdBy.department_id,
+      assignedToId || null,
+      status,
+      parentTicketId,
+    ]);
+    return await this.getTicketDetails(result.rows[0].id);
+  }
+
+  async getTicketDepartmentsForMulti(ticketId) {
+    const result = await pool.query(`
+      SELECT td.*, d.name AS department_name, d.code AS department_code
+      FROM ticket_departments td
+      JOIN departments d ON d.id = td.department_id
+      WHERE td.ticket_id = $1
+      ORDER BY d.name ASC
+    `, [ticketId]);
+    return result.rows;
+  }
+
+  async createMultiTicket({ title, description, priority, dueDate, createdBy, departmentIds, assignedToId }) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const status = 'open';
+      const result = await client.query(`
+        INSERT INTO tickets
+          (title, description, priority, assigned_dept_id, due_date,
+           created_by_id, created_by_dept, assigned_to_id, status,
+           is_multi_ticket, overall_progress)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, 0)
+        RETURNING id
+      `, [
+        title, description, priority,
+        createdBy.department_id,
+        dueDate || null,
+        createdBy.id, createdBy.department_id,
+        assignedToId || createdBy.id,
+        status,
+      ]);
+      const ticketId = result.rows[0].id;
+      for (const deptId of departmentIds) {
+        await client.query(`
+          INSERT INTO ticket_departments (ticket_id, department_id, status)
+          VALUES ($1, $2, 'assigned')
+        `, [ticketId, Number(deptId)]);
+      }
+      await client.query('COMMIT');
+      const ticket = await this.getTicketDetails(ticketId);
+      ticket.assigned_departments = await this.getTicketDepartmentsForMulti(ticketId);
+      return ticket;
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;

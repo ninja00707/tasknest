@@ -246,6 +246,80 @@ class TicketController {
     }
   }
 
+  // ── Standard Tickets ──────────────────────────────────────────────────
+
+  async createStandardTicket(req, res, next) {
+    try {
+      const ticket = await ticketService.createStandardTicket(req.body, req.user);
+      res.status(201).json({ success: true, data: ticket });
+    } catch (err) { next(err); }
+  }
+
+  async getStandardTickets(req, res, next) {
+    try {
+      const tickets = await ticketService.getStandardTickets(req.user);
+      res.json({ success: true, data: tickets });
+    } catch (err) { next(err); }
+  }
+
+  async createChildTicket(req, res, next) {
+    try {
+      const ticket = await ticketService.createChildTicket(req.params.id, req.body, req.user);
+      res.status(201).json({ success: true, data: ticket });
+    } catch (err) { next(err); }
+  }
+
+  async getChildTickets(req, res, next) {
+    try {
+      const children = await ticketService.getChildTickets(req.params.id, req.user);
+      res.json({ success: true, data: children });
+    } catch (err) { next(err); }
+  }
+
+  // ── V2 Flow ────────────────────────────────────────────────────────────
+
+  async createMultiTicket(req, res, next) {
+    try {
+      const ticket = await ticketService.createMultiTicket(req.body, req.user);
+      res.status(201).json({ success: true, data: ticket });
+    } catch (err) { next(err); }
+  }
+
+  async markComplete(req, res, next) {
+    try {
+      const ticket = await ticketService.markComplete(req.params.id, req.body.label, req.user);
+      res.json({ success: true, data: ticket });
+    } catch (err) { next(err); }
+  }
+
+  async closeTicket(req, res, next) {
+    try {
+      const ticket = await ticketService.closeTicket(req.params.id, req.user);
+      res.json({ success: true, data: ticket });
+    } catch (err) { next(err); }
+  }
+
+  async createSubTicketV2(req, res, next) {
+    try {
+      const ticket = await ticketService.createSubTicket(req.params.id, req.body, req.user);
+      res.status(201).json({ success: true, data: ticket });
+    } catch (err) { next(err); }
+  }
+
+  async getDescendants(req, res, next) {
+    try {
+      const descendants = await ticketService.getDescendants(req.params.id, req.user);
+      res.json({ success: true, data: descendants });
+    } catch (err) { next(err); }
+  }
+
+  async getChildren(req, res, next) {
+    try {
+      const children = await ticketService.getChildren(req.params.id, req.user);
+      res.json({ success: true, data: children });
+    } catch (err) { next(err); }
+  }
+
   async getOrganizationAnalytics(req, res, next) {
     try {
       const analytics = await ticketService.getOrganizationAnalytics();

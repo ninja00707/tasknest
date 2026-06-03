@@ -1,5 +1,6 @@
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/constant/name_by_id.dart';
 import 'package:tasknest/core/theme/color.dart';
@@ -137,6 +138,15 @@ class Sidebar extends StatelessWidget {
             selected: selectedIndex == 4,
             onTap: onNav,
           ),
+
+          NavItem(
+            icon: Icons.assignment_outlined,
+            label: 'Standard Tickets',
+            index: 6,
+            selected: false,
+            onTap: (_) => context.push('/standard-tickets'),
+          ),
+          const SizedBox(height: 4),
 
           const Spacer(),
           Container(

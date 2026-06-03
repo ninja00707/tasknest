@@ -268,7 +268,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   ) async {
     final prev = state as DashboardLoaded;
     try {
-      await _dataSource.createSubTicket(
+      await _dataSource.createMultiDeptSubTicket(
         title: event.title,
         description: event.description,
         priority: event.priority,

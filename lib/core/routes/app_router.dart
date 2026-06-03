@@ -5,6 +5,7 @@ import 'package:tasknest/presentation/dashboard/dashboard_screen.dart.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_detail_screen.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 import 'package:tasknest/presentation/login/signup_screen.dart';
+import 'package:tasknest/presentation/standard_tickets/standard_tickets_screen.dart';
 
 import 'package:tasknest/presentation/login/login_view.dart';
 
@@ -52,6 +53,11 @@ final GoRouter appRouter = GoRouter(
         final id = int.parse(state.pathParameters['id']!);
         return TicketDetailScreen(ticketId: id, user: _user!);
       },
+    ),
+
+    GoRoute(
+      path: RouteNames.standardTickets,
+      builder: (context, state) => StandardTicketsScreen(user: _user!),
     ),
   ],
 );

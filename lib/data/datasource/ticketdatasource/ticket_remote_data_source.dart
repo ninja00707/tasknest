@@ -138,7 +138,7 @@ class TicketRemoteDataSource {
     return res['data'] ?? [];
   }
 
-  Future<TicketModel> createSubTicket({
+  Future<TicketModel> createMultiDeptSubTicket({
     required String title,
     required String description,
     required String priority,
@@ -209,5 +209,96 @@ class TicketRemoteDataSource {
 
   Future<void> addComment(int ticketId, String message) async {
     await _api.post('tickets/$ticketId/comments', body: {'message': message});
+  }
+
+  // ── Standard Tickets ──────────────────────────────────────────────────
+
+  Future<List<TicketModel>> getStandardTickets() async {
+    final res = await _api.get('tickets/standard-tickets');
+    return (res['data'] as List).map((e) => TicketModel.fromJson(e)).toList();
+  }
+
+  Future<TicketModel> createStandardTicket({
+    required String title,
+    required String description,
+    required String priority,
+    required List<int> departmentIds,
+    String? dueDate,
+  }) async {
+    final res = await _api.post('tickets/standard-tickets', body: {
+      'title': title,
+      'description': description,
+      'priority': priority,
+      'departmentIds': departmentIds,
+      if (dueDate != null) 'dueDate': dueDate,
+    });
+    return TicketModel.fromJson(res['data']);
+  }
+
+  // ── Multi Tickets ─────────────────────────────────────────────────────
+
+  Future<TicketModel> createMultiTicket({
+    required String title,
+    required String description,
+    required String priority,
+    required List<int> departmentIds,
+    String? dueDate,
+  }) async {
+    final res = await _api.post('tickets/multi-tickets', body: {
+      'title': title,
+      'description': description,
+      'priority': priority,
+      'departmentIds': departmentIds,
+      if (dueDate != null) 'dueDate': dueDate,
+    });
+    return TicketModel.fromJson(res['data']);
+  }
+
+  // ── V2 Flow Actions ───────────────────────────────────────────────────
+
+  Future<TicketModel> markComplete(int ticketId, String label) async {
+    final res = await _api.patch('tickets/$ticketId/mark-complete', body: {
+      'label': label,
+    });
+    return TicketModel.fromJson(res['data']);
+  }
+
+  Future<TicketModel> closeTicket(int ticketId) async {
+    final res = await _api.patch('tickets/$ticketId/close', body: {});
+    return TicketModel.fromJson(res['data']);
+  }
+
+  Future<TicketModel> createSubTicket({
+    required int parentId,
+    required String title,
+    required String description,
+    required String priority,
+    int? targetDeptId,
+    int? assignedToId,
+    String? dueDate,
+  }) async {
+    final res = await _api.post('tickets/$parentId/sub-tickets', body: {
+      'title': title,
+      'description': description,
+      'priority': priority,
+      if (targetDeptId != null) 'targetDeptId': targetDeptId,
+      if (assignedToId != null) 'assignedToId': assignedToId,
+      if (dueDate != null) 'dueDate': dueDate,
+    });
+    return TicketModel.fromJson(res['data']);
+  }
+
+  Future<List<TicketModel>> getChildTickets(int ticketId) async {
+    final res = await _api.get('tickets/$ticketId/children');
+    if (res['data'] is List) {
+      return (res['data'] as List).map((e) => TicketModel.fromJson(e)).toList();
+    }
+    return [];
+  }
+
+  Future<List<dynamic>> getDescendants(int ticketId) async {
+    final res = await _api.get('tickets/$ticketId/descendants');
+    if (res['data'] is List) return res['data'];
+    return [];
   }
 }
