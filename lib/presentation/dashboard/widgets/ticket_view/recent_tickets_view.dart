@@ -66,12 +66,6 @@ class RecentTicketsView extends StatelessWidget {
                           return TicketCard(
                             ticket: ticket,
                             user: userModel!,
-                            onTap: () => context.push(
-                              RouteNames.ticketDetail.replaceAll(
-                                ':id',
-                                ticket.id.toString(),
-                              ),
-                            ),
                           );
                           //  Container(
                           //   margin: const EdgeInsets.only(bottom: 12),

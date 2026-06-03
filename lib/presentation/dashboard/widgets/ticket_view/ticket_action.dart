@@ -20,9 +20,6 @@ class TicketActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (ticket.isSubTicket) {
-      return const SizedBox.shrink();
-    }
 
     return BlocBuilder<DashboardBloc, DashboardState>(
       builder: (context, state) {
@@ -42,8 +39,7 @@ class TicketActions extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             // 1. Self Assign: Open to employees/managers in the department
-            if (ticket.isOpen &&
-                !ticket.isManagementDisabled &&
+            if (ticket.status == 'open' &&
                 ticket.assignedToId == null &&
                 isAssignedToMyDept)
               ActionBtn(
@@ -57,7 +53,7 @@ class TicketActions extends StatelessWidget {
 
             // 2. Managerial Assign: Only for Managers
             if (isManager &&
-                !ticket.isManagementDisabled &&
+                ticket.status == 'open' &&
                 ticket.assignedToId == null &&
                 state.employees.isNotEmpty &&
                 isAssignedToMyDept)
@@ -69,7 +65,7 @@ class TicketActions extends StatelessWidget {
               ),
 
             // 3. Resolver Action: Mark Completed (Done). CEO is restricted.
-            if (ticket.isInProgress && (isResolver || isCeo))
+            if (ticket.status == 'in_progress' && (isResolver || isCeo))
               ActionBtn(
                 icon: Icons.check_circle_outline,
                 tooltip: 'Mark Done',
@@ -78,7 +74,7 @@ class TicketActions extends StatelessWidget {
               ),
 
             // 4. Creator/CEO Action: Finalize & Close
-            if (ticket.isCompleted && (isCreator || isCeo))
+            if (ticket.status == 'completed' && (isCreator || isCeo))
               ActionBtn(
                 icon: Icons.lock_outline,
                 tooltip: 'Finalize & Close',
@@ -87,7 +83,8 @@ class TicketActions extends StatelessWidget {
               ),
 
             // 5. Transfer: Disabled if Completed/Closed
-            if (!ticket.isManagementDisabled &&
+            if (ticket.status != 'completed' &&
+                ticket.status != 'closed' &&
                 !isCeo &&
                 ((isManager && ticket.assignedToId == null) || isResolver))
               ActionBtn(
@@ -98,7 +95,7 @@ class TicketActions extends StatelessWidget {
               ),
 
             // 6. Reopen: Restricted to Creator/CEO based on model rules
-            if ((isCreator || isCeo) && ticket.canReopenBy(user.id))
+            if ((isCreator || isCeo))
               ActionBtn(
                 icon: Icons.replay_rounded,
                 tooltip: 'Reopen',
@@ -157,7 +154,7 @@ class TicketActions extends StatelessWidget {
                 items: state.employees.map((employee) {
                   return DropdownMenuItem<int>(
                     value: employee.id,
-                    child: Text('${employee.name} (${employee.deptCode})'),
+                    child: Text(employee.name),
                   );
                 }).toList(),
                 onChanged: (value) {
@@ -234,7 +231,7 @@ class TicketActions extends StatelessWidget {
   }
 
   void _showTransferDialog(BuildContext context, TicketModel ticket) {
-    if (ticket.isOpen) {
+    if (ticket.status == 'open') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(

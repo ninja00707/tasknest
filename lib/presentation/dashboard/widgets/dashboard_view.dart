@@ -59,9 +59,9 @@ class _DashboardBody extends StatelessWidget {
     final isWide = MediaQuery.sizeOf(context).width > 768;
     final s = state.stats;
 
-    final departmentName = NameById.getNameById<Departments>(
+    final departmentName = NameById.getNameById<DepartmentModel>(
       id: user.departmentId,
-      items: departments,
+      items: state.departments,
       idSelector: (e) => e.id,
       nameSelector: (e) => e.name,
     );
@@ -377,49 +377,37 @@ class _StatsGrid extends StatelessWidget {
     final items = [
       _StatItem(
         'Total',
-        s.total,
+        s.totalTickets,
         ThemeColors.unifiedPrimary,
         Icons.inbox_outlined,
       ),
       _StatItem(
         'Open',
-        s.open,
+        s.openTickets,
         ThemeColors.unifiedSecondary,
         Icons.radio_button_unchecked_rounded,
       ),
       _StatItem(
         'In Progress',
-        s.inProgress,
+        s.inProgressTickets,
         ThemeColors.unifiedWarning,
         Icons.autorenew_rounded,
       ),
       _StatItem(
         'Completed',
-        s.completed,
+        s.resolvedTickets,
         ThemeColors.unifiedAccent,
         Icons.check_circle_outline_rounded,
       ),
       _StatItem(
         'Closed',
-        s.closed,
+        s.closedTickets,
         ThemeColors.unifiedTextMuted,
         Icons.lock_outline_rounded,
       ),
       _StatItem(
-        'Urgent',
-        s.urgent,
-        ThemeColors.unifiedDanger,
-        Icons.warning_amber_rounded,
-      ),
-      _StatItem(
-        'High Pri.',
-        s.highPriority,
-        const Color(0xFFEA580C),
-        Icons.priority_high_rounded,
-      ),
-      _StatItem(
         'Overdue',
-        s.overdue,
+        s.overdueTickets,
         ThemeColors.unifiedDanger,
         Icons.access_time_rounded,
       ),
@@ -555,7 +543,7 @@ class _ResolutionMetricsRow extends StatelessWidget {
     // return '${s.avgResolutionHours.toStringAsFixed(1)}h';
     //
     // Fallback heuristic until backend provides it:
-    final resolved = s.completed + s.closed;
+    final resolved = s.resolvedTickets + s.closedTickets;
     if (resolved == 0) return '—';
     // placeholder — replace with real field when available
     return 'N/A';
@@ -563,11 +551,11 @@ class _ResolutionMetricsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final completionRate = s.total > 0
-        ? ((s.completed / s.total) * 100).toStringAsFixed(1)
+    final completionRate = s.totalTickets > 0
+        ? ((s.resolvedTickets / s.totalTickets) * 100).toStringAsFixed(1)
         : '0.0';
-    final overdueRate = s.total > 0
-        ? ((s.overdue / s.total) * 100).toStringAsFixed(1)
+    final overdueRate = s.totalTickets > 0
+        ? ((s.overdueTickets / s.totalTickets) * 100).toStringAsFixed(1)
         : '0.0';
 
     final tiles = [
@@ -582,22 +570,15 @@ class _ResolutionMetricsRow extends StatelessWidget {
         icon: Icons.check_circle_outline_rounded,
         label: 'Completion Rate',
         value: '$completionRate%',
-        sub: '${s.completed} of ${s.total} tickets',
+        sub: '${s.resolvedTickets} of ${s.totalTickets} tickets',
         color: ThemeColors.unifiedAccent,
       ),
       _ResolItem(
         icon: Icons.access_time_rounded,
         label: 'Overdue Rate',
         value: '$overdueRate%',
-        sub: '${s.overdue} overdue tickets',
+        sub: '${s.overdueTickets} overdue tickets',
         color: ThemeColors.unifiedDanger,
-      ),
-      _ResolItem(
-        icon: Icons.warning_amber_rounded,
-        label: 'Critical Load',
-        value: '${s.urgent}',
-        sub: 'urgent tickets open',
-        color: const Color(0xFFEA580C),
       ),
     ];
 
@@ -729,15 +710,9 @@ class _PriorityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = s.total;
+    final total = s.totalTickets;
     final items = [
-      _PriorityItem('Urgent', s.urgent, ThemeColors.unifiedDanger),
-      _PriorityItem('High', s.highPriority, const Color(0xFFEA580C)),
-      _PriorityItem(
-        'Medium & Low',
-        total - s.urgent - s.highPriority,
-        ThemeColors.unifiedPrimary,
-      ),
+       _PriorityItem('Overdue', s.overdueTickets, ThemeColors.unifiedDanger),
     ];
 
     return _BaseCard(
@@ -832,11 +807,11 @@ class _StatusSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = s.total;
+    final total = s.totalTickets;
     final rows = [
       _StatusItem(
         'Open',
-        s.open,
+        s.openTickets,
         total,
         ThemeColors.unifiedSecondary,
         ThemeColors.statusOpenBg,
@@ -844,7 +819,7 @@ class _StatusSummaryCard extends StatelessWidget {
       ),
       _StatusItem(
         'In Progress',
-        s.inProgress,
+        s.inProgressTickets,
         total,
         ThemeColors.unifiedWarning,
         ThemeColors.statusProgressBg,
@@ -852,7 +827,7 @@ class _StatusSummaryCard extends StatelessWidget {
       ),
       _StatusItem(
         'Completed',
-        s.completed,
+        s.resolvedTickets,
         total,
         ThemeColors.unifiedAccent,
         ThemeColors.statusDoneBg,
@@ -860,7 +835,7 @@ class _StatusSummaryCard extends StatelessWidget {
       ),
       _StatusItem(
         'Closed',
-        s.closed,
+        s.closedTickets,
         total,
         ThemeColors.unifiedTextMuted,
         ThemeColors.statusClosedBg,

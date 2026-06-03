@@ -21,7 +21,6 @@ class TicketCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _priorityColor(ticket.priority);
-    final isTransferred = ticket.transferredFromCode != null;
 
     return GestureDetector(
       onTap: onTap ?? () => context.push('/ticket/${ticket.id}'),
@@ -31,9 +30,7 @@ class TicketCard extends StatelessWidget {
           color: ThemeColors.unifiedSurface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: ticket.isOverdue
-                ? ThemeColors.unifiedDanger.withOpacity(0.35)
-                : ThemeColors.unifiedBorder,
+            color: ThemeColors.unifiedBorder,
             width: 1.5,
           ),
           boxShadow: [
@@ -78,31 +75,6 @@ class TicketCard extends StatelessWidget {
                         children: [
                           _IdChip(id: ticket.id),
                           const SizedBox(width: 6),
-                          if (ticket.isSubTicket) ...[
-                            const _FlagChip(
-                              label: 'SUB TICKET',
-                              bg: Color(0xFFEDE9FE),
-                              fg: Color(0xFF7C3AED),
-                              icon: Icons.hub_outlined,
-                            ),
-                            const SizedBox(width: 4),
-                          ],
-                          if (ticket.isOverdue)
-                            const _FlagChip(
-                              label: 'OVERDUE',
-                              bg: Color(0xFFFEE2E2),
-                              fg: ThemeColors.unifiedDanger,
-                              icon: Icons.schedule_rounded,
-                            ),
-                          if (isTransferred) ...[
-                            const SizedBox(width: 4),
-                            _FlagChip(
-                              label: 'FROM ${ticket.transferredFromCode}',
-                              bg: ThemeColors.unifiedWarning.withOpacity(0.12),
-                              fg: ThemeColors.unifiedWarning,
-                              icon: Icons.sync_alt_rounded,
-                            ),
-                          ],
                           const Spacer(),
                           PriorityBadge(priority: ticket.priority),
                           const SizedBox(width: 6),
@@ -140,22 +112,12 @@ class TicketCard extends StatelessWidget {
                       ),
 
                       const SizedBox(height: 12),
-
-                      if (ticket.isSubTicket) ...[
-                        _SubTicketProgressSection(ticket: ticket),
-                        const SizedBox(height: 12),
-                        Container(
-                          height: 1,
-                          color: ThemeColors.unifiedBorder.withOpacity(0.6),
-                        ),
-                        const SizedBox(height: 10),
-                      ] else ...[
-                        Container(
-                          height: 1,
-                          color: ThemeColors.unifiedBorder.withOpacity(0.6),
-                        ),
-                        const SizedBox(height: 10),
-                      ],
+                      
+                      Container(
+                        height: 1,
+                        color: ThemeColors.unifiedBorder.withOpacity(0.6),
+                      ),
+                      const SizedBox(height: 10),
 
                       // ── Row 4: Meta row ──────────────────────────────
                       Row(
@@ -165,33 +127,22 @@ class TicketCard extends StatelessWidget {
                             iconColor: ThemeColors.unifiedPrimary,
                             label: ticket.createdByDeptCode,
                           ),
-                          if (!ticket.isSubTicket) ...[
+                          _MetaDivider(),
+                          _MetaChip(
+                            icon: Icons.arrow_forward_rounded,
+                            iconColor: ThemeColors.unifiedSecondary,
+                            label: ticket.assignedDeptCode,
+                          ),
+                          if (ticket.assignedToName != null) ...[
                             _MetaDivider(),
                             _MetaChip(
-                              icon: Icons.arrow_forward_rounded,
-                              iconColor: ThemeColors.unifiedSecondary,
-                              label: ticket.assignedDeptCode,
-                            ),
-                            if (ticket.assignedToName != null) ...[
-                              _MetaDivider(),
-                              _MetaChip(
-                                icon: Icons.person_outline_rounded,
-                                iconColor: ThemeColors.unifiedTextMuted,
-                                label: ticket.assignedToName!,
-                              ),
-                            ],
-                          ] else ...[
-                            _MetaDivider(),
-                            _MetaChip(
-                              icon: Icons.groups_outlined,
-                              iconColor: const Color(0xFF7C3AED),
-                              label:
-                                  '${ticket.departmentCount} dept${ticket.departmentCount == 1 ? '' : 's'}',
+                              icon: Icons.person_outline_rounded,
+                              iconColor: ThemeColors.unifiedTextMuted,
+                              label: ticket.assignedToName!,
                             ),
                           ],
                           const Spacer(),
-                          if (!ticket.isSubTicket)
-                            TicketActions(ticket: ticket, user: user),
+                          TicketActions(ticket: ticket, user: user),
                         ],
                       ),
                     ],
@@ -318,108 +269,6 @@ class _MetaDivider extends StatelessWidget {
         color: ThemeColors.unifiedBorder,
         shape: BoxShape.circle,
       ),
-    );
-  }
-}
-
-// ── Sub-ticket progress section ─────────────────────────────────────────────
-class _SubTicketProgressSection extends StatelessWidget {
-  final TicketModel ticket;
-  const _SubTicketProgressSection({required this.ticket});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Text(
-              'Overall Progress',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: ThemeColors.unifiedTextMuted,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              '${ticket.overallProgress}%',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF7C3AED),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '${ticket.completedDepartmentCount}/${ticket.departmentCount} done',
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: ThemeColors.unifiedTextMuted,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: ticket.overallProgress / 100,
-            minHeight: 6,
-            backgroundColor: const Color(0xFFEDE9FE),
-            valueColor: const AlwaysStoppedAnimation(Color(0xFF7C3AED)),
-          ),
-        ),
-        if (ticket.subDepartments.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: ticket.subDepartments.map((dept) {
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: dept.isCompleted
-                      ? const Color(0xFFDCFCE7)
-                      : ThemeColors.unifiedBackground,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: dept.isCompleted
-                        ? const Color(0xFF16A34A).withOpacity(0.3)
-                        : ThemeColors.unifiedBorder,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      dept.departmentCode,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: dept.isCompleted
-                            ? const Color(0xFF16A34A)
-                            : const Color(0xFF7C3AED),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${dept.progressPercent}%',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: ThemeColors.unifiedTextMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ],
     );
   }
 }

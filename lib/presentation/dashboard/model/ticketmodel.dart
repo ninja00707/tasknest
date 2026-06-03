@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class Ticket {
+class TicketModel {
   final int id;
   final String title;
   final String description;
@@ -21,7 +21,7 @@ class Ticket {
   final DateTime? dueDate;
   final int? overallProgress;
 
-  Ticket({
+  TicketModel({
     required this.id,
     required this.title,
     required this.description,
@@ -43,8 +43,8 @@ class Ticket {
     this.overallProgress,
   });
 
-  factory Ticket.fromJson(Map<String, dynamic> json) {
-    return Ticket(
+  factory TicketModel.fromJson(Map<String, dynamic> json) {
+    return TicketModel(
       id: json['id'],
       title: json['title'],
       description: json['description'],
@@ -64,6 +64,81 @@ class Ticket {
       updatedAt: DateTime.parse(json['updated_at']),
       dueDate: json['due_date'] != null ? DateTime.parse(json['due_date']) : null,
       overallProgress: json['overall_progress'],
+    );
+  }
+}
+
+class DashboardStats {
+  final int totalTickets;
+  final int openTickets;
+  final int inProgressTickets;
+  final int resolvedTickets;
+  final int closedTickets;
+  final int overdueTickets;
+
+  DashboardStats({
+    required this.totalTickets,
+    required this.openTickets,
+    required this.inProgressTickets,
+    required this.resolvedTickets,
+    required this.closedTickets,
+    required this.overdueTickets,
+  });
+
+  factory DashboardStats.fromJson(Map<String, dynamic> json) {
+    return DashboardStats(
+      totalTickets: json['total_tickets'],
+      openTickets: json['open_tickets'],
+      inProgressTickets: json['in_progress_tickets'],
+      resolvedTickets: json['resolved_tickets'],
+      closedTickets: json['closed_tickets'],
+      overdueTickets: json['overdue_tickets'],
+    );
+  }
+}
+
+class DepartmentModel {
+  final int id;
+  final String name;
+  final String deptCode;
+
+  DepartmentModel({
+    required this.id,
+    required this.name,
+    required this.deptCode,
+  });
+
+  factory DepartmentModel.fromJson(Map<String, dynamic> json) {
+    return DepartmentModel(
+      id: json['id'],
+      name: json['name'],
+      deptCode: json['dept_code'],
+    );
+  }
+}
+
+class EmployeeModel {
+  final int id;
+  final String name;
+  final String email;
+  final int roleId;
+  final int departmentId;
+
+  EmployeeModel({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.roleId,
+    required this.departmentId,
+  });
+
+  factory EmployeeModel.fromJson(Map<String, dynamic> json) {
+    return EmployeeModel(
+      id: json['id'],
+      name: json['name'],
+      email: json['email'],
+      roleId: json['role_id'],
+      departmentId: json['department_id'],
     );
   }
 }
