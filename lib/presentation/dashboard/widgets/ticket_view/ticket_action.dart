@@ -20,10 +20,6 @@ class TicketActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (ticket.isSubTicket) {
-      return const SizedBox.shrink();
-    }
-
     return BlocBuilder<DashboardBloc, DashboardState>(
       builder: (context, state) {
         if (state is! DashboardLoaded) {
@@ -86,15 +82,15 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showStatusRemarkDialog(context, 'closed'),
               ),
 
-            // 5. Transfer: Disabled if Completed/Closed
-            if (!ticket.isManagementDisabled &&
+            // 5. Create Sub Ticket (formerly Transfer): Disabled if Closed
+            if (!ticket.isClosed &&
                 !isCeo &&
                 ((isManager && ticket.assignedToId == null) || isResolver))
               ActionBtn(
-                icon: Icons.swap_horiz_rounded,
-                tooltip: 'Transfer Dept',
+                icon: Icons.add_link_rounded,
+                tooltip: 'Create Sub Ticket',
                 color: ThemeColors.unifiedWarning,
-                onTap: () => _showTransferDialog(context, ticket),
+                onTap: () => _showSubTicketDialog(context, ticket),
               ),
 
             // 6. Reopen: Restricted to Creator/CEO based on model rules
@@ -233,20 +229,7 @@ class TicketActions extends StatelessWidget {
     );
   }
 
-  void _showTransferDialog(BuildContext context, TicketModel ticket) {
-    if (ticket.isOpen) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Open tickets cannot be transferred. Please assign or start progress first.',
-          ),
-          backgroundColor: ThemeColors.unifiedDanger,
-        ),
-      );
-
-      return;
-    }
-
+  void _showSubTicketDialog(BuildContext context, TicketModel ticket) {
     final bloc = context.read<DashboardBloc>();
     final state = bloc.state;
 
@@ -258,7 +241,9 @@ class TicketActions extends StatelessWidget {
 
     if (depts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No departments available for transfer')),
+        const SnackBar(
+          content: Text('No departments available for sub-ticket'),
+        ),
       );
 
       return;
@@ -276,38 +261,51 @@ class TicketActions extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               title: const Text(
-                'Transfer Ticket',
+                'Create Sub Ticket',
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: ThemeColors.unifiedTextPrimary,
                 ),
               ),
-              content: DropdownButtonFormField<int>(
-                value: selectedDeptId,
-                decoration: InputDecoration(
-                  labelText: 'Target Department',
-                  filled: true,
-                  fillColor: ThemeColors.unifiedInputBg,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: ThemeColors.unifiedBorder,
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'This will create a new sub-ticket for the selected department linked to this ticket.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: ThemeColors.unifiedTextMuted,
                     ),
                   ),
-                ),
-                items: depts.map((d) {
-                  return DropdownMenuItem<int>(
-                    value: d.id,
-                    child: Text(d.name),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      selectedDeptId = value;
-                    });
-                  }
-                },
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<int>(
+                    value: selectedDeptId,
+                    decoration: InputDecoration(
+                      labelText: 'Target Department',
+                      filled: true,
+                      fillColor: ThemeColors.unifiedInputBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(
+                          color: ThemeColors.unifiedBorder,
+                        ),
+                      ),
+                    ),
+                    items: depts.map((d) {
+                      return DropdownMenuItem<int>(
+                        value: d.id,
+                        child: Text(d.name),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          selectedDeptId = value;
+                        });
+                      }
+                    },
+                  ),
+                ],
               ),
               actions: [
                 TextButton(
@@ -316,17 +314,6 @@ class TicketActions extends StatelessWidget {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    if (selectedDeptId == ticket.assignedDeptId) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Ticket is already in the selected department.',
-                          ),
-                          backgroundColor: ThemeColors.unifiedDanger,
-                        ),
-                      );
-                      return;
-                    }
                     bloc.add(TransferTicket(ticket.id, selectedDeptId));
                     Navigator.pop(dialogContext);
                   },
@@ -335,7 +322,7 @@ class TicketActions extends StatelessWidget {
                     foregroundColor: Colors.white,
                     elevation: 0,
                   ),
-                  child: const Text('Transfer'),
+                  child: const Text('Create Sub Ticket'),
                 ),
               ],
             );

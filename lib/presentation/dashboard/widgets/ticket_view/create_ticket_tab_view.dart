@@ -35,7 +35,7 @@ class CreateTicketTabView extends StatelessWidget {
               labelStyle: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
               tabs: [
                 Tab(text: 'Standard Ticket'),
-                Tab(text: 'Sub-Ticket'),
+                Tab(text: 'Multi Task Ticket'),
               ],
             ),
           ),

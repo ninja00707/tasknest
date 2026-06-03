@@ -41,7 +41,7 @@ class TicketService {
   }
 
   async createTicket(data, user) {
-    const { title, description, priority = 'medium', assignedDeptId, dueDate } = data;
+    const { title, description, priority = 'medium', assignedDeptId, dueDate, parentTicketId = null } = data;
 
     // Ensure assignedToId is handled as a number or null
     const assignedToId = data.assignedToId != null ? Number(data.assignedToId) : null;
@@ -58,10 +58,16 @@ class TicketService {
       dueDate,
       createdBy: user,
       assignedToId,
+      parentTicketId: parentTicketId ? Number(parentTicketId) : null,
+      ticketType: 'standard'
     });
 
-    const logNote = `Created by ${user.name}${assignedToId ? ` and assigned to ${ticket.assigned_to_name}` : ''}`;
+    const logNote = `Created by ${user.name}${assignedToId ? ` and assigned to ${ticket.assigned_to_name}` : ''}${parentTicketId ? ` as a sub-ticket of #${parentTicketId}` : ''}`;
     await ticketRepo.logAction(ticket.id, user.id, 'created', null, ticket.status, logNote);
+
+    if (parentTicketId) {
+      await ticketRepo.logAction(parentTicketId, user.id, 'sub_ticket_created', null, String(ticket.id), `Sub-ticket #${ticket.id} created by ${user.name}`);
+    }
 
     // Notify target department managers
     const managers = await ticketRepo.getManagersByDepartment(assignedDeptId);
@@ -76,18 +82,18 @@ class TicketService {
   }
 
   async createSubTicket(data, user) {
-    if (user.role !== 'manager') {
-      throw { statusCode: 403, message: 'Only department managers can create sub-tickets' };
+    if (user.role !== 'manager' && user.role !== 'ceo') {
+      throw { statusCode: 403, message: 'Only managers or CEO can create multi-task tickets' };
     }
 
-    const { title, description, priority = 'medium', dueDate, departments } = data;
+    const { title, description, priority = 'medium', dueDate, departments, parentTicketId = null } = data;
 
     if (!title || !description || title.trim() === '' || description.trim() === '') {
       throw { statusCode: 400, message: 'title and description are required' };
     }
 
     if (!Array.isArray(departments) || departments.length < 2) {
-      throw { statusCode: 400, message: 'Sub-tickets require at least 2 departments with task descriptions' };
+      throw { statusCode: 400, message: 'Multi-task tickets require at least 2 departments with task descriptions' };
     }
 
     const normalizedDepts = departments.map((d) => ({
@@ -123,17 +129,22 @@ class TicketService {
         departmentId: Number(d.departmentId),
         taskDescription: d.taskDescription,
       })),
+      parentTicketId: parentTicketId ? Number(parentTicketId) : null,
     });
 
     const deptNames = ticket.sub_departments.map(d => d.department_name).join(', ');
     await ticketRepo.logAction(
-      ticket.id, user.id, 'created', null, 'sub_ticket',
-      `Sub-ticket created by ${user.name} for departments: ${deptNames}`
+      ticket.id, user.id, 'created', null, 'multi_task',
+      `Multi-task ticket created by ${user.name} for departments: ${deptNames}${parentTicketId ? ` as a sub-ticket of #${parentTicketId}` : ''}`
     );
     await ticketRepo.logAction(
       ticket.id, user.id, 'assigned', 'Unassigned', user.name,
-      `Sub-ticket auto-assigned to creator (${user.name})`
+      `Multi-task ticket auto-assigned to creator (${user.name})`
     );
+
+    if (parentTicketId) {
+      await ticketRepo.logAction(parentTicketId, user.id, 'sub_ticket_created', null, String(ticket.id), `Multi-task sub-ticket #${ticket.id} created by ${user.name}`);
+    }
 
     for (const dept of ticket.sub_departments) {
       const managers = await ticketRepo.getManagersByDepartment(dept.department_id);
@@ -214,10 +225,10 @@ class TicketService {
     const progressLog = status === 'pending_approval'
       ? `${user.name} submitted ${deptName} work as done${note ? `. Remark: ${note}` : ''}`
       : status === 'approved'
-      ? `${user.name} approved ${deptName} work`
-      : status === 'completed'
-      ? `${user.name} marked ${deptName} as completed`
-      : `${user.name} changed ${deptName} status from ${deptRow.status} to ${status}${note ? `. Remark: ${note}` : ''}`;
+        ? `${user.name} approved ${deptName} work`
+        : status === 'completed'
+          ? `${user.name} marked ${deptName} as completed`
+          : `${user.name} changed ${deptName} status from ${deptRow.status} to ${status}${note ? `. Remark: ${note}` : ''}`;
 
     await ticketRepo.logAction(
       ticketId, user.id, 'status_changed',
@@ -245,8 +256,8 @@ class TicketService {
         status === 'approved'
           ? `Manager ${user.name} approved ${deptName} work`
           : status === 'completed'
-          ? `CEO ${user.name} finalized ${deptName}`
-          : `Note added by ${user.name} for ${deptName}`
+            ? `CEO ${user.name} finalized ${deptName}`
+            : `Note added by ${user.name} for ${deptName}`
       );
     }
 
@@ -450,6 +461,17 @@ class TicketService {
       throw { statusCode: 400, message: 'Invalid status' };
     }
 
+    // Master ticket closure logic
+    if (newStatus === 'completed' || newStatus === 'closed') {
+      const hasOpenSubs = await ticketRepo.hasOpenSubTickets(ticketId);
+      if (hasOpenSubs) {
+        throw {
+          statusCode: 400,
+          message: 'Cannot close/complete this ticket because it has open sub-tickets. All sub-tickets must be resolved first.'
+        };
+      }
+    }
+
     const isResolver = ticket.assigned_to_id === user.id;
     const isCreator = ticket.created_by_id === user.id;
     const isCeo = user.role === 'ceo';
@@ -594,71 +616,64 @@ class TicketService {
   }
 
   async transferTicket(ticketId, targetDeptId, user) {
-    const ticketBeforeUpdate = await ticketRepo.getTicketById(ticketId, user);
-    if (!ticketBeforeUpdate) throw { statusCode: 404, message: 'Ticket not found' };
-    if (ticketBeforeUpdate.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    const parentTicket = await ticketRepo.getTicketById(ticketId, user);
+    if (!parentTicket) throw { statusCode: 404, message: 'Parent ticket not found' };
+    if (parentTicket.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
-    if (ticketBeforeUpdate.is_sub_ticket) {
-      throw { statusCode: 400, message: 'Sub-tickets cannot be transferred. Update department progress instead.' };
+    // Actions are disabled for closed tickets
+    if (parentTicket.status === 'closed') {
+      throw { statusCode: 400, message: 'Cannot create sub-ticket for a closed ticket' };
     }
 
-    // Actions are disabled for completed or closed tickets
-    if (ticketBeforeUpdate.status === 'completed' || ticketBeforeUpdate.status === 'closed') {
-      throw { statusCode: 400, message: 'Cannot transfer a ticket that is already completed or closed' };
+    // Permission Check: CEO cannot create sub-tickets via transfer, and if assigned, only the resolver can create sub-ticket
+    if (user.role === 'ceo') throw { statusCode: 403, message: 'CEO is not authorized to create sub-tickets' };
+
+    if (parentTicket.assigned_to_id && parentTicket.assigned_to_id !== user.id && user.role !== 'manager') {
+      throw { statusCode: 403, message: 'Only the assigned resolver or a manager can create a sub-ticket' };
     }
 
-    // Permission Check: CEO cannot transfer, and if assigned, only the resolver can transfer
-    if (user.role === 'ceo') throw { statusCode: 403, message: 'CEO is not authorized to transfer tickets' };
-
-    if (ticketBeforeUpdate.assigned_to_id && ticketBeforeUpdate.assigned_to_id !== user.id) {
-      throw { statusCode: 403, message: 'Only the assigned resolver can transfer this ticket' };
-    }
-    if (Number(ticketBeforeUpdate.assigned_dept_id) === Number(targetDeptId)) {
-      throw { statusCode: 400, message: 'Ticket is already in that department' };
+    if (Number(parentTicket.assigned_dept_id) === Number(targetDeptId)) {
+      throw { statusCode: 400, message: 'Cannot create sub-ticket for the same department' };
     }
 
-    const updated = await ticketRepo.transferTicket(ticketId, targetDeptId, user);
-    if (!updated) throw { statusCode: 400, message: 'Unable to transfer ticket' };
+    // Create a new ticket as a sub-ticket
+    const subTicket = await ticketRepo.createTicket({
+      title: `Sub: ${parentTicket.title}`,
+      description: parentTicket.description,
+      priority: parentTicket.priority,
+      assignedDeptId: targetDeptId,
+      dueDate: parentTicket.due_date,
+      createdBy: user,
+      assignedToId: null,
+      parentTicketId: ticketId,
+      ticketType: 'standard'
+    });
 
-    // Log department transfer
+    // Log the sub-ticket creation on the parent ticket
     await ticketRepo.logAction(
       ticketId,
       user.id,
-      'transferred',
-      ticketBeforeUpdate.assigned_dept_name,
-      updated.assigned_dept_name, // Use the name of the new department
-      `Transferred from ${ticketBeforeUpdate.assigned_dept_name} to ${updated.assigned_dept_name}.`
+      'sub_ticket_created',
+      null,
+      String(subTicket.id),
+      `Sub-ticket #${subTicket.id} created for department ${subTicket.assigned_dept_name} (formerly Transfer)`
+    );
+
+    // Log creation on the sub-ticket itself
+    await ticketRepo.logAction(
+      subTicket.id,
+      user.id,
+      'created',
+      null,
+      subTicket.status,
+      `Created as a sub-ticket of #${ticketId}`
     );
 
     // Notify new department managers
     const newManagers = await ticketRepo.getManagersByDepartment(targetDeptId);
-    await this._dispatch(ticketId, newManagers, `Ticket #${ticketId} transferred to your department`, 'TICKET_TRANSFERRED');
-    await this._dispatch(ticketId, [ticketBeforeUpdate.created_by_id], `Your ticket was transferred to ${updated.assigned_dept_name}`, 'TICKET_UPDATED');
+    await this._dispatch(subTicket.id, newManagers, `New Sub-Ticket #${subTicket.id} created from #${ticketId}`, 'TICKET_CREATED', { ticket: subTicket });
 
-    // Log unassignment if it happened
-    if (ticketBeforeUpdate.assigned_to_id !== null) {
-      await ticketRepo.logAction(
-        ticketId,
-        user.id,
-        'assigned',
-        ticketBeforeUpdate.assigned_to_name,
-        'Unassigned',
-        'Unassigned due to transfer'
-      );
-    }
-
-    // Log status change to 'open'
-    if (ticketBeforeUpdate.status !== 'open') {
-      await ticketRepo.logAction(
-        ticketId,
-        user.id,
-        'status_changed',
-        ticketBeforeUpdate.status,
-        updated.status, // 'open'
-        'Status changed to open due to transfer'
-      );
-    }
-    return updated;
+    return subTicket;
   }
 
   async reopenTicket(ticketId, user) {

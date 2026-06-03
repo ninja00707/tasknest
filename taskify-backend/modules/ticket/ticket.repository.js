@@ -10,6 +10,7 @@ class TicketRepository {
         t.due_date, t.created_at, t.updated_at,
         t.closed_at, t.reopened_at, t.reopen_count,
         t.is_sub_ticket, t.overall_progress,
+        t.parent_ticket_id, t.ticket_type,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -27,13 +28,32 @@ class TicketRepository {
         ll.created_at  AS last_updated_at,
         ll.acted_by_name AS last_acted_by_name,
 
-        tf.code AS transferred_from_code
+        tf.code AS transferred_from_code,
+        pt.title AS parent_ticket_title,
+
+        -- Fetch department journey (unique list of departments visited)
+        (
+          SELECT json_agg(dept_info) FROM (
+            SELECT DISTINCT ON (d.id) 
+              d.code, d.name, tl.created_at
+            FROM ticket_logs tl
+            JOIN departments d ON (
+              (tl.action = 'created' AND d.id = t.created_by_dept) OR
+              (tl.action = 'transferred' AND d.name = tl.new_value) OR
+              (tl.action = 'assigned' AND d.id = t.assigned_dept_id)
+            )
+            WHERE tl.ticket_id = t.id
+            ORDER BY d.id, tl.created_at ASC
+          ) dept_info
+        ) AS dept_journey
+
       FROM tickets t
       LEFT JOIN users creator  ON creator.id = t.created_by_id
       LEFT JOIN departments cd ON cd.id = t.created_by_dept
       LEFT JOIN departments ad ON ad.id = t.assigned_dept_id
       LEFT JOIN users assignee ON assignee.id = t.assigned_to_id
       LEFT JOIN departments tf ON tf.id = t.transferred_from
+      LEFT JOIN tickets pt     ON pt.id = t.parent_ticket_id
       LEFT JOIN LATERAL (
         SELECT tl.action, tl.created_at, u.name as acted_by_name
         FROM ticket_logs tl
@@ -46,6 +66,15 @@ class TicketRepository {
     `, [ticketId]);
 
     return result.rows[0] || null;
+  }
+
+  async hasOpenSubTickets(ticketId) {
+    const result = await pool.query(`
+      SELECT 1 FROM tickets
+      WHERE parent_ticket_id = $1 AND status NOT IN ('completed', 'closed')
+      LIMIT 1
+    `, [ticketId]);
+    return result.rows.length > 0;
   }
 
   // ── Get tickets visible to this user based on role ────────────────────────
@@ -109,13 +138,33 @@ class TicketRepository {
         ll.created_at  AS last_updated_at,
         ll.acted_by_name AS last_acted_by_name,
 
-        tf.code AS transferred_from_code
+        tf.code AS transferred_from_code,
+        pt.title AS parent_ticket_title,
+        t.parent_ticket_id, t.ticket_type,
+
+        -- Fetch department journey
+        (
+          SELECT json_agg(dept_info) FROM (
+            SELECT DISTINCT ON (d.id) 
+              d.code, d.name, tl.created_at
+            FROM ticket_logs tl
+            JOIN departments d ON (
+              (tl.action = 'created' AND d.id = t.created_by_dept) OR
+              (tl.action = 'transferred' AND d.name = tl.new_value) OR
+              (tl.action = 'assigned' AND d.id = t.assigned_dept_id)
+            )
+            WHERE tl.ticket_id = t.id
+            ORDER BY d.id, tl.created_at ASC
+          ) dept_info
+        ) AS dept_journey
+
       FROM tickets t
       LEFT JOIN users       creator  ON creator.id  = t.created_by_id
       LEFT JOIN departments cd       ON cd.id        = t.created_by_dept
       LEFT JOIN departments ad       ON ad.id        = t.assigned_dept_id
       LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
       LEFT JOIN departments tf  ON tf.id        = t.transferred_from
+      LEFT JOIN tickets pt     ON pt.id        = t.parent_ticket_id
       LEFT JOIN LATERAL (
         SELECT tl.action, tl.created_at, u.name as acted_by_name
         FROM ticket_logs tl
@@ -168,6 +217,24 @@ class TicketRepository {
         ad.name      AS assigned_dept_name,
         assignee.name AS assigned_to_name,
         tf.code AS transferred_from_code,
+        pt.title AS parent_ticket_title,
+        t.parent_ticket_id, t.ticket_type,
+
+        -- Fetch department journey
+        (
+          SELECT json_agg(dept_info) FROM (
+            SELECT DISTINCT ON (d.id) 
+              d.code, d.name, tl.created_at
+            FROM ticket_logs tl
+            JOIN departments d ON (
+              (tl.action = 'created' AND d.id = t.created_by_dept) OR
+              (tl.action = 'transferred' AND d.name = tl.new_value) OR
+              (tl.action = 'assigned' AND d.id = t.assigned_dept_id)
+            )
+            WHERE tl.ticket_id = t.id
+            ORDER BY d.id, tl.created_at ASC
+          ) dept_info
+        ) AS dept_journey,
 
         ll.action      AS last_action,
         ll.created_at  AS last_updated_at,
@@ -178,6 +245,7 @@ class TicketRepository {
       LEFT JOIN departments ad       ON ad.id        = t.assigned_dept_id
       LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
       LEFT JOIN departments tf  ON tf.id        = t.transferred_from
+      LEFT JOIN tickets pt     ON pt.id        = t.parent_ticket_id
       LEFT JOIN LATERAL (
         SELECT tl.action, tl.created_at, u.name as acted_by_name
         FROM ticket_logs tl
@@ -264,15 +332,15 @@ class TicketRepository {
   }
 
   // ── Create ticket ─────────────────────────────────────────────────────────
-  async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId }) {
+  async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId, parentTicketId = null, ticketType = 'standard' }) {
     // Strict check for assignedToId to set correct status
     const status = (assignedToId != null) ? 'in_progress' : 'open';
     const result = await pool.query(`
       INSERT INTO tickets
-        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status, parent_ticket_id, ticket_type)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING id
-    `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status]);
+    `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status, parentTicketId, ticketType]);
 
     return await this.getTicketDetails(result.rows[0].id);
   }
@@ -466,6 +534,24 @@ class TicketRepository {
         assignee.name AS assigned_to_name,
 
         tf.code AS transferred_from_code,
+        pt.title AS parent_ticket_title,
+        t.parent_ticket_id, t.ticket_type,
+
+        -- Fetch department journey
+        (
+          SELECT json_agg(dept_info) FROM (
+            SELECT DISTINCT ON (d.id) 
+              d.code, d.name, tl.created_at
+            FROM ticket_logs tl
+            JOIN departments d ON (
+              (tl.action = 'created' AND d.id = t.created_by_dept) OR
+              (tl.action = 'transferred' AND d.name = tl.new_value) OR
+              (tl.action = 'assigned' AND d.id = t.assigned_dept_id)
+            )
+            WHERE tl.ticket_id = t.id
+            ORDER BY d.id, tl.created_at ASC
+          ) dept_info
+        ) AS dept_journey,
 
         ll.action      AS last_action,
         ll.created_at  AS last_updated_at,
@@ -476,6 +562,7 @@ class TicketRepository {
       LEFT JOIN departments ad       ON ad.id        = t.assigned_dept_id
       LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
       LEFT JOIN departments tf  ON tf.id        = t.transferred_from
+      LEFT JOIN tickets pt     ON pt.id        = t.parent_ticket_id
       LEFT JOIN LATERAL (
         SELECT tl.action, tl.created_at, u.name as acted_by_name
         FROM ticket_logs tl
@@ -642,7 +729,7 @@ class TicketRepository {
     return { avg_progress, newStatus, approved_count };
   }
 
-  async createSubTicket({ title, description, priority, dueDate, createdBy, departments }) {
+  async createSubTicket({ title, description, priority, dueDate, createdBy, departments, parentTicketId = null }) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -650,8 +737,8 @@ class TicketRepository {
       const ticketResult = await client.query(`
         INSERT INTO tickets
           (title, description, priority, assigned_dept_id, due_date,
-           created_by_id, created_by_dept, assigned_to_id, status, is_sub_ticket, overall_progress)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'in_progress', TRUE, 0)
+           created_by_id, created_by_dept, assigned_to_id, status, is_sub_ticket, overall_progress, parent_ticket_id, ticket_type)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'in_progress', TRUE, 0, $9, 'multi_task')
         RETURNING id
       `, [
         title, description, priority,
@@ -660,6 +747,7 @@ class TicketRepository {
         createdBy.id,
         createdBy.department_id,
         createdBy.id,
+        parentTicketId
       ]);
 
       const ticketId = ticketResult.rows[0].id;

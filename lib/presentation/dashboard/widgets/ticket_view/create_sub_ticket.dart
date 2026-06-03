@@ -9,7 +9,15 @@ import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class CreateSubTicketView extends StatefulWidget {
   final UserModel user;
-  const CreateSubTicketView({super.key, required this.user});
+  final int? parentTicketId;
+  final String? parentTicketTitle;
+
+  const CreateSubTicketView({
+    super.key,
+    required this.user,
+    this.parentTicketId,
+    this.parentTicketTitle,
+  });
 
   @override
   State<CreateSubTicketView> createState() => _CreateSubTicketViewState();
@@ -43,9 +51,7 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
 
   void _toggleDepartment(DepartmentModel dept) {
     setState(() {
-      final idx = _selectedDepts.indexWhere(
-        (e) => e.department.id == dept.id,
-      );
+      final idx = _selectedDepts.indexWhere((e) => e.department.id == dept.id);
       if (idx >= 0) {
         _selectedDepts[idx].taskController.dispose();
         _selectedDepts.removeAt(idx);
@@ -88,7 +94,10 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_selectedDepts.length < 2) {
-      _showSnack('Select at least 2 departments for a sub-ticket', isError: true);
+      _showSnack(
+        'Select at least 2 departments for a multi-task ticket',
+        isError: true,
+      );
       return;
     }
 
@@ -110,6 +119,7 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
         description: _description.text.trim(),
         priority: _priority,
         dueDate: _dueDate,
+        parentTicketId: widget.parentTicketId,
         departments: _selectedDepts
             .map(
               (e) => {
@@ -128,8 +138,9 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor:
-            isError ? ThemeColors.unifiedDanger : ThemeColors.unifiedPrimary,
+        backgroundColor: isError
+            ? ThemeColors.unifiedDanger
+            : ThemeColors.unifiedPrimary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -149,6 +160,38 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (widget.parentTicketId != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: ThemeColors.unifiedBackground,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: ThemeColors.unifiedBorder),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.subdirectory_arrow_right_rounded,
+                    size: 16,
+                    color: ThemeColors.unifiedTextMuted,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Creating sub-ticket for #${widget.parentTicketId} ${widget.parentTicketTitle ?? ""}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: ThemeColors.unifiedTextMuted,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           Row(
             children: [
               Container(
@@ -162,7 +205,11 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.hub_outlined, color: Colors.white, size: 22),
+                child: const Icon(
+                  Icons.hub_outlined,
+                  color: Colors.white,
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -170,7 +217,7 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
                     Text(
-                      'Create Sub-Ticket',
+                      'Create Multi Task Ticket',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -190,14 +237,19 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF7C3AED).withOpacity(0.12),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF7C3AED).withOpacity(0.3)),
+                  border: Border.all(
+                    color: const Color(0xFF7C3AED).withOpacity(0.3),
+                  ),
                 ),
                 child: const Text(
-                  'SUB TICKET',
+                  'MULTI TASK',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -245,15 +297,21 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                         _textField(
                           controller: _title,
                           hint: 'Sub-ticket title',
-                          validator: (v) =>
-                              v == null || v.isEmpty ? 'Title is required' : null,
+                          validator: (v) => v == null || v.isEmpty
+                              ? 'Title is required'
+                              : null,
                         ),
                         const SizedBox(height: 20),
-                        _label('Overall Description', Icons.notes_rounded, required: true),
+                        _label(
+                          'Overall Description',
+                          Icons.notes_rounded,
+                          required: true,
+                        ),
                         const SizedBox(height: 8),
                         _textField(
                           controller: _description,
-                          hint: 'Describe the overall objective across departments...',
+                          hint:
+                              'Describe the overall objective across departments...',
                           maxLines: 3,
                           validator: (v) => v == null || v.isEmpty
                               ? 'Description is required'
@@ -287,7 +345,9 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                               decoration: BoxDecoration(
                                 color: ThemeColors.unifiedBackground,
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: ThemeColors.unifiedBorder),
+                                border: Border.all(
+                                  color: ThemeColors.unifiedBorder,
+                                ),
                               ),
                               child: Text(
                                 '${_selectedDepts.length} selected',
@@ -318,8 +378,9 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                               label: Text('${dept.name} (${dept.code})'),
                               selected: selected,
                               onSelected: (_) => _toggleDepartment(dept),
-                              selectedColor:
-                                  const Color(0xFF7C3AED).withOpacity(0.15),
+                              selectedColor: const Color(
+                                0xFF7C3AED,
+                              ).withOpacity(0.15),
                               checkmarkColor: const Color(0xFF7C3AED),
                               side: BorderSide(
                                 color: selected
@@ -328,8 +389,9 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                               ),
                               labelStyle: TextStyle(
                                 fontSize: 12,
-                                fontWeight:
-                                    selected ? FontWeight.w700 : FontWeight.w500,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
                                 color: selected
                                     ? const Color(0xFF7C3AED)
                                     : ThemeColors.unifiedTextPrimary,
@@ -374,8 +436,9 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                                     ? null
                                     : [
                                         BoxShadow(
-                                          color: const Color(0xFF7C3AED)
-                                              .withOpacity(0.3),
+                                          color: const Color(
+                                            0xFF7C3AED,
+                                          ).withOpacity(0.3),
                                           blurRadius: 12,
                                           offset: const Offset(0, 4),
                                         ),
@@ -517,20 +580,35 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
       controller: controller,
       maxLines: maxLines,
       validator: validator,
-      style: const TextStyle(fontSize: 14, color: ThemeColors.unifiedTextPrimary),
+      style: const TextStyle(
+        fontSize: 14,
+        color: ThemeColors.unifiedTextPrimary,
+      ),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: ThemeColors.unifiedTextMuted, fontSize: 14),
+        hintStyle: const TextStyle(
+          color: ThemeColors.unifiedTextMuted,
+          fontSize: 14,
+        ),
         filled: true,
         fillColor: ThemeColors.unifiedInputBg,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 13,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: ThemeColors.unifiedBorder, width: 1.5),
+          borderSide: const BorderSide(
+            color: ThemeColors.unifiedBorder,
+            width: 1.5,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: ThemeColors.unifiedBorder, width: 1.5),
+          borderSide: const BorderSide(
+            color: ThemeColors.unifiedBorder,
+            width: 1.5,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -610,8 +688,11 @@ class _DateField extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.calendar_today_outlined, size: 16,
-                color: ThemeColors.unifiedTextMuted),
+            const Icon(
+              Icons.calendar_today_outlined,
+              size: 16,
+              color: ThemeColors.unifiedTextMuted,
+            ),
             const SizedBox(width: 10),
             Text(
               dueDate ?? 'Pick a due date (optional)',

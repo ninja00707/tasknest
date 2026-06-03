@@ -80,6 +80,7 @@ class CreateTicketEvent extends DashboardEvent {
   final int createdByDept;
   final int? assignedToId; // New field for optional assignment
   final String? dueDate;
+  final int? parentTicketId;
 
   CreateTicketEvent({
     required this.title,
@@ -92,6 +93,7 @@ class CreateTicketEvent extends DashboardEvent {
     required this.createdByDept,
 
     this.dueDate,
+    this.parentTicketId,
   });
 
   @override
@@ -104,6 +106,7 @@ class CreateTicketEvent extends DashboardEvent {
     createdByDept,
     dueDate,
     assignedToId,
+    parentTicketId,
   ];
 }
 
@@ -122,6 +125,7 @@ class CreateSubTicketEvent extends DashboardEvent {
   final String priority;
   final List<Map<String, dynamic>> departments;
   final String? dueDate;
+  final int? parentTicketId;
 
   CreateSubTicketEvent({
     required this.title,
@@ -129,10 +133,18 @@ class CreateSubTicketEvent extends DashboardEvent {
     required this.priority,
     required this.departments,
     this.dueDate,
+    this.parentTicketId,
   });
 
   @override
-  List<Object?> get props => [title, description, priority, departments, dueDate];
+  List<Object?> get props => [
+    title,
+    description,
+    priority,
+    departments,
+    dueDate,
+    parentTicketId,
+  ];
 }
 
 class UpdateSubDeptProgressEvent extends DashboardEvent {

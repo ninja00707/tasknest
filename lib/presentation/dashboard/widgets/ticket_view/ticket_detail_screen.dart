@@ -334,6 +334,34 @@ class _HeroCard extends StatelessWidget {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
+                      if (ticket.hasParent) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: ThemeColors.unifiedBackground,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: ThemeColors.unifiedBorder),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.subdirectory_arrow_right_rounded,
+                                  size: 14, color: ThemeColors.unifiedTextMuted),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Sub-ticket of #${ticket.parentTicketId} ${ticket.parentTicketTitle ?? ""}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: ThemeColors.unifiedTextMuted,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       // Route row
                       Row(

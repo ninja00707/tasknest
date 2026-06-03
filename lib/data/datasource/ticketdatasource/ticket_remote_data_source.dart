@@ -39,6 +39,7 @@ class TicketRemoteDataSource {
     required int createdByDept,
     String? dueDate,
     int? assignedToId, // Added assignedToId
+    int? parentTicketId,
   }) async {
     final res = await _api.post(
       'tickets',
@@ -52,13 +53,18 @@ class TicketRemoteDataSource {
         if (assignedToId != null)
           'assignedToId': assignedToId, // Send assignedToId if present
         if (dueDate != null) 'dueDate': dueDate,
+        if (parentTicketId != null) 'parentTicketId': parentTicketId,
       },
     );
 
     return TicketModel.fromJson(res['data']);
   }
 
-  Future<TicketModel> updateStatus(int id, String status, {String? remark}) async {
+  Future<TicketModel> updateStatus(
+    int id,
+    String status, {
+    String? remark,
+  }) async {
     final res = await _api.patch(
       'tickets/$id/status',
       body: {
@@ -144,6 +150,7 @@ class TicketRemoteDataSource {
     required String priority,
     required List<Map<String, dynamic>> departments,
     String? dueDate,
+    int? parentTicketId,
   }) async {
     final res = await _api.post(
       'tickets/sub-tickets',
@@ -153,6 +160,7 @@ class TicketRemoteDataSource {
         'priority': priority,
         'departments': departments,
         if (dueDate != null) 'dueDate': dueDate,
+        if (parentTicketId != null) 'parentTicketId': parentTicketId,
       },
     );
     return TicketModel.fromJson(res['data']);

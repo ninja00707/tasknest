@@ -252,6 +252,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         createdByDept: event.createdByDept,
         assignedToId: event.assignedToId, // Correctly access assignedToId
         dueDate: event.dueDate,
+        parentTicketId: event.parentTicketId,
       );
 
       emit(TicketActionSuccess('Ticket created!', prev));
@@ -274,6 +275,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         priority: event.priority,
         departments: event.departments,
         dueDate: event.dueDate,
+        parentTicketId: event.parentTicketId,
       );
       emit(TicketActionSuccess('Sub-ticket created!', prev));
       add(LoadDashboard());

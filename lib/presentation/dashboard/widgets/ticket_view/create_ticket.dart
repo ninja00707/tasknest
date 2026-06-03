@@ -10,7 +10,15 @@ import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class CreateTicketView extends StatefulWidget {
   final UserModel user;
-  const CreateTicketView({super.key, required this.user});
+  final int? parentTicketId;
+  final String? parentTicketTitle;
+
+  const CreateTicketView({
+    super.key,
+    required this.user,
+    this.parentTicketId,
+    this.parentTicketTitle,
+  });
 
   @override
   State<CreateTicketView> createState() => _CreateTicketViewState();
@@ -47,56 +55,59 @@ class _CreateTicketViewState extends State<CreateTicketView> {
     return SingleChildScrollView(
       padding: EdgeInsets.all(isWide ? 28 : 16).copyWith(bottom: 48),
       child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            // ── Page header ───────────────────────────────────────────
-            _PageHeader(),
-            const SizedBox(height: 24),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          // ── Page header ───────────────────────────────────────────
+          _PageHeader(
+            parentId: widget.parentTicketId,
+            parentTitle: widget.parentTicketTitle,
+          ),
+          const SizedBox(height: 24),
 
-            // ── Form card ─────────────────────────────────────────────
-            _FormCard(
-              child: Form(
-                key: _formKey,
-                child: isWide
-                    ? _WideFormLayout(
-                        titleCtrl: _title,
-                        descCtrl: _description,
-                        priority: _priority,
-                        selectedDept: _selectedDepartment,
-                        selectedEmployee: _selectedEmployee,
-                        dueDate: _dueDate,
-                        employeeList: employeeList,
-                        canAssignEmployee: canAssignEmployee,
-                        submitting: _submitting,
-                        onPriorityChanged: (v) => setState(() => _priority = v),
-                        onDeptChanged: _onDeptChanged,
-                        onEmployeeChanged: (v) =>
-                            setState(() => _selectedEmployee = v),
-                        onDateTap: _pickDate,
-                        onSubmit: _submit,
-                      )
-                    : _NarrowFormLayout(
-                        titleCtrl: _title,
-                        descCtrl: _description,
-                        priority: _priority,
-                        selectedDept: _selectedDepartment,
-                        selectedEmployee: _selectedEmployee,
-                        dueDate: _dueDate,
-                        employeeList: employeeList,
-                        canAssignEmployee: canAssignEmployee,
-                        submitting: _submitting,
-                        onPriorityChanged: (v) => setState(() => _priority = v),
-                        onDeptChanged: _onDeptChanged,
-                        onEmployeeChanged: (v) =>
-                            setState(() => _selectedEmployee = v),
-                        onDateTap: _pickDate,
-                        onSubmit: _submit,
-                      ),
-              ),
+          // ── Form card ─────────────────────────────────────────────
+          _FormCard(
+            child: Form(
+              key: _formKey,
+              child: isWide
+                  ? _WideFormLayout(
+                      titleCtrl: _title,
+                      descCtrl: _description,
+                      priority: _priority,
+                      selectedDept: _selectedDepartment,
+                      selectedEmployee: _selectedEmployee,
+                      dueDate: _dueDate,
+                      employeeList: employeeList,
+                      canAssignEmployee: canAssignEmployee,
+                      submitting: _submitting,
+                      onPriorityChanged: (v) => setState(() => _priority = v),
+                      onDeptChanged: _onDeptChanged,
+                      onEmployeeChanged: (v) =>
+                          setState(() => _selectedEmployee = v),
+                      onDateTap: _pickDate,
+                      onSubmit: _submit,
+                    )
+                  : _NarrowFormLayout(
+                      titleCtrl: _title,
+                      descCtrl: _description,
+                      priority: _priority,
+                      selectedDept: _selectedDepartment,
+                      selectedEmployee: _selectedEmployee,
+                      dueDate: _dueDate,
+                      employeeList: employeeList,
+                      canAssignEmployee: canAssignEmployee,
+                      submitting: _submitting,
+                      onPriorityChanged: (v) => setState(() => _priority = v),
+                      onDeptChanged: _onDeptChanged,
+                      onEmployeeChanged: (v) =>
+                          setState(() => _selectedEmployee = v),
+                      onDateTap: _pickDate,
+                      onSubmit: _submit,
+                    ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -149,6 +160,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
         createdById: widget.user.id,
         createdByDept: widget.user.departmentId,
         dueDate: _dueDate,
+        parentTicketId: widget.parentTicketId,
       ),
     );
 
@@ -171,47 +183,93 @@ class _CreateTicketViewState extends State<CreateTicketView> {
 
 // ── Page header ───────────────────────────────────────────────────────────────
 class _PageHeader extends StatelessWidget {
+  final int? parentId;
+  final String? parentTitle;
+
+  const _PageHeader({this.parentId, this.parentTitle});
+
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                ThemeColors.unifiedGradStart,
-                ThemeColors.unifiedGradEnd,
+        if (parentId != null) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: ThemeColors.unifiedBackground,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: ThemeColors.unifiedBorder),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.subdirectory_arrow_right_rounded,
+                  size: 16,
+                  color: ThemeColors.unifiedTextMuted,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Creating sub-ticket for #$parentId ${parentTitle ?? ""}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: ThemeColors.unifiedTextMuted,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
               ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
-        ),
-        const SizedBox(width: 14),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              'Create New Ticket',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: ThemeColors.unifiedTextPrimary,
-                letterSpacing: -0.4,
+        ],
+        Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    ThemeColors.unifiedGradStart,
+                    ThemeColors.unifiedGradEnd,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.add_rounded,
+                color: Colors.white,
+                size: 24,
               ),
             ),
-            SizedBox(height: 2),
-            Text(
-              'Fill in the details and assign to a department.',
-              style: TextStyle(
-                fontSize: 13,
-                color: ThemeColors.unifiedTextMuted,
-                fontWeight: FontWeight.w400,
-              ),
+            const SizedBox(width: 14),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  'Create Standard Ticket',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: ThemeColors.unifiedTextPrimary,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Fill in the details and assign to a department.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: ThemeColors.unifiedTextMuted,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
             ),
           ],
         ),

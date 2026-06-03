@@ -122,6 +122,8 @@ class TicketHistoryTimeline extends StatelessWidget {
         return "PERSONNEL ASSIGNMENT";
       case 'transferred':
         return "DEPARTMENTAL TRANSFER";
+      case 'sub_ticket_created':
+        return "SUB-TICKET GENERATED";
       case 'status_changed':
         return "WORKFLOW UPDATE";
       case 'comment_added':

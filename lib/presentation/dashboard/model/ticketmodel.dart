@@ -29,6 +29,11 @@ class TicketModel {
   final int completedDepartmentCount;
   final List<SubTicketDepartmentModel> subDepartments;
 
+  final int? parentTicketId;
+  final String? ticketType;
+  final String? parentTicketTitle;
+  final List<Map<String, dynamic>> deptJourney;
+
   const TicketModel({
     required this.id,
     required this.title,
@@ -57,6 +62,10 @@ class TicketModel {
     this.departmentCount = 0,
     this.completedDepartmentCount = 0,
     this.subDepartments = const [],
+    this.parentTicketId,
+    this.ticketType,
+    this.parentTicketTitle,
+    this.deptJourney = const [],
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> j) => TicketModel(
@@ -93,7 +102,19 @@ class TicketModel {
             ?.map((e) => SubTicketDepartmentModel.fromJson(e))
             .toList() ??
         const [],
+    parentTicketId: j['parent_ticket_id'],
+    ticketType: j['ticket_type'],
+    parentTicketTitle: j['parent_ticket_title'],
+    deptJourney:
+        (j['dept_journey'] as List<dynamic>?)
+            ?.map((e) => e as Map<String, dynamic>)
+            .toList() ??
+        const [],
   );
+
+  bool get isStandardTicket => ticketType == 'standard';
+  bool get isMultiTaskTicket => ticketType == 'multi_task';
+  bool get hasParent => parentTicketId != null;
 
   bool get isOpen => status == 'open';
   bool get isInProgress => status == 'in_progress';

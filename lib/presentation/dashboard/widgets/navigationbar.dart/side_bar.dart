@@ -124,8 +124,8 @@ class Sidebar extends StatelessWidget {
           // Add this inside your Sidebar widget's item list
           if (user.roleId != 0)
             NavItem(
-              icon: Icons.history_rounded,
-              label: 'Transfer Tickets',
+              icon: Icons.hub_outlined,
+              label: 'Sent Sub-Tickets',
               index: 3,
               selected: selectedIndex == 3,
               onTap: onNav,

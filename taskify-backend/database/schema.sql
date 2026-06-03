@@ -108,6 +108,9 @@ CREATE TABLE tickets (
 
   due_date          DATE,
   is_sub_ticket     BOOLEAN       DEFAULT FALSE,
+  parent_ticket_id  INT           REFERENCES tickets(id) ON DELETE CASCADE,
+  ticket_type       VARCHAR(20)   DEFAULT 'standard'
+                    CHECK (ticket_type IN ('standard','multi_task')),
   overall_progress  INT           DEFAULT 0 CHECK (overall_progress >= 0 AND overall_progress <= 100),
   created_at        TIMESTAMPTZ   DEFAULT NOW(),
   updated_at        TIMESTAMPTZ   DEFAULT NOW()

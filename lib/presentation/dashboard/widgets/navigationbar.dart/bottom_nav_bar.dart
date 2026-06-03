@@ -44,8 +44,8 @@ class BottomNav extends StatelessWidget {
             onTap: onNav,
           ),
           BotItem(
-            icon: Icons.notifications_outlined,
-            label: 'Alerts',
+            icon: Icons.hub_outlined,
+            label: 'Sent',
             index: 3,
             selected: selectedIndex,
             onTap: onNav,

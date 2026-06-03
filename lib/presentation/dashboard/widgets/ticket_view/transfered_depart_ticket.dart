@@ -24,8 +24,8 @@ class TransferedDepartTicket extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CommaonSectionHeader(
-            icon: Icons.sync_alt_rounded,
-            title: 'Transferred From Your Department',
+            icon: Icons.hub_outlined,
+            title: 'Sub-Tickets from Your Department',
             trailing: Text(
               '${state.sentTickets.length} tickets',
               style: TextStyle(
@@ -41,7 +41,7 @@ class TransferedDepartTicket extends StatelessWidget {
                   child: Padding(
                     padding: EdgeInsets.symmetric(vertical: 20),
                     child: Text(
-                      'no ticket in transfer dep',
+                      'No sub-tickets created for other departments',
                       style: TextStyle(color: ThemeColors.unifiedTextMuted),
                     ),
                   ),
