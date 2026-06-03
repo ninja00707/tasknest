@@ -534,6 +534,23 @@ class TicketService {
     const participants = await ticketRepo.getTicketParticipants(ticketId);
     await this._dispatch(ticketId, participants, `Ticket #${ticketId} status changed to ${newStatus}`, 'TICKET_STATUS_UPDATED', { ticket: updated });
 
+    // Rule: Automatic closure of master when last sub is closed
+    if (newStatus === 'closed' && ticket.parent_ticket_id) {
+      const parentId = ticket.parent_ticket_id;
+      const hasRemainingOpenSubs = await ticketRepo.hasOpenSubTickets(parentId);
+      if (!hasRemainingOpenSubs) {
+        await ticketRepo.updateStatus(parentId, 'closed', user);
+        await ticketRepo.logAction(
+          parentId,
+          user.id,
+          'status_changed',
+          'in_progress',
+          'closed',
+          'Automatically closed because all sub-tickets are finalized.'
+        );
+      }
+    }
+
     return updated;
   }
 

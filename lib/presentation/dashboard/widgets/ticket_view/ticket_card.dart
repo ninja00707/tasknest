@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
@@ -182,7 +186,7 @@ class TicketCard extends StatelessWidget {
 
                       // ── Row 4: Timeline / Stats ──────────────────────
                       if (ticket.isSubTicket) ...[
-                        _SubTicketProgressSection(ticket: ticket),
+                        _SubTicketProgressSection(ticket: ticket, user: user),
                         const SizedBox(height: 12),
                         Container(
                           height: 1,
@@ -200,7 +204,10 @@ class TicketCard extends StatelessWidget {
                       // ── Row 5: Nested Child Tickets (One Card View) ──
                       if (ticket.children.isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        _ChildTicketsList(children: ticket.children),
+                        _ChildTicketsList(
+                          children: ticket.children,
+                          user: user,
+                        ),
                       ],
 
                       const SizedBox(height: 16),
@@ -372,10 +379,14 @@ class _MetaDivider extends StatelessWidget {
 // ── Sub-ticket progress section ─────────────────────────────────────────────
 class _SubTicketProgressSection extends StatelessWidget {
   final TicketModel ticket;
-  const _SubTicketProgressSection({required this.ticket});
+  final UserModel user;
+  const _SubTicketProgressSection({required this.ticket, required this.user});
 
   @override
   Widget build(BuildContext context) {
+    final myDeptTask = ticket.subDeptFor(user.departmentId);
+    final isManager = user.roleId == 1;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -466,7 +477,145 @@ class _SubTicketProgressSection extends StatelessWidget {
             }).toList(),
           ),
         ],
+        // ── Action Row for My Department (Multi Task) ────────────────
+        if (myDeptTask != null && !myDeptTask.isCompleted) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF7C3AED).withOpacity(0.05),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: const Color(0xFF7C3AED).withOpacity(0.2),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.assignment_ind_outlined,
+                  size: 14,
+                  color: Color(0xFF7C3AED),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    myDeptTask.isAssigned
+                        ? 'Assigned to ${myDeptTask.assignedToName}'
+                        : 'Unassigned ${myDeptTask.departmentCode} task',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: ThemeColors.unifiedTextPrimary,
+                    ),
+                  ),
+                ),
+                if (!myDeptTask.isAssigned) ...[
+                  // Self Assign
+                  _SmallActionBtn(
+                    icon: Icons.person_add_alt_1_rounded,
+                    onTap: () => context.read<DashboardBloc>().add(
+                      SelfAssignSubDept(ticket.id, user.departmentId),
+                    ),
+                  ),
+                  if (isManager) ...[
+                    const SizedBox(width: 8),
+                    // Assign to employee
+                    _SmallActionBtn(
+                      icon: Icons.manage_accounts_rounded,
+                      onTap: () => _showSubDeptAssignDialog(
+                        context,
+                        ticket,
+                        user.departmentId,
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
+        ],
       ],
+    );
+  }
+
+  void _showSubDeptAssignDialog(
+    BuildContext context,
+    TicketModel ticket,
+    int deptId,
+  ) {
+    final bloc = context.read<DashboardBloc>();
+    final state = bloc.state;
+    if (state is! DashboardLoaded) return;
+
+    if (state.employees.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No employees found')));
+      return;
+    }
+
+    int selectedId = state.employees.first.id;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Assign Dept Task'),
+              content: DropdownButtonFormField<int>(
+                value: selectedId,
+                items: state.employees.map((e) {
+                  return DropdownMenuItem(value: e.id, child: Text(e.name));
+                }).toList(),
+                onChanged: (v) => setState(() => selectedId = v!),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    bloc.add(
+                      AssignSubDeptEmployeeEvent(
+                        ticketId: ticket.id,
+                        departmentId: deptId,
+                        employeeId: selectedId,
+                      ),
+                    );
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('Assign'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _SmallActionBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _SmallActionBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: ThemeColors.unifiedBorder),
+        ),
+        child: Icon(icon, size: 14, color: ThemeColors.unifiedPrimary),
+      ),
     );
   }
 }
@@ -488,7 +637,8 @@ Color _priorityColor(String p) {
 // ── Child Tickets List (One Card View) ──────────────────────────────────────
 class _ChildTicketsList extends StatelessWidget {
   final List<ChildTicketModel> children;
-  const _ChildTicketsList({required this.children});
+  final UserModel user;
+  const _ChildTicketsList({required this.children, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -531,13 +681,17 @@ class _ChildTicketsList extends StatelessWidget {
               return Column(
                 children: [
                   Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     child: Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: ThemeColors.unifiedPrimary.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(4),
@@ -576,6 +730,9 @@ class _ChildTicketsList extends StatelessWidget {
                             ],
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        TicketActions(ticket: child, user: user),
+                        const SizedBox(width: 8),
                         StatusBadge(status: child.status),
                       ],
                     ),

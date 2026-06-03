@@ -9,6 +9,7 @@ class TicketModel {
   final String assignedDeptName;
   final String createdByName;
   final String createdByDeptCode;
+  final int createdByDeptId;
   final int createdById;
   final int? assignedToId;
   final String? assignedToName;
@@ -46,6 +47,7 @@ class TicketModel {
     required this.assignedDeptName,
     required this.createdByName,
     required this.createdByDeptCode,
+    required this.createdByDeptId,
     required this.createdById,
     this.assignedToId,
     this.assignedToName,
@@ -80,7 +82,8 @@ class TicketModel {
     assignedDeptCode: j['assigned_dept_code'] ?? '',
     assignedDeptName: j['assigned_dept_name'] ?? '',
     createdByName: j['created_by_name'] ?? '',
-    createdById: j['created_by_id'],
+    createdById: int.tryParse(j['created_by_id']?.toString() ?? '0') ?? 0,
+    createdByDeptId: int.tryParse(j['created_by_dept']?.toString() ?? '0') ?? 0,
     createdByDeptCode: j['created_by_dept_code'] ?? '',
     assignedToId: j['assigned_to_id'],
     assignedToName: j['assigned_to_name'] ?? 'Unassigned',
@@ -158,24 +161,43 @@ class ChildTicketModel {
   final int id;
   final String title;
   final String status;
+  final int? assignedDeptId;
   final String deptCode;
+  final int? assignedToId;
   final String? assigneeName;
+  final int createdById;
 
   ChildTicketModel({
     required this.id,
     required this.title,
     required this.status,
+    this.assignedDeptId,
     required this.deptCode,
+    this.assignedToId,
     this.assigneeName,
+    required this.createdById,
   });
 
   factory ChildTicketModel.fromJson(Map<String, dynamic> j) => ChildTicketModel(
     id: j['id'],
     title: j['title'],
     status: j['status'],
+    assignedDeptId: int.tryParse(j['assigned_dept_id']?.toString() ?? ''),
     deptCode: j['dept_code'] ?? '',
+    assignedToId: int.tryParse(j['assigned_to_id']?.toString() ?? ''),
     assigneeName: j['assignee_name'],
+    createdById: int.tryParse(j['created_by_id']?.toString() ?? '0') ?? 0,
   );
+
+  // Helper getters to match TicketModel interface for TicketActions
+  bool get isOpen => status == 'open';
+  bool get isInProgress => status == 'in_progress';
+  bool get isCompleted => status == 'completed';
+  bool get isClosed => status == 'closed';
+  bool get isManagementDisabled => isCompleted || isClosed;
+
+  // Mock canReopenBy for now or implement if needed
+  bool canReopenBy(int userId) => false;
 }
 
 class SubTicketDepartmentModel {

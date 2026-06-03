@@ -27,19 +27,93 @@ class TicketDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isWide = MediaQuery.sizeOf(context).width > 1000;
 
-    return BlocBuilder<DashboardBloc, DashboardState>(
-      buildWhen: (prev, curr) =>
-          curr is DashboardLoaded || curr is DashboardLoading,
-      builder: (context, state) {
-        if (state is! DashboardLoaded) {
-          return const _LoadingScaffold();
+    return BlocListener<DashboardBloc, DashboardState>(
+      listener: (context, state) {
+        if (state is TicketActionSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: ThemeColors.unifiedPrimary,
+            ),
+          );
+        } else if (state is TicketActionError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: ThemeColors.unifiedDanger,
+            ),
+          );
+        } else if (state is DashboardError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: ThemeColors.unifiedDanger,
+            ),
+          );
         }
+      },
+      child: BlocBuilder<DashboardBloc, DashboardState>(
+        builder: (context, state) {
+          DashboardLoaded? loadedState;
+          if (state is DashboardLoaded) {
+            loadedState = state;
+          } else if (state is TicketActionSuccess) {
+            loadedState = state.previousState;
+          } else if (state is TicketActionError) {
+            loadedState = state.previousState;
+          }
 
-        final ticket = state.tickets
-            .followedBy(state.sentTickets)
-            .firstWhere(
-              (t) => t.id == ticketId,
-              orElse: () => TicketModel(
+          if (loadedState == null) {
+            return const _LoadingScaffold();
+          }
+
+          TicketModel? foundTicket;
+          try {
+            foundTicket = loadedState.tickets
+                .followedBy(loadedState.sentTickets)
+                .firstWhere((t) => t.id == ticketId);
+          } catch (_) {
+            // Check children
+            for (var master in loadedState.tickets.followedBy(
+              loadedState.sentTickets,
+            )) {
+              for (var child in master.children) {
+                if (child.id == ticketId) {
+                  // Create a temporary TicketModel from ChildTicketModel
+                  foundTicket = TicketModel(
+                    id: child.id,
+                    title: child.title,
+                    description: 'Sub-task of #${master.id}',
+                    status: child.status,
+                    priority: master.priority,
+                    assignedDeptId: child.assignedDeptId,
+                    assignedDeptCode: child.deptCode,
+                    assignedDeptName: '', // Would need lookup
+                    createdByName: master.createdByName,
+                    createdByDeptCode: master.createdByDeptCode,
+                    createdByDeptId: master.createdByDeptId,
+                    createdById: child.createdById,
+                    createdAt: master.createdAt,
+                    reopenCount: 0,
+                    parentTicketId: master.id,
+                    parentTicketTitle: master.title,
+                    ticketType: 'standard',
+                    assignedToId: child.assignedToId,
+                    assignedToName: child.assigneeName,
+                    history: const [],
+                    deptJourney: const [],
+                    children: const [],
+                  );
+                  break;
+                }
+              }
+              if (foundTicket != null) break;
+            }
+          }
+
+          final ticket =
+              foundTicket ??
+              TicketModel(
                 id: 0,
                 title: 'Unknown Ticket',
                 description: 'No description available',
@@ -49,37 +123,43 @@ class TicketDetailScreen extends StatelessWidget {
                 assignedDeptName: '',
                 createdByName: '',
                 createdByDeptCode: '',
+                createdByDeptId: 0,
+                createdById: 0,
                 createdAt: DateTime.now(),
                 reopenCount: 0,
                 history: const [],
-                createdById: 0,
-                assignedToId: 0,
-              ),
-            );
+                assignedToId: null,
+                assignedToName: null,
+                deptJourney: const [],
+                children: const [],
+              );
 
-        return Scaffold(
-          backgroundColor: ThemeColors.unifiedBackground,
-          appBar: CommonDetailAppbar(
-            onHistoryPressed: () {
-              // You can implement scrolling to the history section
-              // or showing a modal with history here.
-              // For now, it's just a button.
-            },
-            ticket: ticket,
-            title: null,
-            issuffixStatus: true,
-          ),
-          body: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: isWide ? MediaQuery.sizeOf(context).width * 0.1 : 16,
-              vertical: 24, // Increased vertical padding for better spacing
+          return Scaffold(
+            backgroundColor: ThemeColors.unifiedBackground,
+            appBar: CommonDetailAppbar(
+              onHistoryPressed: () {
+                // You can implement scrolling to the history section
+                // or showing a modal with history here.
+                // For now, it's just a button.
+              },
+              ticket: ticket,
+              title: null,
+              issuffixStatus: true,
             ),
-            child: isWide
-                ? _WideLayout(ticket: ticket, user: user)
-                : _NarrowLayout(ticket: ticket, user: user),
-          ),
-        );
-      },
+            body: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: isWide
+                    ? MediaQuery.sizeOf(context).width * 0.1
+                    : 16,
+                vertical: 24, // Increased vertical padding for better spacing
+              ),
+              child: isWide
+                  ? _WideLayout(ticket: ticket, user: user)
+                  : _NarrowLayout(ticket: ticket, user: user),
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -107,90 +187,6 @@ class _LoadingScaffold extends StatelessWidget {
     );
   }
 }
-
-// // ── App Bar ───────────────────────────────────────────────────────────────────
-// class _DetailAppBar extends StatelessWidget implements PreferredSizeWidget {
-//   final TicketModel ticket;
-//   const _DetailAppBar({required this.ticket});
-
-//   @override
-//   Size get preferredSize => const Size.fromHeight(60);
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return AppBar(
-//       backgroundColor: ThemeColors.unifiedSurface,
-//       elevation: 0,
-//       surfaceTintColor: Colors.transparent,
-//       bottom: PreferredSize(
-//         preferredSize: const Size.fromHeight(1),
-//         child: Container(height: 1, color: ThemeColors.unifiedBorder),
-//       ),
-//       leading: GestureDetector(
-//         onTap: () => context.pop(),
-//         child: Container(
-//           margin: const EdgeInsets.all(10),
-//           decoration: BoxDecoration(
-//             color: ThemeColors.unifiedBackground,
-//             borderRadius: BorderRadius.circular(10),
-//             border: Border.all(color: ThemeColors.unifiedBorder, width: 1.5),
-//           ),
-//           child: const Icon(
-//             Icons.arrow_back_ios_new_rounded,
-//             size: 16,
-//             color: ThemeColors.unifiedTextPrimary,
-//           ),
-//         ),
-//       ),
-//       title: Row(
-//         children: [
-//           Container(
-//             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-//             decoration: BoxDecoration(
-//               color: ThemeColors.unifiedBackground,
-//               borderRadius: BorderRadius.circular(7),
-//               border: Border.all(color: ThemeColors.unifiedBorder, width: 1.5),
-//             ),
-//             child: Text(
-//               '#${ticket.id}',
-//               style: const TextStyle(
-//                 fontSize: 13,
-//                 fontWeight: FontWeight.w700,
-//                 color: ThemeColors.unifiedTextMuted,
-//                 letterSpacing: 0.3,
-//               ),
-//             ),
-//           ),
-//           const SizedBox(width: 10),
-//           Expanded(
-//             child: Text(
-//               ticket.title,
-//               style: const TextStyle(
-//                 fontSize: 15,
-//                 fontWeight: FontWeight.w700,
-//                 color: ThemeColors.unifiedTextPrimary,
-//                 letterSpacing: -0.2,
-//               ),
-//               overflow: TextOverflow.ellipsis,
-//             ),
-//           ),
-//         ],
-//       ),
-//       actions: [
-//         Padding(
-//           padding: const EdgeInsets.only(right: 16),
-//           child: Row(
-//             children: [
-//               PriorityBadge(priority: ticket.priority),
-//               const SizedBox(width: 6),
-//               StatusBadge(status: ticket.status),
-//             ],
-//           ),
-//         ),
-//       ],
-//     );
-//   }
-// }
 
 // ── Wide layout ───────────────────────────────────────────────────────────────
 class _WideLayout extends StatelessWidget {
@@ -337,17 +333,25 @@ class _HeroCard extends StatelessWidget {
                       if (ticket.hasParent) ...[
                         const SizedBox(height: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: ThemeColors.unifiedBackground,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: ThemeColors.unifiedBorder),
+                            border: Border.all(
+                              color: ThemeColors.unifiedBorder,
+                            ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.subdirectory_arrow_right_rounded,
-                                  size: 14, color: ThemeColors.unifiedTextMuted),
+                              const Icon(
+                                Icons.subdirectory_arrow_right_rounded,
+                                size: 14,
+                                color: ThemeColors.unifiedTextMuted,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 'Sub-ticket of #${ticket.parentTicketId} ${ticket.parentTicketTitle ?? ""}',
@@ -575,18 +579,9 @@ class _SidePanelColumn extends StatelessWidget {
         _SectionCard(
           icon: Icons.bolt_rounded,
           title: 'Actions',
-          child: ticket.isSubTicket
-              ? const Text(
-                  'Update your department progress in the breakdown section above.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: ThemeColors.unifiedTextMuted,
-                    height: 1.5,
-                  ),
-                )
-              : Center(
-                  child: TicketActions(ticket: ticket, user: user),
-                ),
+          child: Center(
+            child: TicketActions(ticket: ticket, user: user),
+          ),
         ),
         const SizedBox(height: 16),
         _SectionCard(

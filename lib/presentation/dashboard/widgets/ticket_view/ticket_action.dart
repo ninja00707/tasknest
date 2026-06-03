@@ -14,7 +14,7 @@ import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 /// Resolver: The user assigned to the ticket.
 /// CEO: Restricted from specific actions per requirements.
 class TicketActions extends StatelessWidget {
-  final TicketModel ticket;
+  final dynamic ticket; // Can be TicketModel or ChildTicketModel
   final UserModel user;
   const TicketActions({super.key, required this.ticket, required this.user});
 
@@ -31,16 +31,34 @@ class TicketActions extends StatelessWidget {
         final bool isResolver =
             ticket.assignedToId == user.id && ticket.assignedToId != null;
         final bool isCreator = ticket.createdById == user.id;
+        final bool isCreatingDeptManager =
+            user.roleId == 1 &&
+            ticket is TicketModel &&
+            ticket.createdByDeptId == user.departmentId;
+
         final bool isAssignedToMyDept =
             ticket.assignedDeptId == user.departmentId;
+
+        // NEW RULES:
+        // 1. Once ticket is created user can't not do anything until the ticket is assigned
+        final bool isUnassigned = ticket.assignedToId == null;
+
+        // 2. After the creator, create sub ticket to another department then all the action will be closed to the creator
+        // RULE: Cannot close if any child (recursive) is still open
+        final bool hasOpenSubs =
+            ticket is TicketModel &&
+            ticket.children.any(
+              (child) =>
+                  child.status != 'completed' && child.status != 'closed',
+            );
 
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 1. Self Assign: Open to employees/managers in the department
+            // 1. Self Assign: Only if unassigned and in my dept
             if (ticket.isOpen &&
                 !ticket.isManagementDisabled &&
-                ticket.assignedToId == null &&
+                isUnassigned &&
                 isAssignedToMyDept)
               ActionBtn(
                 icon: Icons.person_add_outlined,
@@ -51,11 +69,11 @@ class TicketActions extends StatelessWidget {
                 ),
               ),
 
-            // 2. Managerial Assign: Only for Managers
+            // 2. Managerial Assign: Only for Managers of the assigned department if unassigned
+            // RULE: Managers can assign both Master and Sub-tickets to their employees
             if (isManager &&
                 !ticket.isManagementDisabled &&
-                ticket.assignedToId == null &&
-                state.employees.isNotEmpty &&
+                isUnassigned &&
                 isAssignedToMyDept)
               ActionBtn(
                 icon: Icons.manage_accounts_outlined,
@@ -65,6 +83,7 @@ class TicketActions extends StatelessWidget {
               ),
 
             // 3. Resolver Action: Mark Completed (Done). CEO is restricted.
+            // RULE: Manager can't do anything after assignment (unless they are the resolver)
             if (ticket.isInProgress && (isResolver || isCeo))
               ActionBtn(
                 icon: Icons.check_circle_outline,
@@ -73,8 +92,11 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showStatusRemarkDialog(context, 'completed'),
               ),
 
-            // 4. Creator/CEO Action: Finalize & Close
-            if (ticket.isCompleted && (isCreator || isCeo))
+            // 4. Creator/CEO/Creating Dept Manager Action: Finalize & Close
+            // RULE: Actions closed for creator if sub-tickets exist OR if any child is open
+            if (ticket.isCompleted &&
+                !hasOpenSubs &&
+                (isCreator || isCeo || isCreatingDeptManager))
               ActionBtn(
                 icon: Icons.lock_outline,
                 tooltip: 'Finalize & Close',
@@ -82,10 +104,12 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showStatusRemarkDialog(context, 'closed'),
               ),
 
-            // 5. Create Sub Ticket (formerly Transfer): Disabled if Closed
+            // 5. Create Sub Ticket: Disabled if Closed or unassigned
+            // RULE: Once assigned, creator/resolver can branch out
             if (!ticket.isClosed &&
                 !isCeo &&
-                ((isManager && ticket.assignedToId == null) || isResolver))
+                !isUnassigned &&
+                (isResolver || (isManager && isAssignedToMyDept)))
               ActionBtn(
                 icon: Icons.add_link_rounded,
                 tooltip: 'Create Sub Ticket',
@@ -229,14 +253,18 @@ class TicketActions extends StatelessWidget {
     );
   }
 
-  void _showSubTicketDialog(BuildContext context, TicketModel ticket) {
+  void _showSubTicketDialog(BuildContext context, dynamic ticket) {
     final bloc = context.read<DashboardBloc>();
     final state = bloc.state;
 
     if (state is! DashboardLoaded) return;
 
+    final int? assignedDeptId = ticket is TicketModel
+        ? ticket.assignedDeptId
+        : (ticket as ChildTicketModel).assignedDeptId;
+
     final depts = state.departments
-        .where((d) => d.id != ticket.assignedDeptId)
+        .where((d) => d.id != assignedDeptId)
         .toList();
 
     if (depts.isEmpty) {

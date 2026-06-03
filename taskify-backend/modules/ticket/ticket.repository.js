@@ -3,59 +3,34 @@ const pool = require('../../database/db');
 class TicketRepository {
   async getTicketDetails(ticketId) {
     const result = await pool.query(`
-      WITH RECURSIVE ticket_lineage AS (
-        -- Base case: the current ticket
-        SELECT id, parent_ticket_id, created_by_dept, assigned_dept_id, transferred_from, 1 as depth
-        FROM tickets
-        WHERE id = $1
-        
+      WITH RECURSIVE root_finder AS (
+        -- Find the absolute root of this ticket lineage
+        SELECT id, parent_ticket_id FROM tickets WHERE id = $1
         UNION ALL
-        
-        -- Recursive step: join with parents
-        SELECT t.id, t.parent_ticket_id, t.created_by_dept, t.assigned_dept_id, t.transferred_from, tl.depth + 1
-        FROM tickets t
-        JOIN ticket_lineage tl ON t.id = tl.parent_ticket_id
+        SELECT t.id, t.parent_ticket_id FROM tickets t
+        JOIN root_finder rf ON t.id = rf.parent_ticket_id
+      ),
+      the_root AS (
+        SELECT id FROM root_finder WHERE parent_ticket_id IS NULL LIMIT 1
+      ),
+      full_lineage AS (
+        -- Get every single ticket in this root's entire tree
+        SELECT id, parent_ticket_id, created_by_dept, assigned_dept_id, created_at FROM tickets WHERE id = (SELECT id FROM the_root)
+        UNION ALL
+        SELECT t.id, t.parent_ticket_id, t.created_by_dept, t.assigned_dept_id, t.created_at FROM tickets t
+        JOIN full_lineage fl ON t.parent_ticket_id = fl.id
       ),
       journey_steps AS (
-        -- Capture unique department transitions in order
+        -- Capture every unique department that has ever touched this project
         SELECT DISTINCT ON (dept_id)
-          dept_id, code, name, role, sort_order
+          dept_id, code, name, first_seen
         FROM (
-          -- 1. Original Source (The very first department that created the root ticket)
-          SELECT 
-            d.id as dept_id, d.code, d.name, 'ORIGIN' as role, 1000 as sort_order
-          FROM ticket_lineage tl
-          JOIN departments d ON d.id = tl.created_by_dept
-          WHERE tl.depth = (SELECT MAX(depth) FROM ticket_lineage)
-          
+          SELECT created_by_dept as dept_id, created_at as first_seen FROM full_lineage
           UNION ALL
-          
-          -- 2. Any department that was a "Creator" of a sub-ticket in the middle
-          SELECT 
-            d.id as dept_id, d.code, d.name, 'TRANSFER' as role, depth * 10 as sort_order
-          FROM ticket_lineage tl
-          JOIN departments d ON d.id = tl.created_by_dept
-          WHERE tl.depth > 1 AND tl.depth < (SELECT MAX(depth) FROM ticket_lineage)
-
-          UNION ALL
-          
-          -- 3. Any department that a ticket was transferred FROM
-          SELECT 
-            d.id as dept_id, d.code, d.name, 'TRANSFER' as role, depth * 10 + 5 as sort_order
-          FROM ticket_lineage tl
-          JOIN departments d ON d.id = tl.transferred_from
-          WHERE tl.transferred_from IS NOT NULL
-
-          UNION ALL
-          
-          -- 4. Current Target Department
-          SELECT 
-            d.id as dept_id, d.code, d.name, 'CURRENT' as role, 0 as sort_order
-          FROM ticket_lineage tl
-          JOIN departments d ON d.id = tl.assigned_dept_id
-          WHERE tl.depth = 1
+          SELECT assigned_dept_id as dept_id, created_at as first_seen FROM full_lineage
         ) raw_steps
-        ORDER BY dept_id, sort_order DESC
+        JOIN departments d ON d.id = dept_id
+        ORDER BY dept_id, first_seen ASC
       )
       SELECT
         t.id, t.title, t.description, t.status, t.priority,
@@ -85,8 +60,19 @@ class TicketRepository {
         tf.code AS transferred_from_code,
         pt.title AS parent_ticket_title,
 
-        -- Fetch recursive department journey
-        (SELECT json_agg(js) FROM (SELECT code, name, role FROM journey_steps ORDER BY sort_order DESC) js) AS dept_journey
+        -- Fetch recursive department journey (Global Project Journey)
+        (
+          SELECT json_agg(js) FROM (
+            SELECT code, name, 
+            CASE 
+              WHEN dept_id = (SELECT created_by_dept FROM tickets WHERE id = (SELECT id FROM the_root)) THEN 'ORIGIN'
+              WHEN dept_id = t.assigned_dept_id THEN 'CURRENT'
+              ELSE 'LINK'
+            END as role
+            FROM journey_steps 
+            ORDER BY first_seen ASC
+          ) js
+        ) AS dept_journey
 
       FROM tickets t
       LEFT JOIN users creator  ON creator.id = t.created_by_id
@@ -108,13 +94,22 @@ class TicketRepository {
 
     let ticket = result.rows[0] || null;
     if (ticket) {
-      // Fetch immediate children for one-card view
+      // Fetch ALL descendants recursively for this ticket project
       const childrenResult = await pool.query(`
-        SELECT t.id, t.title, t.status, t.assigned_dept_id, d.code as dept_code, u.name as assignee_name
+        WITH RECURSIVE descendants AS (
+          -- Base: Immediate children
+          SELECT id FROM tickets WHERE parent_ticket_id = $1
+          UNION ALL
+          -- Recursive: Children of children
+          SELECT t.id FROM tickets t
+          JOIN descendants d ON t.parent_ticket_id = d.id
+        )
+        SELECT t.id, t.title, t.status, t.assigned_dept_id, t.assigned_to_id, t.created_by_id,
+               d.code as dept_code, u.name as assignee_name
         FROM tickets t
+        JOIN descendants d_tree ON t.id = d_tree.id
         LEFT JOIN departments d ON d.id = t.assigned_dept_id
         LEFT JOIN users u ON u.id = t.assigned_to_id
-        WHERE t.parent_ticket_id = $1
       `, [ticketId]);
       ticket.children = childrenResult.rows;
     }
@@ -124,8 +119,14 @@ class TicketRepository {
 
   async hasOpenSubTickets(ticketId) {
     const result = await pool.query(`
-      SELECT 1 FROM tickets
-      WHERE parent_ticket_id = $1 AND status NOT IN ('completed', 'closed')
+      WITH RECURSIVE descendants AS (
+        SELECT id, status FROM tickets WHERE parent_ticket_id = $1
+        UNION ALL
+        SELECT t.id, t.status FROM tickets t
+        JOIN descendants d ON t.parent_ticket_id = d.id
+      )
+      SELECT 1 FROM descendants
+      WHERE status NOT IN ('completed', 'closed')
       LIMIT 1
     `, [ticketId]);
     return result.rows.length > 0;
@@ -147,9 +148,14 @@ class TicketRepository {
         t.assigned_dept_id = ${deptParam}
         OR t.created_by_dept = ${deptParam}
         OR EXISTS (
-          SELECT 1 FROM tickets child
-          WHERE child.parent_ticket_id = t.id
-          AND (child.assigned_dept_id = ${deptParam} OR child.created_by_dept = ${deptParam})
+          WITH RECURSIVE child_search AS (
+            SELECT id, parent_ticket_id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = t.id
+            UNION ALL
+            SELECT child.id, child.parent_ticket_id, child.assigned_dept_id, child.created_by_dept FROM tickets child
+            JOIN child_search cs ON child.parent_ticket_id = cs.id
+          )
+          SELECT 1 FROM child_search 
+          WHERE assigned_dept_id = ${deptParam} OR created_by_dept = ${deptParam}
         )
       )`;
     }
@@ -166,6 +172,41 @@ class TicketRepository {
     params.push(Number(limit), offset);
 
     const query = `
+      WITH RECURSIVE root_finder AS (
+        -- For each ticket in the list, find its absolute root
+        SELECT id as leaf_id, id, parent_ticket_id FROM tickets t
+        UNION ALL
+        SELECT rf.leaf_id, t.id, t.parent_ticket_id FROM tickets t
+        JOIN root_finder rf ON t.id = rf.parent_ticket_id
+      ),
+      the_roots AS (
+        SELECT leaf_id, id as root_id FROM root_finder WHERE parent_ticket_id IS NULL
+      ),
+      tree_lineage AS (
+        -- Get every single ticket in every relevant root's tree
+        SELECT tr.leaf_id, t.id, t.parent_ticket_id, t.created_by_dept, t.assigned_dept_id, t.created_at 
+        FROM tickets t
+        JOIN the_roots tr ON t.id = tr.root_id
+        UNION ALL
+        SELECT tl.leaf_id, t.id, t.parent_ticket_id, t.created_by_dept, t.assigned_dept_id, t.created_at 
+        FROM tickets t
+        JOIN tree_lineage tl ON t.parent_ticket_id = tl.id
+      ),
+      journey_agg AS (
+        -- Aggregate unique departments per project tree
+        SELECT leaf_id, json_agg(js ORDER BY first_seen ASC) as journey FROM (
+          SELECT DISTINCT ON (tl.leaf_id, d.id)
+            tl.leaf_id, d.code, d.name, MIN(tl.created_at) as first_seen,
+            CASE 
+              WHEN d.id = (SELECT created_by_dept FROM tickets WHERE id = (SELECT root_id FROM the_roots WHERE leaf_id = tl.leaf_id)) THEN 'ORIGIN'
+              ELSE 'LINK'
+            END as role
+          FROM tree_lineage tl
+          JOIN departments d ON (d.id = tl.created_by_dept OR d.id = tl.assigned_dept_id)
+          GROUP BY tl.leaf_id, d.id, d.code, d.name
+        ) js
+        GROUP BY leaf_id
+      )
       SELECT
         t.id, t.title, t.description, t.status, t.priority,
         t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
@@ -197,21 +238,8 @@ class TicketRepository {
         -- Fetch children count
         (SELECT COUNT(*) FROM tickets WHERE parent_ticket_id = t.id) as child_count,
 
-        -- Fetch department journey
-        (
-          SELECT json_agg(dept_info) FROM (
-            SELECT DISTINCT ON (d.id) 
-              d.code, d.name, tl.created_at
-            FROM ticket_logs tl
-            JOIN departments d ON (
-              (tl.action = 'created' AND d.id = t.created_by_dept) OR
-              (tl.action = 'transferred' AND d.name = tl.new_value) OR
-              (tl.action = 'assigned' AND d.id = t.assigned_dept_id)
-            )
-            WHERE tl.ticket_id = t.id
-            ORDER BY d.id, tl.created_at ASC
-          ) dept_info
-        ) AS dept_journey
+        -- Fetch Global Project Journey
+        COALESCE(ja.journey, '[]'::json) as dept_journey
 
       FROM tickets t
       LEFT JOIN users       creator  ON creator.id  = t.created_by_id
@@ -220,6 +248,7 @@ class TicketRepository {
       LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
       LEFT JOIN departments tf  ON tf.id        = t.transferred_from
       LEFT JOIN tickets pt     ON pt.id        = t.parent_ticket_id
+      LEFT JOIN journey_agg ja ON ja.leaf_id   = t.id
       LEFT JOIN LATERAL (
         SELECT tl.action, tl.created_at, u.name as acted_by_name
         FROM ticket_logs tl
@@ -242,23 +271,49 @@ class TicketRepository {
   async enrichTicketsWithChildData(tickets) {
     if (tickets.length === 0) return tickets;
     const ids = tickets.map(t => t.id);
+
+    // Fetch ALL descendants for these master tickets recursively
     const children = await pool.query(`
-      SELECT t.id, t.parent_ticket_id, t.title, t.status, d.code as dept_code, u.name as assignee_name
+      WITH RECURSIVE descendants AS (
+        -- Base: Immediate children of the master tickets
+        SELECT id, parent_ticket_id, id as top_level_parent_id 
+        FROM tickets 
+        WHERE parent_ticket_id = ANY($1::int[])
+        
+        UNION ALL
+        
+        -- Recursive: Children of the children
+        SELECT t.id, t.parent_ticket_id, d.top_level_parent_id
+        FROM tickets t
+        JOIN descendants d ON t.parent_ticket_id = d.id
+      )
+      SELECT t.id, t.parent_ticket_id, t.title, t.status, t.assigned_dept_id, t.assigned_to_id, t.created_by_id,
+             d_info.code as dept_code, u.name as assignee_name,
+             -- We need to know which master ticket this descendant ultimately belongs to
+             (
+               WITH RECURSIVE root_finder AS (
+                 SELECT id, parent_ticket_id FROM tickets WHERE id = t.id
+                 UNION ALL
+                 SELECT t2.id, t2.parent_ticket_id FROM tickets t2
+                 JOIN root_finder rf ON t2.id = rf.parent_ticket_id
+               )
+               SELECT id FROM root_finder WHERE parent_ticket_id IS NULL LIMIT 1
+             ) as master_id
       FROM tickets t
-      LEFT JOIN departments d ON d.id = t.assigned_dept_id
+      JOIN descendants desc_tree ON t.id = desc_tree.id
+      LEFT JOIN departments d_info ON d_info.id = t.assigned_dept_id
       LEFT JOIN users u ON u.id = t.assigned_to_id
-      WHERE t.parent_ticket_id = ANY($1::int[])
     `, [ids]);
 
-    const byParent = {};
+    const byMaster = {};
     for (const child of children.rows) {
-      if (!byParent[child.parent_ticket_id]) byParent[child.parent_ticket_id] = [];
-      byParent[child.parent_ticket_id].push(child);
+      if (!byMaster[child.master_id]) byMaster[child.master_id] = [];
+      byMaster[child.master_id].push(child);
     }
 
     return tickets.map(t => ({
       ...t,
-      children: byParent[t.id] || []
+      children: byMaster[t.id] || []
     }));
   }
 
@@ -268,12 +323,17 @@ class TicketRepository {
     const offset = (Number(page) - 1) * Number(limit);
     const params = [userId];
 
-    // Show top-level tickets where the user is assigned to the ticket itself OR any of its children
+    // Show top-level tickets where the user is assigned to the ticket itself OR any of its nested children
     let whereClause = `WHERE t.parent_ticket_id IS NULL AND (
       t.assigned_to_id = $1 
       OR EXISTS (
-        SELECT 1 FROM tickets child 
-        WHERE child.parent_ticket_id = t.id AND child.assigned_to_id = $1
+        WITH RECURSIVE child_search AS (
+          SELECT id, parent_ticket_id, assigned_to_id FROM tickets WHERE parent_ticket_id = t.id
+          UNION ALL
+          SELECT child.id, child.parent_ticket_id, child.assigned_to_id FROM tickets child
+          JOIN child_search cs ON child.parent_ticket_id = cs.id
+        )
+        SELECT 1 FROM child_search WHERE assigned_to_id = $1
       )
     )`;
 
@@ -289,6 +349,41 @@ class TicketRepository {
     params.push(Number(limit), offset);
 
     const query = `
+      WITH RECURSIVE root_finder AS (
+        -- For each ticket in the list, find its absolute root
+        SELECT id as leaf_id, id, parent_ticket_id FROM tickets t
+        UNION ALL
+        SELECT rf.leaf_id, t.id, t.parent_ticket_id FROM tickets t
+        JOIN root_finder rf ON t.id = rf.parent_ticket_id
+      ),
+      the_roots AS (
+        SELECT leaf_id, id as root_id FROM root_finder WHERE parent_ticket_id IS NULL
+      ),
+      tree_lineage AS (
+        -- Get every single ticket in every relevant root's tree
+        SELECT tr.leaf_id, t.id, t.parent_ticket_id, t.created_by_dept, t.assigned_dept_id, t.created_at 
+        FROM tickets t
+        JOIN the_roots tr ON t.id = tr.root_id
+        UNION ALL
+        SELECT tl.leaf_id, t.id, t.parent_ticket_id, t.created_by_dept, t.assigned_dept_id, t.created_at 
+        FROM tickets t
+        JOIN tree_lineage tl ON t.parent_ticket_id = tl.id
+      ),
+      journey_agg AS (
+        -- Aggregate unique departments per project tree
+        SELECT leaf_id, json_agg(js ORDER BY first_seen ASC) as journey FROM (
+          SELECT DISTINCT ON (tl.leaf_id, d.id)
+            tl.leaf_id, d.code, d.name, MIN(tl.created_at) as first_seen,
+            CASE 
+              WHEN d.id = (SELECT created_by_dept FROM tickets WHERE id = (SELECT root_id FROM the_roots WHERE leaf_id = tl.leaf_id)) THEN 'ORIGIN'
+              ELSE 'LINK'
+            END as role
+          FROM tree_lineage tl
+          JOIN departments d ON (d.id = tl.created_by_dept OR d.id = tl.assigned_dept_id)
+          GROUP BY tl.leaf_id, d.id, d.code, d.name
+        ) js
+        GROUP BY leaf_id
+      )
       SELECT
         t.id, t.title, t.description, t.status, t.priority,
         t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
@@ -309,21 +404,8 @@ class TicketRepository {
         -- Fetch children count
         (SELECT COUNT(*) FROM tickets WHERE parent_ticket_id = t.id) as child_count,
 
-        -- Fetch department journey
-        (
-          SELECT json_agg(dept_info) FROM (
-            SELECT DISTINCT ON (d.id) 
-              d.code, d.name, tl.created_at
-            FROM ticket_logs tl
-            JOIN departments d ON (
-              (tl.action = 'created' AND d.id = t.created_by_dept) OR
-              (tl.action = 'transferred' AND d.name = tl.new_value) OR
-              (tl.action = 'assigned' AND d.id = t.assigned_dept_id)
-            )
-            WHERE tl.ticket_id = t.id
-            ORDER BY d.id, tl.created_at ASC
-          ) dept_info
-        ) AS dept_journey,
+        -- Fetch Global Project Journey
+        COALESCE(ja.journey, '[]'::json) as dept_journey,
 
         ll.action      AS last_action,
         ll.created_at  AS last_updated_at,
@@ -335,6 +417,7 @@ class TicketRepository {
       LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
       LEFT JOIN departments tf  ON tf.id        = t.transferred_from
       LEFT JOIN tickets pt     ON pt.id        = t.parent_ticket_id
+      LEFT JOIN journey_agg ja ON ja.leaf_id   = t.id
       LEFT JOIN LATERAL (
         SELECT tl.action, tl.created_at, u.name as acted_by_name
         FROM ticket_logs tl
@@ -424,12 +507,13 @@ class TicketRepository {
   async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId, parentTicketId = null, ticketType = 'standard' }) {
     // Strict check for assignedToId to set correct status
     const status = (assignedToId != null) ? 'in_progress' : 'open';
+    const isSubTicket = parentTicketId != null;
     const result = await pool.query(`
       INSERT INTO tickets
-        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status, parent_ticket_id, ticket_type)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status, parent_ticket_id, ticket_type, is_sub_ticket)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING id
-    `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status, parentTicketId, ticketType]);
+    `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status, parentTicketId, ticketType, isSubTicket]);
 
     return await this.getTicketDetails(result.rows[0].id);
   }
