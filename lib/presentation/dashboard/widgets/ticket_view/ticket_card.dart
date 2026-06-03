@@ -77,39 +77,21 @@ class TicketCard extends StatelessWidget {
                       Row(
                         children: [
                           _IdChip(id: ticket.id),
-                          const SizedBox(width: 6),
+                          const SizedBox(width: 8),
                           if (ticket.isStandardTicket)
-                            const _FlagChip(
-                              label: 'STANDARD TICKET',
-                              bg: Color(0xFFEFF6FF),
-                              fg: Color(0xFF2563EB),
-                              icon: Icons.article_outlined,
+                            _FlagChip(
+                              label: 'STANDARD',
+                              bg: ThemeColors.unifiedPrimary.withOpacity(0.08),
+                              fg: ThemeColors.unifiedPrimary,
+                              icon: Icons.article_rounded,
                             )
                           else if (ticket.isMultiTaskTicket)
-                            const _FlagChip(
-                              label: 'MULTI TASK TICKET',
-                              bg: Color(0xFFEDE9FE),
-                              fg: Color(0xFF7C3AED),
-                              icon: Icons.hub_outlined,
-                            ),
-                          if (ticket.isOverdue) ...[
-                            const SizedBox(width: 4),
-                            const _FlagChip(
-                              label: 'OVERDUE',
-                              bg: Color(0xFFFEE2E2),
-                              fg: ThemeColors.unifiedDanger,
-                              icon: Icons.schedule_rounded,
-                            ),
-                          ],
-                          if (isTransferred) ...[
-                            const SizedBox(width: 4),
                             _FlagChip(
-                              label: 'FROM ${ticket.transferredFromCode}',
-                              bg: ThemeColors.unifiedWarning.withOpacity(0.12),
-                              fg: ThemeColors.unifiedWarning,
-                              icon: Icons.sync_alt_rounded,
+                              label: 'MULTI TASK',
+                              bg: const Color(0xFFEDE9FE),
+                              fg: const Color(0xFF7C3AED),
+                              icon: Icons.hub_rounded,
                             ),
-                          ],
                           const Spacer(),
                           PriorityBadge(priority: ticket.priority),
                           const SizedBox(width: 6),
@@ -117,38 +99,59 @@ class TicketCard extends StatelessWidget {
                         ],
                       ),
 
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 16),
 
-                      if (ticket.hasParent) ...[
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.subdirectory_arrow_right_rounded,
-                              size: 14,
-                              color: ThemeColors.unifiedTextMuted,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Sub-ticket of #${ticket.parentTicketId} ${ticket.parentTicketTitle ?? ""}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: ThemeColors.unifiedTextMuted,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-
-                      // ── Row: Department Journey ──────────────────────────
+                      // ── Row: Department Journey (Futuristic Path) ──────
                       if (ticket.deptJourney.isNotEmpty) ...[
                         _DeptJourneySection(journey: ticket.deptJourney),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 16),
                       ],
 
-                      // ── Row 2: Title ─────────────────────────────────
+                      // ── Row 2: Title & Lineage ─────────────────────────
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (ticket.hasParent)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.subdirectory_arrow_right_rounded,
+                                    size: 14,
+                                    color: ThemeColors.unifiedTextMuted,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'CHILD OF #${ticket.parentTicketId}',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      color: ThemeColors.unifiedTextMuted,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          Text(
+                            ticket.title,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: ThemeColors.unifiedTextPrimary,
+                              letterSpacing: -0.5,
+                              height: 1.2,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // ── Row 3: Description ───────────────────────────
                       Text(
                         ticket.title,
                         style: const TextStyle(
@@ -177,6 +180,7 @@ class TicketCard extends StatelessWidget {
 
                       const SizedBox(height: 12),
 
+                      // ── Row 4: Timeline / Stats ──────────────────────
                       if (ticket.isSubTicket) ...[
                         _SubTicketProgressSection(ticket: ticket),
                         const SizedBox(height: 12),
@@ -193,7 +197,15 @@ class TicketCard extends StatelessWidget {
                         const SizedBox(height: 10),
                       ],
 
-                      // ── Row 4: Meta row ──────────────────────────────
+                      // ── Row 5: Nested Child Tickets (One Card View) ──
+                      if (ticket.children.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        _ChildTicketsList(children: ticket.children),
+                      ],
+
+                      const SizedBox(height: 16),
+
+                      // ── Row 6: Meta Info ─────────────────────────────
                       Row(
                         children: [
                           _MetaChip(
@@ -473,104 +485,255 @@ Color _priorityColor(String p) {
   }
 }
 
-// ── Department Journey Section ──────────────────────────────────────────────
-class _DeptJourneySection extends StatelessWidget {
-  final List<Map<String, dynamic>> journey;
-  const _DeptJourneySection({required this.journey});
+// ── Child Tickets List (One Card View) ──────────────────────────────────────
+class _ChildTicketsList extends StatelessWidget {
+  final List<ChildTicketModel> children;
+  const _ChildTicketsList({required this.children});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Department Path',
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            color: ThemeColors.unifiedTextMuted,
-            letterSpacing: 0.5,
+    return Container(
+      decoration: BoxDecoration(
+        color: ThemeColors.unifiedBackground.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: ThemeColors.unifiedBorder.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.account_tree_rounded,
+                  size: 14,
+                  color: ThemeColors.unifiedTextMuted,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'SUB-TICKETS (${children.length})',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: ThemeColors.unifiedTextMuted,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 6),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: List.generate(journey.length, (index) {
-              final dept = journey[index];
-              final isLast = index == journey.length - 1;
-              final isFirst = index == 0;
+          Column(
+            children: List.generate(children.length, (index) {
+              final child = children[index];
+              final isLast = index == children.length - 1;
 
-              return Row(
-                mainAxisSize: MainAxisSize.min,
+              return Column(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isLast
-                          ? ThemeColors.unifiedSecondary.withOpacity(0.12)
-                          : isFirst
-                          ? ThemeColors.unifiedPrimary.withOpacity(0.08)
-                          : ThemeColors.unifiedBackground,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: isLast
-                            ? ThemeColors.unifiedSecondary.withOpacity(0.3)
-                            : ThemeColors.unifiedBorder,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
                       children: [
-                        Text(
-                          dept['code'] ?? '??',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: isLast
-                                ? ThemeColors.unifiedSecondary
-                                : ThemeColors.unifiedTextPrimary,
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: ThemeColors.unifiedPrimary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
                           ),
-                        ),
-                        if (isFirst)
-                          const Text(
-                            'ORIGIN',
-                            style: TextStyle(
-                              fontSize: 7,
-                              fontWeight: FontWeight.w900,
+                          child: Text(
+                            '#${child.id}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
                               color: ThemeColors.unifiedPrimary,
                             ),
                           ),
-                        if (isLast)
-                          const Text(
-                            'CURRENT',
-                            style: TextStyle(
-                              fontSize: 7,
-                              fontWeight: FontWeight.w900,
-                              color: ThemeColors.unifiedSecondary,
-                            ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                child.title,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: ThemeColors.unifiedTextPrimary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                'Dept: ${child.deptCode} • ${child.assigneeName ?? "Unassigned"}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: ThemeColors.unifiedTextMuted,
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
+                        StatusBadge(status: child.status),
                       ],
                     ),
                   ),
                   if (!isLast)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 4),
-                      child: Icon(
-                        Icons.chevron_right_rounded,
-                        size: 14,
-                        color: ThemeColors.unifiedBorder,
-                      ),
+                    Divider(
+                      height: 1,
+                      color: ThemeColors.unifiedBorder.withOpacity(0.3),
+                      indent: 12,
+                      endIndent: 12,
                     ),
                 ],
               );
             }),
           ),
-        ),
-      ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Department Journey Section ──────────────────────────────────────────────
+class _DeptJourneySection extends StatelessWidget {
+  final List<dynamic> journey;
+  const _DeptJourneySection({required this.journey});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: ThemeColors.unifiedBackground.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: ThemeColors.unifiedBorder.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.route_rounded,
+                size: 12,
+                color: ThemeColors.unifiedTextMuted,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'LIFECYCLE PATH',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  color: ThemeColors.unifiedTextMuted.withOpacity(0.8),
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: List.generate(journey.length, (index) {
+                final dept = journey[index] as Map<String, dynamic>;
+                final role = (dept['role'] ?? 'LINK').toString();
+                final isLast = index == journey.length - 1;
+
+                Color activeColor;
+                String label = role;
+
+                if (role == 'ORIGIN') {
+                  activeColor = ThemeColors.unifiedPrimary;
+                  label = 'ORIGIN';
+                } else if (role == 'CURRENT') {
+                  activeColor = ThemeColors.unifiedSecondary;
+                  label = 'CURRENT';
+                } else if (role == 'TRANSFER') {
+                  activeColor = ThemeColors.unifiedWarning;
+                  label = 'TRANSFER';
+                } else {
+                  activeColor = ThemeColors.unifiedTextMuted;
+                  label = 'LINK';
+                }
+
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isLast
+                                ? activeColor.withOpacity(0.12)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: isLast
+                                  ? activeColor.withOpacity(0.4)
+                                  : ThemeColors.unifiedBorder,
+                              width: isLast ? 1.5 : 1,
+                            ),
+                            boxShadow: isLast
+                                ? [
+                                    BoxShadow(
+                                      color: activeColor.withOpacity(0.1),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Text(
+                            dept['code'] ?? '??',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isLast
+                                  ? FontWeight.w900
+                                  : FontWeight.w700,
+                              color: isLast
+                                  ? activeColor
+                                  : ThemeColors.unifiedTextPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 7,
+                            fontWeight: FontWeight.w900,
+                            color: isLast
+                                ? activeColor
+                                : ThemeColors.unifiedTextMuted,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (!isLast)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 10,
+                          color: ThemeColors.unifiedBorder.withOpacity(0.8),
+                        ),
+                      ),
+                  ],
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -33,6 +33,7 @@ class TicketModel {
   final String? ticketType;
   final String? parentTicketTitle;
   final List<Map<String, dynamic>> deptJourney;
+  final List<ChildTicketModel> children;
 
   const TicketModel({
     required this.id,
@@ -66,6 +67,7 @@ class TicketModel {
     this.ticketType,
     this.parentTicketTitle,
     this.deptJourney = const [],
+    this.children = const [],
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> j) => TicketModel(
@@ -110,6 +112,11 @@ class TicketModel {
             ?.map((e) => e as Map<String, dynamic>)
             .toList() ??
         const [],
+    children:
+        (j['children'] as List<dynamic>?)
+            ?.map((e) => ChildTicketModel.fromJson(e))
+            .toList() ??
+        const [],
   );
 
   bool get isStandardTicket => ticketType == 'standard';
@@ -145,6 +152,30 @@ class TicketModel {
     }
     return null;
   }
+}
+
+class ChildTicketModel {
+  final int id;
+  final String title;
+  final String status;
+  final String deptCode;
+  final String? assigneeName;
+
+  ChildTicketModel({
+    required this.id,
+    required this.title,
+    required this.status,
+    required this.deptCode,
+    this.assigneeName,
+  });
+
+  factory ChildTicketModel.fromJson(Map<String, dynamic> j) => ChildTicketModel(
+    id: j['id'],
+    title: j['title'],
+    status: j['status'],
+    deptCode: j['dept_code'] ?? '',
+    assigneeName: j['assignee_name'],
+  );
 }
 
 class SubTicketDepartmentModel {

@@ -3,6 +3,60 @@ const pool = require('../../database/db');
 class TicketRepository {
   async getTicketDetails(ticketId) {
     const result = await pool.query(`
+      WITH RECURSIVE ticket_lineage AS (
+        -- Base case: the current ticket
+        SELECT id, parent_ticket_id, created_by_dept, assigned_dept_id, transferred_from, 1 as depth
+        FROM tickets
+        WHERE id = $1
+        
+        UNION ALL
+        
+        -- Recursive step: join with parents
+        SELECT t.id, t.parent_ticket_id, t.created_by_dept, t.assigned_dept_id, t.transferred_from, tl.depth + 1
+        FROM tickets t
+        JOIN ticket_lineage tl ON t.id = tl.parent_ticket_id
+      ),
+      journey_steps AS (
+        -- Capture unique department transitions in order
+        SELECT DISTINCT ON (dept_id)
+          dept_id, code, name, role, sort_order
+        FROM (
+          -- 1. Original Source (The very first department that created the root ticket)
+          SELECT 
+            d.id as dept_id, d.code, d.name, 'ORIGIN' as role, 1000 as sort_order
+          FROM ticket_lineage tl
+          JOIN departments d ON d.id = tl.created_by_dept
+          WHERE tl.depth = (SELECT MAX(depth) FROM ticket_lineage)
+          
+          UNION ALL
+          
+          -- 2. Any department that was a "Creator" of a sub-ticket in the middle
+          SELECT 
+            d.id as dept_id, d.code, d.name, 'TRANSFER' as role, depth * 10 as sort_order
+          FROM ticket_lineage tl
+          JOIN departments d ON d.id = tl.created_by_dept
+          WHERE tl.depth > 1 AND tl.depth < (SELECT MAX(depth) FROM ticket_lineage)
+
+          UNION ALL
+          
+          -- 3. Any department that a ticket was transferred FROM
+          SELECT 
+            d.id as dept_id, d.code, d.name, 'TRANSFER' as role, depth * 10 + 5 as sort_order
+          FROM ticket_lineage tl
+          JOIN departments d ON d.id = tl.transferred_from
+          WHERE tl.transferred_from IS NOT NULL
+
+          UNION ALL
+          
+          -- 4. Current Target Department
+          SELECT 
+            d.id as dept_id, d.code, d.name, 'CURRENT' as role, 0 as sort_order
+          FROM ticket_lineage tl
+          JOIN departments d ON d.id = tl.assigned_dept_id
+          WHERE tl.depth = 1
+        ) raw_steps
+        ORDER BY dept_id, sort_order DESC
+      )
       SELECT
         t.id, t.title, t.description, t.status, t.priority,
         t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
@@ -31,21 +85,8 @@ class TicketRepository {
         tf.code AS transferred_from_code,
         pt.title AS parent_ticket_title,
 
-        -- Fetch department journey (unique list of departments visited)
-        (
-          SELECT json_agg(dept_info) FROM (
-            SELECT DISTINCT ON (d.id) 
-              d.code, d.name, tl.created_at
-            FROM ticket_logs tl
-            JOIN departments d ON (
-              (tl.action = 'created' AND d.id = t.created_by_dept) OR
-              (tl.action = 'transferred' AND d.name = tl.new_value) OR
-              (tl.action = 'assigned' AND d.id = t.assigned_dept_id)
-            )
-            WHERE tl.ticket_id = t.id
-            ORDER BY d.id, tl.created_at ASC
-          ) dept_info
-        ) AS dept_journey
+        -- Fetch recursive department journey
+        (SELECT json_agg(js) FROM (SELECT code, name, role FROM journey_steps ORDER BY sort_order DESC) js) AS dept_journey
 
       FROM tickets t
       LEFT JOIN users creator  ON creator.id = t.created_by_id
@@ -65,7 +106,20 @@ class TicketRepository {
       WHERE t.id = $1
     `, [ticketId]);
 
-    return result.rows[0] || null;
+    let ticket = result.rows[0] || null;
+    if (ticket) {
+      // Fetch immediate children for one-card view
+      const childrenResult = await pool.query(`
+        SELECT t.id, t.title, t.status, t.assigned_dept_id, d.code as dept_code, u.name as assignee_name
+        FROM tickets t
+        LEFT JOIN departments d ON d.id = t.assigned_dept_id
+        LEFT JOIN users u ON u.id = t.assigned_to_id
+        WHERE t.parent_ticket_id = $1
+      `, [ticketId]);
+      ticket.children = childrenResult.rows;
+    }
+
+    return ticket;
   }
 
   async hasOpenSubTickets(ticketId) {
@@ -82,22 +136,20 @@ class TicketRepository {
     const { status, priority, page = 1, limit = 20 } = filters;
     const offset = (Number(page) - 1) * Number(limit);
     const params = [];
-    let whereClause = '';
+    let whereClause = 'WHERE t.parent_ticket_id IS NULL'; // Only show top-level tickets
 
     if (user.role === 'ceo') {
-      // CEO sees everything
-      whereClause = 'WHERE 1=1';
+      // CEO sees everything top-level
     } else {
       params.push(user.department_id);
       const deptParam = `$${params.length}`;
-      whereClause = `WHERE (
+      whereClause += ` AND (
         t.assigned_dept_id = ${deptParam}
         OR t.created_by_dept = ${deptParam}
-        OR (
-          t.is_sub_ticket = TRUE AND EXISTS (
-            SELECT 1 FROM sub_ticket_departments std
-            WHERE std.ticket_id = t.id AND std.department_id = ${deptParam}
-          )
+        OR EXISTS (
+          SELECT 1 FROM tickets child
+          WHERE child.parent_ticket_id = t.id
+          AND (child.assigned_dept_id = ${deptParam} OR child.created_by_dept = ${deptParam})
         )
       )`;
     }
@@ -142,6 +194,9 @@ class TicketRepository {
         pt.title AS parent_ticket_title,
         t.parent_ticket_id, t.ticket_type,
 
+        -- Fetch children count
+        (SELECT COUNT(*) FROM tickets WHERE parent_ticket_id = t.id) as child_count,
+
         -- Fetch department journey
         (
           SELECT json_agg(dept_info) FROM (
@@ -181,7 +236,30 @@ class TicketRepository {
     `;
 
     const result = await pool.query(query, params);
-    return result.rows;
+    return await this.enrichTicketsWithChildData(result.rows);
+  }
+
+  async enrichTicketsWithChildData(tickets) {
+    if (tickets.length === 0) return tickets;
+    const ids = tickets.map(t => t.id);
+    const children = await pool.query(`
+      SELECT t.id, t.parent_ticket_id, t.title, t.status, d.code as dept_code, u.name as assignee_name
+      FROM tickets t
+      LEFT JOIN departments d ON d.id = t.assigned_dept_id
+      LEFT JOIN users u ON u.id = t.assigned_to_id
+      WHERE t.parent_ticket_id = ANY($1::int[])
+    `, [ids]);
+
+    const byParent = {};
+    for (const child of children.rows) {
+      if (!byParent[child.parent_ticket_id]) byParent[child.parent_ticket_id] = [];
+      byParent[child.parent_ticket_id].push(child);
+    }
+
+    return tickets.map(t => ({
+      ...t,
+      children: byParent[t.id] || []
+    }));
   }
 
   // ── Get tickets assigned to a specific user ──────────────────────────────
@@ -189,7 +267,15 @@ class TicketRepository {
     const { status, priority, page = 1, limit = 20 } = filters;
     const offset = (Number(page) - 1) * Number(limit);
     const params = [userId];
-    let whereClause = 'WHERE t.assigned_to_id = $1';
+
+    // Show top-level tickets where the user is assigned to the ticket itself OR any of its children
+    let whereClause = `WHERE t.parent_ticket_id IS NULL AND (
+      t.assigned_to_id = $1 
+      OR EXISTS (
+        SELECT 1 FROM tickets child 
+        WHERE child.parent_ticket_id = t.id AND child.assigned_to_id = $1
+      )
+    )`;
 
     if (status) {
       params.push(status);
@@ -219,6 +305,9 @@ class TicketRepository {
         tf.code AS transferred_from_code,
         pt.title AS parent_ticket_title,
         t.parent_ticket_id, t.ticket_type,
+
+        -- Fetch children count
+        (SELECT COUNT(*) FROM tickets WHERE parent_ticket_id = t.id) as child_count,
 
         -- Fetch department journey
         (
@@ -260,7 +349,7 @@ class TicketRepository {
     `;
 
     const result = await pool.query(query, params);
-    return result.rows;
+    return await this.enrichTicketsWithChildData(result.rows);
   }
 
   // ── Dashboard stats for a user ────────────────────────────────────────────
@@ -418,31 +507,53 @@ class TicketRepository {
 
   // ── Reopen ticket (creator, within 48h, once only) ────────────────────────
   async reopenTicket(ticketId, userId) {
-    const ticket = await pool.query(
-      `SELECT * FROM tickets WHERE id = $1`, [ticketId]
-    );
-    if (ticket.rows.length === 0) throw new Error('Ticket not found');
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    const t = ticket.rows[0];
+      const ticket = await client.query(
+        `SELECT * FROM tickets WHERE id = $1`, [ticketId]
+      );
+      if (ticket.rows.length === 0) throw new Error('Ticket not found');
 
-    if (t.created_by_id !== userId) throw new Error('Only the creator can reopen this ticket');
-    if (t.reopen_count >= 1) throw new Error('Ticket can only be reopened once');
-    if (t.status !== 'closed' && t.status !== 'completed') throw new Error('Only closed/completed tickets can be reopened');
+      const t = ticket.rows[0];
 
-    const resolutionTime = t.closed_at || t.updated_at;
-    const hoursSinceClosed = (Date.now() - new Date(resolutionTime).getTime()) / 36e5;
-    if (hoursSinceClosed > 48) throw new Error('Reopen window of 48 hours has passed');
+      if (t.created_by_id !== userId) throw new Error('Only the creator can reopen this ticket');
+      if (t.reopen_count >= 1) throw new Error('Ticket can only be reopened once');
+      if (t.status !== 'closed' && t.status !== 'completed') throw new Error('Only closed/completed tickets can be reopened');
 
-    const result = await pool.query(`
-      UPDATE tickets
-      SET status = 'in_progress', reopened_at = NOW(), reopen_count = reopen_count + 1, closed_by_id = NULL, closed_at = NULL
-      WHERE id = $1
-      RETURNING id
-    `, [ticketId]);
+      const resolutionTime = t.closed_at || t.updated_at;
+      const hoursSinceClosed = (Date.now() - new Date(resolutionTime).getTime()) / 36e5;
+      if (hoursSinceClosed > 48) throw new Error('Reopen window of 48 hours has passed');
 
-    if (result.rows.length === 0) return null;
+      // Reopen the master ticket
+      await client.query(`
+        UPDATE tickets
+        SET status = 'in_progress', reopened_at = NOW(), reopen_count = reopen_count + 1, closed_by_id = NULL, closed_at = NULL
+        WHERE id = $1
+      `, [ticketId]);
 
-    return await this.getTicketDetails(ticketId);
+      // Recursively reopen all child tickets
+      await client.query(`
+        WITH RECURSIVE child_tickets AS (
+          SELECT id FROM tickets WHERE parent_ticket_id = $1
+          UNION ALL
+          SELECT t.id FROM tickets t
+          JOIN child_tickets ct ON t.parent_ticket_id = ct.id
+        )
+        UPDATE tickets
+        SET status = 'in_progress', reopened_at = NOW(), closed_by_id = NULL, closed_at = NULL
+        WHERE id IN (SELECT id FROM child_tickets)
+      `, [ticketId]);
+
+      await client.query('COMMIT');
+      return await this.getTicketDetails(ticketId);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   // ── Get ticket comments ───────────────────────────────────────────────────
