@@ -12,7 +12,6 @@ class TicketModel {
   final int createdById;
   final int? assignedToId;
   final String? assignedToName;
-  final String? transferredFromCode;
   final DateTime createdAt;
   final DateTime? dueDate;
   final DateTime? closedAt;
@@ -43,7 +42,6 @@ class TicketModel {
     required this.createdById,
     this.assignedToId,
     this.assignedToName,
-    this.transferredFromCode,
     required this.createdAt,
     this.dueDate,
     this.closedAt,
@@ -73,7 +71,6 @@ class TicketModel {
     createdByDeptCode: j['created_by_dept_code'] ?? '',
     assignedToId: j['assigned_to_id'],
     assignedToName: j['assigned_to_name'] ?? 'Unassigned',
-    transferredFromCode: j['transferred_from_code'] ?? 'None',
     createdAt: DateTime.parse(j['created_at']),
     dueDate: j['due_date'] != null ? DateTime.parse(j['due_date']) : null,
     closedAt: j['closed_at'] != null ? DateTime.parse(j['closed_at']) : null,

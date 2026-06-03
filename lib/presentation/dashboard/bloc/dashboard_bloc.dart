@@ -63,7 +63,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       final employees = user.roleId == 1
           ? await _dataSource.getEmployees(departmentId: user.departmentId)
           : <EmployeeModel>[];
-      final sentTickets = await _dataSource.getSentTickets();
 
       emit(
         DashboardLoaded(
@@ -71,7 +70,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           tickets: tickets,
           departments: departments,
           employees: employees,
-          sentTickets: sentTickets,
         ),
       );
     } catch (e) {

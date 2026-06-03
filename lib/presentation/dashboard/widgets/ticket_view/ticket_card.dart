@@ -21,7 +21,6 @@ class TicketCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = _priorityColor(ticket.priority);
-    final isTransferred = ticket.transferredFromCode != null;
 
     return GestureDetector(
       onTap: onTap ?? () => context.push('/ticket/${ticket.id}'),
@@ -94,15 +93,6 @@ class TicketCard extends StatelessWidget {
                               fg: ThemeColors.unifiedDanger,
                               icon: Icons.schedule_rounded,
                             ),
-                          if (isTransferred) ...[
-                            const SizedBox(width: 4),
-                            _FlagChip(
-                              label: 'FROM ${ticket.transferredFromCode}',
-                              bg: ThemeColors.unifiedWarning.withOpacity(0.12),
-                              fg: ThemeColors.unifiedWarning,
-                              icon: Icons.sync_alt_rounded,
-                            ),
-                          ],
                           const Spacer(),
                           PriorityBadge(priority: ticket.priority),
                           const SizedBox(width: 6),

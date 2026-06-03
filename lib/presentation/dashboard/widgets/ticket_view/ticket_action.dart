@@ -86,18 +86,7 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showStatusRemarkDialog(context, 'closed'),
               ),
 
-            // 5. Transfer: Disabled if Completed/Closed
-            if (!ticket.isManagementDisabled &&
-                !isCeo &&
-                ((isManager && ticket.assignedToId == null) || isResolver))
-              ActionBtn(
-                icon: Icons.swap_horiz_rounded,
-                tooltip: 'Transfer Dept',
-                color: ThemeColors.unifiedWarning,
-                onTap: () => _showTransferDialog(context, ticket),
-              ),
-
-            // 6. Reopen: Restricted to Creator/CEO based on model rules
+            // 5. Reopen: Restricted to Creator/CEO based on model rules
             if ((isCreator || isCeo) && ticket.canReopenBy(user.id))
               ActionBtn(
                 icon: Icons.replay_rounded,
@@ -228,118 +217,6 @@ class TicketActions extends StatelessWidget {
               child: const Text('Submit'),
             ),
           ],
-        );
-      },
-    );
-  }
-
-  void _showTransferDialog(BuildContext context, TicketModel ticket) {
-    if (ticket.isOpen) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Open tickets cannot be transferred. Please assign or start progress first.',
-          ),
-          backgroundColor: ThemeColors.unifiedDanger,
-        ),
-      );
-
-      return;
-    }
-
-    final bloc = context.read<DashboardBloc>();
-    final state = bloc.state;
-
-    if (state is! DashboardLoaded) return;
-
-    final depts = state.departments
-        .where((d) => d.id != ticket.assignedDeptId)
-        .toList();
-
-    if (depts.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No departments available for transfer')),
-      );
-
-      return;
-    }
-
-    int selectedDeptId = depts.first.id;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              title: const Text(
-                'Transfer Ticket',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: ThemeColors.unifiedTextPrimary,
-                ),
-              ),
-              content: DropdownButtonFormField<int>(
-                value: selectedDeptId,
-                decoration: InputDecoration(
-                  labelText: 'Target Department',
-                  filled: true,
-                  fillColor: ThemeColors.unifiedInputBg,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: ThemeColors.unifiedBorder,
-                    ),
-                  ),
-                ),
-                items: depts.map((d) {
-                  return DropdownMenuItem<int>(
-                    value: d.id,
-                    child: Text(d.name),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      selectedDeptId = value;
-                    });
-                  }
-                },
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (selectedDeptId == ticket.assignedDeptId) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Ticket is already in the selected department.',
-                          ),
-                          backgroundColor: ThemeColors.unifiedDanger,
-                        ),
-                      );
-                      return;
-                    }
-                    bloc.add(TransferTicket(ticket.id, selectedDeptId));
-                    Navigator.pop(dialogContext);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ThemeColors.unifiedPrimary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                  ),
-                  child: const Text('Transfer'),
-                ),
-              ],
-            );
-          },
         );
       },
     );

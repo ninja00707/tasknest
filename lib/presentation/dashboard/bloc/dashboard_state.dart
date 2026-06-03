@@ -18,7 +18,6 @@ class DashboardLoaded extends DashboardState {
   final List<TicketModel> tickets;
   final List<DepartmentModel> departments;
   final List<EmployeeModel> employees;
-  final List<TicketModel> sentTickets;
   final String? filterStatus;
   final String? filterPriority;
   final int selectedIndex;
@@ -28,7 +27,6 @@ class DashboardLoaded extends DashboardState {
     required this.tickets,
     required this.departments,
     required this.employees,
-    required this.sentTickets,
     this.filterStatus,
     this.filterPriority,
     this.selectedIndex = 0,
@@ -39,7 +37,6 @@ class DashboardLoaded extends DashboardState {
     List<TicketModel>? tickets,
     List<DepartmentModel>? departments,
     List<EmployeeModel>? employees,
-    List<TicketModel>? sentTickets,
     String? filterStatus,
     String? filterPriority,
     int? selectedIndex,
@@ -49,7 +46,6 @@ class DashboardLoaded extends DashboardState {
       tickets: tickets ?? this.tickets,
       departments: departments ?? this.departments,
       employees: employees ?? this.employees,
-      sentTickets: sentTickets ?? this.sentTickets,
       filterStatus: filterStatus ?? this.filterStatus,
       filterPriority: filterPriority ?? this.filterPriority,
       selectedIndex: selectedIndex ?? this.selectedIndex,
@@ -62,7 +58,6 @@ class DashboardLoaded extends DashboardState {
     tickets,
     departments,
     employees,
-    sentTickets,
     filterStatus,
     filterPriority,
     selectedIndex,
