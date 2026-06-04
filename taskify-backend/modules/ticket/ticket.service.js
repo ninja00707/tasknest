@@ -462,26 +462,39 @@ class TicketService {
     }
 
     // Master ticket closure logic
-    if (newStatus === 'completed' || newStatus === 'closed') {
-      const hasOpenSubs = await ticketRepo.hasOpenSubTickets(ticketId);
-      if (hasOpenSubs) {
+    // Manual closure of master is allowed ONLY if all subs are finalized (status = closed).
+    if (newStatus === 'closed') {
+      const hasUnfinalized = await ticketRepo.hasUnfinalizedSubTickets(ticketId);
+      if (hasUnfinalized) {
         throw {
           statusCode: 400,
-          message: 'Cannot close/complete this ticket because it has open sub-tickets. All sub-tickets must be resolved first.'
+          message: 'Cannot finalize this ticket because it has unfinalized sub-tickets. All sub-tickets must be marked "Closed" first.'
         };
       }
     }
 
     const isResolver = ticket.assigned_to_id === user.id;
     const isCreator = ticket.created_by_id === user.id;
+    const isAssignedDeptManager = user.role === 'manager' && user.department_id === ticket.assigned_dept_id;
     const isCeo = user.role === 'ceo';
 
     console.log(`[TicketService] Status update: ${ticket.status} -> ${newStatus} by ${user.name} (ID: ${user.id})`);
 
-    // Only the resolver or CEO can mark a ticket as completed
+    // Rule: Cannot mark as completed (Done) if there are unfinalized sub-tickets
     if (newStatus === 'completed') {
-      if (!isResolver && !isCeo) {
-        throw { statusCode: 403, message: 'Only the assigned resolver can mark this ticket as completed' };
+      const hasUnfinalized = await ticketRepo.hasUnfinalizedSubTickets(ticketId);
+      if (hasUnfinalized) {
+        throw {
+          statusCode: 400,
+          message: 'Cannot mark this ticket as completed because it has unfinalized sub-tickets. All sub-tickets must be closed first.'
+        };
+      }
+    }
+
+    // Only the resolver, Assigned Dept Manager, or CEO can mark a ticket as completed
+    if (newStatus === 'completed') {
+      if (!isResolver && !isCeo && !isAssignedDeptManager) {
+        throw { statusCode: 403, message: 'Only the assigned resolver or department manager can mark this ticket as completed' };
       }
       if (!remark || String(remark).trim() === '') {
         throw { statusCode: 400, message: 'Completion remark is required when marking done' };
@@ -534,11 +547,11 @@ class TicketService {
     const participants = await ticketRepo.getTicketParticipants(ticketId);
     await this._dispatch(ticketId, participants, `Ticket #${ticketId} status changed to ${newStatus}`, 'TICKET_STATUS_UPDATED', { ticket: updated });
 
-    // Rule: Automatic closure of master when last sub is closed
+    // Rule: Automatic closure of master when last sub is finalized (closed)
     if (newStatus === 'closed' && ticket.parent_ticket_id) {
       const parentId = ticket.parent_ticket_id;
-      const hasRemainingOpenSubs = await ticketRepo.hasOpenSubTickets(parentId);
-      if (!hasRemainingOpenSubs) {
+      const hasRemainingUnfinalized = await ticketRepo.hasUnfinalizedSubTickets(parentId);
+      if (!hasRemainingUnfinalized) {
         await ticketRepo.updateStatus(parentId, 'closed', user);
         await ticketRepo.logAction(
           parentId,
@@ -546,7 +559,7 @@ class TicketService {
           'status_changed',
           'in_progress',
           'closed',
-          'Automatically closed because all sub-tickets are finalized.'
+          'Automatically closed because all sub-tickets are fully finalized (Closed).'
         );
       }
     }

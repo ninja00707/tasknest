@@ -5,6 +5,7 @@ import 'package:equatable/equatable.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 
 abstract class DashboardState extends Equatable {
+  String? get message => null;
   @override
   List<Object?> get props => [];
 }
@@ -70,24 +71,27 @@ class DashboardLoaded extends DashboardState {
 }
 
 class DashboardError extends DashboardState {
+  @override
   final String message;
   DashboardError(this.message);
   @override
   List<Object?> get props => [message];
 }
 
-class TicketActionSuccess extends DashboardState {
+class DashboardActionSuccess extends DashboardState {
+  @override
   final String message;
   final DashboardLoaded previousState;
-  TicketActionSuccess(this.message, this.previousState);
+  DashboardActionSuccess(this.message, this.previousState);
   @override
   List<Object?> get props => [message];
 }
 
-class TicketActionError extends DashboardState {
+class DashboardActionError extends DashboardState {
+  @override
   final String message;
   final DashboardLoaded previousState;
-  TicketActionError(this.message, this.previousState);
+  DashboardActionError(this.message, this.previousState);
   @override
   List<Object?> get props => [message];
 }

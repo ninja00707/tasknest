@@ -545,16 +545,26 @@ class _SubTicketProgressSection extends StatelessWidget {
   ) {
     final bloc = context.read<DashboardBloc>();
     final state = bloc.state;
-    if (state is! DashboardLoaded) return;
+    DashboardLoaded? loadedState;
 
-    if (state.employees.isEmpty) {
+    if (state is DashboardLoaded) {
+      loadedState = state;
+    } else if (state is DashboardActionSuccess) {
+      loadedState = state.previousState;
+    } else if (state is DashboardActionError) {
+      loadedState = state.previousState;
+    }
+
+    if (loadedState == null) return;
+
+    if (loadedState.employees.isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('No employees found')));
       return;
     }
 
-    int selectedId = state.employees.first.id;
+    int selectedId = loadedState.employees.first.id;
 
     showDialog(
       context: context,
@@ -565,7 +575,7 @@ class _SubTicketProgressSection extends StatelessWidget {
               title: const Text('Assign Dept Task'),
               content: DropdownButtonFormField<int>(
                 value: selectedId,
-                items: state.employees.map((e) {
+                items: loadedState!.employees.map((e) {
                   return DropdownMenuItem(value: e.id, child: Text(e.name));
                 }).toList(),
                 onChanged: (v) => setState(() => selectedId = v!),

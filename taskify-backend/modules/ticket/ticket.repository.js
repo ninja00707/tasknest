@@ -59,6 +59,21 @@ class TicketRepository {
 
         tf.code AS transferred_from_code,
         pt.title AS parent_ticket_title,
+        t.parent_ticket_id, t.ticket_type,
+
+        -- Fetch immediate children count
+        (SELECT COUNT(*) FROM tickets WHERE parent_ticket_id = t.id) as immediate_child_count,
+        
+        -- Check if there are any unfinalized (not closed) descendants
+        EXISTS (
+          WITH RECURSIVE descendants AS (
+            SELECT id, status FROM tickets WHERE parent_ticket_id = t.id
+            UNION ALL
+            SELECT child.id, child.status FROM tickets child
+            JOIN descendants d ON child.parent_ticket_id = d.id
+          )
+          SELECT 1 FROM descendants WHERE status != 'closed'
+        ) as has_active_children,
 
         -- Fetch recursive department journey (Global Project Journey)
         (
@@ -117,7 +132,7 @@ class TicketRepository {
     return ticket;
   }
 
-  async hasOpenSubTickets(ticketId) {
+  async hasUnfinalizedSubTickets(ticketId) {
     const result = await pool.query(`
       WITH RECURSIVE descendants AS (
         SELECT id, status FROM tickets WHERE parent_ticket_id = $1
@@ -126,7 +141,7 @@ class TicketRepository {
         JOIN descendants d ON t.parent_ticket_id = d.id
       )
       SELECT 1 FROM descendants
-      WHERE status NOT IN ('completed', 'closed')
+      WHERE status != 'closed'
       LIMIT 1
     `, [ticketId]);
     return result.rows.length > 0;
@@ -236,7 +251,18 @@ class TicketRepository {
         t.parent_ticket_id, t.ticket_type,
 
         -- Fetch children count
-        (SELECT COUNT(*) FROM tickets WHERE parent_ticket_id = t.id) as child_count,
+        (SELECT COUNT(*) FROM tickets WHERE parent_ticket_id = t.id) as immediate_child_count,
+
+        -- Check if there are any unfinalized (not closed) descendants
+        EXISTS (
+          WITH RECURSIVE descendants AS (
+            SELECT id, status FROM tickets WHERE parent_ticket_id = t.id
+            UNION ALL
+            SELECT child.id, child.status FROM tickets child
+            JOIN descendants d ON child.parent_ticket_id = d.id
+          )
+          SELECT 1 FROM descendants WHERE status != 'closed'
+        ) as has_active_children,
 
         -- Fetch Global Project Journey
         COALESCE(ja.journey, '[]'::json) as dept_journey
@@ -289,6 +315,16 @@ class TicketRepository {
       )
       SELECT t.id, t.parent_ticket_id, t.title, t.status, t.assigned_dept_id, t.assigned_to_id, t.created_by_id,
              d_info.code as dept_code, u.name as assignee_name,
+             (SELECT COUNT(*) FROM tickets WHERE parent_ticket_id = t.id) as immediate_child_count,
+             EXISTS (
+               WITH RECURSIVE sub_descendants AS (
+                 SELECT id, status FROM tickets WHERE parent_ticket_id = t.id
+                 UNION ALL
+                 SELECT child.id, child.status FROM tickets child
+                 JOIN sub_descendants sd ON child.parent_ticket_id = sd.id
+               )
+               SELECT 1 FROM sub_descendants WHERE status != 'closed'
+             ) as has_active_children,
              -- We need to know which master ticket this descendant ultimately belongs to
              (
                WITH RECURSIVE root_finder AS (
@@ -402,7 +438,7 @@ class TicketRepository {
         t.parent_ticket_id, t.ticket_type,
 
         -- Fetch children count
-        (SELECT COUNT(*) FROM tickets WHERE parent_ticket_id = t.id) as child_count,
+        (SELECT COUNT(*) FROM tickets WHERE parent_ticket_id = t.id) as immediate_child_count,
 
         -- Fetch Global Project Journey
         COALESCE(ja.journey, '[]'::json) as dept_journey,

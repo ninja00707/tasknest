@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
+
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
@@ -22,7 +22,16 @@ class TicketActions extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<DashboardBloc, DashboardState>(
       builder: (context, state) {
-        if (state is! DashboardLoaded) {
+        DashboardLoaded? loadedState;
+        if (state is DashboardLoaded) {
+          loadedState = state;
+        } else if (state is DashboardActionSuccess) {
+          loadedState = state.previousState;
+        } else if (state is DashboardActionError) {
+          loadedState = state.previousState;
+        }
+
+        if (loadedState == null) {
           return const SizedBox.shrink();
         }
 
@@ -43,14 +52,8 @@ class TicketActions extends StatelessWidget {
         // 1. Once ticket is created user can't not do anything until the ticket is assigned
         final bool isUnassigned = ticket.assignedToId == null;
 
-        // 2. After the creator, create sub ticket to another department then all the action will be closed to the creator
-        // RULE: Cannot close if any child (recursive) is still open
-        final bool hasOpenSubs =
-            ticket is TicketModel &&
-            ticket.children.any(
-              (child) =>
-                  child.status != 'completed' && child.status != 'closed',
-            );
+        // RULE: Cannot mark done or finalize if any child (recursive) is still not finalized (Closed)
+        final bool hasUnfinalizedSubs = ticket.hasActiveChildren;
 
         return Row(
           mainAxisSize: MainAxisSize.min,
@@ -59,7 +62,8 @@ class TicketActions extends StatelessWidget {
             if (ticket.isOpen &&
                 !ticket.isManagementDisabled &&
                 isUnassigned &&
-                isAssignedToMyDept)
+                isAssignedToMyDept &&
+                !hasUnfinalizedSubs)
               ActionBtn(
                 icon: Icons.person_add_outlined,
                 tooltip: 'Self Assign',
@@ -70,21 +74,22 @@ class TicketActions extends StatelessWidget {
               ),
 
             // 2. Managerial Assign: Only for Managers of the assigned department if unassigned
-            // RULE: Managers can assign both Master and Sub-tickets to their employees
             if (isManager &&
                 !ticket.isManagementDisabled &&
                 isUnassigned &&
-                isAssignedToMyDept)
+                isAssignedToMyDept &&
+                !hasUnfinalizedSubs)
               ActionBtn(
                 icon: Icons.manage_accounts_outlined,
                 tooltip: 'Assign to Employee',
                 color: ThemeColors.unifiedAccent,
-                onTap: () => _showAssignDialog(context, state),
+                onTap: () => _showAssignDialog(context, loadedState!),
               ),
 
-            // 3. Resolver Action: Mark Completed (Done). CEO is restricted.
-            // RULE: Manager can't do anything after assignment (unless they are the resolver)
-            if (ticket.isInProgress && (isResolver || isCeo))
+            // 3. Resolver Action: Mark Completed (Done).
+            if (ticket.isInProgress &&
+                !hasUnfinalizedSubs &&
+                (isResolver || isCeo || (isManager && isAssignedToMyDept)))
               ActionBtn(
                 icon: Icons.check_circle_outline,
                 tooltip: 'Mark Done',
@@ -93,9 +98,8 @@ class TicketActions extends StatelessWidget {
               ),
 
             // 4. Creator/CEO/Creating Dept Manager Action: Finalize & Close
-            // RULE: Actions closed for creator if sub-tickets exist OR if any child is open
             if (ticket.isCompleted &&
-                !hasOpenSubs &&
+                !hasUnfinalizedSubs &&
                 (isCreator || isCeo || isCreatingDeptManager))
               ActionBtn(
                 icon: Icons.lock_outline,
@@ -104,12 +108,13 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showStatusRemarkDialog(context, 'closed'),
               ),
 
-            // 5. Create Sub Ticket: Disabled if Closed or unassigned
-            // RULE: Once assigned, creator/resolver can branch out
-            if (!ticket.isClosed &&
+            // 5. Create Sub Ticket: Disabled if Completed, Closed, unassigned or if sub-ticket already exists
+            // RULE: Creator and Resolver (and anyone in assigned dept) are allowed ONCE to create a sub-ticket
+            if (!ticket.isManagementDisabled &&
                 !isCeo &&
                 !isUnassigned &&
-                (isResolver || (isManager && isAssignedToMyDept)))
+                ticket.immediateChildCount == 0 &&
+                isAssignedToMyDept)
               ActionBtn(
                 icon: Icons.add_link_rounded,
                 tooltip: 'Create Sub Ticket',
@@ -133,6 +138,7 @@ class TicketActions extends StatelessWidget {
   }
 
   void _showAssignDialog(BuildContext context, DashboardLoaded state) {
+    final bloc = context.read<DashboardBloc>();
     if (state.employees.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -149,7 +155,7 @@ class TicketActions extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (stfContext, setState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -195,7 +201,7 @@ class TicketActions extends StatelessWidget {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    context.read<DashboardBloc>().add(
+                    bloc.add(
                       AssignTicketToEmployee(ticket.id, selectedEmployeeId),
                     );
                     Navigator.pop(dialogContext);
@@ -216,6 +222,7 @@ class TicketActions extends StatelessWidget {
   }
 
   void _showStatusRemarkDialog(BuildContext context, String status) {
+    final bloc = context.read<DashboardBloc>();
     final controller = TextEditingController();
     final label = status == 'completed' ? 'done' : 'close';
     showDialog(
@@ -241,9 +248,7 @@ class TicketActions extends StatelessWidget {
                 final remark = controller.text.trim();
                 if (remark.isEmpty) return;
                 Navigator.pop(dialogContext);
-                context.read<DashboardBloc>().add(
-                  UpdateTicketStatus(ticket.id, status, remark: remark),
-                );
+                bloc.add(UpdateTicketStatus(ticket.id, status, remark: remark));
               },
               child: const Text('Submit'),
             ),
@@ -256,14 +261,23 @@ class TicketActions extends StatelessWidget {
   void _showSubTicketDialog(BuildContext context, dynamic ticket) {
     final bloc = context.read<DashboardBloc>();
     final state = bloc.state;
+    DashboardLoaded? loadedState;
 
-    if (state is! DashboardLoaded) return;
+    if (state is DashboardLoaded) {
+      loadedState = state;
+    } else if (state is DashboardActionSuccess) {
+      loadedState = state.previousState;
+    } else if (state is DashboardActionError) {
+      loadedState = state.previousState;
+    }
+
+    if (loadedState == null) return;
 
     final int? assignedDeptId = ticket is TicketModel
         ? ticket.assignedDeptId
         : (ticket as ChildTicketModel).assignedDeptId;
 
-    final depts = state.departments
+    final depts = loadedState.departments
         .where((d) => d.id != assignedDeptId)
         .toList();
 

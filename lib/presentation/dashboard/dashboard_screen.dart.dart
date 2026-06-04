@@ -28,7 +28,7 @@ class DashboardScreen extends StatelessWidget {
     return BlocConsumer<DashboardBloc, DashboardState>(
       listener: (context, state) {
         // _loadUser();
-        if (state is TicketActionSuccess) {
+        if (state is DashboardActionSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: ThemeColors.unifiedPrimary,
@@ -45,7 +45,7 @@ class DashboardScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    state.message,
+                    state.message!,
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -57,7 +57,7 @@ class DashboardScreen extends StatelessWidget {
           );
         }
 
-        if (state is TicketActionError) {
+        if (state is DashboardActionError) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: ThemeColors.unifiedDanger,
@@ -75,7 +75,7 @@ class DashboardScreen extends StatelessWidget {
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      state.message,
+                      state.message!,
                       style: const TextStyle(color: Colors.white),
                     ),
                   ),
@@ -90,9 +90,9 @@ class DashboardScreen extends StatelessWidget {
 
         if (state is DashboardLoaded) {
           loadedState = state;
-        } else if (state is TicketActionSuccess) {
+        } else if (state is DashboardActionSuccess) {
           loadedState = state.previousState;
-        } else if (state is TicketActionError) {
+        } else if (state is DashboardActionError) {
           loadedState = state.previousState;
         }
 
@@ -150,9 +150,9 @@ class DashboardScreen extends StatelessWidget {
 
     if (state is DashboardLoaded) {
       loadedState = state;
-    } else if (state is TicketActionSuccess) {
+    } else if (state is DashboardActionSuccess) {
       loadedState = state.previousState;
-    } else if (state is TicketActionError) {
+    } else if (state is DashboardActionError) {
       loadedState = state.previousState;
     }
 
@@ -166,7 +166,7 @@ class DashboardScreen extends StatelessWidget {
     }
 
     if (state is DashboardError) {
-      return Center(child: Text(state.message));
+      return Center(child: Text(state.message!));
     }
 
     if (loadedState == null &&

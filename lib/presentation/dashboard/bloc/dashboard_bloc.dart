@@ -134,7 +134,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         ),
       );
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -146,10 +146,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     final prev = state as DashboardLoaded;
     try {
       await _dataSource.selfAssign(event.ticketId);
-      emit(TicketActionSuccess('Ticket self-assigned!', prev));
+      emit(DashboardActionSuccess('Ticket self-assigned!', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -165,10 +165,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         event.status,
         remark: event.remark,
       );
-      emit(TicketActionSuccess('Status updated to ${event.status}', prev));
+      emit(DashboardActionSuccess('Status updated to ${event.status}', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -180,10 +180,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     final prev = state as DashboardLoaded;
     try {
       await _dataSource.assignToEmployee(event.ticketId, event.employeeId);
-      emit(TicketActionSuccess('Ticket assigned successfully', prev));
+      emit(DashboardActionSuccess('Ticket assigned successfully', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -195,10 +195,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     final prev = state as DashboardLoaded;
     try {
       await _dataSource.transferTicket(event.ticketId, event.targetDeptId);
-      emit(TicketActionSuccess('Ticket transferred!', prev));
+      emit(DashboardActionSuccess('Ticket transferred!', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -210,10 +210,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     final prev = state as DashboardLoaded;
     try {
       await _dataSource.reopenTicket(event.ticketId);
-      emit(TicketActionSuccess('Ticket reopened!', prev));
+      emit(DashboardActionSuccess('Ticket reopened!', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -255,11 +255,11 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         parentTicketId: event.parentTicketId,
       );
 
-      emit(TicketActionSuccess('Ticket created!', prev));
+      emit(DashboardActionSuccess('Ticket created!', prev));
 
       add(LoadDashboard());
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -277,10 +277,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         dueDate: event.dueDate,
         parentTicketId: event.parentTicketId,
       );
-      emit(TicketActionSuccess('Sub-ticket created!', prev));
+      emit(DashboardActionSuccess('Sub-ticket created!', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -296,10 +296,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         status: event.status,
         note: event.note,
       );
-      emit(TicketActionSuccess('Department progress updated!', prev));
+      emit(DashboardActionSuccess('Department progress updated!', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -314,10 +314,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         departmentId: event.departmentId,
         employeeId: event.employeeId,
       );
-      emit(TicketActionSuccess('Department work assigned!', prev));
+      emit(DashboardActionSuccess('Department work assigned!', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -329,10 +329,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     final prev = state as DashboardLoaded;
     try {
       await _dataSource.selfAssignSubDept(event.ticketId, event.departmentId);
-      emit(TicketActionSuccess('Task self-assigned!', prev));
+      emit(DashboardActionSuccess('Task self-assigned!', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -344,10 +344,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     final prev = state as DashboardLoaded;
     try {
       await _dataSource.reopenSubDept(event.ticketId, event.departmentId);
-      emit(TicketActionSuccess('Department task reopened!', prev));
+      emit(DashboardActionSuccess('Department task reopened!', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -359,10 +359,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     final prev = state as DashboardLoaded;
     try {
       await _dataSource.completeSubTicket(event.ticketId);
-      emit(TicketActionSuccess('Sub-ticket completed!', prev));
+      emit(DashboardActionSuccess('Sub-ticket completed!', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -374,10 +374,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     final prev = state as DashboardLoaded;
     try {
       await _dataSource.addComment(event.ticketId, event.message);
-      emit(TicketActionSuccess('Comment added!', prev));
+      emit(DashboardActionSuccess('Comment added!', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(TicketActionError(e.toString(), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 

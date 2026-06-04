@@ -35,6 +35,8 @@ class TicketModel {
   final String? parentTicketTitle;
   final List<Map<String, dynamic>> deptJourney;
   final List<ChildTicketModel> children;
+  final int immediateChildCount;
+  final bool hasActiveChildren;
 
   const TicketModel({
     required this.id,
@@ -70,14 +72,16 @@ class TicketModel {
     this.parentTicketTitle,
     this.deptJourney = const [],
     this.children = const [],
+    this.immediateChildCount = 0,
+    this.hasActiveChildren = false,
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> j) => TicketModel(
     id: j['id'],
-    title: j['title'],
-    description: j['description'],
-    status: j['status'],
-    priority: j['priority'],
+    title: j['title'] ?? '',
+    description: j['description'] ?? '',
+    status: j['status'] ?? 'open',
+    priority: j['priority'] ?? 'low',
     assignedDeptId: j['assigned_dept_id'],
     assignedDeptCode: j['assigned_dept_code'] ?? '',
     assignedDeptName: j['assigned_dept_name'] ?? '',
@@ -88,7 +92,9 @@ class TicketModel {
     assignedToId: j['assigned_to_id'],
     assignedToName: j['assigned_to_name'] ?? 'Unassigned',
     transferredFromCode: j['transferred_from_code'] ?? 'None',
-    createdAt: DateTime.parse(j['created_at']),
+    createdAt: DateTime.parse(
+      j['created_at'] ?? DateTime.now().toIso8601String(),
+    ),
     dueDate: j['due_date'] != null ? DateTime.parse(j['due_date']) : null,
     closedAt: j['closed_at'] != null ? DateTime.parse(j['closed_at']) : null,
     reopenCount: j['reopen_count'] ?? 0,
@@ -120,6 +126,9 @@ class TicketModel {
             ?.map((e) => ChildTicketModel.fromJson(e))
             .toList() ??
         const [],
+    immediateChildCount:
+        int.tryParse(j['immediate_child_count']?.toString() ?? '0') ?? 0,
+    hasActiveChildren: j['has_active_children'] == true,
   );
 
   bool get isStandardTicket => ticketType == 'standard';
@@ -166,6 +175,8 @@ class ChildTicketModel {
   final int? assignedToId;
   final String? assigneeName;
   final int createdById;
+  final int immediateChildCount;
+  final bool hasActiveChildren;
 
   ChildTicketModel({
     required this.id,
@@ -176,17 +187,22 @@ class ChildTicketModel {
     this.assignedToId,
     this.assigneeName,
     required this.createdById,
+    this.immediateChildCount = 0,
+    this.hasActiveChildren = false,
   });
 
   factory ChildTicketModel.fromJson(Map<String, dynamic> j) => ChildTicketModel(
     id: j['id'],
-    title: j['title'],
-    status: j['status'],
+    title: j['title'] ?? '',
+    status: j['status'] ?? 'open',
     assignedDeptId: int.tryParse(j['assigned_dept_id']?.toString() ?? ''),
     deptCode: j['dept_code'] ?? '',
     assignedToId: int.tryParse(j['assigned_to_id']?.toString() ?? ''),
     assigneeName: j['assignee_name'],
     createdById: int.tryParse(j['created_by_id']?.toString() ?? '0') ?? 0,
+    immediateChildCount:
+        int.tryParse(j['immediate_child_count']?.toString() ?? '0') ?? 0,
+    hasActiveChildren: j['has_active_children'] == true,
   );
 
   // Helper getters to match TicketModel interface for TicketActions
