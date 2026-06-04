@@ -50,6 +50,30 @@ class TicketService {
       throw { statusCode: 400, message: 'title, description and assignedDeptId are required' };
     }
 
+    // REQUIREMENT: Repeat cycle if A creates for B directly (Master in A -> Sub in B)
+    if (!parentTicketId && Number(assignedDeptId) !== Number(user.department_id)) {
+      // Create Master Oversight in Creator's Dept
+      const masterTicket = await ticketRepo.createTicket({
+        title: `Project: ${title}`,
+        description: `Master oversight for: ${description}`,
+        priority,
+        assignedDeptId: user.department_id,
+        dueDate,
+        createdBy: user,
+        assignedToId: user.id, // Auto-assign to creator for oversight
+        parentTicketId: null,
+        ticketType: 'standard'
+      });
+
+      await ticketRepo.logAction(masterTicket.id, user.id, 'created', null, 'open', `Project Master created for department oversight`);
+
+      // Create actual task as Sub-Ticket of this master
+      return await this.createTicket({
+        ...data,
+        parentTicketId: masterTicket.id
+      }, user);
+    }
+
     const ticket = await ticketRepo.createTicket({
       title,
       description,
@@ -475,6 +499,7 @@ class TicketService {
 
     const isResolver = ticket.assigned_to_id === user.id;
     const isCreator = ticket.created_by_id === user.id;
+    const isEmployee = user.role === 'employee';
     const isAssignedDeptManager = user.role === 'manager' && user.department_id === ticket.assigned_dept_id;
     const isCeo = user.role === 'ceo';
 

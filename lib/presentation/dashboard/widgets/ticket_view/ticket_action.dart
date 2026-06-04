@@ -48,7 +48,8 @@ class TicketActions extends StatelessWidget {
         final bool isAssignedToMyDept =
             ticket.assignedDeptId == user.departmentId;
 
-        // NEW RULES:
+        final bool isEmployee = user.roleId == 2; // Assuming 2 is Employee
+
         // 1. Once ticket is created user can't not do anything until the ticket is assigned
         final bool isUnassigned = ticket.assignedToId == null;
 
@@ -87,9 +88,13 @@ class TicketActions extends StatelessWidget {
               ),
 
             // 3. Resolver Action: Mark Completed (Done).
+            // RULE: Managers only rites to mark done if assigned to employee
             if (ticket.isInProgress &&
                 !hasUnfinalizedSubs &&
-                (isResolver || isCeo || (isManager && isAssignedToMyDept)))
+                ((isManager && isAssignedToMyDept) ||
+                    isCeo ||
+                    isCreator ||
+                    (isResolver && !isEmployee)))
               ActionBtn(
                 icon: Icons.check_circle_outline,
                 tooltip: 'Mark Done',
@@ -260,6 +265,10 @@ class TicketActions extends StatelessWidget {
 
   void _showSubTicketDialog(BuildContext context, dynamic ticket) {
     final bloc = context.read<DashboardBloc>();
+    final titleController = TextEditingController(text: "Sub: ${ticket.title}");
+    final descController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
     final state = bloc.state;
     DashboardLoaded? loadedState;
 
@@ -277,8 +286,12 @@ class TicketActions extends StatelessWidget {
         ? ticket.assignedDeptId
         : (ticket as ChildTicketModel).assignedDeptId;
 
+    // Rule 3: Prevent duplicate sub-ticket creation for the same department in the chain
+    final occupiedDeptIds =
+        ticket.deptJourney?.map((j) => j['id']).toList() ?? [];
+
     final depts = loadedState.departments
-        .where((d) => d.id != assignedDeptId)
+        .where((d) => !occupiedDeptIds.contains(d.id))
         .toList();
 
     if (depts.isEmpty) {
@@ -309,45 +322,60 @@ class TicketActions extends StatelessWidget {
                   color: ThemeColors.unifiedTextPrimary,
                 ),
               ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'This will create a new sub-ticket for the selected department linked to this ticket.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: ThemeColors.unifiedTextMuted,
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: titleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Title',
+                        hintText: 'Enter sub-ticket title',
+                      ),
+                      validator: (v) => v!.isEmpty ? 'Title is required' : null,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<int>(
-                    value: selectedDeptId,
-                    decoration: InputDecoration(
-                      labelText: 'Target Department',
-                      filled: true,
-                      fillColor: ThemeColors.unifiedInputBg,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(
-                          color: ThemeColors.unifiedBorder,
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: descController,
+                      decoration: const InputDecoration(
+                        labelText: 'Description',
+                        hintText: 'Enter task description',
+                      ),
+                      maxLines: 2,
+                      validator: (v) =>
+                          v!.isEmpty ? 'Description is required' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<int>(
+                      value: selectedDeptId,
+                      decoration: InputDecoration(
+                        labelText: 'Target Department',
+                        filled: true,
+                        fillColor: ThemeColors.unifiedInputBg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                            color: ThemeColors.unifiedBorder,
+                          ),
                         ),
                       ),
+                      items: depts.map((d) {
+                        return DropdownMenuItem<int>(
+                          value: d.id,
+                          child: Text(d.name),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            selectedDeptId = value;
+                          });
+                        }
+                      },
                     ),
-                    items: depts.map((d) {
-                      return DropdownMenuItem<int>(
-                        value: d.id,
-                        child: Text(d.name),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          selectedDeptId = value;
-                        });
-                      }
-                    },
-                  ),
-                ],
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -356,8 +384,17 @@ class TicketActions extends StatelessWidget {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    bloc.add(TransferTicket(ticket.id, selectedDeptId));
-                    Navigator.pop(dialogContext);
+                    if (formKey.currentState!.validate()) {
+                      bloc.add(
+                        TransferTicket(
+                          ticket.id,
+                          selectedDeptId,
+                          // title: titleController.text.trim(),
+                          // description: descController.text.trim(),
+                        ),
+                      );
+                      Navigator.pop(dialogContext);
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: ThemeColors.unifiedPrimary,
