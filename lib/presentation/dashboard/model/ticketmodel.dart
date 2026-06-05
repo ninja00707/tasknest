@@ -39,6 +39,7 @@ class TicketModel {
   final List<ChildTicketModel> children;
   final int immediateChildCount;
   final bool hasActiveChildren;
+  final List<CommentModel> comments;
 
   const TicketModel({
     required this.id,
@@ -78,6 +79,7 @@ class TicketModel {
     this.children = const [],
     this.immediateChildCount = 0,
     this.hasActiveChildren = false,
+    this.comments = const [],
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> j) => TicketModel(
@@ -135,6 +137,11 @@ class TicketModel {
     immediateChildCount:
         int.tryParse(j['immediate_child_count']?.toString() ?? '0') ?? 0,
     hasActiveChildren: j['has_active_children'] == true,
+    comments:
+        (j['comments'] as List<dynamic>?)
+            ?.map((e) => CommentModel.fromJson(e))
+            .toList() ??
+        const [],
   );
 
   bool get isStandardTicket => ticketType == 'standard';
@@ -283,6 +290,36 @@ class SubTicketDepartmentModel {
   bool get isApproved => status == 'approved';
 
   bool get isAssigned => assignedToId != null;
+}
+
+class CommentModel {
+  final int id;
+  final int ticketId;
+  final int userId;
+  final String message;
+  final String userName;
+  final String deptCode;
+  final DateTime createdAt;
+
+  const CommentModel({
+    required this.id,
+    required this.ticketId,
+    required this.userId,
+    required this.message,
+    required this.userName,
+    required this.deptCode,
+    required this.createdAt,
+  });
+
+  factory CommentModel.fromJson(Map<String, dynamic> j) => CommentModel(
+    id: j['id'],
+    ticketId: j['ticket_id'],
+    userId: j['user_id'],
+    message: j['message'] ?? '',
+    userName: j['user_name'] ?? '',
+    deptCode: j['dept_code'] ?? '',
+    createdAt: DateTime.parse(j['created_at'] ?? DateTime.now().toIso8601String()),
+  );
 }
 
 class DashboardStats {

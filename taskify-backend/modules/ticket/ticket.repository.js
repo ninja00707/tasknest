@@ -551,6 +551,17 @@ class TicketRepository {
 
     ticket = await this.enrichTicketWithSubData(ticket);
 
+    // ── Fetch comments ─────────────────────────────────────────────
+    const commentsRes = await pool.query(`
+      SELECT tc.*, u.name AS user_name, d.code AS dept_code
+      FROM ticket_comments tc
+      JOIN users u       ON u.id = tc.user_id
+      JOIN departments d ON d.id = u.department_id
+      WHERE tc.ticket_id = $1
+      ORDER BY tc.created_at DESC
+    `, [ticketId]);
+    ticket.comments = commentsRes.rows;
+
     if (user.role === 'ceo' || isSystemUpdate) {
       return ticket;
     }

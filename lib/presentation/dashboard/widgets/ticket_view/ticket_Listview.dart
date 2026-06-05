@@ -1,4 +1,3 @@
-// ── Ticket List View ──────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
@@ -23,7 +22,6 @@ class TicketListView extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             children: [
-              // Status filter
               Expanded(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -49,7 +47,6 @@ class TicketListView extends StatelessWidget {
                             horizontal: 12,
                             vertical: 6,
                           ),
-
                           decoration: BoxDecoration(
                             gradient: active
                                 ? const LinearGradient(
@@ -59,25 +56,20 @@ class TicketListView extends StatelessWidget {
                                     ],
                                   )
                                 : null,
-
                             color: active
                                 ? null
                                 : ThemeColors.unifiedBackground,
-
                             borderRadius: BorderRadius.circular(20),
-
                             border: Border.all(
                               color: active
                                   ? Colors.transparent
                                   : ThemeColors.unifiedBorder,
                             ),
                           ),
-
                           child: Text(
                             s.name == 'All'
                                 ? 'ALL'
                                 : s.name.replaceAll('_', ' ').toUpperCase(),
-
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -95,8 +87,6 @@ class TicketListView extends StatelessWidget {
             ],
           ),
         ),
-
-        // Ticket list
         Expanded(
           child: state.tickets.isEmpty
               ? const Center(
@@ -105,11 +95,36 @@ class TicketListView extends StatelessWidget {
                     style: TextStyle(color: ThemeColors.unifiedTextMuted),
                   ),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: state.tickets.length,
-                  itemBuilder: (_, i) =>
-                      TicketCard(ticket: state.tickets[i], user: user),
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final crossAxisCount = constraints.maxWidth > 1200
+                        ? 3
+                        : constraints.maxWidth > 700
+                            ? 2
+                            : 1;
+                    final spacing = 14.0;
+                    final totalPadding = 32.0;
+                    final cardWidth = (constraints.maxWidth -
+                            totalPadding -
+                            spacing * (crossAxisCount - 1)) /
+                        crossAxisCount;
+
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Wrap(
+                        spacing: spacing,
+                        runSpacing: spacing,
+                        children: state.tickets
+                            .map(
+                              (t) => SizedBox(
+                                width: cardWidth,
+                                child: TicketCard(ticket: t, user: user),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    );
+                  },
                 ),
         ),
       ],

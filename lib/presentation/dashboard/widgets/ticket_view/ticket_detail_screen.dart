@@ -10,7 +10,6 @@ import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_action.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/sub_ticket_detail_section.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_history_timeline.dart';
-
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class TicketDetailScreen extends StatelessWidget {
@@ -73,13 +72,11 @@ class TicketDetailScreen extends StatelessWidget {
                 .followedBy(loadedState.sentTickets)
                 .firstWhere((t) => t.id == ticketId);
           } catch (_) {
-            // Check children
             for (var master in loadedState.tickets.followedBy(
               loadedState.sentTickets,
             )) {
               for (var child in master.children) {
                 if (child.id == ticketId) {
-                  // Create a temporary TicketModel from ChildTicketModel
                   foundTicket = TicketModel(
                     id: child.id,
                     title: child.title,
@@ -88,7 +85,7 @@ class TicketDetailScreen extends StatelessWidget {
                     priority: master.priority,
                     assignedDeptId: child.assignedDeptId,
                     assignedDeptCode: child.deptCode,
-                    assignedDeptName: '', // Would need lookup
+                    assignedDeptName: '',
                     createdByName: master.createdByName,
                     createdByDeptCode: master.createdByDeptCode,
                     createdByDeptId: master.createdByDeptId,
@@ -139,11 +136,7 @@ class TicketDetailScreen extends StatelessWidget {
           return Scaffold(
             backgroundColor: ThemeColors.unifiedBackground,
             appBar: CommonDetailAppbar(
-              onHistoryPressed: () {
-                // You can implement scrolling to the history section
-                // or showing a modal with history here.
-                // For now, it's just a button.
-              },
+              onHistoryPressed: null,
               ticket: ticket,
               title: null,
               issuffixStatus: true,
@@ -153,7 +146,7 @@ class TicketDetailScreen extends StatelessWidget {
                 horizontal: isWide
                     ? MediaQuery.sizeOf(context).width * 0.1
                     : 16,
-                vertical: 24, // Increased vertical padding for better spacing
+                vertical: 24,
               ),
               child: isWide
                   ? _WideLayout(ticket: ticket, user: user)
@@ -166,7 +159,6 @@ class TicketDetailScreen extends StatelessWidget {
   }
 }
 
-// ── Loading scaffold ──────────────────────────────────────────────────────────
 class _LoadingScaffold extends StatelessWidget {
   const _LoadingScaffold();
 
@@ -190,7 +182,6 @@ class _LoadingScaffold extends StatelessWidget {
   }
 }
 
-// ── Wide layout ───────────────────────────────────────────────────────────────
 class _WideLayout extends StatelessWidget {
   final TicketModel ticket;
   final UserModel user;
@@ -200,20 +191,24 @@ class _WideLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _HeroCard(ticket: ticket),
-        if (ticket.isSubTicket) ...[
-          const SizedBox(height: 24),
-          SubTicketDetailSection(ticket: ticket, user: user),
-        ],
+        _HeroSection(ticket: ticket),
         const SizedBox(height: 24),
+        if (ticket.isSubTicket || ticket.isMultiTaskTicket) ...[
+          _ProgressSection(ticket: ticket),
+          const SizedBox(height: 24),
+        ],
+        if (ticket.isSubTicket) ...[
+          SubTicketDetailSection(ticket: ticket, user: user),
+          const SizedBox(height: 24),
+        ],
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(flex: 2, child: _MainInfoColumn(ticket: ticket)),
+            Expanded(flex: 2, child: _LeftColumn(ticket: ticket, user: user)),
             const SizedBox(width: 20),
             Expanded(
               flex: 1,
-              child: _SidePanelColumn(ticket: ticket, user: user),
+              child: _RightColumn(ticket: ticket, user: user),
             ),
           ],
         ),
@@ -223,7 +218,6 @@ class _WideLayout extends StatelessWidget {
   }
 }
 
-// ── Narrow layout ─────────────────────────────────────────────────────────────
 class _NarrowLayout extends StatelessWidget {
   final TicketModel ticket;
   final UserModel user;
@@ -233,25 +227,29 @@ class _NarrowLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _HeroCard(ticket: ticket),
-        if (ticket.isSubTicket) ...[
+        _HeroSection(ticket: ticket),
+        const SizedBox(height: 20),
+        if (ticket.isSubTicket || ticket.isMultiTaskTicket) ...[
+          _ProgressSection(ticket: ticket),
           const SizedBox(height: 20),
-          SubTicketDetailSection(ticket: ticket, user: user),
         ],
+        if (ticket.isSubTicket) ...[
+          SubTicketDetailSection(ticket: ticket, user: user),
+          const SizedBox(height: 20),
+        ],
+        _LeftColumn(ticket: ticket, user: user),
         const SizedBox(height: 20),
-        _MainInfoColumn(ticket: ticket),
-        const SizedBox(height: 20),
-        _SidePanelColumn(ticket: ticket, user: user),
+        _RightColumn(ticket: ticket, user: user),
         const SizedBox(height: 40),
       ],
     );
   }
 }
 
-// ── Hero card ─────────────────────────────────────────────────────────────────
-class _HeroCard extends StatelessWidget {
+// ── Hero Section ─────────────────────────────────────────────────────────────
+class _HeroSection extends StatelessWidget {
   final TicketModel ticket;
-  const _HeroCard({required this.ticket});
+  const _HeroSection({required this.ticket});
 
   @override
   Widget build(BuildContext context) {
@@ -273,7 +271,6 @@ class _HeroCard extends StatelessWidget {
       clipBehavior: Clip.hardEdge,
       child: Column(
         children: [
-          // Gradient top bar
           Container(
             height: 5,
             decoration: const BoxDecoration(
@@ -287,157 +284,144 @@ class _HeroCard extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(22),
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Priority color circle icon
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: priorityColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: priorityColor.withOpacity(0.25),
-                      width: 1.5,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: priorityColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: priorityColor.withOpacity(0.25),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.confirmation_number_rounded,
+                        color: priorityColor,
+                        size: 24,
+                      ),
                     ),
-                  ),
-                  child: Icon(
-                    Icons.confirmation_number_rounded,
-                    color: priorityColor,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        ticket.title,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: ThemeColors.unifiedTextPrimary,
-                          letterSpacing: -0.4,
-                          height: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Tracking details and history for this request',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: ThemeColors.unifiedTextMuted,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      if (ticket.hasParent) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: ThemeColors.unifiedBackground,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: ThemeColors.unifiedBorder,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            ticket.title,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: ThemeColors.unifiedTextPrimary,
+                              letterSpacing: -0.4,
+                              height: 1.2,
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
                             children: [
-                              const Icon(
-                                Icons.subdirectory_arrow_right_rounded,
-                                size: 14,
+                              _HeroBadge(
+                                icon: Icons.tag_rounded,
+                                label: ticket.ticketNumber.isNotEmpty
+                                    ? ticket.ticketNumber
+                                    : '#${ticket.id}',
                                 color: ThemeColors.unifiedTextMuted,
                               ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Sub-ticket of #${ticket.parentTicketId} ${ticket.parentTicketTitle ?? ""}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: ThemeColors.unifiedTextMuted,
-                                  fontStyle: FontStyle.italic,
-                                ),
+                              _HeroBadge(
+                                icon: ticket.isMultiTaskTicket
+                                    ? Icons.dashboard_rounded
+                                    : Icons.task_alt_rounded,
+                                label: ticket.isMultiTaskTicket
+                                    ? 'Multi Task'
+                                    : ticket.isSubTicket
+                                        ? 'Sub Ticket'
+                                        : 'Standard',
+                                color: ThemeColors.unifiedSecondary,
                               ),
+                              _PriorityBadge(priority: ticket.priority),
+                              if (ticket.isOverdue)
+                                _HeroBadge(
+                                  icon: Icons.schedule_rounded,
+                                  label: 'OVERDUE',
+                                  color: ThemeColors.unifiedDanger,
+                                ),
                             ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (ticket.hasParent) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: ThemeColors.unifiedBackground,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: ThemeColors.unifiedBorder),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.subdirectory_arrow_right_rounded,
+                          size: 14,
+                          color: ThemeColors.unifiedTextMuted,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            'Child of ${ticket.parentTicketNumber ?? '#${ticket.parentTicketId}'} ${ticket.parentTicketTitle ?? ""}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: ThemeColors.unifiedTextMuted,
+                              fontStyle: FontStyle.italic,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
-                      if (ticket.deptJourney.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        _DeptJourneySection(journey: ticket.deptJourney),
-                      ],
-                      const SizedBox(height: 12),
-                      // Route row
-                      Row(
-                        children: [
-                          _RouteChip(
-                            icon: Icons.arrow_upward_rounded,
-                            label: ticket.createdByDeptCode,
-                            color: ThemeColors.unifiedPrimary,
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: Icon(
-                              Icons.arrow_forward_rounded,
-                              size: 14,
-                              color: ThemeColors.unifiedTextMuted,
-                            ),
-                          ),
-                          _RouteChip(
-                            icon: Icons.arrow_forward_rounded,
-                            label: ticket.assignedDeptCode,
-                            color: ThemeColors.unifiedSecondary,
-                          ),
-                          if (ticket.isOverdue) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: ThemeColors.unifiedDanger.withOpacity(
-                                  0.1,
-                                ),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: ThemeColors.unifiedDanger.withOpacity(
-                                    0.3,
-                                  ),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: const [
-                                  Icon(
-                                    Icons.schedule_rounded,
-                                    size: 10,
-                                    color: ThemeColors.unifiedDanger,
-                                  ),
-                                  SizedBox(width: 3),
-                                  Text(
-                                    'OVERDUE',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      color: ThemeColors.unifiedDanger,
-                                      letterSpacing: 0.3,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
+                ],
+                if (ticket.deptJourney.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _DeptJourneySection(journey: ticket.deptJourney),
+                ],
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    _RouteChip(
+                      icon: Icons.arrow_upward_rounded,
+                      label: ticket.createdByDeptCode,
+                      color: ThemeColors.unifiedPrimary,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 14,
+                        color: ThemeColors.unifiedTextMuted,
+                      ),
+                    ),
+                    _RouteChip(
+                      icon: Icons.arrow_forward_rounded,
+                      label: ticket.assignedDeptCode,
+                      color: ThemeColors.unifiedSecondary,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -448,11 +432,12 @@ class _HeroCard extends StatelessWidget {
   }
 }
 
-class _RouteChip extends StatelessWidget {
+class _HeroBadge extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
-  const _RouteChip({
+
+  const _HeroBadge({
     required this.icon,
     required this.label,
     required this.color,
@@ -463,21 +448,21 @@ class _RouteChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: ThemeColors.unifiedBackground,
         borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: ThemeColors.unifiedBorder, width: 1.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 11, color: color),
+          Icon(icon, size: 12, color: ThemeColors.unifiedTextMuted),
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: color,
+              color: ThemeColors.unifiedTextMuted,
             ),
           ),
         ],
@@ -486,10 +471,296 @@ class _RouteChip extends StatelessWidget {
   }
 }
 
-// ── Main info column ──────────────────────────────────────────────────────────
-class _MainInfoColumn extends StatelessWidget {
+class _PriorityBadge extends StatelessWidget {
+  final String priority;
+  const _PriorityBadge({required this.priority});
+
+  @override
+  Widget build(BuildContext context) {
+    Color color;
+    switch (priority.toLowerCase()) {
+      case 'urgent':
+        color = ThemeColors.unifiedDanger;
+      case 'high':
+        color = const Color(0xFFEA580C);
+      case 'medium':
+        color = ThemeColors.unifiedWarning;
+      default:
+        color = ThemeColors.unifiedPrimary;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+      ),
+      child: Text(
+        priority.toUpperCase(),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          color: color,
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Progress Section ─────────────────────────────────────────────────────────
+class _ProgressSection extends StatelessWidget {
   final TicketModel ticket;
-  const _MainInfoColumn({required this.ticket});
+  const _ProgressSection({required this.ticket});
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = ticket.overallProgress;
+    final deptColor = const Color(0xFF7C3AED);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: ThemeColors.unifiedSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: deptColor.withOpacity(0.2), width: 1.5),
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            height: 4,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [deptColor, ThemeColors.unifiedSecondary],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: deptColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        ticket.isMultiTaskTicket ? 'MULTI TASK' : 'SUB TICKET',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: deptColor,
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '$progress% Complete',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: progress == 100
+                            ? ThemeColors.unifiedSuccess
+                            : deptColor,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '${ticket.departmentCount} departments · '
+                  '${ticket.completedDepartmentCount} completed',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: ThemeColors.unifiedTextMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: progress / 100,
+                    minHeight: 10,
+                    backgroundColor: deptColor.withOpacity(0.12),
+                    valueColor: AlwaysStoppedAnimation(
+                      progress == 100
+                          ? ThemeColors.unifiedSuccess
+                          : deptColor,
+                    ),
+                  ),
+                ),
+                if (ticket.subDepartments.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Department Breakdown',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: ThemeColors.unifiedTextPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...ticket.subDepartments.map(
+                    (dept) => _DeptMiniCard(dept: dept),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DeptMiniCard extends StatelessWidget {
+  final SubTicketDepartmentModel dept;
+  const _DeptMiniCard({required this.dept});
+
+  Color get _statusColor {
+    if (dept.isCompleted) return ThemeColors.unifiedSuccess;
+    if (dept.isApproved) return ThemeColors.unifiedSecondary;
+    if (dept.isPendingApproval) return ThemeColors.unifiedWarning;
+    if (dept.isInProgress) return const Color(0xFF7C3AED);
+    return ThemeColors.unifiedTextMuted;
+  }
+
+  String get _statusLabel {
+    if (dept.isCompleted) return 'DONE';
+    if (dept.isApproved) return 'OK';
+    if (dept.isPendingApproval) return 'REVIEW';
+    if (dept.isInProgress) return 'ACTIVE';
+    return 'OPEN';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: ThemeColors.unifiedBackground,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: ThemeColors.unifiedBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7C3AED).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  dept.departmentCode,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF7C3AED),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  dept.departmentName,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: ThemeColors.unifiedTextPrimary,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _statusColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  _statusLabel,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: _statusColor,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${dept.progressPercent}%',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: _statusColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: dept.progressPercent / 100,
+              minHeight: 5,
+              backgroundColor: const Color(0xFFEDE9FE),
+              valueColor: AlwaysStoppedAnimation(_statusColor),
+            ),
+          ),
+          if (dept.taskDescription.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              dept.taskDescription,
+              style: const TextStyle(
+                fontSize: 12,
+                color: ThemeColors.unifiedTextMuted,
+                height: 1.4,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          if (dept.assignedToName != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(Icons.person_outline, size: 12,
+                    color: ThemeColors.unifiedTextMuted),
+                const SizedBox(width: 4),
+                Text(
+                  dept.assignedToName!,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: ThemeColors.unifiedTextMuted,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Left Column ──────────────────────────────────────────────────────────────
+class _LeftColumn extends StatelessWidget {
+  final TicketModel ticket;
+  final UserModel user;
+  const _LeftColumn({required this.ticket, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -509,74 +780,90 @@ class _MainInfoColumn extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        _SectionCard(
-          icon: Icons.info_outline_rounded,
-          title: 'Ticket Details',
-          child: Column(
-            children: [
-              _DetailRow(
-                icon: Icons.person_outline_rounded,
-                label: 'Created By',
-                value: ticket.createdByName,
-              ),
-              _DetailRow(
-                icon: Icons.business_outlined,
-                label: 'Department',
-                value: ticket.assignedDeptName,
-              ),
-              if (ticket.assignedToName != null)
-                _DetailRow(
-                  icon: Icons.assignment_ind_outlined,
-                  label: 'Assigned To',
-                  value: ticket.assignedToName!,
-                ),
-              _DetailRow(
-                icon: Icons.calendar_today_outlined,
-                label: 'Created At',
-                value: CommonDateFormat.formatDateTime(ticket.createdAt),
-              ),
-              if (ticket.dueDate != null)
-                _DetailRow(
-                  icon: Icons.event_outlined,
-                  label: 'Due Date',
-                  value: CommonDateFormat.formatDateTime(ticket.dueDate),
-                  valueColor: ticket.isOverdue
-                      ? ThemeColors.unifiedDanger
-                      : null,
-                ),
-              if (ticket.closedAt != null)
-                _DetailRow(
-                  icon: Icons.lock_outline_rounded,
-                  label: 'Closed At',
-                  value: CommonDateFormat.formatDateTime(ticket.closedAt),
-                ),
-              _DetailRow(
-                icon: Icons.replay_rounded,
-                label: 'Reopen Count',
-                value: '${ticket.reopenCount}',
-                isLast: true,
-              ),
-            ],
-          ),
-        ),
+        _DetailsCard(ticket: ticket),
         const SizedBox(height: 16),
         _SectionCard(
           icon: Icons.history_edu_rounded,
-          title: 'Traveling Department History',
+          title: 'History',
           child: TicketHistoryTimeline(history: ticket.history ?? []),
         ),
         const SizedBox(height: 16),
-        _CommentSection(ticket: ticket),
+        _CommentSection(ticket: ticket, user: user),
       ],
     );
   }
 }
 
-// ── Side panel column ─────────────────────────────────────────────────────────
-class _SidePanelColumn extends StatelessWidget {
+// ── Details Card ─────────────────────────────────────────────────────────────
+class _DetailsCard extends StatelessWidget {
+  final TicketModel ticket;
+  const _DetailsCard({required this.ticket});
+
+  @override
+  Widget build(BuildContext context) {
+    return _SectionCard(
+      icon: Icons.info_outline_rounded,
+      title: 'Ticket Details',
+      child: Column(
+        children: [
+          _DetailRow(
+            icon: Icons.person_outline_rounded,
+            label: 'Created By',
+            value: ticket.createdByName,
+          ),
+          _DetailRow(
+            icon: Icons.business_outlined,
+            label: 'Created Dept',
+            value: ticket.createdByDeptCode,
+          ),
+          _DetailRow(
+            icon: Icons.my_library_books_rounded,
+            label: 'Assigned Dept',
+            value: ticket.assignedDeptCode,
+          ),
+          if (ticket.assignedToName != null)
+            _DetailRow(
+              icon: Icons.assignment_ind_outlined,
+              label: 'Assigned To',
+              value: ticket.assignedToName!,
+            ),
+          _DetailRow(
+            icon: Icons.calendar_today_outlined,
+            label: 'Created',
+            value: CommonDateFormat.formatDateTime(ticket.createdAt),
+          ),
+          if (ticket.dueDate != null)
+            _DetailRow(
+              icon: Icons.event_outlined,
+              label: 'Due Date',
+              value: CommonDateFormat.formatDateTime(ticket.dueDate),
+              valueColor: ticket.isOverdue
+                  ? ThemeColors.unifiedDanger
+                  : null,
+            ),
+          if (ticket.closedAt != null)
+            _DetailRow(
+              icon: Icons.lock_outline_rounded,
+              label: 'Closed At',
+              value: CommonDateFormat.formatDateTime(ticket.closedAt),
+            ),
+          _DetailRow(
+            icon: Icons.replay_rounded,
+            label: 'Reopen Count',
+            value: '${ticket.reopenCount}',
+            isLast: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Right Column ─────────────────────────────────────────────────────────────
+class _RightColumn extends StatelessWidget {
   final TicketModel ticket;
   final UserModel user;
-  const _SidePanelColumn({required this.ticket, required this.user});
+  const _RightColumn({required this.ticket, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -592,15 +879,115 @@ class _SidePanelColumn extends StatelessWidget {
         const SizedBox(height: 16),
         _SectionCard(
           icon: Icons.timeline_rounded,
-          title: 'Ticket Progress',
+          title: 'Progress',
           child: _ProgressTimeline(status: ticket.status),
         ),
+        if (ticket.children.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _SectionCard(
+            icon: Icons.account_tree_outlined,
+            title: 'Sub Tickets',
+            child: Column(
+              children: ticket.children.map((child) => _ChildTile(
+                child: child,
+                parentId: ticket.ticketNumber.isNotEmpty
+                    ? ticket.ticketNumber
+                    : '#${ticket.id}',
+              )).toList(),
+            ),
+          ),
+        ],
       ],
     );
   }
 }
 
-// ── Shared section card ───────────────────────────────────────────────────────
+class _ChildTile extends StatelessWidget {
+  final ChildTicketModel child;
+  final String parentId;
+  const _ChildTile({required this.child, required this.parentId});
+
+  @override
+  Widget build(BuildContext context) {
+    Color statusColor;
+    switch (child.status) {
+      case 'completed':
+        statusColor = ThemeColors.unifiedSuccess;
+      case 'in_progress':
+        statusColor = const Color(0xFF7C3AED);
+      case 'open':
+        statusColor = ThemeColors.unifiedSecondary;
+      default:
+        statusColor = ThemeColors.unifiedTextMuted;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: ThemeColors.unifiedBackground,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: ThemeColors.unifiedBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: statusColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  child.title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: ThemeColors.unifiedTextPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  child.ticketNumber.isNotEmpty
+                      ? child.ticketNumber
+                      : '#${child.id} · ${child.deptCode}',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: ThemeColors.unifiedTextMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              child.status.toUpperCase().replaceAll('_', ' '),
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                color: statusColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Shared Widgets ───────────────────────────────────────────────────────────
 class _SectionCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -631,7 +1018,6 @@ class _SectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Card header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
             decoration: const BoxDecoration(
@@ -648,11 +1034,7 @@ class _SectionCard extends StatelessWidget {
                     color: ThemeColors.unifiedPrimary.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(7),
                   ),
-                  child: Icon(
-                    icon,
-                    size: 15,
-                    color: ThemeColors.unifiedPrimary,
-                  ),
+                  child: Icon(icon, size: 15, color: ThemeColors.unifiedPrimary),
                 ),
                 const SizedBox(width: 10),
                 Text(
@@ -674,7 +1056,6 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-// ── Detail row ────────────────────────────────────────────────────────────────
 class _DetailRow extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -731,7 +1112,7 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-// ── Progress timeline ─────────────────────────────────────────────────────────
+// ── Progress Timeline ────────────────────────────────────────────────────────
 class _ProgressTimeline extends StatelessWidget {
   final String status;
   const _ProgressTimeline({required this.status});
@@ -836,10 +1217,8 @@ class _TimelineItem extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Left: dot + connector ─────────────────────────────────────
         Column(
           children: [
-            // Step dot
             Container(
               width: 36,
               height: 36,
@@ -870,8 +1249,6 @@ class _TimelineItem extends StatelessWidget {
           ],
         ),
         const SizedBox(width: 14),
-
-        // ── Right: text ───────────────────────────────────────────────
         Expanded(
           child: Padding(
             padding: EdgeInsets.only(top: 6, bottom: step.isLast ? 0 : 22),
@@ -935,10 +1312,11 @@ class _TimelineItem extends StatelessWidget {
   }
 }
 
-// ── Comment section ───────────────────────────────────────────────────────────
+// ── Comment Section (last comment first) ────────────────────────────────────
 class _CommentSection extends StatefulWidget {
   final TicketModel ticket;
-  const _CommentSection({required this.ticket});
+  final UserModel user;
+  const _CommentSection({required this.ticket, required this.user});
 
   @override
   State<_CommentSection> createState() => _CommentSectionState();
@@ -953,6 +1331,8 @@ class _CommentSectionState extends State<_CommentSection> {
     super.dispose();
   }
 
+  bool get _isCreator => widget.user.id == widget.ticket.createdById;
+
   void _submitComment() {
     final msg = _commentController.text.trim();
     if (msg.isEmpty) return;
@@ -962,38 +1342,280 @@ class _CommentSectionState extends State<_CommentSection> {
 
   @override
   Widget build(BuildContext context) {
+    final comments = widget.ticket.comments;
+
     return _SectionCard(
       icon: Icons.chat_outlined,
-      title: 'Add Comment',
+      title: 'Comments (${comments.length})',
       child: Column(
         children: [
-          TextField(
-            controller: _commentController,
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: 'Write a comment or update...',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+          // Comment input — only creator can post
+          if (_isCreator && !widget.ticket.isClosed)
+            Container(
+              decoration: BoxDecoration(
+                color: ThemeColors.unifiedBackground,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: ThemeColors.unifiedBorder),
               ),
-              filled: true,
-              fillColor: ThemeColors.unifiedInputBg,
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _commentController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      hintText: 'Write a comment or update...',
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.all(14),
+                    ),
+                  ),
+                  Container(
+                    height: 1,
+                    color: ThemeColors.unifiedBorder,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
+                    child: Row(
+                      children: [
+                        const Spacer(),
+                        ElevatedButton.icon(
+                          onPressed: _submitComment,
+                          icon: const Icon(Icons.send_rounded, size: 15),
+                          label: const Text('Post'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: ThemeColors.unifiedPrimary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              onPressed: _submitComment,
-              icon: const Icon(Icons.send_rounded, size: 16),
-              label: const Text('Post Comment'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ThemeColors.unifiedPrimary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+          if (!_isCreator)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: ThemeColors.unifiedInfo.withOpacity(0.06),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: ThemeColors.unifiedInfo.withOpacity(0.15),
                 ),
               ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 15,
+                    color: ThemeColors.unifiedInfo,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      widget.ticket.isClosed
+                          ? 'Comments are closed for this ticket.'
+                          : 'Only the ticket creator can post comments.',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: ThemeColors.unifiedInfo,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 16),
+          // Comments list (last comment first — already sorted DESC from backend)
+          if (comments.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text(
+                'No comments yet.',
+                style: TextStyle(
+                  color: ThemeColors.unifiedTextMuted,
+                  fontSize: 13,
+                ),
+              ),
+            )
+          else
+            ...comments.map((c) => _CommentTile(comment: c)),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommentTile extends StatelessWidget {
+  final CommentModel comment;
+  const _CommentTile({required this.comment});
+
+  // ── Comment type detection ──────────────────────────────────────────
+  bool get _isStatusRemark =>
+      comment.message.startsWith('[COMPLETED REMARK]') ||
+      comment.message.startsWith('[CLOSED REMARK]');
+
+  bool get _isDeptRemark =>
+      RegExp(r'^\[DEPT (COMPLETION|APPROVED|COMPLETED|PROGRESS)').hasMatch(comment.message);
+
+  bool get _isSpecial => _isStatusRemark || _isDeptRemark;
+
+  String get _typeLabel {
+    if (_isStatusRemark) {
+      return comment.message.startsWith('[COMPLETED REMARK]') ? 'MARKS DONE' : 'CLOSES';
+    }
+    if (_isDeptRemark) {
+      if (comment.message.contains('COMPLETION')) return 'DEPT DONE';
+      if (comment.message.contains('APPROVED')) return 'DEPT OK';
+      if (comment.message.contains('COMPLETED')) return 'DEPT FINAL';
+      return 'DEPT UPDATE';
+    }
+    return '';
+  }
+
+  IconData get _typeIcon {
+    if (_isStatusRemark) return Icons.verified_rounded;
+    if (_isDeptRemark) return Icons.workspace_premium_rounded;
+    return Icons.person_rounded;
+  }
+
+  Color get _tintColor {
+    if (_isStatusRemark) return ThemeColors.unifiedAccent;
+    if (_isDeptRemark) return const Color(0xFF7C3AED);
+    return ThemeColors.unifiedPrimary;
+  }
+
+  String get _displayName {
+    if (_isStatusRemark) {
+      return comment.message.startsWith('[COMPLETED REMARK]')
+          ? 'Marked as Done'
+          : 'Finalized & Closed';
+    }
+    if (_isDeptRemark) {
+      final match = RegExp(r'^\[DEPT \w+ - (.+?)\]').firstMatch(comment.message);
+      return match?.group(1) ?? 'Department';
+    }
+    return comment.userName;
+  }
+
+  String get _cleanMessage {
+    return comment.message.replaceAll(RegExp(r'^\[[^\]]*\]:\s*'), '');
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _isSpecial
+            ? _tintColor.withOpacity(0.04)
+            : ThemeColors.unifiedBackground,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _isSpecial
+              ? _tintColor.withOpacity(0.2)
+              : ThemeColors.unifiedBorder,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: _tintColor.withOpacity(0.12),
+            child: Icon(_typeIcon, size: 16, color: _tintColor),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      _displayName,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _tintColor,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    if (_isSpecial)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _tintColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          _typeLabel,
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w900,
+                            color: _tintColor,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: ThemeColors.unifiedSecondary.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          comment.deptCode,
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: ThemeColors.unifiedSecondary,
+                          ),
+                        ),
+                      ),
+                    const Spacer(),
+                    Text(
+                      CommonDateFormat.formatDateTime(comment.createdAt),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: ThemeColors.unifiedTextMuted,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _cleanMessage,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: _isSpecial
+                        ? _tintColor.withOpacity(0.85)
+                        : ThemeColors.unifiedTextPrimary,
+                    height: 1.5,
+                    fontWeight: _isSpecial ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1002,21 +1624,46 @@ class _CommentSectionState extends State<_CommentSection> {
   }
 }
 
-// ── Priority color helper ─────────────────────────────────────────────────────
-Color _priorityColor(String p) {
-  switch (p.toLowerCase()) {
-    case 'urgent':
-      return ThemeColors.unifiedDanger;
-    case 'high':
-      return const Color(0xFFEA580C);
-    case 'medium':
-      return ThemeColors.unifiedWarning;
-    default:
-      return ThemeColors.unifiedPrimary;
+// ── Route Chip ───────────────────────────────────────────────────────────────
+class _RouteChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _RouteChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
-// ── Department Journey Section ──────────────────────────────────────────────
+// ── Dept Journey ─────────────────────────────────────────────────────────────
 class _DeptJourneySection extends StatelessWidget {
   final List<dynamic> journey;
   const _DeptJourneySection({required this.journey});
@@ -1154,5 +1801,19 @@ class _DeptJourneySection extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ── Priority color helper ─────────────────────────────────────────────────────
+Color _priorityColor(String p) {
+  switch (p.toLowerCase()) {
+    case 'urgent':
+      return ThemeColors.unifiedDanger;
+    case 'high':
+      return const Color(0xFFEA580C);
+    case 'medium':
+      return ThemeColors.unifiedWarning;
+    default:
+      return ThemeColors.unifiedPrimary;
   }
 }

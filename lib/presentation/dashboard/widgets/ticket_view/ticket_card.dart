@@ -30,7 +30,6 @@ class TicketCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap ?? () => context.push('/ticket/${ticket.id}'),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
           color: ThemeColors.unifiedSurface,
           borderRadius: BorderRadius.circular(16),
@@ -75,6 +74,7 @@ class TicketCard extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // ── Row 1: ID + flags + badges ───────────────────
