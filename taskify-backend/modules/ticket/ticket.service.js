@@ -490,7 +490,7 @@ class TicketService {
   }
 
   async updateStatus(ticketId, newStatus, user, remark, isSystemUpdate = false) {
-    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    const ticket = await ticketRepo.getTicketById(ticketId, user, isSystemUpdate);
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
@@ -531,27 +531,28 @@ class TicketService {
       console.log(`[TicketService] Status update: ${ticket.status} -> ${newStatus} by ${user.name} (ID: ${user.id})`);
     }
 
-    // Only the resolver, Assigned Dept Manager, or CEO can mark a ticket as completed
+    // Only the assigned resolver can mark a ticket as completed
     if (!isSystemUpdate && newStatus === 'completed') {
       if (ticket.status === 'open') throw { statusCode: 400, message: 'Ticket must be assigned first.' };
 
-      // Rule: Employee cannot mark self as done if they are not the assigner
-      if (isEmployee && isResolver && !isCreator) {
-        throw { statusCode: 403, message: 'Only the Assigner or a Manager can mark this task as done.' };
-      }
-
-      if (!isResolver && !isCeo && !isAssignedDeptManager && !isCreator) {
-        throw { statusCode: 403, message: 'Permission denied to mark as completed.' };
+      if (!isResolver) {
+        throw { statusCode: 403, message: 'Only the assigned resolver can mark this ticket as done.' };
       }
       if (!remark || String(remark).trim() === '') {
         throw { statusCode: 400, message: 'Completion remark is required when marking done' };
       }
     }
 
-    // Only the creator or CEO can mark a ticket as closed (finalize and close)
+    // Only the resolver or creator (or CEO) can close a ticket
     if (newStatus === 'closed') {
-      if (!isSystemUpdate && !isCreator && !isCeo) {
-        throw { statusCode: 403, message: 'Only the creator can finalize and close this ticket' };
+      if (!isSystemUpdate) {
+        if (ticket.is_sub_ticket) {
+          if (!isResolver) {
+            throw { statusCode: 403, message: 'Only the assigned resolver can close this sub-ticket.' };
+          }
+        } else if (!isResolver && !isCreator && !isCeo) {
+          throw { statusCode: 403, message: 'Only the creator can finalize and close this ticket' };
+        }
       }
       if (!remark || String(remark).trim() === '') {
         throw { statusCode: 400, message: 'Closing remark is required when closing ticket' };
@@ -579,7 +580,7 @@ class TicketService {
       `Status updated to ${newStatus} by ${user.name}${isSystemUpdate ? ' (System Action)' : ''}${remark ? `. Remark: ${remark}` : ''}`
     );
 
-    // Rule 5: Propagate completion upward
+    // Log parent notification when child completes (no auto-complete)
     if (newStatus === 'completed' && ticket.parent_ticket_id) {
       const chain = await ticketRepo.getParentChain(ticketId);
       const allParents = [ticket.parent_ticket_id, ...chain];
@@ -589,11 +590,6 @@ class TicketService {
           await ticketRepo.logAction(
             parentId, user.id, 'all_children_completed', null, null,
             `All sub-tickets completed via #${ticketId}`
-          );
-          await this.updateStatus(
-            parentId, 'completed', user,
-            `Auto-completed: all sub-tickets done (via #${ticketId})`,
-            true
           );
         } else {
           break;
@@ -615,24 +611,6 @@ class TicketService {
     // Real-time update for creator and assignee
     const participants = await ticketRepo.getTicketParticipants(ticketId);
     await this._dispatch(ticketId, participants, `Ticket #${ticketId} status changed to ${newStatus}`, 'TICKET_STATUS_UPDATED', { ticket: updated });
-
-    // Rule: Automatic closure of master when last sub is finalized (closed) — chain upward
-    if (newStatus === 'closed' && ticket.parent_ticket_id) {
-      const chain = await ticketRepo.getParentChain(ticketId);
-      const allParents = [ticket.parent_ticket_id, ...chain];
-      for (const parentId of allParents) {
-        const hasRemainingUnfinalized = await ticketRepo.hasUnfinalizedSubTickets(parentId);
-        if (!hasRemainingUnfinalized) {
-          await this.updateStatus(
-            parentId, 'closed', user,
-            'Auto-closed: all sub-tickets finalized',
-            true
-          );
-        } else {
-          break;
-        }
-      }
-    }
 
     return updated;
   }

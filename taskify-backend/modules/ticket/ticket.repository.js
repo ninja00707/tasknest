@@ -537,14 +537,14 @@ class TicketRepository {
   }
 
   // ── Get single ticket (with permission check) ─────────────────────────────
-  async getTicketById(ticketId, user) {
+  async getTicketById(ticketId, user, isSystemUpdate = false) {
     let ticket = await this.getTicketDetails(ticketId);
 
     if (!ticket) return null;
 
     ticket = await this.enrichTicketWithSubData(ticket);
 
-    if (user.role === 'ceo') {
+    if (user.role === 'ceo' || isSystemUpdate) {
       return ticket;
     }
 

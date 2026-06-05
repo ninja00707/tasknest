@@ -87,14 +87,10 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showAssignDialog(context, loadedState!),
               ),
 
-            // 3. Resolver Action: Mark Completed (Done).
-            // RULE: Managers only rites to mark done if assigned to employee
+            // 3. Resolver Action: Mark Completed (Done) — only the assigned resolver
             if (ticket.isInProgress &&
                 !hasUnfinalizedSubs &&
-                ((isManager && isAssignedToMyDept) ||
-                    isCeo ||
-                    isCreator ||
-                    (isResolver && !isEmployee)))
+                isResolver)
               ActionBtn(
                 icon: Icons.check_circle_outline,
                 tooltip: 'Mark Done',
@@ -102,10 +98,10 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showStatusRemarkDialog(context, 'completed'),
               ),
 
-            // 4. Creator/CEO/Creating Dept Manager Action: Finalize & Close
+            // 4. Resolver/Creator/CEO/Creating Dept Manager Action: Finalize & Close
             if (ticket.isCompleted &&
                 !hasUnfinalizedSubs &&
-                (isCreator || isCeo || isCreatingDeptManager))
+                (isResolver || isCreator || isCeo || isCreatingDeptManager))
               ActionBtn(
                 icon: Icons.lock_outline,
                 tooltip: 'Finalize & Close',
