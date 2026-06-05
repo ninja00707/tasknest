@@ -80,7 +80,7 @@ class TicketCard extends StatelessWidget {
                       // ── Row 1: ID + flags + badges ───────────────────
                       Row(
                         children: [
-                          _IdChip(id: ticket.id),
+                          _IdChip(label: ticket.ticketNumber.isNotEmpty ? ticket.ticketNumber : '#${ticket.id}'),
                           const SizedBox(width: 8),
                           if (ticket.isStandardTicket)
                             _FlagChip(
@@ -134,7 +134,7 @@ class TicketCard extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    'CHILD OF #${ticket.parentTicketId} ${ticket.parentTicketTitle ?? ""}',
+                                    'CHILD OF ${ticket.parentTicketNumber ?? "#${ticket.parentTicketId}"} ${ticket.parentTicketTitle ?? ""}',
                                     style: const TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w800,
@@ -269,8 +269,8 @@ class TicketCard extends StatelessWidget {
 
 // ── #ID Chip ──────────────────────────────────────────────────────────────────
 class _IdChip extends StatelessWidget {
-  final int id;
-  const _IdChip({required this.id});
+  final String label;
+  const _IdChip({required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -282,7 +282,7 @@ class _IdChip extends StatelessWidget {
         border: Border.all(color: ThemeColors.unifiedBorder),
       ),
       child: Text(
-        '#$id',
+        label,
         style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
@@ -714,7 +714,7 @@ class _ChildTicketsList extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            '#${child.id}',
+                            child.ticketNumber.isNotEmpty ? child.ticketNumber : '#${child.id}',
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w800,

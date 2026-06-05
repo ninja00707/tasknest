@@ -34,6 +34,7 @@ class TicketRepository {
       )
       SELECT
         t.id, t.title, t.description, t.status, t.priority,
+        t.ticket_number,
         t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
@@ -59,6 +60,7 @@ class TicketRepository {
 
         tf.code AS transferred_from_code,
         pt.title AS parent_ticket_title,
+        pt.ticket_number AS parent_ticket_number,
         t.parent_ticket_id, t.ticket_type,
 
         -- Fetch immediate children count
@@ -120,6 +122,7 @@ class TicketRepository {
           JOIN descendants d ON t.parent_ticket_id = d.id
         )
         SELECT t.id, t.title, t.status, t.assigned_dept_id, t.assigned_to_id, t.created_by_id,
+               t.ticket_number,
                d.code as dept_code, u.name as assignee_name
         FROM tickets t
         JOIN descendants d_tree ON t.id = d_tree.id
@@ -254,6 +257,7 @@ class TicketRepository {
       )
       SELECT
         t.id, t.title, t.description, t.status, t.priority,
+        t.ticket_number,
         t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
@@ -278,6 +282,7 @@ class TicketRepository {
 
         tf.code AS transferred_from_code,
         pt.title AS parent_ticket_title,
+        pt.ticket_number AS parent_ticket_number,
         t.parent_ticket_id, t.ticket_type,
 
         -- Fetch children count
@@ -452,6 +457,7 @@ class TicketRepository {
       )
       SELECT
         t.id, t.title, t.description, t.status, t.priority,
+        t.ticket_number,
         t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
@@ -465,6 +471,7 @@ class TicketRepository {
         assignee.name AS assigned_to_name,
         tf.code AS transferred_from_code,
         pt.title AS parent_ticket_title,
+        pt.ticket_number AS parent_ticket_number,
         t.parent_ticket_id, t.ticket_type,
 
         -- Fetch children count
@@ -574,12 +581,32 @@ class TicketRepository {
     // Strict check for assignedToId to set correct status
     const status = (assignedToId != null) ? 'in_progress' : 'open';
     const isSubTicket = parentTicketId != null;
+
+    // Generate ticket number
+    let ticketNumber;
+    if (parentTicketId) {
+      // Sub-ticket: inherit parent number + append SUB counter
+      const parentRes = await pool.query(`SELECT ticket_number FROM tickets WHERE id = $1`, [parentTicketId]);
+      const parentNumber = parentRes.rows[0]?.ticket_number;
+      if (parentNumber) {
+        const subCountRes = await pool.query(`SELECT COUNT(*) AS cnt FROM tickets WHERE parent_ticket_id = $1`, [parentTicketId]);
+        const subSerial = (subCountRes.rows[0]?.cnt || 0) + 1;
+        ticketNumber = `${parentNumber}-SUB-${String(subSerial).padStart(4, '0')}`;
+      }
+    }
+    if (!ticketNumber) {
+      // Master ticket: use sequence
+      const seqRes = await pool.query(`SELECT NEXTVAL('ticket_number_seq') AS val`);
+      const seqVal = seqRes.rows[0].val;
+      ticketNumber = `UMP-TKQ-${String(seqVal).padStart(4, '0')}`;
+    }
+
     const result = await pool.query(`
       INSERT INTO tickets
-        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status, parent_ticket_id, ticket_type, is_sub_ticket)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status, parent_ticket_id, ticket_type, is_sub_ticket, ticket_number)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING id
-    `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status, parentTicketId, ticketType, isSubTicket]);
+    `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status, parentTicketId, ticketType, isSubTicket, ticketNumber]);
 
     return await this.getTicketDetails(result.rows[0].id);
   }
@@ -776,6 +803,7 @@ class TicketRepository {
     const result = await pool.query(`
       SELECT
         t.id, t.title, t.description, t.status, t.priority,
+        t.ticket_number,
         t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
         t.transferred_from, t.transferred_at,
         t.due_date, t.created_at, t.updated_at,
@@ -796,6 +824,7 @@ class TicketRepository {
 
         tf.code AS transferred_from_code,
         pt.title AS parent_ticket_title,
+        pt.ticket_number AS parent_ticket_number,
         t.parent_ticket_id, t.ticket_type,
 
         -- Fetch department journey

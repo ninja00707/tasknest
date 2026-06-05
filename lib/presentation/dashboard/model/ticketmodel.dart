@@ -1,5 +1,6 @@
 class TicketModel {
   final int id;
+  final String ticketNumber;
   final String title;
   final String description;
   final String status;
@@ -33,6 +34,7 @@ class TicketModel {
   final int? parentTicketId;
   final String? ticketType;
   final String? parentTicketTitle;
+  final String? parentTicketNumber;
   final List<Map<String, dynamic>> deptJourney;
   final List<ChildTicketModel> children;
   final int immediateChildCount;
@@ -40,6 +42,7 @@ class TicketModel {
 
   const TicketModel({
     required this.id,
+    this.ticketNumber = '',
     required this.title,
     required this.description,
     required this.status,
@@ -70,6 +73,7 @@ class TicketModel {
     this.parentTicketId,
     this.ticketType,
     this.parentTicketTitle,
+    this.parentTicketNumber,
     this.deptJourney = const [],
     this.children = const [],
     this.immediateChildCount = 0,
@@ -78,6 +82,7 @@ class TicketModel {
 
   factory TicketModel.fromJson(Map<String, dynamic> j) => TicketModel(
     id: j['id'],
+    ticketNumber: j['ticket_number'] ?? '',
     title: j['title'] ?? '',
     description: j['description'] ?? '',
     status: j['status'] ?? 'open',
@@ -116,6 +121,7 @@ class TicketModel {
     parentTicketId: j['parent_ticket_id'],
     ticketType: j['ticket_type'],
     parentTicketTitle: j['parent_ticket_title'],
+    parentTicketNumber: j['parent_ticket_number'],
     deptJourney:
         (j['dept_journey'] as List<dynamic>?)
             ?.map((e) => e as Map<String, dynamic>)
@@ -168,6 +174,7 @@ class TicketModel {
 
 class ChildTicketModel {
   final int id;
+  final String ticketNumber;
   final String title;
   final String status;
   final int? assignedDeptId;
@@ -180,6 +187,7 @@ class ChildTicketModel {
 
   ChildTicketModel({
     required this.id,
+    this.ticketNumber = '',
     required this.title,
     required this.status,
     this.assignedDeptId,
@@ -193,6 +201,7 @@ class ChildTicketModel {
 
   factory ChildTicketModel.fromJson(Map<String, dynamic> j) => ChildTicketModel(
     id: j['id'],
+    ticketNumber: j['ticket_number'] ?? '',
     title: j['title'] ?? '',
     status: j['status'] ?? 'open',
     assignedDeptId: int.tryParse(j['assigned_dept_id']?.toString() ?? ''),
