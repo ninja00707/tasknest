@@ -38,24 +38,28 @@ class TicketRemoteDataSource {
     required int createdById,
     required int createdByDept,
     String? dueDate,
-    int? assignedToId, // Added assignedToId
+    int? assignedToId,
     int? parentTicketId,
+    bool selfAssign = false,
+    String? subTitle,
+    String? subDescription,
   }) async {
-    final res = await _api.post(
-      'tickets',
-      body: {
-        'title': title,
-        'description': description,
-        'priority': priority,
-        'assignedDeptId': assignedDeptId,
-        'createdById': createdById, // Explicitly adding this
-        'createdByDept': createdByDept, // Explicitly adding this
-        if (assignedToId != null)
-          'assignedToId': assignedToId, // Send assignedToId if present
-        if (dueDate != null) 'dueDate': dueDate,
-        if (parentTicketId != null) 'parentTicketId': parentTicketId,
-      },
-    );
+    final body = <String, dynamic>{
+      'title': title,
+      'description': description,
+      'priority': priority,
+      'assignedDeptId': assignedDeptId,
+      'createdById': createdById,
+      'createdByDept': createdByDept,
+      'selfAssign': selfAssign,
+    };
+    if (assignedToId != null) body['assignedToId'] = assignedToId;
+    if (dueDate != null) body['dueDate'] = dueDate;
+    if (parentTicketId != null) body['parentTicketId'] = parentTicketId;
+    if (subTitle != null) body['subTitle'] = subTitle;
+    if (subDescription != null) body['subDescription'] = subDescription;
+
+    final res = await _api.post('tickets', body: body);
 
     return TicketModel.fromJson(res['data']);
   }
@@ -88,10 +92,13 @@ class TicketRemoteDataSource {
     return TicketModel.fromJson(res['data']);
   }
 
-  Future<TicketModel> transferTicket(int ticketId, int targetDeptId) async {
+  Future<TicketModel> transferTicket(int ticketId, int targetDeptId, {String? title, String? description}) async {
+    final body = <String, dynamic>{'targetDeptId': targetDeptId};
+    if (title != null) body['title'] = title;
+    if (description != null) body['description'] = description;
     final res = await _api.patch(
       'tickets/$ticketId/transfer',
-      body: {'targetDeptId': targetDeptId},
+      body: body,
     );
     return TicketModel.fromJson(res['data']);
   }

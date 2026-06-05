@@ -32,33 +32,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<LoadManagerAnalytics>(_onLoadManagerAnalytics);
     on<LoadCeoAnalytics>(_onLoadCeoAnalytics);
   }
-  // Extract DashboardLoaded from current state (handles error states)
-  DashboardLoaded _getLoadedState() {
-    final s = state;
-    if (s is DashboardLoaded) return s;
-    if (s is DashboardActionError) return s.previousState;
-    if (s is DashboardActionSuccess) return s.previousState;
-    throw StateError('Expected DashboardLoaded but got ${s.runtimeType}');
-  }
-
-  // Helper to extract a user-friendly message from backend errors
-  String _getFriendlyErrorMessage(dynamic error) {
-    String errorMessage = 'An unexpected error occurred.';
-    if (error is String) {
-      // Attempt to parse a string that looks like "{ statusCode: 403, message: '...' }"
-      final regex = RegExp(r"message: '([^']+)'");
-      final match = regex.firstMatch(error);
-      if (match != null && match.groupCount > 0) {
-        errorMessage = match.group(1)!;
-      } else {
-        errorMessage = error; // Fallback to raw string if parsing fails
-      }
-    } else if (error is Exception) {
-      errorMessage = error.toString();
-    }
-    return errorMessage;
-  }
-
+  // Add this method:
   Future<void> _onSelectedIndex(
     SidebarSelectedIndexEvent event,
     Emitter<DashboardState> emit,
@@ -101,7 +75,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         ),
       );
     } catch (e) {
-      emit(DashboardError(_getFriendlyErrorMessage(e)));
+      emit(DashboardActionError(e.toString(), state as DashboardLoaded));
     }
   }
   // Future<void> _onLoad(
@@ -146,7 +120,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     FilterTickets event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    final prev = state as DashboardLoaded;
     try {
       final tickets = await _dataSource.getTickets(
         status: event.status,
@@ -160,7 +134,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         ),
       );
     } catch (e) {
-      emit(DashboardError(_getFriendlyErrorMessage(e)));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -169,13 +143,13 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     SelfAssignTicket event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    final prev = state as DashboardLoaded;
     try {
       await _dataSource.selfAssign(event.ticketId);
       emit(DashboardActionSuccess('Ticket self-assigned!', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -184,7 +158,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     UpdateTicketStatus event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    final prev = state as DashboardLoaded;
     try {
       await _dataSource.updateStatus(
         event.ticketId,
@@ -194,8 +168,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       emit(DashboardActionSuccess('Status updated to ${event.status}', prev));
       add(LoadDashboard());
     } catch (e) {
-      // This is the specific catch for the 403 error
-      emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -204,14 +177,13 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     AssignTicketToEmployee event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    final prev = state as DashboardLoaded;
     try {
       await _dataSource.assignToEmployee(event.ticketId, event.employeeId);
       emit(DashboardActionSuccess('Ticket assigned successfully', prev));
       add(LoadDashboard());
     } catch (e) {
-      // Apply error handling here too for consistency
-      emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -220,7 +192,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     TransferTicket event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    final prev = state as DashboardLoaded;
     try {
       await _dataSource.transferTicket(
         event.ticketId,
@@ -231,8 +203,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       emit(DashboardActionSuccess('Ticket transferred!', prev));
       add(LoadDashboard());
     } catch (e) {
-      // Apply error handling here too for consistency
-      emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -241,14 +212,13 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     ReopenTicket event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    final prev = state as DashboardLoaded;
     try {
       await _dataSource.reopenTicket(event.ticketId);
       emit(DashboardActionSuccess('Ticket reopened!', prev));
       add(LoadDashboard());
     } catch (e) {
-      // Apply error handling here too for consistency
-      emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -264,7 +234,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         );
         emit(currentState.copyWith(employees: employees));
       } catch (e) {
-        // Silent fail or log error, but use the helper for consistency
+        // Silent fail or log error
       }
     }
   }
@@ -274,7 +244,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     CreateTicketEvent event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    final prev = state as DashboardLoaded;
 
     try {
       await _dataSource.createTicket(
@@ -282,22 +252,19 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         description: event.description,
         priority: event.priority,
         assignedDeptId: event.assignedDeptId,
+
         createdById: event.createdById,
         createdByDept: event.createdByDept,
-        assignedToId: event.assignedToId,
+        assignedToId: event.assignedToId, // Correctly access assignedToId
         dueDate: event.dueDate,
         parentTicketId: event.parentTicketId,
-        selfAssign: event.selfAssign,
-        subTitle: event.subTitle,
-        subDescription: event.subDescription,
       );
 
       emit(DashboardActionSuccess('Ticket created!', prev));
 
       add(LoadDashboard());
     } catch (e) {
-      // Apply error handling here too for consistency
-      emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -305,7 +272,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     CreateSubTicketEvent event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    final prev = state as DashboardLoaded;
     try {
       await _dataSource.createSubTicket(
         title: event.title,
@@ -318,7 +285,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       emit(DashboardActionSuccess('Sub-ticket created!', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -326,7 +293,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     UpdateSubDeptProgressEvent event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    final prev = state as DashboardLoaded;
     try {
       await _dataSource.updateSubDeptProgress(
         ticketId: event.ticketId,
@@ -337,7 +304,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       emit(DashboardActionSuccess('Department progress updated!', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -345,7 +312,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     AssignSubDeptEmployeeEvent event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    final prev = state as DashboardLoaded;
     try {
       await _dataSource.assignSubDeptToEmployee(
         ticketId: event.ticketId,
@@ -355,7 +322,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       emit(DashboardActionSuccess('Department work assigned!', prev));
       add(LoadDashboard());
     } catch (e) {
-      emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -364,14 +331,13 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     SelfAssignSubDept event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    final prev = state as DashboardLoaded;
     try {
       await _dataSource.selfAssignSubDept(event.ticketId, event.departmentId);
       emit(DashboardActionSuccess('Task self-assigned!', prev));
       add(LoadDashboard());
     } catch (e) {
-      // Apply error handling here too for consistency
-      emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -380,14 +346,13 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     ReopenSubDept event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    final prev = state as DashboardLoaded;
     try {
       await _dataSource.reopenSubDept(event.ticketId, event.departmentId);
       emit(DashboardActionSuccess('Department task reopened!', prev));
       add(LoadDashboard());
     } catch (e) {
-      // Apply error handling here too for consistency
-      emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -396,14 +361,13 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     CompleteSubTicket event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    final prev = state as DashboardLoaded;
     try {
       await _dataSource.completeSubTicket(event.ticketId);
       emit(DashboardActionSuccess('Sub-ticket completed!', prev));
       add(LoadDashboard());
     } catch (e) {
-      // Apply error handling here too for consistency
-      emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -412,14 +376,13 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     AddTicketComment event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    final prev = state as DashboardLoaded;
     try {
       await _dataSource.addComment(event.ticketId, event.message);
       emit(DashboardActionSuccess('Comment added!', prev));
       add(LoadDashboard());
     } catch (e) {
-      // Apply error handling here too for consistency
-      emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+      emit(DashboardActionError(e.toString(), prev));
     }
   }
 
@@ -435,7 +398,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       );
       emit(ManagerAnalyticsLoaded(stats));
     } catch (e) {
-      emit(AnalyticsError(_getFriendlyErrorMessage(e)));
+      emit(AnalyticsError(e.toString()));
     }
   }
 
@@ -449,8 +412,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       final analytics = await _dataSource.getOrganizationAnalytics();
       emit(CeoAnalyticsLoaded(analytics));
     } catch (e) {
-      // Apply error handling here too for consistency
-      emit(AnalyticsError(_getFriendlyErrorMessage(e)));
+      emit(AnalyticsError(e.toString()));
     }
   }
 }

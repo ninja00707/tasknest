@@ -28,17 +28,22 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   final _formKey = GlobalKey<FormState>();
   final _title = TextEditingController();
   final _description = TextEditingController();
+  final _subTitle = TextEditingController();
+  final _subDescription = TextEditingController();
 
   Priorities _priority = Priorities(name: 'medium', id: 0);
   Departments? _selectedDepartment;
   EmployeeModel? _selectedEmployee;
   String? _dueDate;
   bool _submitting = false;
+  bool _selfAssign = false;
 
   @override
   void dispose() {
     _title.dispose();
     _description.dispose();
+    _subTitle.dispose();
+    _subDescription.dispose();
     super.dispose();
   }
 
@@ -69,41 +74,97 @@ class _CreateTicketViewState extends State<CreateTicketView> {
           _FormCard(
             child: Form(
               key: _formKey,
-              child: isWide
-                  ? _WideFormLayout(
-                      titleCtrl: _title,
-                      descCtrl: _description,
-                      priority: _priority,
-                      selectedDept: _selectedDepartment,
-                      selectedEmployee: _selectedEmployee,
-                      dueDate: _dueDate,
-                      employeeList: employeeList,
-                      canAssignEmployee: canAssignEmployee,
-                      submitting: _submitting,
-                      onPriorityChanged: (v) => setState(() => _priority = v),
-                      onDeptChanged: _onDeptChanged,
-                      onEmployeeChanged: (v) =>
-                          setState(() => _selectedEmployee = v),
-                      onDateTap: _pickDate,
-                      onSubmit: _submit,
-                    )
-                  : _NarrowFormLayout(
-                      titleCtrl: _title,
-                      descCtrl: _description,
-                      priority: _priority,
-                      selectedDept: _selectedDepartment,
-                      selectedEmployee: _selectedEmployee,
-                      dueDate: _dueDate,
-                      employeeList: employeeList,
-                      canAssignEmployee: canAssignEmployee,
-                      submitting: _submitting,
-                      onPriorityChanged: (v) => setState(() => _priority = v),
-                      onDeptChanged: _onDeptChanged,
-                      onEmployeeChanged: (v) =>
-                          setState(() => _selectedEmployee = v),
-                      onDateTap: _pickDate,
-                      onSubmit: _submit,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  isWide
+                      ? _WideFormLayout(
+                          titleCtrl: _title,
+                          descCtrl: _description,
+                          priority: _priority,
+                          selectedDept: _selectedDepartment,
+                          selectedEmployee: _selectedEmployee,
+                          dueDate: _dueDate,
+                          employeeList: employeeList,
+                          canAssignEmployee: canAssignEmployee,
+                          selfAssign: _selfAssign,
+                          submitting: _submitting,
+                          onPriorityChanged:
+                              (v) => setState(() => _priority = v),
+                          onDeptChanged: _onDeptChanged,
+                          onEmployeeChanged: (v) =>
+                              setState(() => _selectedEmployee = v),
+                          onSelfAssignChanged: (v) =>
+                              setState(() => _selfAssign = v),
+                          onDateTap: _pickDate,
+                          onSubmit: _submit,
+                        )
+                      : _NarrowFormLayout(
+                          titleCtrl: _title,
+                          descCtrl: _description,
+                          priority: _priority,
+                          selectedDept: _selectedDepartment,
+                          selectedEmployee: _selectedEmployee,
+                          dueDate: _dueDate,
+                          employeeList: employeeList,
+                          canAssignEmployee: canAssignEmployee,
+                          selfAssign: _selfAssign,
+                          submitting: _submitting,
+                          onPriorityChanged:
+                              (v) => setState(() => _priority = v),
+                          onDeptChanged: _onDeptChanged,
+                          onEmployeeChanged: (v) =>
+                              setState(() => _selectedEmployee = v),
+                          onSelfAssignChanged: (v) =>
+                              setState(() => _selfAssign = v),
+                          onDateTap: _pickDate,
+                          onSubmit: _submit,
+                        ),
+
+                  // Cross-department sub-ticket fields
+                  if (_selectedDepartment != null &&
+                      _selectedDepartment!.id !=
+                          widget.user.departmentId &&
+                      widget.parentTicketId == null) ...[
+                    const SizedBox(height: 20),
+                    const Divider(
+                      color: ThemeColors.unifiedBorder,
+                      height: 1,
                     ),
+                    const SizedBox(height: 16),
+                    _FieldLabel(
+                      label: 'Sub-Ticket Title',
+                      icon: Icons.subdirectory_arrow_right_rounded,
+                      required: true,
+                    ),
+                    const SizedBox(height: 8),
+                    _StyledTextField(
+                      controller: _subTitle,
+                      hint: 'Title for the sub-ticket in target department',
+                      validator: (v) =>
+                          v == null || v.isEmpty
+                              ? 'Sub-ticket title is required'
+                              : null,
+                    ),
+                    const SizedBox(height: 16),
+                    _FieldLabel(
+                      label: 'Sub-Ticket Description',
+                      icon: Icons.notes_rounded,
+                      required: true,
+                    ),
+                    const SizedBox(height: 8),
+                    _StyledTextField(
+                      controller: _subDescription,
+                      hint: 'Describe the sub-ticket task in detail...',
+                      maxLines: 3,
+                      validator: (v) =>
+                          v == null || v.isEmpty
+                              ? 'Sub-ticket description is required'
+                              : null,
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ],
@@ -150,6 +211,10 @@ class _CreateTicketViewState extends State<CreateTicketView> {
 
     setState(() => _submitting = true);
 
+    final isCrossDept = _selectedDepartment != null &&
+        _selectedDepartment!.id != widget.user.departmentId &&
+        widget.parentTicketId == null;
+
     context.read<DashboardBloc>().add(
       CreateTicketEvent(
         title: _title.text.trim(),
@@ -161,6 +226,9 @@ class _CreateTicketViewState extends State<CreateTicketView> {
         createdByDept: widget.user.departmentId,
         dueDate: _dueDate,
         parentTicketId: widget.parentTicketId,
+        selfAssign: _selfAssign,
+        subTitle: isCrossDept ? _subTitle.text.trim() : null,
+        subDescription: isCrossDept ? _subDescription.text.trim() : null,
       ),
     );
 
@@ -328,10 +396,11 @@ class _WideFormLayout extends StatelessWidget {
   final EmployeeModel? selectedEmployee;
   final String? dueDate;
   final List<EmployeeModel> employeeList;
-  final bool canAssignEmployee, submitting;
+  final bool canAssignEmployee, submitting, selfAssign;
   final ValueChanged<Priorities> onPriorityChanged;
   final ValueChanged<Departments> onDeptChanged;
   final ValueChanged<EmployeeModel> onEmployeeChanged;
+  final ValueChanged<bool> onSelfAssignChanged;
   final VoidCallback onDateTap, onSubmit;
 
   const _WideFormLayout({
@@ -343,10 +412,12 @@ class _WideFormLayout extends StatelessWidget {
     required this.dueDate,
     required this.employeeList,
     required this.canAssignEmployee,
+    required this.selfAssign,
     required this.submitting,
     required this.onPriorityChanged,
     required this.onDeptChanged,
     required this.onEmployeeChanged,
+    required this.onSelfAssignChanged,
     required this.onDateTap,
     required this.onSubmit,
   });
@@ -497,10 +568,11 @@ class _NarrowFormLayout extends StatelessWidget {
   final EmployeeModel? selectedEmployee;
   final String? dueDate;
   final List<EmployeeModel> employeeList;
-  final bool canAssignEmployee, submitting;
+  final bool canAssignEmployee, submitting, selfAssign;
   final ValueChanged<Priorities> onPriorityChanged;
   final ValueChanged<Departments> onDeptChanged;
   final ValueChanged<EmployeeModel> onEmployeeChanged;
+  final ValueChanged<bool> onSelfAssignChanged;
   final VoidCallback onDateTap, onSubmit;
 
   const _NarrowFormLayout({
@@ -512,10 +584,12 @@ class _NarrowFormLayout extends StatelessWidget {
     required this.dueDate,
     required this.employeeList,
     required this.canAssignEmployee,
+    required this.selfAssign,
     required this.submitting,
     required this.onPriorityChanged,
     required this.onDeptChanged,
     required this.onEmployeeChanged,
+    required this.onSelfAssignChanged,
     required this.onDateTap,
     required this.onSubmit,
   });

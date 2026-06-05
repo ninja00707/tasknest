@@ -23,7 +23,7 @@ class TicketRepository {
       journey_steps AS (
         -- Capture every unique department that has ever touched this project
         SELECT DISTINCT ON (dept_id)
-          dept_id, code, name, first_seen
+          dept_id as id, code, name, first_seen
         FROM (
           SELECT created_by_dept as dept_id, created_at as first_seen FROM full_lineage
           UNION ALL
@@ -78,10 +78,10 @@ class TicketRepository {
         -- Fetch recursive department journey (Global Project Journey)
         (
           SELECT json_agg(js) FROM (
-            SELECT code, name, 
+            SELECT id, code, name,
             CASE 
-              WHEN dept_id = (SELECT created_by_dept FROM tickets WHERE id = (SELECT id FROM the_root)) THEN 'ORIGIN'
-              WHEN dept_id = t.assigned_dept_id THEN 'CURRENT'
+              WHEN id = (SELECT created_by_dept FROM tickets WHERE id = (SELECT id FROM the_root)) THEN 'ORIGIN'
+              WHEN id = t.assigned_dept_id THEN 'CURRENT'
               ELSE 'LINK'
             END as role
             FROM journey_steps 
@@ -130,6 +130,36 @@ class TicketRepository {
     }
 
     return ticket;
+  }
+
+  async isDepartmentUsedInTree(ticketId, departmentId) {
+    const result = await pool.query(`
+      WITH RECURSIVE root_finder AS (
+        -- Find the absolute root of this ticket lineage
+        SELECT id, parent_ticket_id FROM tickets WHERE id = $1
+        UNION ALL
+        SELECT t.id, t.parent_ticket_id FROM tickets t
+        JOIN root_finder rf ON t.id = rf.parent_ticket_id
+      ),
+      the_root AS (
+        SELECT id FROM root_finder WHERE parent_ticket_id IS NULL LIMIT 1
+      ),
+      full_tree AS (
+        -- Get every single ticket in this root's entire tree
+        SELECT id, assigned_dept_id FROM tickets WHERE id = (SELECT id FROM the_root)
+        UNION ALL
+        SELECT t.id, t.assigned_dept_id FROM tickets t
+        JOIN full_tree ft ON t.parent_ticket_id = ft.id
+      )
+      SELECT 1 FROM (
+        SELECT assigned_dept_id as dept_id FROM full_tree
+        UNION
+        SELECT department_id as dept_id FROM sub_ticket_departments WHERE ticket_id IN (SELECT id FROM full_tree)
+      ) combined
+      WHERE dept_id = $2
+      LIMIT 1
+    `, [ticketId, departmentId]);
+    return result.rows.length > 0;
   }
 
   async hasUnfinalizedSubTickets(ticketId) {
@@ -211,7 +241,7 @@ class TicketRepository {
         -- Aggregate unique departments per project tree
         SELECT leaf_id, json_agg(js ORDER BY first_seen ASC) as journey FROM (
           SELECT DISTINCT ON (tl.leaf_id, d.id)
-            tl.leaf_id, d.code, d.name, MIN(tl.created_at) as first_seen,
+            tl.leaf_id, d.id as id, d.code, d.name, MIN(tl.created_at) as first_seen,
             CASE 
               WHEN d.id = (SELECT created_by_dept FROM tickets WHERE id = (SELECT root_id FROM the_roots WHERE leaf_id = tl.leaf_id)) THEN 'ORIGIN'
               ELSE 'LINK'
@@ -409,7 +439,7 @@ class TicketRepository {
         -- Aggregate unique departments per project tree
         SELECT leaf_id, json_agg(js ORDER BY first_seen ASC) as journey FROM (
           SELECT DISTINCT ON (tl.leaf_id, d.id)
-            tl.leaf_id, d.code, d.name, MIN(tl.created_at) as first_seen,
+            tl.leaf_id, d.id as id, d.code, d.name, MIN(tl.created_at) as first_seen,
             CASE 
               WHEN d.id = (SELECT created_by_dept FROM tickets WHERE id = (SELECT root_id FROM the_roots WHERE leaf_id = tl.leaf_id)) THEN 'ORIGIN'
               ELSE 'LINK'
@@ -772,7 +802,7 @@ class TicketRepository {
         (
           SELECT json_agg(dept_info) FROM (
             SELECT DISTINCT ON (d.id) 
-              d.code, d.name, tl.created_at
+              d.id as id, d.code, d.name, tl.created_at
             FROM ticket_logs tl
             JOIN departments d ON (
               (tl.action = 'created' AND d.id = t.created_by_dept) OR
@@ -1169,6 +1199,61 @@ class TicketRepository {
     `);
 
     return result.rows;
+  }
+
+  // ── Check if department already exists in project tree ──────────────────────
+  async isDepartmentUsedInTree(ticketId, deptId) {
+    const result = await pool.query(`
+      WITH RECURSIVE subtree AS (
+        SELECT id, parent_ticket_id, assigned_dept_id FROM tickets WHERE id = $1
+        UNION ALL
+        SELECT t.id, t.parent_ticket_id, t.assigned_dept_id
+        FROM tickets t JOIN subtree s ON t.parent_ticket_id = s.id
+      )
+      SELECT EXISTS (SELECT 1 FROM subtree WHERE assigned_dept_id = $2) AS used
+    `, [ticketId, deptId]);
+    return result.rows[0].used;
+  }
+
+  // ── Check if ticket has any active (not completed/closed) descendants ──────
+  async hasActiveChildren(ticketId) {
+    const result = await pool.query(`
+      WITH RECURSIVE descendants AS (
+        SELECT id, status FROM tickets WHERE parent_ticket_id = $1
+        UNION ALL
+        SELECT t.id, t.status FROM tickets t
+        JOIN descendants d ON t.parent_ticket_id = d.id
+      )
+      SELECT EXISTS (SELECT 1 FROM descendants WHERE status NOT IN ('completed', 'closed')) AS active
+    `, [ticketId]);
+    return result.rows[0].active;
+  }
+
+  // ── Check if all direct children are completed/closed ──────────────────────
+  async allChildrenCompleted(ticketId) {
+    const result = await pool.query(`
+      SELECT COUNT(*)::int AS total,
+             COUNT(*) FILTER (WHERE status IN ('completed', 'closed'))::int AS done
+      FROM tickets WHERE parent_ticket_id = $1
+    `, [ticketId]);
+    const row = result.rows[0];
+    return row.total > 0 && row.total === row.done;
+  }
+
+  // ── Get parent chain from immediate parent up to root ──────────────────────
+  async getParentChain(ticketId) {
+    const result = await pool.query(`
+      WITH RECURSIVE ancestors AS (
+        SELECT id, parent_ticket_id FROM tickets WHERE id = $1
+        UNION ALL
+        SELECT t.id, t.parent_ticket_id
+        FROM tickets t JOIN ancestors a ON t.id = a.parent_ticket_id
+      )
+      SELECT id FROM ancestors WHERE id != $1 AND parent_ticket_id IS NOT NULL
+      UNION ALL
+      SELECT id FROM ancestors WHERE id != $1 AND parent_ticket_id IS NULL
+    `, [ticketId]);
+    return result.rows.map(r => r.id);
   }
 }
 

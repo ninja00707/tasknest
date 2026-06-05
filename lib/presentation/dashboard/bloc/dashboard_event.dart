@@ -57,9 +57,11 @@ class AssignTicketToEmployee extends DashboardEvent {
 class TransferTicket extends DashboardEvent {
   final int ticketId;
   final int targetDeptId;
-  TransferTicket(this.ticketId, this.targetDeptId);
+  final String? title;
+  final String? description;
+  TransferTicket(this.ticketId, this.targetDeptId, {this.title, this.description});
   @override
-  List<Object?> get props => [ticketId, targetDeptId];
+  List<Object?> get props => [ticketId, targetDeptId, title, description];
 }
 
 class ReopenTicket extends DashboardEvent {
@@ -74,39 +76,35 @@ class CreateTicketEvent extends DashboardEvent {
   final String description;
   final String priority;
   final int assignedDeptId;
-
-  // ADD THESE
   final int createdById;
   final int createdByDept;
-  final int? assignedToId; // New field for optional assignment
+  final int? assignedToId;
   final String? dueDate;
   final int? parentTicketId;
+  final bool selfAssign;
+  final String? subTitle;
+  final String? subDescription;
 
   CreateTicketEvent({
     required this.title,
     required this.description,
     required this.priority,
     required this.assignedDeptId,
-    required this.assignedToId, // Make assignedToId required in the constructor
-    // ADD THESE
+    required this.assignedToId,
     required this.createdById,
     required this.createdByDept,
-
     this.dueDate,
     this.parentTicketId,
+    this.selfAssign = false,
+    this.subTitle,
+    this.subDescription,
   });
 
   @override
   List<Object?> get props => [
-    title,
-    description,
-    priority,
-    assignedDeptId,
-    createdById,
-    createdByDept,
-    dueDate,
-    assignedToId,
-    parentTicketId,
+    title, description, priority, assignedDeptId,
+    createdById, createdByDept, dueDate, assignedToId,
+    parentTicketId, selfAssign, subTitle, subDescription,
   ];
 }
 

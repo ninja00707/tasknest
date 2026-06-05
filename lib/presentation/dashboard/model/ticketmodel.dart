@@ -205,6 +205,8 @@ class ChildTicketModel {
     hasActiveChildren: j['has_active_children'] == true,
   );
 
+  final List<Map<String, dynamic>> deptJourney = const [];
+
   // Helper getters to match TicketModel interface for TicketActions
   bool get isOpen => status == 'open';
   bool get isInProgress => status == 'in_progress';

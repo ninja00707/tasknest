@@ -41,18 +41,29 @@ class TicketService {
   }
 
   async createTicket(data, user) {
-    const { title, description, priority = 'medium', assignedDeptId, dueDate, parentTicketId = null } = data;
+    const { title, description, priority = 'medium', assignedDeptId, dueDate, parentTicketId = null, selfAssign = false } = data;
 
-    // Ensure assignedToId is handled as a number or null
-    const assignedToId = data.assignedToId != null ? Number(data.assignedToId) : null;
+    const subTitle = data.subTitle || data.sub_title;
+    const subDescription = data.subDescription || data.sub_description;
+
+    let assignedToId = data.assignedToId != null ? Number(data.assignedToId) : null;
+    if (selfAssign) {
+      assignedToId = user.id;
+    }
 
     if (!title || !description || title.trim() === '' || description.trim() === '' || assignedDeptId == null) {
       throw { statusCode: 400, message: 'title, description and assignedDeptId are required' };
     }
 
-    // REQUIREMENT: Repeat cycle if A creates for B directly (Master in A -> Sub in B)
+    // Cross-department: Create master in creator's dept + sub in target dept
     if (!parentTicketId && Number(assignedDeptId) !== Number(user.department_id)) {
-      // Create Master Oversight in Creator's Dept
+      const effectiveSubTitle = (subTitle && String(subTitle).trim())
+        ? String(subTitle).trim()
+        : title;
+      const effectiveSubDesc = (subDescription && String(subDescription).trim())
+        ? String(subDescription).trim()
+        : description;
+
       const masterTicket = await ticketRepo.createTicket({
         title: `Project: ${title}`,
         description: `Master oversight for: ${description}`,
@@ -60,17 +71,20 @@ class TicketService {
         assignedDeptId: user.department_id,
         dueDate,
         createdBy: user,
-        assignedToId: user.id, // Auto-assign to creator for oversight
+        assignedToId: user.id,
         parentTicketId: null,
         ticketType: 'standard'
       });
 
       await ticketRepo.logAction(masterTicket.id, user.id, 'created', null, 'open', `Project Master created for department oversight`);
 
-      // Create actual task as Sub-Ticket of this master
       return await this.createTicket({
         ...data,
-        parentTicketId: masterTicket.id
+        title: effectiveSubTitle,
+        description: effectiveSubDesc,
+        parentTicketId: masterTicket.id,
+        assignedToId: null,
+        selfAssign: false
       }, user);
     }
 
@@ -475,7 +489,7 @@ class TicketService {
     return updated;
   }
 
-  async updateStatus(ticketId, newStatus, user, remark) {
+  async updateStatus(ticketId, newStatus, user, remark, isSystemUpdate = false) {
     const ticket = await ticketRepo.getTicketById(ticketId, user);
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
@@ -485,14 +499,24 @@ class TicketService {
       throw { statusCode: 400, message: 'Invalid status' };
     }
 
-    // Master ticket closure logic
-    // Manual closure of master is allowed ONLY if all subs are finalized (status = closed).
-    if (newStatus === 'closed') {
+    // Rule 4: Block completion if active children exist
+    if (!isSystemUpdate && newStatus === 'completed') {
+      const hasActive = await ticketRepo.hasActiveChildren(ticketId);
+      if (hasActive) {
+        throw {
+          statusCode: 400,
+          message: `Cannot mark as completed while sub-tickets are still active.`
+        };
+      }
+    }
+
+    // Block closed if any sub-tickets are not finalized
+    if (!isSystemUpdate && newStatus === 'closed') {
       const hasUnfinalized = await ticketRepo.hasUnfinalizedSubTickets(ticketId);
       if (hasUnfinalized) {
         throw {
           statusCode: 400,
-          message: 'Cannot finalize this ticket because it has unfinalized sub-tickets. All sub-tickets must be marked "Closed" first.'
+          message: `Rule Violation: Cannot mark as ${newStatus} while sub-tasks are still active.`
         };
       }
     }
@@ -503,23 +527,21 @@ class TicketService {
     const isAssignedDeptManager = user.role === 'manager' && user.department_id === ticket.assigned_dept_id;
     const isCeo = user.role === 'ceo';
 
-    console.log(`[TicketService] Status update: ${ticket.status} -> ${newStatus} by ${user.name} (ID: ${user.id})`);
-
-    // Rule: Cannot mark as completed (Done) if there are unfinalized sub-tickets
-    if (newStatus === 'completed') {
-      const hasUnfinalized = await ticketRepo.hasUnfinalizedSubTickets(ticketId);
-      if (hasUnfinalized) {
-        throw {
-          statusCode: 400,
-          message: 'Cannot mark this ticket as completed because it has unfinalized sub-tickets. All sub-tickets must be closed first.'
-        };
-      }
+    if (!isSystemUpdate) {
+      console.log(`[TicketService] Status update: ${ticket.status} -> ${newStatus} by ${user.name} (ID: ${user.id})`);
     }
 
     // Only the resolver, Assigned Dept Manager, or CEO can mark a ticket as completed
-    if (newStatus === 'completed') {
-      if (!isResolver && !isCeo && !isAssignedDeptManager) {
-        throw { statusCode: 403, message: 'Only the assigned resolver or department manager can mark this ticket as completed' };
+    if (!isSystemUpdate && newStatus === 'completed') {
+      if (ticket.status === 'open') throw { statusCode: 400, message: 'Ticket must be assigned first.' };
+
+      // Rule: Employee cannot mark self as done if they are not the assigner
+      if (isEmployee && isResolver && !isCreator) {
+        throw { statusCode: 403, message: 'Only the Assigner or a Manager can mark this task as done.' };
+      }
+
+      if (!isResolver && !isCeo && !isAssignedDeptManager && !isCreator) {
+        throw { statusCode: 403, message: 'Permission denied to mark as completed.' };
       }
       if (!remark || String(remark).trim() === '') {
         throw { statusCode: 400, message: 'Completion remark is required when marking done' };
@@ -528,7 +550,7 @@ class TicketService {
 
     // Only the creator or CEO can mark a ticket as closed (finalize and close)
     if (newStatus === 'closed') {
-      if (!isCreator && !isCeo) {
+      if (!isSystemUpdate && !isCreator && !isCeo) {
         throw { statusCode: 403, message: 'Only the creator can finalize and close this ticket' };
       }
       if (!remark || String(remark).trim() === '') {
@@ -554,8 +576,30 @@ class TicketService {
       'status_changed',
       oldStatus,
       newStatus,
-      `Status updated to ${newStatus} by ${user.name}${remark ? `. Final Remark: ${remark}` : ''}`
+      `Status updated to ${newStatus} by ${user.name}${isSystemUpdate ? ' (System Action)' : ''}${remark ? `. Remark: ${remark}` : ''}`
     );
+
+    // Rule 5: Propagate completion upward
+    if (newStatus === 'completed' && ticket.parent_ticket_id) {
+      const chain = await ticketRepo.getParentChain(ticketId);
+      const allParents = [ticket.parent_ticket_id, ...chain];
+      for (const parentId of allParents) {
+        const allDone = await ticketRepo.allChildrenCompleted(parentId);
+        if (allDone) {
+          await ticketRepo.logAction(
+            parentId, user.id, 'all_children_completed', null, null,
+            `All sub-tickets completed via #${ticketId}`
+          );
+          await this.updateStatus(
+            parentId, 'completed', user,
+            `Auto-completed: all sub-tickets done (via #${ticketId})`,
+            true
+          );
+        } else {
+          break;
+        }
+      }
+    }
 
     // Transparency: Add the closing/completion remark as a formal comment so it is visible in the thread
     if ((newStatus === 'completed' || newStatus === 'closed') && remark) {
@@ -572,20 +616,21 @@ class TicketService {
     const participants = await ticketRepo.getTicketParticipants(ticketId);
     await this._dispatch(ticketId, participants, `Ticket #${ticketId} status changed to ${newStatus}`, 'TICKET_STATUS_UPDATED', { ticket: updated });
 
-    // Rule: Automatic closure of master when last sub is finalized (closed)
+    // Rule: Automatic closure of master when last sub is finalized (closed) — chain upward
     if (newStatus === 'closed' && ticket.parent_ticket_id) {
-      const parentId = ticket.parent_ticket_id;
-      const hasRemainingUnfinalized = await ticketRepo.hasUnfinalizedSubTickets(parentId);
-      if (!hasRemainingUnfinalized) {
-        await ticketRepo.updateStatus(parentId, 'closed', user);
-        await ticketRepo.logAction(
-          parentId,
-          user.id,
-          'status_changed',
-          'in_progress',
-          'closed',
-          'Automatically closed because all sub-tickets are fully finalized (Closed).'
-        );
+      const chain = await ticketRepo.getParentChain(ticketId);
+      const allParents = [ticket.parent_ticket_id, ...chain];
+      for (const parentId of allParents) {
+        const hasRemainingUnfinalized = await ticketRepo.hasUnfinalizedSubTickets(parentId);
+        if (!hasRemainingUnfinalized) {
+          await this.updateStatus(
+            parentId, 'closed', user,
+            'Auto-closed: all sub-tickets finalized',
+            true
+          );
+        } else {
+          break;
+        }
       }
     }
 
@@ -670,10 +715,26 @@ class TicketService {
     return updated;
   }
 
-  async transferTicket(ticketId, targetDeptId, user) {
+  async transferTicket(ticketId, targetDeptId, user, title, description) {
     const parentTicket = await ticketRepo.getTicketById(ticketId, user);
     if (!parentTicket) throw { statusCode: 404, message: 'Parent ticket not found' };
     if (parentTicket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+
+    // Rule: Open ticket must be assigned before sub-ticket creation
+    if (parentTicket.status === 'open') {
+      throw { statusCode: 400, message: 'Ticket must be assigned first before creating a sub-ticket.' };
+    }
+
+    // Rule 3: Mandatory Title and Description for Sub-Tickets
+    if (!title?.trim() || !description?.trim()) {
+      throw { statusCode: 400, message: 'A new Title and Description are mandatory for sub-tickets.' };
+    }
+
+    // Rule 3: Prevent duplicate departments in the project tree
+    const isUsed = await ticketRepo.isDepartmentUsedInTree(ticketId, Number(targetDeptId));
+    if (isUsed) {
+      throw { statusCode: 400, message: 'This department is already part of the project lineage.' };
+    }
 
     // Actions are disabled for closed tickets
     if (parentTicket.status === 'closed') {
@@ -687,14 +748,10 @@ class TicketService {
       throw { statusCode: 403, message: 'Only the assigned resolver or a manager can create a sub-ticket' };
     }
 
-    if (Number(parentTicket.assigned_dept_id) === Number(targetDeptId)) {
-      throw { statusCode: 400, message: 'Cannot create sub-ticket for the same department' };
-    }
-
-    // Create a new ticket as a sub-ticket
+    // Create a new ticket as a sub-ticket (starts open, unassigned)
     const subTicket = await ticketRepo.createTicket({
-      title: `Sub: ${parentTicket.title}`,
-      description: parentTicket.description,
+      title: title?.trim() || `Sub: ${parentTicket.title}`,
+      description: description?.trim() || parentTicket.description,
       priority: parentTicket.priority,
       assignedDeptId: targetDeptId,
       dueDate: parentTicket.due_date,

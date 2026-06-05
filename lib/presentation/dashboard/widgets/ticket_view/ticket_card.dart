@@ -96,6 +96,13 @@ class TicketCard extends StatelessWidget {
                               fg: const Color(0xFF7C3AED),
                               icon: Icons.hub_rounded,
                             ),
+                          if (ticket.children.isNotEmpty)
+                            _FlagChip(
+                              label: 'SUB',
+                              bg: const Color(0xFFFEF3C7),
+                              fg: const Color(0xFFD97706),
+                              icon: Icons.account_tree_rounded,
+                            ),
                           const Spacer(),
                           PriorityBadge(priority: ticket.priority),
                           const SizedBox(width: 6),
@@ -127,7 +134,7 @@ class TicketCard extends StatelessWidget {
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    'CHILD OF #${ticket.parentTicketId}',
+                                    'CHILD OF #${ticket.parentTicketId} ${ticket.parentTicketTitle ?? ""}',
                                     style: const TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w800,

@@ -168,10 +168,13 @@ class TicketController {
 
   async transferTicket(req, res, next) {
     try {
+      const { targetDeptId, title, description } = req.body;
       const ticket = await ticketService.transferTicket(
         req.params.id,
-        req.body.targetDeptId,
-        req.user
+        targetDeptId,
+        req.user,
+        title,
+        description
       );
       res.json({ success: true, data: ticket });
     } catch (err) {

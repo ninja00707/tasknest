@@ -48,8 +48,7 @@ class TicketActions extends StatelessWidget {
         final bool isAssignedToMyDept =
             ticket.assignedDeptId == user.departmentId;
 
-        final bool isEmployee = user.roleId == 2; // Assuming 2 is Employee
-
+        // NEW RULES:
         // 1. Once ticket is created user can't not do anything until the ticket is assigned
         final bool isUnassigned = ticket.assignedToId == null;
 
@@ -88,13 +87,9 @@ class TicketActions extends StatelessWidget {
               ),
 
             // 3. Resolver Action: Mark Completed (Done).
-            // RULE: Managers only rites to mark done if assigned to employee
             if (ticket.isInProgress &&
                 !hasUnfinalizedSubs &&
-                ((isManager && isAssignedToMyDept) ||
-                    isCeo ||
-                    isCreator ||
-                    (isResolver && !isEmployee)))
+                (isResolver || isCeo || (isManager && isAssignedToMyDept)))
               ActionBtn(
                 icon: Icons.check_circle_outline,
                 tooltip: 'Mark Done',
@@ -113,12 +108,12 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showStatusRemarkDialog(context, 'closed'),
               ),
 
-            // 5. Create Sub Ticket: Only if no sub-ticket already exists
+            // 5. Create Sub Ticket: Disabled if Completed, Closed, unassigned or if sub-ticket already exists
+            // RULE: Creator and Resolver (and anyone in assigned dept) are allowed to create multiple sub-tickets
             if (!ticket.isManagementDisabled &&
                 !isCeo &&
                 !isUnassigned &&
-                isAssignedToMyDept &&
-                ticket.immediateChildCount == 0)
+                isAssignedToMyDept)
               ActionBtn(
                 icon: Icons.add_link_rounded,
                 tooltip: 'Create Sub Ticket',
@@ -287,7 +282,7 @@ class TicketActions extends StatelessWidget {
 
     // Rule 3: Prevent duplicate sub-ticket creation for the same department in the chain
     final occupiedDeptIds =
-        ticket.deptJourney.map((j) => j['id']).toList();
+        ticket.deptJourney?.map((j) => j['id']).toList() ?? [];
 
     final depts = loadedState.departments
         .where((d) => !occupiedDeptIds.contains(d.id))
