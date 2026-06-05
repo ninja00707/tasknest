@@ -7,4 +7,10 @@ class RouteNames {
   static const analyticsManager = '/analytics/manager';
   static const analyticsCeo = '/analytics/ceo';
   static const ticketDetail = '/ticket/:id';
+  static const ticketTypeGrid = '/ticket-type-grid';
+  static const departmentTickets = '/departmentTickets';
+  static const newTicket = '/newTicket';
+  static const sentSubTickets = '/sent_sub_tickets';
+  static const recentActivities = '/recent_activities';
+  static const ticketTypes = '/ticket_types';
 }

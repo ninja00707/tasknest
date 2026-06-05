@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_helpers.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
@@ -154,7 +155,7 @@ class _FilterBar extends StatelessWidget {
                 return _FilterChip(
                   label: s.name == 'All' ? 'All' : s.name.replaceAll('_', ' '),
                   active: active,
-                  color: _statusColor(s.name),
+                  color: ticketStatusColor(s.name),
                   onTap: () => context.read<DashboardBloc>().add(
                     FilterTickets(
                       status: s.name == 'All' ? null : s.name,
@@ -204,7 +205,7 @@ class _FilterBar extends StatelessWidget {
                   child: _PriorityDot(
                     label: p.name[0].toUpperCase() + p.name.substring(1),
                     active: active,
-                    color: _priorityColor(p.name),
+                    color: ticketPriorityColor(p.name),
                     onTap: () => context.read<DashboardBloc>().add(
                       FilterTickets(
                         status: state.filterStatus,
@@ -571,31 +572,3 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-// ── Color helpers ─────────────────────────────────────────────────────────────
-Color _statusColor(String s) {
-  switch (s.toLowerCase()) {
-    case 'open':
-      return ThemeColors.unifiedSecondary;
-    case 'in_progress':
-      return ThemeColors.unifiedWarning;
-    case 'completed':
-      return ThemeColors.unifiedAccent;
-    case 'closed':
-      return ThemeColors.unifiedTextMuted;
-    default:
-      return ThemeColors.unifiedPrimary;
-  }
-}
-
-Color _priorityColor(String p) {
-  switch (p.toLowerCase()) {
-    case 'urgent':
-      return ThemeColors.unifiedDanger;
-    case 'high':
-      return const Color(0xFFEA580C);
-    case 'medium':
-      return ThemeColors.unifiedWarning;
-    default:
-      return ThemeColors.unifiedPrimary;
-  }
-}

@@ -223,14 +223,6 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
     return true;
   }
 
-  // Creator can complete the overall ticket when all depts are approved/completed
-  bool get _canCompleteTicket {
-    if (widget.ticket.isClosed || widget.ticket.isCompleted) return false;
-    if (!_isCreator && !_isCeo) return false;
-    if (widget.ticket.subDepartments.isEmpty) return false;
-    return widget.ticket.subDepartments.every((d) => d.isApproved || d.isCompleted);
-  }
-
   // Self-assign: employee in same dept, task is open and unassigned
   bool get _canSelfAssign =>
       _isEmployee && _isMyDept && widget.dept.isOpen && !widget.dept.isAssigned;
@@ -265,12 +257,6 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
   void _selfAssign() {
     context.read<DashboardBloc>().add(
       SelfAssignSubDept(widget.ticket.id, widget.dept.departmentId),
-    );
-  }
-
-  void _completeTicket() {
-    context.read<DashboardBloc>().add(
-      CompleteSubTicket(widget.ticket.id),
     );
   }
 

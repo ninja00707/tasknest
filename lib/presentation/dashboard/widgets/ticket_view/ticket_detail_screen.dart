@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_helpers.dart';
 import 'package:tasknest/core/theme/common_detail_appbar.dart';
 import 'package:tasknest/core/theme/common_date_format.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
@@ -253,7 +254,7 @@ class _HeroSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final priorityColor = _priorityColor(ticket.priority);
+    final priorityColor = ticketPriorityColor(ticket.priority);
 
     return Container(
       decoration: BoxDecoration(
@@ -1804,16 +1805,3 @@ class _DeptJourneySection extends StatelessWidget {
   }
 }
 
-// ── Priority color helper ─────────────────────────────────────────────────────
-Color _priorityColor(String p) {
-  switch (p.toLowerCase()) {
-    case 'urgent':
-      return ThemeColors.unifiedDanger;
-    case 'high':
-      return const Color(0xFFEA580C);
-    case 'medium':
-      return ThemeColors.unifiedWarning;
-    default:
-      return ThemeColors.unifiedPrimary;
-  }
-}

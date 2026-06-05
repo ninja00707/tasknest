@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_helpers.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
@@ -24,8 +25,7 @@ class TicketCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _priorityColor(ticket.priority);
-    final isTransferred = ticket.transferredFromCode != null;
+    final color = ticketPriorityColor(ticket.priority);
 
     return GestureDetector(
       onTap: onTap ?? () => context.push('/ticket/${ticket.id}'),
@@ -634,20 +634,6 @@ class _SmallActionBtn extends StatelessWidget {
         child: Icon(icon, size: 14, color: ThemeColors.unifiedPrimary),
       ),
     );
-  }
-}
-
-// ── Priority color helper ─────────────────────────────────────────────────────
-Color _priorityColor(String p) {
-  switch (p) {
-    case 'urgent':
-      return ThemeColors.unifiedDanger;
-    case 'high':
-      return const Color(0xFFEA580C);
-    case 'medium':
-      return ThemeColors.unifiedWarning;
-    default:
-      return ThemeColors.unifiedPrimary;
   }
 }
 

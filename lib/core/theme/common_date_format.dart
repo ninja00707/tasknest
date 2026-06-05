@@ -1,6 +1,5 @@
 // ignore_for_file: depend_on_referenced_packages
 import 'package:intl/intl.dart';
-import 'package:tasknest/core/theme/common_date_format.dart';
 // Use: CommonDateFormat.formatDateTime(date);
 
 class CommonDateFormat {

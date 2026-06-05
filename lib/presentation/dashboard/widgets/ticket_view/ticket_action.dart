@@ -48,8 +48,6 @@ class TicketActions extends StatelessWidget {
         final bool isAssignedToMyDept =
             ticket.assignedDeptId == user.departmentId;
 
-        final bool isEmployee = user.roleId == 2; // Assuming 2 is Employee
-
         // 1. Once ticket is created user can't not do anything until the ticket is assigned
         final bool isUnassigned = ticket.assignedToId == null;
 
@@ -276,10 +274,6 @@ class TicketActions extends StatelessWidget {
     }
 
     if (loadedState == null) return;
-
-    final int? assignedDeptId = ticket is TicketModel
-        ? ticket.assignedDeptId
-        : (ticket as ChildTicketModel).assignedDeptId;
 
     // Rule 3: Prevent duplicate sub-ticket creation for the same department in the chain
     final occupiedDeptIds =

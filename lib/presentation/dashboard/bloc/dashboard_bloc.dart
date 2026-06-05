@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
+import 'package:tasknest/data/datasource/socket_service.dart';
 import 'package:tasknest/data/datasource/ticketdatasource/ticket_remote_data_source.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
@@ -10,6 +12,7 @@ import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 // ══════════════════════════════════════════════════════════════
 class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   final TicketRemoteDataSource _dataSource;
+  StreamSubscription<SocketEvent>? _socketSub;
 
   DashboardBloc(this._dataSource) : super(DashboardInitial()) {
     on<LoadDashboard>(_onLoad);
@@ -31,6 +34,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<SidebarSelectedIndexEvent>(_onSelectedIndex);
     on<LoadManagerAnalytics>(_onLoadManagerAnalytics);
     on<LoadCeoAnalytics>(_onLoadCeoAnalytics);
+
+    _listenToSocket();
   }
   // Extract DashboardLoaded from current state (handles error states)
   DashboardLoaded _getLoadedState() {
@@ -39,6 +44,31 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     if (s is DashboardActionError) return s.previousState;
     if (s is DashboardActionSuccess) return s.previousState;
     throw StateError('Expected DashboardLoaded but got ${s.runtimeType}');
+  }
+
+  // ── Socket ────────────────────────────────────────────────────────
+  void _listenToSocket() {
+    _socketSub = SocketService().events.listen((event) {
+      if (!isClosed) add(LoadDashboard());
+    });
+  }
+
+  Future<void> _connectSocket() async {
+    final token = await LocalStorageService().getToken();
+    final user = await LocalStorageService().getUser();
+    if (token != null && user != null) {
+      SocketService().connect(
+        token,
+        userId: user.id,
+        departmentId: user.departmentId,
+      );
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _socketSub?.cancel();
+    return super.close();
   }
 
   // Helper to extract a user-friendly message from backend errors
@@ -76,7 +106,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     LoadDashboard event,
     Emitter<DashboardState> emit,
   ) async {
-    emit(DashboardLoading());
+    final isInitialLoad = state is DashboardInitial;
+    if (isInitialLoad) emit(DashboardLoading());
 
     try {
       final user = await LocalStorageService().getUser();
@@ -98,48 +129,16 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           departments: departments,
           employees: employees,
           sentTickets: sentTickets,
+          selectedIndex: 0,
         ),
       );
+
+      // Connect socket for real-time updates
+      await _connectSocket();
     } catch (e) {
       emit(DashboardError(_getFriendlyErrorMessage(e)));
     }
   }
-  // Future<void> _onLoad(
-  //   LoadDashboard event,
-  //   Emitter<DashboardState> emit,
-  // ) async {
-  //   emit(DashboardLoading());
-
-  //   try {
-  //     final user = await LocalStorageService().getUser();
-  //     if (user == null) {
-  //       throw Exception('User not found');
-  //     }
-
-  //     final futures = <Future<dynamic>>[
-  //       _dataSource.getStats(),
-  //       _dataSource.getTickets(),
-  //       _dataSource.getDepartments(),
-  //       user.roleId == 1
-  //           ? _dataSource.getEmployees(departmentId: user.departmentId)
-  //           : Future.value(<EmployeeModel>[]),
-  //       _dataSource.getSentTickets(),
-  //     ];
-
-  //     final results = await Future.wait(futures);
-  //     emit(
-  //       DashboardLoaded(
-  //         stats: results[0] as DashboardStats,
-  //         tickets: results[1] as List<TicketModel>,
-  //         departments: results[2] as List<DepartmentModel>,
-  //         employees: results[3] as List<EmployeeModel>,
-  //         sentTickets: results[4] as List<TicketModel>,
-  //       ),
-  //     );
-  //   } catch (e) {
-  //     emit(DashboardError(e.toString()));
-  //   }
-  // }
 
   // ── Filter ────────────────────────────────────────────────────
   Future<void> _onFilter(

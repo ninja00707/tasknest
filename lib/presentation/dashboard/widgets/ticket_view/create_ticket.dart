@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_helpers.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
@@ -42,8 +43,6 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   bool get _isMulti => _selectedDepartments.length > 1;
   bool get _isCrossDept => _selectedDepartments.length == 1 &&
       _selectedDepartments.first.id != widget.user.departmentId;
-  bool get _isOwnDept => _selectedDepartments.length == 1 &&
-      _selectedDepartments.first.id == widget.user.departmentId;
 
   @override
   void dispose() {
@@ -1004,7 +1003,7 @@ class _PrioritySelector extends StatelessWidget {
     return Row(
       children: priorities.map((p) {
         final isSel = p.id == selected.id;
-        final color = _priorityColor(p.name);
+        final color = ticketPriorityColor(p.name);
 
         return Expanded(
           child: GestureDetector(
@@ -1439,19 +1438,5 @@ class _DeptFormData {
   void dispose() {
     titleCtrl.dispose();
     descCtrl.dispose();
-  }
-}
-
-// ── Priority color helper ─────────────────────────────────────────────────────
-Color _priorityColor(String p) {
-  switch (p.toLowerCase()) {
-    case 'urgent':
-      return ThemeColors.unifiedDanger;
-    case 'high':
-      return const Color(0xFFEA580C);
-    case 'medium':
-      return ThemeColors.unifiedWarning;
-    default:
-      return ThemeColors.unifiedPrimary;
   }
 }

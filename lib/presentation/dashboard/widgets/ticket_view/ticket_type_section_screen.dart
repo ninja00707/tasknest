@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/routes/routes_name.dart';
+import 'package:tasknest/core/routes/ticket_type_grid_args.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
-import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_type_grid_screen.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class TicketTypeSectionScreen extends StatelessWidget {
@@ -149,7 +152,7 @@ class _TypeData {
   final Color accentColor;
   final List<Color> gradientColors;
   final int count;
-  final List tickets;
+  final List<TicketModel> tickets;
 
   const _TypeData({
     required this.icon,
@@ -209,14 +212,12 @@ class _TypeCardState extends State<_TypeCard>
   void _onTapCancel() => _ctrl.forward();
 
   void _navigate() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => TicketTypeGridScreen(
-          tickets: widget.data.tickets as dynamic,
-          title: widget.data.title,
-          user: widget.user,
-        ),
+    context.push(
+      RouteNames.ticketTypeGrid,
+      extra: TicketTypeGridArgs(
+        tickets: widget.data.tickets,
+        title: widget.data.title,
+        user: widget.user,
       ),
     );
   }
