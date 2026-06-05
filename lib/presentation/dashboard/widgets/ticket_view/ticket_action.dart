@@ -98,10 +98,10 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showStatusRemarkDialog(context, 'completed'),
               ),
 
-            // 4. Resolver/Creator/CEO/Creating Dept Manager Action: Finalize & Close
+            // 4. Finalize & Close: resolver only (for sub-tickets) or creator/CEO (for main)
             if (ticket.isCompleted &&
                 !hasUnfinalizedSubs &&
-                (isResolver || isCreator || isCeo || isCreatingDeptManager))
+                (ticket is ChildTicketModel ? isResolver : (isResolver || isCreator || isCeo || isCreatingDeptManager)))
               ActionBtn(
                 icon: Icons.lock_outline,
                 tooltip: 'Finalize & Close',
