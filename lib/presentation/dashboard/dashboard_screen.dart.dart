@@ -13,6 +13,7 @@ import 'package:tasknest/presentation/dashboard/widgets/ticket_view/recent_ticke
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_Listview.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/my_tickets_view.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/transfered_depart_ticket.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_type_section_screen.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -207,6 +208,9 @@ class DashboardScreen extends StatelessWidget {
 
       case 4:
         return RecentTicketsView(state: loadedState!, userModel: user);
+
+      case 5:
+        return TicketTypeSectionScreen(state: loadedState!, user: user);
 
       default:
         return DashboardView(state: loadedState!);

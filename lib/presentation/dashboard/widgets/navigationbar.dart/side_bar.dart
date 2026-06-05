@@ -137,6 +137,13 @@ class Sidebar extends StatelessWidget {
             selected: selectedIndex == 4,
             onTap: onNav,
           ),
+          NavItem(
+            icon: Icons.category_outlined,
+            label: 'Ticket Types',
+            index: 5,
+            selected: selectedIndex == 5,
+            onTap: onNav,
+          ),
 
           const Spacer(),
           Container(
