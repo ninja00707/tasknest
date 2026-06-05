@@ -34,21 +34,22 @@ class TicketRemoteDataSource {
     required String title,
     required String description,
     required String priority,
-    required int assignedDeptId,
+    required List<int> departmentIds,
     required int createdById,
     required int createdByDept,
-    String? dueDate,
     int? assignedToId,
+    String? dueDate,
     int? parentTicketId,
     bool selfAssign = false,
     String? subTitle,
     String? subDescription,
+    List<Map<String, dynamic>>? deptTickets,
   }) async {
     final body = <String, dynamic>{
       'title': title,
       'description': description,
       'priority': priority,
-      'assignedDeptId': assignedDeptId,
+      'departmentIds': departmentIds,
       'createdById': createdById,
       'createdByDept': createdByDept,
       'selfAssign': selfAssign,
@@ -58,6 +59,7 @@ class TicketRemoteDataSource {
     if (parentTicketId != null) body['parentTicketId'] = parentTicketId;
     if (subTitle != null) body['subTitle'] = subTitle;
     if (subDescription != null) body['subDescription'] = subDescription;
+    if (deptTickets != null) body['deptTickets'] = deptTickets;
 
     final res = await _api.post('tickets', body: body);
 

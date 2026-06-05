@@ -71,11 +71,29 @@ class ReopenTicket extends DashboardEvent {
   List<Object?> get props => [ticketId];
 }
 
+class DeptTicketData {
+  final int departmentId;
+  final String title;
+  final String description;
+
+  DeptTicketData({
+    required this.departmentId,
+    required this.title,
+    required this.description,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'department_id': departmentId,
+    'title': title,
+    'description': description,
+  };
+}
+
 class CreateTicketEvent extends DashboardEvent {
   final String title;
   final String description;
   final String priority;
-  final int assignedDeptId;
+  final List<int> departmentIds;
   final int createdById;
   final int createdByDept;
   final int? assignedToId;
@@ -84,12 +102,13 @@ class CreateTicketEvent extends DashboardEvent {
   final bool selfAssign;
   final String? subTitle;
   final String? subDescription;
+  final List<DeptTicketData>? deptTickets;
 
   CreateTicketEvent({
     required this.title,
     required this.description,
     required this.priority,
-    required this.assignedDeptId,
+    required this.departmentIds,
     required this.assignedToId,
     required this.createdById,
     required this.createdByDept,
@@ -98,13 +117,14 @@ class CreateTicketEvent extends DashboardEvent {
     this.selfAssign = false,
     this.subTitle,
     this.subDescription,
+    this.deptTickets,
   });
 
   @override
   List<Object?> get props => [
-    title, description, priority, assignedDeptId,
+    title, description, priority, departmentIds,
     createdById, createdByDept, dueDate, assignedToId,
-    parentTicketId, selfAssign, subTitle, subDescription,
+    parentTicketId, selfAssign, subTitle, subDescription, deptTickets,
   ];
 }
 

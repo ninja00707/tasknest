@@ -42,6 +42,7 @@ class TicketService {
 
   async createTicket(data, user) {
     const { title, description, priority = 'medium', assignedDeptId, dueDate, parentTicketId = null, selfAssign = false } = data;
+    const departmentIds = data.departmentIds;
 
     const subTitle = data.subTitle || data.sub_title;
     const subDescription = data.subDescription || data.sub_description;
@@ -51,12 +52,69 @@ class TicketService {
       assignedToId = user.id;
     }
 
-    if (!title || !description || title.trim() === '' || description.trim() === '' || assignedDeptId == null) {
-      throw { statusCode: 400, message: 'title, description and assignedDeptId are required' };
+    if (!title || !description || title.trim() === '' || description.trim() === '') {
+      throw { statusCode: 400, message: 'title and description are required' };
+    }
+
+    // Multi-department mode: create master + sub-ticket for each department
+    if (!parentTicketId && Array.isArray(departmentIds) && departmentIds.length > 0) {
+      const uniqueDepts = [...new Set(departmentIds.map(Number))];
+      if (uniqueDepts.length === 0) throw { statusCode: 400, message: 'At least one department is required' };
+
+      if (uniqueDepts.length > 1) {
+        // Multi: create master and sub-tickets for all selected departments
+        const masterTicket = await ticketRepo.createTicket({
+          title: `Project: ${title}`,
+          description: `Master oversight for: ${description}`,
+          priority,
+          assignedDeptId: user.department_id,
+          dueDate,
+          createdBy: user,
+          assignedToId: user.id,
+          parentTicketId: null,
+          ticketType: 'multi_task'
+        });
+
+        await ticketRepo.logAction(masterTicket.id, user.id, 'created', null, 'open', `Project Master created for multi-department task`);
+
+        for (const deptId of uniqueDepts) {
+          const isOwnDept = Number(deptId) === Number(user.department_id);
+          // Use per-department title/description if provided, otherwise fallback
+          let deptTitle, deptDesc;
+          if (Array.isArray(data.deptTickets)) {
+            const dt = data.deptTickets.find(d => Number(d.department_id) === Number(deptId));
+            if (dt) {
+              deptTitle = dt.title;
+              deptDesc = dt.description;
+            }
+          }
+          const effectiveTitle = deptTitle || (isOwnDept ? title : (subTitle || title));
+          const effectiveDesc = deptDesc || (isOwnDept ? description : (subDescription || description));
+          await this.createTicket({
+            ...data,
+            title: effectiveTitle,
+            description: effectiveDesc,
+            parentTicketId: masterTicket.id,
+            assignedDeptId: deptId,
+            assignedToId: null,
+            selfAssign: false
+          }, user);
+        }
+
+        return masterTicket;
+      }
+
+      // Single department: fall through to existing logic with this dept
+      data.assignedDeptId = uniqueDepts[0];
+    }
+
+    const effectiveDeptId = data.assignedDeptId ?? assignedDeptId;
+    if (effectiveDeptId == null) {
+      throw { statusCode: 400, message: 'assignedDeptId is required' };
     }
 
     // Cross-department: Create master in creator's dept + sub in target dept
-    if (!parentTicketId && Number(assignedDeptId) !== Number(user.department_id)) {
+    if (!parentTicketId && Number(effectiveDeptId) !== Number(user.department_id)) {
       const effectiveSubTitle = (subTitle && String(subTitle).trim())
         ? String(subTitle).trim()
         : title;
@@ -92,7 +150,7 @@ class TicketService {
       title,
       description,
       priority,
-      assignedDeptId,
+      assignedDeptId: effectiveDeptId,
       dueDate,
       createdBy: user,
       assignedToId,
@@ -108,7 +166,7 @@ class TicketService {
     }
 
     // Notify target department managers
-    const managers = await ticketRepo.getManagersByDepartment(assignedDeptId);
+    const managers = await ticketRepo.getManagersByDepartment(effectiveDeptId);
     await this._dispatch(ticket.id, managers, `New Ticket Created: ${title}`, 'TICKET_CREATED', { ticket });
 
     // If auto-assigned, notify the employee

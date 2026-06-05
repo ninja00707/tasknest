@@ -281,7 +281,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         title: event.title,
         description: event.description,
         priority: event.priority,
-        assignedDeptId: event.assignedDeptId,
+        departmentIds: event.departmentIds,
         createdById: event.createdById,
         createdByDept: event.createdByDept,
         assignedToId: event.assignedToId,
@@ -290,6 +290,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         selfAssign: event.selfAssign,
         subTitle: event.subTitle,
         subDescription: event.subDescription,
+        deptTickets: event.deptTickets?.map((d) => d.toJson()).toList(),
       );
 
       emit(DashboardActionSuccess('Ticket created!', prev));

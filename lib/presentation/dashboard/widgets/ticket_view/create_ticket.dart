@@ -37,6 +37,9 @@ class _CreateTicketViewState extends State<CreateTicketView> {
   String? _dueDate;
   bool _submitting = false;
   bool _selfAssign = false;
+  bool _multiDept = false;
+  List<Departments> _selectedDepartments = [];
+  Map<int, _DeptFormData> _deptFormData = {};
 
   @override
   void dispose() {
@@ -44,6 +47,10 @@ class _CreateTicketViewState extends State<CreateTicketView> {
     _description.dispose();
     _subTitle.dispose();
     _subDescription.dispose();
+    for (final d in _deptFormData.values) {
+      d.titleCtrl.dispose();
+      d.descCtrl.dispose();
+    }
     super.dispose();
   }
 
@@ -56,6 +63,11 @@ class _CreateTicketViewState extends State<CreateTicketView> {
         : <EmployeeModel>[];
     final canAssignEmployee =
         widget.user.roleId == 0 || widget.user.roleId == 1;
+    final availableDepartments = blocState is DashboardLoaded
+        ? blocState.departments
+            .map((d) => Departments(name: d.name, id: d.id))
+            .toList()
+        : <Departments>[];
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(isWide ? 28 : 16).copyWith(bottom: 48),
@@ -67,6 +79,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
           _PageHeader(
             parentId: widget.parentTicketId,
             parentTitle: widget.parentTicketTitle,
+            isMulti: _multiDept,
           ),
           const SizedBox(height: 24),
 
@@ -77,6 +90,94 @@ class _CreateTicketViewState extends State<CreateTicketView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Department mode toggle ─────────────────────────
+                  _FieldLabel(
+                    label: 'Department Mode',
+                    icon: Icons.swap_horiz_rounded,
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: ThemeColors.unifiedInputBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: ThemeColors.unifiedBorder,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() {
+                              _multiDept = false;
+                              _selectedDepartments = [];
+                            }),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: !_multiDept
+                                    ? ThemeColors.unifiedPrimary
+                                    : Colors.transparent,
+                                borderRadius:
+                                    const BorderRadius.horizontal(
+                                      left: Radius.circular(9),
+                                    ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Single Department',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: !_multiDept
+                                        ? Colors.white
+                                        : ThemeColors.unifiedTextMuted,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () =>
+                                setState(() => _multiDept = true),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _multiDept
+                                    ? ThemeColors.unifiedPrimary
+                                    : Colors.transparent,
+                                borderRadius:
+                                    const BorderRadius.horizontal(
+                                      right: Radius.circular(9),
+                                    ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  'Multi Department',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: _multiDept
+                                        ? Colors.white
+                                        : ThemeColors.unifiedTextMuted,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
                   isWide
                       ? _WideFormLayout(
                           titleCtrl: _title,
@@ -89,9 +190,14 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                           canAssignEmployee: canAssignEmployee,
                           selfAssign: _selfAssign,
                           submitting: _submitting,
+                          multiDept: _multiDept,
+                          selectedDepartments: _selectedDepartments,
+                          availableDepartments: availableDepartments,
                           onPriorityChanged:
                               (v) => setState(() => _priority = v),
                           onDeptChanged: _onDeptChanged,
+                          onAddDepartment: _onAddDepartment,
+                          onRemoveDepartment: _onRemoveDepartment,
                           onEmployeeChanged: (v) =>
                               setState(() => _selectedEmployee = v),
                           onSelfAssignChanged: (v) =>
@@ -110,9 +216,14 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                           canAssignEmployee: canAssignEmployee,
                           selfAssign: _selfAssign,
                           submitting: _submitting,
+                          multiDept: _multiDept,
+                          selectedDepartments: _selectedDepartments,
+                          availableDepartments: availableDepartments,
                           onPriorityChanged:
                               (v) => setState(() => _priority = v),
                           onDeptChanged: _onDeptChanged,
+                          onAddDepartment: _onAddDepartment,
+                          onRemoveDepartment: _onRemoveDepartment,
                           onEmployeeChanged: (v) =>
                               setState(() => _selectedEmployee = v),
                           onSelfAssignChanged: (v) =>
@@ -121,47 +232,54 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                           onSubmit: _submit,
                         ),
 
-                  // Cross-department sub-ticket fields
-                  if (_selectedDepartment != null &&
-                      _selectedDepartment!.id !=
-                          widget.user.departmentId &&
-                      widget.parentTicketId == null) ...[
+                  // ── Sub-ticket fields ──────────────────────────────
+                  if (widget.parentTicketId == null && (_multiDept ||
+                      (_selectedDepartment != null &&
+                          _selectedDepartment!.id !=
+                              widget.user.departmentId))) ...[
                     const SizedBox(height: 20),
                     const Divider(
                       color: ThemeColors.unifiedBorder,
                       height: 1,
                     ),
                     const SizedBox(height: 16),
-                    _FieldLabel(
-                      label: 'Sub-Ticket Title',
-                      icon: Icons.subdirectory_arrow_right_rounded,
-                      required: true,
-                    ),
-                    const SizedBox(height: 8),
-                    _StyledTextField(
-                      controller: _subTitle,
-                      hint: 'Title for the sub-ticket in target department',
-                      validator: (v) =>
-                          v == null || v.isEmpty
-                              ? 'Sub-ticket title is required'
-                              : null,
-                    ),
-                    const SizedBox(height: 16),
-                    _FieldLabel(
-                      label: 'Sub-Ticket Description',
-                      icon: Icons.notes_rounded,
-                      required: true,
-                    ),
-                    const SizedBox(height: 8),
-                    _StyledTextField(
-                      controller: _subDescription,
-                      hint: 'Describe the sub-ticket task in detail...',
-                      maxLines: 3,
-                      validator: (v) =>
-                          v == null || v.isEmpty
-                              ? 'Sub-ticket description is required'
-                              : null,
-                    ),
+                    if (_multiDept && _selectedDepartments.isNotEmpty) ...[
+                      _MultiDeptSection(
+                        departments: _selectedDepartments,
+                        formData: _deptFormData,
+                      ),
+                    ] else ...[
+                      _FieldLabel(
+                        label: 'Sub-Ticket Title',
+                        icon: Icons.subdirectory_arrow_right_rounded,
+                        required: true,
+                      ),
+                      const SizedBox(height: 8),
+                      _StyledTextField(
+                        controller: _subTitle,
+                        hint: 'Title for the sub-ticket in target department',
+                        validator: (v) =>
+                            v == null || v.isEmpty
+                                ? 'Sub-ticket title is required'
+                                : null,
+                      ),
+                      const SizedBox(height: 16),
+                      _FieldLabel(
+                        label: 'Sub-Ticket Description',
+                        icon: Icons.notes_rounded,
+                        required: true,
+                      ),
+                      const SizedBox(height: 8),
+                      _StyledTextField(
+                        controller: _subDescription,
+                        hint: 'Describe the sub-ticket task in detail...',
+                        maxLines: 3,
+                        validator: (v) =>
+                            v == null || v.isEmpty
+                                ? 'Sub-ticket description is required'
+                                : null,
+                      ),
+                    ],
                   ],
                 ],
               ),
@@ -178,6 +296,21 @@ class _CreateTicketViewState extends State<CreateTicketView> {
       _selectedEmployee = null;
     });
     context.read<DashboardBloc>().add(LoadEmployeesForDept(value.id));
+  }
+
+  void _onAddDepartment(Departments dept) {
+    setState(() {
+      _selectedDepartments.add(dept);
+      _deptFormData[dept.id] = _DeptFormData();
+    });
+  }
+
+  void _onRemoveDepartment(Departments dept) {
+    setState(() {
+      _selectedDepartments.removeWhere((s) => s.id == dept.id);
+      _deptFormData[dept.id]?.dispose();
+      _deptFormData.remove(dept.id);
+    });
   }
 
   Future<void> _pickDate() async {
@@ -204,31 +337,61 @@ class _CreateTicketViewState extends State<CreateTicketView> {
 
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_selectedDepartment == null) {
-      _showSnack('Please select a department', isError: true);
-      return;
+
+    if (_multiDept) {
+      if (_selectedDepartments.isEmpty) {
+        _showSnack('Please select at least one department', isError: true);
+        return;
+      }
+      // Validate per-department fields
+      for (final dept in _selectedDepartments) {
+        final fd = _deptFormData[dept.id];
+        if (fd == null || fd.titleCtrl.text.trim().isEmpty || fd.descCtrl.text.trim().isEmpty) {
+          _showSnack('Please fill Title and Description for ${dept.name}', isError: true);
+          return;
+        }
+      }
+    } else {
+      if (_selectedDepartment == null) {
+        _showSnack('Please select a department', isError: true);
+        return;
+      }
     }
 
     setState(() => _submitting = true);
 
-    final isCrossDept = _selectedDepartment != null &&
-        _selectedDepartment!.id != widget.user.departmentId &&
-        widget.parentTicketId == null;
+    final showSubFields = widget.parentTicketId == null && !_multiDept &&
+        (_selectedDepartment != null &&
+            _selectedDepartment!.id != widget.user.departmentId);
+
+    final deptTickets = _multiDept
+        ? _selectedDepartments.map((d) {
+            final fd = _deptFormData[d.id]!;
+            return DeptTicketData(
+              departmentId: d.id,
+              title: fd.titleCtrl.text.trim(),
+              description: fd.descCtrl.text.trim(),
+            );
+          }).toList()
+        : null;
 
     context.read<DashboardBloc>().add(
       CreateTicketEvent(
         title: _title.text.trim(),
         description: _description.text.trim(),
         priority: _priority.name,
-        assignedDeptId: _selectedDepartment?.id ?? widget.user.departmentId,
+        departmentIds: _multiDept
+            ? _selectedDepartments.map((d) => d.id).toList()
+            : [_selectedDepartment!.id],
         assignedToId: _selectedEmployee?.id,
         createdById: widget.user.id,
         createdByDept: widget.user.departmentId,
         dueDate: _dueDate,
         parentTicketId: widget.parentTicketId,
         selfAssign: _selfAssign,
-        subTitle: isCrossDept ? _subTitle.text.trim() : null,
-        subDescription: isCrossDept ? _subDescription.text.trim() : null,
+        subTitle: showSubFields ? _subTitle.text.trim() : null,
+        subDescription: showSubFields ? _subDescription.text.trim() : null,
+        deptTickets: deptTickets,
       ),
     );
 
@@ -253,8 +416,9 @@ class _CreateTicketViewState extends State<CreateTicketView> {
 class _PageHeader extends StatelessWidget {
   final int? parentId;
   final String? parentTitle;
+  final bool isMulti;
 
-  const _PageHeader({this.parentId, this.parentTitle});
+  const _PageHeader({this.parentId, this.parentTitle, this.isMulti = false});
 
   @override
   Widget build(BuildContext context) {
@@ -318,18 +482,18 @@ class _PageHeader extends StatelessWidget {
             const SizedBox(width: 14),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  'Create Standard Ticket',
-                  style: TextStyle(
+                  isMulti ? 'Create Multi Ticket' : 'Create Standard Ticket',
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: ThemeColors.unifiedTextPrimary,
                     letterSpacing: -0.4,
                   ),
                 ),
-                SizedBox(height: 2),
-                Text(
+                const SizedBox(height: 2),
+                const Text(
                   'Fill in the details and assign to a department.',
                   style: TextStyle(
                     fontSize: 13,
@@ -341,6 +505,48 @@ class _PageHeader extends StatelessWidget {
             ),
           ],
         ),
+      ],
+    );
+  }
+}
+
+// ── Field label ───────────────────────────────────────────────────────────────
+class _FieldLabel extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool required;
+
+  const _FieldLabel({
+    required this.label,
+    required this.icon,
+    this.required = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: ThemeColors.unifiedTextMuted),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: ThemeColors.unifiedTextPrimary,
+          ),
+        ),
+        if (required) ...[
+          const SizedBox(width: 3),
+          const Text(
+            '*',
+            style: TextStyle(
+              fontSize: 13,
+              color: ThemeColors.unifiedDanger,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -396,9 +602,13 @@ class _WideFormLayout extends StatelessWidget {
   final EmployeeModel? selectedEmployee;
   final String? dueDate;
   final List<EmployeeModel> employeeList;
-  final bool canAssignEmployee, submitting, selfAssign;
+  final bool canAssignEmployee, submitting, selfAssign, multiDept;
+  final List<Departments> selectedDepartments;
+  final List<Departments> availableDepartments;
   final ValueChanged<Priorities> onPriorityChanged;
   final ValueChanged<Departments> onDeptChanged;
+  final ValueChanged<Departments> onAddDepartment;
+  final ValueChanged<Departments> onRemoveDepartment;
   final ValueChanged<EmployeeModel> onEmployeeChanged;
   final ValueChanged<bool> onSelfAssignChanged;
   final VoidCallback onDateTap, onSubmit;
@@ -414,8 +624,13 @@ class _WideFormLayout extends StatelessWidget {
     required this.canAssignEmployee,
     required this.selfAssign,
     required this.submitting,
+    required this.multiDept,
+    required this.selectedDepartments,
+    required this.availableDepartments,
     required this.onPriorityChanged,
     required this.onDeptChanged,
+    required this.onAddDepartment,
+    required this.onRemoveDepartment,
     required this.onEmployeeChanged,
     required this.onSelfAssignChanged,
     required this.onDateTap,
@@ -461,18 +676,50 @@ class _WideFormLayout extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _FieldLabel(
-                    label: 'Assign to Department',
+                    label: multiDept
+                        ? 'Assign to Departments'
+                        : 'Assign to Department',
                     icon: Icons.business_outlined,
                     required: true,
                   ),
                   const SizedBox(height: 8),
-                  _StyledDropdown<Departments>(
-                    hint: 'Select Department',
-                    value: selectedDept,
-                    items: departments,
-                    labelBuilder: (e) => e.name,
-                    onChanged: onDeptChanged,
-                  ),
+                  if (multiDept) ...[
+                    _StyledDropdown<Departments>(
+                      hint: 'Add department...',
+                      value: null,
+                      items: availableDepartments
+                          .where(
+                            (d) =>
+                                !selectedDepartments
+                                    .any((s) => s.id == d.id),
+                          )
+                          .toList(),
+                      labelBuilder: (e) => e.name,
+                      onChanged: onAddDepartment,
+                    ),
+                    if (selectedDepartments.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children:
+                            selectedDepartments.map((d) {
+                              return _DepartmentChip(
+                                department: d,
+                                onRemove: () =>
+                                    onRemoveDepartment(d),
+                              );
+                            }).toList(),
+                      ),
+                    ],
+                  ] else
+                    _StyledDropdown<Departments>(
+                      hint: 'Select Department',
+                      value: selectedDept,
+                      items: departments,
+                      labelBuilder: (e) => e.name,
+                      onChanged: onDeptChanged,
+                    ),
                 ],
               ),
             ),
@@ -568,9 +815,13 @@ class _NarrowFormLayout extends StatelessWidget {
   final EmployeeModel? selectedEmployee;
   final String? dueDate;
   final List<EmployeeModel> employeeList;
-  final bool canAssignEmployee, submitting, selfAssign;
+  final bool canAssignEmployee, submitting, selfAssign, multiDept;
+  final List<Departments> selectedDepartments;
+  final List<Departments> availableDepartments;
   final ValueChanged<Priorities> onPriorityChanged;
   final ValueChanged<Departments> onDeptChanged;
+  final ValueChanged<Departments> onAddDepartment;
+  final ValueChanged<Departments> onRemoveDepartment;
   final ValueChanged<EmployeeModel> onEmployeeChanged;
   final ValueChanged<bool> onSelfAssignChanged;
   final VoidCallback onDateTap, onSubmit;
@@ -586,8 +837,13 @@ class _NarrowFormLayout extends StatelessWidget {
     required this.canAssignEmployee,
     required this.selfAssign,
     required this.submitting,
+    required this.multiDept,
+    required this.selectedDepartments,
+    required this.availableDepartments,
     required this.onPriorityChanged,
     required this.onDeptChanged,
+    required this.onAddDepartment,
+    required this.onRemoveDepartment,
     required this.onEmployeeChanged,
     required this.onSelfAssignChanged,
     required this.onDateTap,
@@ -624,18 +880,49 @@ class _NarrowFormLayout extends StatelessWidget {
         const SizedBox(height: 20),
 
         _FieldLabel(
-          label: 'Assign to Department',
+          label: multiDept
+              ? 'Assign to Departments'
+              : 'Assign to Department',
           icon: Icons.business_outlined,
           required: true,
         ),
         const SizedBox(height: 8),
-        _StyledDropdown<Departments>(
-          hint: 'Select Department',
-          value: selectedDept,
-          items: departments,
-          labelBuilder: (e) => e.name,
-          onChanged: onDeptChanged,
-        ),
+        if (multiDept) ...[
+          _StyledDropdown<Departments>(
+            hint: 'Add department...',
+            value: null,
+            items: availableDepartments
+                .where(
+                  (d) =>
+                      !selectedDepartments
+                          .any((s) => s.id == d.id),
+                )
+                .toList(),
+            labelBuilder: (e) => e.name,
+            onChanged: onAddDepartment,
+          ),
+          if (selectedDepartments.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children:
+                  selectedDepartments.map((d) {
+                    return _DepartmentChip(
+                      department: d,
+                      onRemove: () => onRemoveDepartment(d),
+                    );
+                  }).toList(),
+            ),
+          ],
+        ] else
+          _StyledDropdown<Departments>(
+            hint: 'Select Department',
+            value: selectedDept,
+            items: departments,
+            labelBuilder: (e) => e.name,
+            onChanged: onDeptChanged,
+          ),
         const SizedBox(height: 20),
 
         _FieldLabel(
@@ -674,48 +961,6 @@ class _NarrowFormLayout extends StatelessWidget {
         const SizedBox(height: 28),
 
         _SubmitButton(submitting: submitting, onTap: onSubmit, wide: false),
-      ],
-    );
-  }
-}
-
-// ── Field label ───────────────────────────────────────────────────────────────
-class _FieldLabel extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool required;
-
-  const _FieldLabel({
-    required this.label,
-    required this.icon,
-    this.required = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: ThemeColors.unifiedTextMuted),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: ThemeColors.unifiedTextPrimary,
-          ),
-        ),
-        if (required) ...[
-          const SizedBox(width: 3),
-          const Text(
-            '*',
-            style: TextStyle(
-              fontSize: 13,
-              color: ThemeColors.unifiedDanger,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -1080,6 +1325,242 @@ class _SubmitButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ── Department chip for multi-select ──────────────────────────────────────────
+class _DepartmentChip extends StatelessWidget {
+  final Departments department;
+  final VoidCallback onRemove;
+
+  const _DepartmentChip({
+    required this.department,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(left: 10, right: 4, top: 4, bottom: 4),
+      decoration: BoxDecoration(
+        color: ThemeColors.unifiedPrimary.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: ThemeColors.unifiedPrimary.withOpacity(0.25),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            department.name,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: ThemeColors.unifiedPrimary,
+            ),
+          ),
+          const SizedBox(width: 2),
+          GestureDetector(
+            onTap: onRemove,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              child: const Icon(
+                Icons.close_rounded,
+                size: 14,
+                color: ThemeColors.unifiedTextMuted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Per-department section (multi mode) ────────────────────────────────────────
+class _MultiDeptSection extends StatelessWidget {
+  final List<Departments> departments;
+  final Map<int, _DeptFormData> formData;
+
+  const _MultiDeptSection({
+    required this.departments,
+    required this.formData,
+  });
+
+  static const _deptColors = [
+    Color(0xFF4F46E5),
+    Color(0xFF0891B2),
+    Color(0xFF059669),
+    Color(0xFFD97706),
+    Color(0xFFDC2626),
+    Color(0xFF7C3AED),
+    Color(0xFFDB2777),
+    Color(0xFF2563EB),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              Icons.dashboard_customize_rounded,
+              size: 16,
+              color: ThemeColors.unifiedTextMuted,
+            ),
+            const SizedBox(width: 6),
+            const Text(
+              'Department Tickets',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: ThemeColors.unifiedTextPrimary,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: ThemeColors.unifiedPrimary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${departments.length} depts',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: ThemeColors.unifiedPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        ...departments.asMap().entries.map((entry) {
+          final idx = entry.key;
+          final dept = entry.value;
+          final fd = formData[dept.id];
+          final color = _deptColors[idx % _deptColors.length];
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 14),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: color.withOpacity(0.2), width: 1.5),
+            ),
+            clipBehavior: Clip.hardEdge,
+            child: Column(
+              children: [
+                // Dept header bar
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: color.withOpacity(0.15),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        dept.name,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: color,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'Ticket #${idx + 1}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: color.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Fields
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _FieldLabel(
+                        label: 'Title',
+                        icon: Icons.title_rounded,
+                        required: true,
+                      ),
+                      const SizedBox(height: 6),
+                      _StyledTextField(
+                        controller: fd?.titleCtrl ?? TextEditingController(),
+                        hint: 'Title for ${dept.name} sub-ticket',
+                        validator: (v) =>
+                            v == null || v.isEmpty
+                                ? 'Title is required for ${dept.name}'
+                                : null,
+                      ),
+                      const SizedBox(height: 12),
+                      _FieldLabel(
+                        label: 'Description',
+                        icon: Icons.notes_rounded,
+                        required: true,
+                      ),
+                      const SizedBox(height: 6),
+                      _StyledTextField(
+                        controller: fd?.descCtrl ?? TextEditingController(),
+                        hint: 'Describe task for ${dept.name}...',
+                        maxLines: 2,
+                        validator: (v) =>
+                            v == null || v.isEmpty
+                                ? 'Description is required for ${dept.name}'
+                                : null,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+// ── Per-department form data (multi mode) ─────────────────────────────────────
+class _DeptFormData {
+  final TextEditingController titleCtrl;
+  final TextEditingController descCtrl;
+  _DeptFormData({String title = '', String description = ''})
+      : titleCtrl = TextEditingController(text: title),
+        descCtrl = TextEditingController(text: description);
+  void dispose() {
+    titleCtrl.dispose();
+    descCtrl.dispose();
   }
 }
 
