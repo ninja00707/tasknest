@@ -29,6 +29,7 @@ router.patch('/:id/sub-departments/:deptId/reopen', controller.reopenSubDept);
 router.get('/', controller.getTickets);
 router.get('/:id', controller.getTicket);
 router.post('/', controller.createTicket);
+router.patch('/:id', controller.updateTicket);
 
 // ── Actions ───────────────────────────────────────────────────
 router.patch('/:id/status', controller.updateStatus);

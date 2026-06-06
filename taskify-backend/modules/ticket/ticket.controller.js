@@ -257,6 +257,19 @@ class TicketController {
       next(err);
     }
   }
+
+  async updateTicket(req, res, next) {
+    try {
+      const updated = await ticketService.updateTicket(
+        req.params.id,
+        req.user,
+        req.body
+      );
+      res.json({ success: true, data: updated });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new TicketController();

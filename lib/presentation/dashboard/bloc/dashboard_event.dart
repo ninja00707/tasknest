@@ -229,3 +229,10 @@ class AddTicketComment extends DashboardEvent {
   @override
   List<Object?> get props => [ticketId, message];
 }
+
+class UpdateNotificationCount extends DashboardEvent {
+  final int count;
+  UpdateNotificationCount(this.count);
+  @override
+  List<Object?> get props => [count];
+}

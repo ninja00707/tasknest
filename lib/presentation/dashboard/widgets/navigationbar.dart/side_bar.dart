@@ -1,10 +1,13 @@
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/constant/name_by_id.dart';
 import 'package:tasknest/core/theme/color.dart';
-
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/nav_items.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/notification_panel.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class Sidebar extends StatelessWidget {
@@ -145,6 +148,61 @@ class Sidebar extends StatelessWidget {
             onTap: onNav,
           ),
 
+          // Notification bell
+          BlocSelector<DashboardBloc, DashboardState, int>(
+            selector: (state) => state is DashboardLoaded ? state.unreadNotificationCount : 0,
+            builder: (context, count) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: InkWell(
+                onTap: () => NotificationPanel.show(context),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  child: Row(
+                    children: [
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Icon(Icons.notifications_outlined, size: 19, color: ThemeColors.unifiedTextMuted),
+                          if (count > 0)
+                            Positioned(
+                              right: -6,
+                              top: -6,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: const BoxDecoration(
+                                  color: ThemeColors.unifiedDanger,
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                                child: Text(
+                                  count > 99 ? '99+' : '$count',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Notifications',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: ThemeColors.unifiedTextMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
           const Spacer(),
           Container(
             margin: const EdgeInsets.all(12),

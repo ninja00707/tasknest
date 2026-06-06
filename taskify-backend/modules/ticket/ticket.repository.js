@@ -635,6 +635,33 @@ class TicketRepository {
     return await this.getTicketDetails(ticketId);
   }
 
+  // ── Update generic ticket fields ──────────────────────────────────────────
+  async updateTicketField(ticketId, userId, fields) {
+    const allowed = ['title', 'description', 'priority', 'due_date', 'dueDate'];
+    const sets = [];
+    const params = [];
+    let idx = 1;
+
+    for (const [key, value] of Object.entries(fields)) {
+      if (allowed.includes(key)) {
+        // Map camelCase keys to snake_case columns
+        const col = key === 'dueDate' || key === 'due_date' ? 'due_date' : key;
+        sets.push(`${col} = $${idx++}`);
+        params.push(value);
+      }
+    }
+
+    if (sets.length === 0) return null;
+
+    params.push(ticketId);
+    await pool.query(`
+      UPDATE tickets SET ${sets.join(', ')}, updated_at = NOW()
+      WHERE id = $${idx}
+    `, params);
+
+    return await this.getTicketDetails(ticketId);
+  }
+
   // ── Self-assign open ticket (employee only) ───────────────────────────────
   async selfAssign(ticketId, userId) {
     const result = await pool.query(`
@@ -889,6 +916,14 @@ class TicketRepository {
     return result.rows[0];
   }
 
+  async getUnreadCount(userId) {
+    const result = await pool.query(`
+      SELECT COUNT(*) AS count FROM notifications
+      WHERE user_id = $1 AND is_read = FALSE
+    `, [userId]);
+    return parseInt(result.rows[0].count, 10);
+  }
+
   // ── Find Users to Notify ─────────────────────────────────────────────────
   async getManagersByDepartment(departmentId) {
     const result = await pool.query(`
@@ -901,11 +936,45 @@ class TicketRepository {
 
   async getTicketParticipants(ticketId) {
     const result = await pool.query(`
-      SELECT created_by_id, assigned_to_id FROM tickets WHERE id = $1
+      WITH RECURSIVE chain AS (
+        SELECT id, parent_ticket_id, created_by_id, assigned_to_id, created_by_dept, assigned_dept_id
+        FROM tickets WHERE id = $1
+        UNION ALL
+        SELECT t.id, t.parent_ticket_id, t.created_by_id, t.assigned_to_id, t.created_by_dept, t.assigned_dept_id
+        FROM tickets t
+        INNER JOIN chain c ON c.parent_ticket_id = t.id
+      )
+      SELECT DISTINCT user_id FROM (
+        -- All creators in the chain
+        SELECT created_by_id AS user_id FROM chain
+        UNION
+        -- All direct assignees in the chain
+        SELECT assigned_to_id FROM chain WHERE assigned_to_id IS NOT NULL
+        UNION
+        -- All sub-department assignees for all tickets in the chain
+        SELECT std.assigned_to_id FROM chain c
+        JOIN sub_ticket_departments std ON std.ticket_id = c.id
+        WHERE std.assigned_to_id IS NOT NULL
+        UNION
+        -- Managers of ALL departments involved across the chain
+        SELECT u.id FROM users u
+        JOIN roles r ON r.id = u.role_id
+        WHERE r.name = 'manager'
+          AND u.department_id IN (
+            SELECT created_by_dept FROM chain WHERE created_by_dept IS NOT NULL
+            UNION
+            SELECT assigned_dept_id FROM chain WHERE assigned_dept_id IS NOT NULL
+            UNION
+            SELECT department_id FROM sub_ticket_departments WHERE ticket_id IN (SELECT id FROM chain)
+          )
+        UNION
+        -- Always include CEO
+        SELECT u.id FROM users u
+        JOIN roles r ON r.id = u.role_id
+        WHERE r.name = 'ceo'
+      ) sub
     `, [ticketId]);
-    const row = result.rows[0];
-    if (!row) return [];
-    return [...new Set([row.created_by_id, row.assigned_to_id])].filter(id => id != null);
+    return result.rows.map(r => r.user_id);
   }
 
   // ── Get user by ID ───────────────────────────────────────────────────────

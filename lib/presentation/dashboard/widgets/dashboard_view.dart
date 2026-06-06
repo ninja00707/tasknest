@@ -5,7 +5,6 @@ import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/constant/name_by_id.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_section_headers.dart';
-import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
@@ -17,28 +16,13 @@ import 'package:tasknest/presentation/login/bloc/login_event.dart';
 
 class DashboardView extends StatelessWidget {
   final DashboardLoaded state;
-  const DashboardView({super.key, required this.state});
+  final UserModel user;
+  const DashboardView({super.key, required this.state, required this.user});
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<UserModel?>(
-      future: LocalStorageService().getUser(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: ThemeColors.unifiedPrimary),
-          );
-        }
-        if (!snapshot.hasData || snapshot.hasError) {
-          return const Center(child: Text('Failed to load user'));
-        }
-
-        final user = snapshot.data!;
-        final isManager = user.roleId == 0 || user.roleId == 1;
-
-        return _DashboardBody(state: state, user: user, isManager: isManager);
-      },
-    );
+    final isManager = user.roleId == 0 || user.roleId == 1;
+    return _DashboardBody(state: state, user: user, isManager: isManager);
   }
 }
 

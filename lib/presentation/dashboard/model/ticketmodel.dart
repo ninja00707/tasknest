@@ -432,6 +432,7 @@ class NotificationModel {
   final String message;
   final bool isRead;
   final DateTime createdAt;
+  final String? ticketNumber;
 
   const NotificationModel({
     required this.id,
@@ -439,6 +440,7 @@ class NotificationModel {
     required this.message,
     required this.isRead,
     required this.createdAt,
+    this.ticketNumber,
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> j) =>
@@ -448,5 +450,6 @@ class NotificationModel {
         message: j['message'] ?? '',
         isRead: j['is_read'] ?? false,
         createdAt: DateTime.parse(j['created_at']),
+        ticketNumber: j['ticket_number'],
       );
 }

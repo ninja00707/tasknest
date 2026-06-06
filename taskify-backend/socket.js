@@ -1,13 +1,19 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 
-function setupSocketIO(server) {
+function setupSocketIO(server, isWorker = false) {
   const io = new Server(server, {
     cors: {
       origin: '*',
       methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     },
   });
+
+  // ── Cluster adapter (cross-worker event propagation) ─────────────
+  if (isWorker) {
+    const { createAdapter } = require('@socket.io/cluster-adapter');
+    io.adapter(createAdapter());
+  }
 
   // ── Authentication middleware ──────────────────────────────────
   io.use((socket, next) => {
@@ -42,6 +48,7 @@ function setupSocketIO(server) {
   });
 
   global.io = io;
+  return io;
 }
 
 module.exports = { setupSocketIO };

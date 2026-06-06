@@ -33,7 +33,7 @@ class DashboardViewContent extends StatelessWidget {
       builder: (context, state) {
         final loaded = _tryResolve(state);
         if (loaded == null) return _loading();
-        return DashboardView(state: loaded);
+        return DashboardView(state: loaded, user: user);
       },
     );
   }

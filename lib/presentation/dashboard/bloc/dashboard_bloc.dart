@@ -32,11 +32,23 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<ReopenSubDept>(_onReopenSubDept);
     on<AddTicketComment>(_onAddComment);
     on<SidebarSelectedIndexEvent>(_onSelectedIndex);
+    on<UpdateNotificationCount>(_onUpdateNotificationCount);
     on<LoadManagerAnalytics>(_onLoadManagerAnalytics);
     on<LoadCeoAnalytics>(_onLoadCeoAnalytics);
 
-    _listenToSocket();
+    _initSocket();
   }
+
+  Future<void> _onUpdateNotificationCount(
+    UpdateNotificationCount event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final loaded = _getLoadedStateOrNull();
+    if (loaded != null) {
+      emit(loaded.copyWith(unreadNotificationCount: event.count));
+    }
+  }
+
   // Extract DashboardLoaded from current state (handles error states)
   DashboardLoaded _getLoadedState() {
     final s = state;
@@ -46,16 +58,36 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     throw StateError('Expected DashboardLoaded but got ${s.runtimeType}');
   }
 
-  // ── Socket ────────────────────────────────────────────────────────
-  void _listenToSocket() {
-    _socketSub = SocketService().events.listen((event) {
-      if (!isClosed) add(LoadDashboard());
-    });
+  DashboardLoaded? _getLoadedStateOrNull() {
+    final s = state;
+    if (s is DashboardLoaded) return s;
+    if (s is DashboardActionError) return s.previousState;
+    if (s is DashboardActionSuccess) return s.previousState;
+    return null;
   }
 
-  Future<void> _connectSocket() async {
+  // ── Socket ────────────────────────────────────────────────────────
+  Timer? _socketDebounce;
+
+  Future<void> _initSocket() async {
     final token = await LocalStorageService().getToken();
     final user = await LocalStorageService().getUser();
+
+    // Subscribe to events regardless of connection state
+    _socketSub = SocketService().events.listen((event) {
+      if (isClosed) return;
+      if (event.type == 'NOTIFICATION_COUNT') {
+        final count = event.data['count'] as int?;
+        if (count != null) add(UpdateNotificationCount(count));
+        return;
+      }
+      _socketDebounce?.cancel();
+      _socketDebounce = Timer(const Duration(milliseconds: 500), () {
+        if (!isClosed) add(LoadDashboard());
+      });
+    });
+
+    // Connect socket if credentials are available
     if (token != null && user != null) {
       SocketService().connect(
         token,
@@ -68,6 +100,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   @override
   Future<void> close() {
     _socketSub?.cancel();
+    _socketDebounce?.cancel();
     return super.close();
   }
 
@@ -117,9 +150,12 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       final stats = await _dataSource.getStats();
       final tickets = await _dataSource.getTickets();
       final departments = await _dataSource.getDepartments();
-      final employees = user.roleId == 1
+      // Only fetch employees on initial load (rarely changes)
+      final needsEmployees = user.roleId == 1;
+      final currentEmployees = _getLoadedStateOrNull()?.employees ?? <EmployeeModel>[];
+      final employees = needsEmployees && currentEmployees.isEmpty
           ? await _dataSource.getEmployees(departmentId: user.departmentId)
-          : <EmployeeModel>[];
+          : currentEmployees;
       final sentTickets = await _dataSource.getSentTickets();
 
       emit(
@@ -133,8 +169,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         ),
       );
 
-      // Connect socket for real-time updates
-      await _connectSocket();
     } catch (e) {
       emit(DashboardError(_getFriendlyErrorMessage(e)));
     }
