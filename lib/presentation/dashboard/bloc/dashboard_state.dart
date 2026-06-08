@@ -125,6 +125,14 @@ class SidebarSelectedIndexState extends DashboardState {
   List<Object?> get props => [sidebarSelectedIndexState];
 }
 
+class TicketDetailLoaded extends DashboardState {
+  final TicketModel ticket;
+  final DashboardLoaded previousState;
+  TicketDetailLoaded(this.ticket, this.previousState);
+  @override
+  List<Object?> get props => [ticket, previousState];
+}
+
 class AnalyticsLoading extends DashboardState {}
 
 class ManagerAnalyticsLoaded extends DashboardState {

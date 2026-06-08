@@ -62,5 +62,40 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       emit(const AuthUnauthenticated());
     });
+
+    on<ForgotPasswordEvent>((event, emit) async {
+      emit(AuthLoading(obscurePassword: obscurePassword));
+
+      try {
+        final result = await authRepository.forgotPassword(event.email);
+
+        emit(AuthForgotPasswordSent(
+          message: result.message,
+          resetToken: result.resetToken,
+          expiresIn: result.expiresIn,
+          email: event.email,
+        ));
+      } catch (e) {
+        emit(AuthForgotPasswordError(e.toString()));
+      }
+    });
+
+    on<ResetPasswordEvent>((event, emit) async {
+      emit(AuthLoading(obscurePassword: obscurePassword));
+
+      try {
+        await authRepository.resetPassword(
+          email: event.email,
+          code: event.code,
+          newPassword: event.newPassword,
+        );
+
+        emit(AuthResetPasswordSuccess(
+          'Password reset successful! You can now log in with your new password.',
+        ));
+      } catch (e) {
+        emit(AuthResetPasswordError(e.toString()));
+      }
+    });
   }
 }

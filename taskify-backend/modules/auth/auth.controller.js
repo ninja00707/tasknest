@@ -54,19 +54,37 @@ exports.login = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    
     const result = await service.forgotPassword(email);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+      data: { resetToken: result.resetToken, expiresIn: result.expiresIn },
+    });
+  } catch (err) {
+    console.error('Forgot Password Error:', err);
+    return res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'An unexpected error occurred',
+      error: process.env.NODE_ENV === 'development' ? err.toString() : undefined,
+    });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+    const result = await service.resetPassword({ email, code, newPassword });
 
     return res.status(200).json({
       success: true,
       message: result.message,
     });
   } catch (err) {
-    console.error('Forgot Password Error:', err);
-    
+    console.error('Reset Password Error:', err);
     return res.status(err.statusCode || 500).json({
       success: false,
-      message: err.message || 'An unexpected error occurred during password reset',
+      message: err.message || 'An unexpected error occurred',
       error: process.env.NODE_ENV === 'development' ? err.toString() : undefined,
     });
   }

@@ -589,6 +589,28 @@ class TicketRepository {
     }
 
     if (!isAssignedDept && !isCreatorDept && !isTransferrer && !isResolver && !isSubTicketDept) {
+      // Check if user's department is anywhere in the project tree's journey
+      // (covers: any descendant's creator/assignee dept, transferred depts, etc.)
+      if (Array.isArray(ticket.dept_journey) && ticket.dept_journey.some(
+        step => Number(step.id) === Number(user.department_id)
+      )) {
+        return ticket;
+      }
+      // For sub-tickets, also walk up the parent chain
+      if (ticket.parent_ticket_id) {
+        let parentId = ticket.parent_ticket_id;
+        while (parentId) {
+          const parent = await this.getTicketDetails(parentId);
+          if (!parent) break;
+          const hasParentAccess =
+            Number(parent.created_by_dept) === Number(user.department_id) ||
+            Number(parent.assigned_dept_id) === Number(user.department_id) ||
+            Number(parent.transferred_from) === Number(user.department_id) ||
+            parent.assigned_to_id === user.id;
+          if (hasParentAccess) return ticket;
+          parentId = parent.parent_ticket_id;
+        }
+      }
       return { forbidden: true };
     }
 

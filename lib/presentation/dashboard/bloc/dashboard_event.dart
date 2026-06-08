@@ -235,6 +235,15 @@ class AddTicketComment extends DashboardEvent {
   List<Object?> get props => [ticketId, message];
 }
 
+class LoadTicketDetail extends DashboardEvent {
+  final int ticketId;
+  LoadTicketDetail(this.ticketId);
+  @override
+  List<Object?> get props => [ticketId];
+}
+
+class ClearTicketDetail extends DashboardEvent {}
+
 class UpdateNotificationCount extends DashboardEvent {
   final int count;
   UpdateNotificationCount(this.count);

@@ -99,7 +99,6 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                           descCtrl: _description,
                           priority: _priority,
                           selectedEmployee: _selectedEmployee,
-                          dueDate: _dueDate,
                           employeeList: employeeList,
                           canAssignEmployee: canAssignEmployee && !_isMulti,
                           selfAssign: _selfAssign,
@@ -115,7 +114,6 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                               setState(() => _selectedEmployee = v),
                           onSelfAssignChanged: (v) =>
                               setState(() => _selfAssign = v),
-                          onDateTap: _pickDate,
                           onSubmit: _submit,
                         )
                       : _NarrowFormLayout(
@@ -123,7 +121,6 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                           descCtrl: _description,
                           priority: _priority,
                           selectedEmployee: _selectedEmployee,
-                          dueDate: _dueDate,
                           employeeList: employeeList,
                           canAssignEmployee: canAssignEmployee && !_isMulti,
                           selfAssign: _selfAssign,
@@ -139,7 +136,6 @@ class _CreateTicketViewState extends State<CreateTicketView> {
                               setState(() => _selectedEmployee = v),
                           onSelfAssignChanged: (v) =>
                               setState(() => _selfAssign = v),
-                          onDateTap: _pickDate,
                           onSubmit: _submit,
                         ),
 
@@ -289,7 +285,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
         assignedToId: _isMulti ? null : _selectedEmployee?.id,
         createdById: widget.user.id,
         createdByDept: widget.user.departmentId,
-        dueDate: _dueDate,
+        dueDate: null,
         parentTicketId: widget.parentTicketId,
         selfAssign: _selfAssign,
         subTitle: _isCrossDept ? _subTitle.text.trim() : null,
@@ -502,7 +498,6 @@ class _WideFormLayout extends StatelessWidget {
   final TextEditingController titleCtrl, descCtrl;
   final Priorities priority;
   final EmployeeModel? selectedEmployee;
-  final String? dueDate;
   final List<EmployeeModel> employeeList;
   final bool canAssignEmployee, submitting, selfAssign, isMulti;
   final List<Departments> selectedDepartments;
@@ -512,14 +507,13 @@ class _WideFormLayout extends StatelessWidget {
   final ValueChanged<Departments> onRemoveDepartment;
   final ValueChanged<EmployeeModel> onEmployeeChanged;
   final ValueChanged<bool> onSelfAssignChanged;
-  final VoidCallback onDateTap, onSubmit;
+  final VoidCallback onSubmit;
 
   const _WideFormLayout({
     required this.titleCtrl,
     required this.descCtrl,
     required this.priority,
     required this.selectedEmployee,
-    required this.dueDate,
     required this.employeeList,
     required this.canAssignEmployee,
     required this.selfAssign,
@@ -532,7 +526,6 @@ class _WideFormLayout extends StatelessWidget {
     required this.onRemoveDepartment,
     required this.onEmployeeChanged,
     required this.onSelfAssignChanged,
-    required this.onDateTap,
     required this.onSubmit,
   });
 
@@ -633,56 +626,34 @@ class _WideFormLayout extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 20),
-
-        // Employee + Due date side by side
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (canAssignEmployee)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _FieldLabel(
-                      label: 'Assign to Employee',
-                      icon: Icons.person_outline_rounded,
-                    ),
-                    const SizedBox(height: 8),
-                    _StyledDropdown<EmployeeModel>(
-                      hint: selectedDepartments.length != 1
-                          ? 'Select dept first'
-                          : employeeList.isEmpty
-                          ? 'No employees found'
-                          : 'Select Employee',
-                      value: selectedEmployee,
-                      items: employeeList,
-                      labelBuilder: (e) => e.name,
-                      onChanged: employeeList.isEmpty
-                          ? (_) {}
-                          : onEmployeeChanged,
-                      enabled: employeeList.isNotEmpty,
-                    ),
-                  ],
-                ),
+        if (canAssignEmployee) const SizedBox(height: 20),
+        if (canAssignEmployee)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _FieldLabel(
+                label: 'Assign to Employee',
+                icon: Icons.person_outline_rounded,
               ),
-            if (canAssignEmployee) const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _FieldLabel(
-                    label: 'Due Date',
-                    icon: Icons.calendar_today_outlined,
-                  ),
-                  const SizedBox(height: 8),
-                  _DatePicker(dueDate: dueDate, onTap: onDateTap),
-                ],
+              const SizedBox(height: 8),
+              _StyledDropdown<EmployeeModel>(
+                hint: selectedDepartments.length != 1
+                    ? 'Select dept first'
+                    : employeeList.isEmpty
+                    ? 'No employees found'
+                    : 'Select Employee',
+                value: selectedEmployee,
+                items: employeeList,
+                labelBuilder: (e) => e.name,
+                onChanged: employeeList.isEmpty
+                    ? (_) {}
+                    : onEmployeeChanged,
+                enabled: employeeList.isNotEmpty,
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 28),
+            ],
+          ),
+        if (canAssignEmployee) const SizedBox(height: 28),
+        if (!canAssignEmployee) const SizedBox(height: 20),
 
         Align(
           alignment: Alignment.centerRight,
@@ -702,7 +673,6 @@ class _NarrowFormLayout extends StatelessWidget {
   final TextEditingController titleCtrl, descCtrl;
   final Priorities priority;
   final EmployeeModel? selectedEmployee;
-  final String? dueDate;
   final List<EmployeeModel> employeeList;
   final bool canAssignEmployee, submitting, selfAssign, isMulti;
   final List<Departments> selectedDepartments;
@@ -712,14 +682,13 @@ class _NarrowFormLayout extends StatelessWidget {
   final ValueChanged<Departments> onRemoveDepartment;
   final ValueChanged<EmployeeModel> onEmployeeChanged;
   final ValueChanged<bool> onSelfAssignChanged;
-  final VoidCallback onDateTap, onSubmit;
+  final VoidCallback onSubmit;
 
   const _NarrowFormLayout({
     required this.titleCtrl,
     required this.descCtrl,
     required this.priority,
     required this.selectedEmployee,
-    required this.dueDate,
     required this.employeeList,
     required this.canAssignEmployee,
     required this.selfAssign,
@@ -732,7 +701,6 @@ class _NarrowFormLayout extends StatelessWidget {
     required this.onRemoveDepartment,
     required this.onEmployeeChanged,
     required this.onSelfAssignChanged,
-    required this.onDateTap,
     required this.onSubmit,
   });
 
@@ -832,10 +800,7 @@ class _NarrowFormLayout extends StatelessWidget {
           const SizedBox(height: 20),
         ],
 
-        _FieldLabel(label: 'Due Date', icon: Icons.calendar_today_outlined),
-        const SizedBox(height: 8),
-        _DatePicker(dueDate: dueDate, onTap: onDateTap),
-        const SizedBox(height: 28),
+        const SizedBox(height: 20),
 
         _SubmitButton(submitting: submitting, onTap: onSubmit, wide: false),
       ],

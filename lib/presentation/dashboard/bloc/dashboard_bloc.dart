@@ -33,6 +33,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<AddTicketComment>(_onAddComment);
     on<SidebarSelectedIndexEvent>(_onSelectedIndex);
     on<UpdateNotificationCount>(_onUpdateNotificationCount);
+    on<LoadTicketDetail>(_onLoadTicketDetail);
+    on<ClearTicketDetail>(_onClearTicketDetail);
     on<LoadManagerAnalytics>(_onLoadManagerAnalytics);
     on<LoadCeoAnalytics>(_onLoadCeoAnalytics);
 
@@ -55,6 +57,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     if (s is DashboardLoaded) return s;
     if (s is DashboardActionError) return s.previousState;
     if (s is DashboardActionSuccess) return s.previousState;
+    if (s is TicketDetailLoaded) return s.previousState;
     throw StateError('Expected DashboardLoaded but got ${s.runtimeType}');
   }
 
@@ -63,6 +66,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     if (s is DashboardLoaded) return s;
     if (s is DashboardActionError) return s.previousState;
     if (s is DashboardActionSuccess) return s.previousState;
+    if (s is TicketDetailLoaded) return s.previousState;
     return null;
   }
 
@@ -86,6 +90,11 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         if (!isClosed) {
           final loaded = _getLoadedStateOrNull();
           add(LoadDashboard(page: loaded?.currentPage ?? 1));
+          // If user is viewing a ticket detail, refresh it live too
+          final s = state;
+          if (s is TicketDetailLoaded) {
+            add(LoadTicketDetail(s.ticket.id));
+          }
         }
       });
     });
@@ -471,6 +480,30 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     } catch (e) {
       // Apply error handling here too for consistency
       emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+    }
+  }
+
+  // ── Ticket Detail ────────────────────────────────────────────
+  Future<void> _onLoadTicketDetail(
+    LoadTicketDetail event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final prev = _getLoadedState();
+    try {
+      final ticket = await _dataSource.getTicket(event.ticketId);
+      emit(TicketDetailLoaded(ticket, prev));
+    } catch (e) {
+      emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
+    }
+  }
+
+  Future<void> _onClearTicketDetail(
+    ClearTicketDetail event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final s = state;
+    if (s is TicketDetailLoaded) {
+      emit(s.previousState);
     }
   }
 

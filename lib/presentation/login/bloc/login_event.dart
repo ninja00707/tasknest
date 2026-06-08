@@ -28,3 +28,19 @@ class RegisterEvent extends AuthEvent {
 class LogoutEvent extends AuthEvent {}
 
 class TogglePasswordVisibility extends AuthEvent {}
+
+class ForgotPasswordEvent extends AuthEvent {
+  final String email;
+  ForgotPasswordEvent({required this.email});
+}
+
+class ResetPasswordEvent extends AuthEvent {
+  final String email;
+  final String code;
+  final String newPassword;
+  ResetPasswordEvent({
+    required this.email,
+    required this.code,
+    required this.newPassword,
+  });
+}

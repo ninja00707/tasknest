@@ -71,3 +71,31 @@ exports.findUserByEmail = async (email) => {
     throw err;
   }
 };
+
+exports.saveResetToken = async (userId, token, expiresAt) => {
+  try {
+    await pool.query(
+      'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE id = $3',
+      [token, expiresAt, userId]
+    );
+  } catch (error) {
+    console.error('Database Error (saveResetToken):', error);
+    const err = new Error('Database error while saving reset token');
+    err.statusCode = 500;
+    throw err;
+  }
+};
+
+exports.updatePassword = async (userId, newHash) => {
+  try {
+    await pool.query(
+      'UPDATE users SET password_hash = $1, reset_token = NULL, reset_token_expires = NULL WHERE id = $2',
+      [newHash, userId]
+    );
+  } catch (error) {
+    console.error('Database Error (updatePassword):', error);
+    const err = new Error('Database error while updating password');
+    err.statusCode = 500;
+    throw err;
+  }
+};

@@ -33,3 +33,31 @@ class PasswordVisibilityState extends AuthState {
     required bool isLoading,
   }) : super(obscurePassword: obscurePassword, isLoading: isLoading);
 }
+
+class AuthForgotPasswordSent extends AuthState {
+  final String message;
+  final String? resetToken;
+  final int expiresIn;
+  final String email;
+  const AuthForgotPasswordSent({
+    required this.message,
+    this.resetToken,
+    required this.expiresIn,
+    required this.email,
+  });
+}
+
+class AuthForgotPasswordError extends AuthState {
+  final String message;
+  const AuthForgotPasswordError(this.message);
+}
+
+class AuthResetPasswordSuccess extends AuthState {
+  final String message;
+  const AuthResetPasswordSuccess(this.message);
+}
+
+class AuthResetPasswordError extends AuthState {
+  final String message;
+  const AuthResetPasswordError(this.message);
+}

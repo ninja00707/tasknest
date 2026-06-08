@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
-import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_card.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_grid_card.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 class MyTicketsView extends StatelessWidget {
@@ -12,14 +12,16 @@ class MyTicketsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Filter tickets assigned specifically to the logged-in user from the total state
     final myTickets = state.tickets
         .where((t) => t.assignedToId == user.id)
         .toList();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final crossAxisCount = screenWidth > 900 ? 3 : 2;
+    final cardWidth = (screenWidth - 48 - (crossAxisCount - 1) * 12) / crossAxisCount;
 
     return SizedBox(
-      height: MediaQuery.of(context).size.height, // Adjust height as needed
-      width: MediaQuery.of(context).size.width, // Full width
+      height: MediaQuery.of(context).size.height,
+      width: MediaQuery.of(context).size.width,
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -42,26 +44,28 @@ class MyTicketsView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1000),
-                child: myTickets.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'You currently have no assigned tickets.',
-                          style: TextStyle(color: ThemeColors.unifiedTextMuted),
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: myTickets.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'You currently have no assigned tickets.',
+                            style: TextStyle(color: ThemeColors.unifiedTextMuted),
+                          ),
+                        )
+                      : SingleChildScrollView(
+                          child: Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: myTickets.map((t) => SizedBox(
+                              width: cardWidth,
+                              child: TicketGridCard(ticket: t),
+                            )).toList(),
+                          ),
                         ),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: myTickets.length,
-                        itemBuilder: (context, index) {
-                          return TicketCard(
-                            ticket: myTickets[index],
-                            user: user,
-                          );
-                        },
-                      ),
+                ),
               ),
             ),
           ],

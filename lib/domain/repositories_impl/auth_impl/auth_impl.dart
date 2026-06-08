@@ -62,4 +62,27 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<void> logout() async {
     await localStorageService.clearToken();
   }
+
+  @override
+  Future<ForgotPasswordResult> forgotPassword(String email) async {
+    final result = await remoteDataSource.forgotPassword(email);
+    return ForgotPasswordResult(
+      message: result['message'],
+      resetToken: result['resetToken'],
+      expiresIn: result['expiresIn'],
+    );
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    await remoteDataSource.resetPassword(
+      email: email,
+      code: code,
+      newPassword: newPassword,
+    );
+  }
 }

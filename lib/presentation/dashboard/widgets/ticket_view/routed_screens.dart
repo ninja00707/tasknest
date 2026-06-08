@@ -16,6 +16,7 @@ DashboardLoaded? _tryResolve(DashboardState s) {
   if (s is DashboardLoaded) return s;
   if (s is DashboardActionError) return s.previousState;
   if (s is DashboardActionSuccess) return s.previousState;
+  if (s is TicketDetailLoaded) return s.previousState;
   return null;
 }
 

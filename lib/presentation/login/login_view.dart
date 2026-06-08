@@ -76,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
             break;
           case AuthViewMode.forgotPassword:
             card = ForgotPasswordCard(
-              // onNavigate: () => _switchMode(AuthViewMode.forgotPassword),
+              onNavigateToLogin: () => _switchMode(AuthViewMode.login),
             );
             break;
           case AuthViewMode.login:

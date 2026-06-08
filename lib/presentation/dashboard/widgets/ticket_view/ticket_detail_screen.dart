@@ -10,10 +10,10 @@ import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_action.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/sub_ticket_detail_section.dart';
-import 'package:tasknest/presentation/dashboard/widgets/ticket_history_timeline.dart';
+
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
-class TicketDetailScreen extends StatelessWidget {
+class TicketDetailScreen extends StatefulWidget {
   final int ticketId;
   final UserModel user;
 
@@ -22,6 +22,26 @@ class TicketDetailScreen extends StatelessWidget {
     required this.ticketId,
     required this.user,
   });
+
+  @override
+  State<TicketDetailScreen> createState() => _TicketDetailScreenState();
+}
+
+class _TicketDetailScreenState extends State<TicketDetailScreen> {
+  late final DashboardBloc _bloc;
+
+  @override
+  void initState() {
+    super.initState();
+    _bloc = context.read<DashboardBloc>();
+    _bloc.add(LoadTicketDetail(widget.ticketId));
+  }
+
+  @override
+  void dispose() {
+    _bloc.add(ClearTicketDetail());
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +74,11 @@ class TicketDetailScreen extends StatelessWidget {
       },
       child: BlocBuilder<DashboardBloc, DashboardState>(
         builder: (context, state) {
+          // If we have a fresh detail-fetched ticket, use it directly
+          if (state is TicketDetailLoaded) {
+            return _buildScaffold(state.ticket, isWide);
+          }
+
           DashboardLoaded? loadedState;
           if (state is DashboardLoaded) {
             loadedState = state;
@@ -71,13 +96,13 @@ class TicketDetailScreen extends StatelessWidget {
           try {
             foundTicket = loadedState.tickets
                 .followedBy(loadedState.sentTickets)
-                .firstWhere((t) => t.id == ticketId);
+                .firstWhere((t) => t.id == widget.ticketId);
           } catch (_) {
             for (var master in loadedState.tickets.followedBy(
               loadedState.sentTickets,
             )) {
               for (var child in master.children) {
-                if (child.id == ticketId) {
+                if (child.id == widget.ticketId) {
                   foundTicket = TicketModel(
                     id: child.id,
                     title: child.title,
@@ -134,27 +159,31 @@ class TicketDetailScreen extends StatelessWidget {
                 children: const [],
               );
 
-          return Scaffold(
-            backgroundColor: ThemeColors.unifiedBackground,
-            appBar: CommonDetailAppbar(
-              onHistoryPressed: null,
-              ticket: ticket,
-              title: null,
-              issuffixStatus: true,
-            ),
-            body: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                horizontal: isWide
-                    ? MediaQuery.sizeOf(context).width * 0.1
-                    : 16,
-                vertical: 24,
-              ),
-              child: isWide
-                  ? _WideLayout(ticket: ticket, user: user)
-                  : _NarrowLayout(ticket: ticket, user: user),
-            ),
-          );
+          return _buildScaffold(ticket, isWide);
         },
+      ),
+    );
+  }
+
+  Widget _buildScaffold(TicketModel ticket, bool isWide) {
+    return Scaffold(
+      backgroundColor: ThemeColors.unifiedBackground,
+      appBar: CommonDetailAppbar(
+        onHistoryPressed: null,
+        ticket: ticket,
+        title: null,
+        issuffixStatus: true,
+      ),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+          horizontal: isWide
+              ? MediaQuery.of(context).size.width * 0.1
+              : 16,
+          vertical: 24,
+        ),
+        child: isWide
+            ? _WideLayout(ticket: ticket, user: widget.user)
+            : _NarrowLayout(ticket: ticket, user: widget.user),
       ),
     );
   }
@@ -782,12 +811,16 @@ class _LeftColumn extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         _DetailsCard(ticket: ticket),
-        const SizedBox(height: 16),
-        _SectionCard(
-          icon: Icons.history_edu_rounded,
-          title: 'History',
-          child: TicketHistoryTimeline(history: ticket.history ?? []),
-        ),
+        if (ticket.children.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          _SectionCard(
+            icon: Icons.account_tree_outlined,
+            title: 'Sub Tickets (${ticket.children.length})',
+            child: Column(
+              children: ticket.children.map((child) => _ChildDetailCard(child: child)).toList(),
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         _CommentSection(ticket: ticket, user: user),
       ],
@@ -908,104 +941,154 @@ class _RightColumn extends StatelessWidget {
           title: 'Progress',
           child: _ProgressTimeline(status: ticket.status),
         ),
-        if (ticket.children.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _SectionCard(
-            icon: Icons.account_tree_outlined,
-            title: 'Sub Tickets',
-            child: Column(
-              children: ticket.children.map((child) => _ChildTile(
-                child: child,
-                parentId: ticket.ticketNumber.isNotEmpty
-                    ? ticket.ticketNumber
-                    : '#${ticket.id}',
-              )).toList(),
-            ),
-          ),
-        ],
       ],
     );
   }
 }
 
-class _ChildTile extends StatelessWidget {
+class _ChildDetailCard extends StatelessWidget {
   final ChildTicketModel child;
-  final String parentId;
-  const _ChildTile({required this.child, required this.parentId});
+  const _ChildDetailCard({required this.child});
+
+  Color get _statusColor {
+    switch (child.status) {
+      case 'completed':
+        return ThemeColors.unifiedSuccess;
+      case 'in_progress':
+        return const Color(0xFF7C3AED);
+      case 'open':
+        return ThemeColors.unifiedSecondary;
+      default:
+        return ThemeColors.unifiedTextMuted;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    Color statusColor;
-    switch (child.status) {
-      case 'completed':
-        statusColor = ThemeColors.unifiedSuccess;
-      case 'in_progress':
-        statusColor = const Color(0xFF7C3AED);
-      case 'open':
-        statusColor = ThemeColors.unifiedSecondary;
-      default:
-        statusColor = ThemeColors.unifiedTextMuted;
-    }
-
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: ThemeColors.unifiedBackground,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: ThemeColors.unifiedBorder),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: statusColor,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: _statusColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
                   child.title,
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: ThemeColors.unifiedTextPrimary,
                   ),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _statusColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  child.status.toUpperCase().replaceAll('_', ' '),
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: _statusColor,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              if (child.ticketNumber.isNotEmpty) ...[
+                Icon(Icons.tag_rounded, size: 11,
+                    color: ThemeColors.unifiedTextMuted),
+                const SizedBox(width: 3),
                 Text(
-                  child.ticketNumber.isNotEmpty
-                      ? child.ticketNumber
-                      : '#${child.id} · ${child.deptCode}',
+                  child.ticketNumber,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: ThemeColors.unifiedTextMuted,
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Icon(Icons.business_outlined, size: 11,
+                  color: ThemeColors.unifiedTextMuted),
+              const SizedBox(width: 3),
+              Text(
+                child.deptCode,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: ThemeColors.unifiedTextPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              if (child.assigneeName != null) ...[
+                Icon(Icons.person_outline, size: 11,
+                    color: ThemeColors.unifiedTextMuted),
+                const SizedBox(width: 3),
+                Text(
+                  child.assigneeName!,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: ThemeColors.unifiedTextMuted,
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              if (child.hasActiveChildren)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C3AED).withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'HAS SUB-TASKS',
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF7C3AED),
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ),
+              if (child.immediateChildCount > 0 && !child.hasActiveChildren)
+                Text(
+                  '${child.immediateChildCount} sub-task${child.immediateChildCount > 1 ? 's' : ''}',
                   style: const TextStyle(
                     fontSize: 10,
                     color: ThemeColors.unifiedTextMuted,
                   ),
                 ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              child.status.toUpperCase().replaceAll('_', ' '),
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                color: statusColor,
-              ),
-            ),
+            ],
           ),
         ],
       ),

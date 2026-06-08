@@ -324,10 +324,6 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                           selected: _priority,
                           onChanged: (v) => setState(() => _priority = v),
                         ),
-                        const SizedBox(height: 20),
-                        _label('Due Date', Icons.calendar_today_outlined),
-                        const SizedBox(height: 8),
-                        _DateField(dueDate: _dueDate, onTap: _pickDate),
                         const SizedBox(height: 24),
                         Row(
                           children: [

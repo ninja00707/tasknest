@@ -169,15 +169,65 @@ exports.forgotPassword = async (email) => {
 
   const user = await repo.findUserByEmail(email);
   if (!user) {
-    // For security reasons, we might not want to reveal if the email exists,
-    // but returning a clear error helps the frontend display the right message.
     const error = new Error('User not found');
     error.statusCode = 404;
     throw error;
   }
 
-  // TODO: Implement actual email sending logic with a reset token here.
-  // For now, return a success message indicating the email would be sent.
+  // Generate a 6-digit reset code
+  const resetToken = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-  return { message: 'If an account exists with this email, a reset link has been sent.' };
+  await repo.saveResetToken(user.id, resetToken, expiresAt);
+
+  // In development, return the code so the frontend can use it directly
+  return {
+    message: 'A reset code has been sent to your email.',
+    resetToken: process.env.NODE_ENV !== 'production' ? resetToken : undefined,
+    expiresIn: 15,
+  };
+};
+
+exports.resetPassword = async ({ email, code, newPassword }) => {
+  if (!email || !code || !newPassword) {
+    const error = new Error('Email, code, and newPassword are required');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (newPassword.length < 6) {
+    const error = new Error('Password must be at least 6 characters');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const user = await repo.findUserByEmail(email);
+  if (!user) {
+    const error = new Error('User not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (!user.reset_token || !user.reset_token_expires) {
+    const error = new Error('No reset code requested. Please request a new one.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (user.reset_token !== code) {
+    const error = new Error('Invalid reset code');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (new Date() > new Date(user.reset_token_expires)) {
+    const error = new Error('Reset code has expired. Please request a new one.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+  await repo.updatePassword(user.id, hashedPassword);
+
+  return { message: 'Password reset successful. You can now log in with your new password.' };
 };

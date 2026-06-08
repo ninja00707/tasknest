@@ -67,11 +67,52 @@ class AuthRemoteDataSource {
     }
   }
 
-  Future<void> forgotPassword(String email) async {
+  Future<Map<String, dynamic>> forgotPassword(String email) async {
+    try {
+      final response = await apiClient.post(
+        '/auth/forgot-password',
+        body: {'email': email},
+      );
+
+      Map<String, dynamic> result = {};
+      if (response is Map<String, dynamic>) {
+        // Include top-level message
+        if (response.containsKey('message')) {
+          result['message'] = response['message'];
+        }
+        // Include data sub-object fields
+        if (response.containsKey('data') && response['data'] is Map) {
+          final data = response['data'] as Map<String, dynamic>;
+          if (data.containsKey('resetToken')) {
+            result['resetToken'] = data['resetToken'];
+          }
+          if (data.containsKey('expiresIn')) {
+            result['expiresIn'] = data['expiresIn'];
+          }
+        }
+      } else {
+        throw Exception('Invalid server response');
+      }
+
+      return result;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
     try {
       await apiClient.post(
-        '/auth/forgot-password', // Replace with ApiConstants.forgotPassword if available
-        body: {'email': email},
+        '/auth/reset-password',
+        body: {
+          'email': email,
+          'code': code,
+          'newPassword': newPassword,
+        },
       );
     } catch (e) {
       rethrow;
