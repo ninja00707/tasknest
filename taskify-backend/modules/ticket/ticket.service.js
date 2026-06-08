@@ -37,8 +37,9 @@ class TicketService {
 
   async getTickets(user, filters) {
     if (!user) throw { statusCode: 401, message: 'Unauthorized' };
-    const tickets = await ticketRepo.getVisibleTickets(user, filters);
-    return await ticketRepo.enrichTicketsWithSubData(tickets);
+    const { tickets, total } = await ticketRepo.getVisibleTickets(user, filters);
+    const enriched = await ticketRepo.enrichTicketsWithSubData(tickets);
+    return { tickets: enriched, total };
   }
 
   async getTicket(ticketId, user) {
@@ -254,17 +255,8 @@ class TicketService {
       await ticketRepo.logAction(parentTicketId, user.id, 'sub_ticket_created', null, String(ticket.id), `Multi-task sub-ticket #${ticket.id} created by ${user.name}`);
     }
 
-    // Collect all users to notify: department managers + parent ticket participants if any
-    const allSubDeptManagers = [];
-    for (const dept of ticket.sub_departments) {
-      const managers = await ticketRepo.getManagersByDepartment(dept.department_id);
-      allSubDeptManagers.push(...managers);
-    }
-    let allUsers = [...new Set(allSubDeptManagers)];
-    if (parentTicketId) {
-      const parentParticipants = await ticketRepo.getTicketParticipants(parentTicketId);
-      allUsers = [...new Set([...allUsers, ...parentParticipants])];
-    }
+    // Notify all participants across the entire project tree
+    const allUsers = await ticketRepo.getTicketParticipants(ticket.id);
     await this._dispatch(
       ticket.id, allUsers,
       `New Multi-Task Ticket #${ticket.id} created ${parentTicketId ? `as sub-ticket of #${parentTicketId}` : ''}`,
@@ -846,10 +838,8 @@ class TicketService {
       `Created as a sub-ticket of #${ticketId}`
     );
 
-    // Notify parent participants + new department managers
-    const parentParticipants = await ticketRepo.getTicketParticipants(ticketId);
-    const newManagers = await ticketRepo.getManagersByDepartment(targetDeptId);
-    const allUsers = [...new Set([...parentParticipants, ...newManagers])];
+    // Notify all participants across the entire project tree
+    const allUsers = await ticketRepo.getTicketParticipants(subTicket.id);
     await this._dispatch(subTicket.id, allUsers, `New Sub-Ticket #${subTicket.id} created from #${ticketId}`, 'SUB_TICKET_CREATED', { ticket: subTicket });
 
     return subTicket;

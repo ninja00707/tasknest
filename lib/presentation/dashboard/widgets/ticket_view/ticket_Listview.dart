@@ -126,7 +126,7 @@ class _FilterBar extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '${state.tickets.length} tickets',
+                    '${state.tickets.length} / ${state.totalPages > 0 ? "~${state.totalPages * 15}" : state.tickets.length} tickets',
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -169,8 +169,6 @@ class _FilterBar extends StatelessWidget {
 
           // ── Priority filters ──────────────────────────────────
           const SizedBox(height: 8),
-          // ── Priority filters ──────────────────────────────────────────────────────────
-          const SizedBox(height: 8),
           SizedBox(
             height: 30,
             child: ListView.builder(
@@ -178,7 +176,6 @@ class _FilterBar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: priorities.length + 1,
               itemBuilder: (context, i) {
-                // ── "All Priority" pill (index 0) ──────────────────────
                 if (i == 0) {
                   final active = state.filterPriority == null;
                   return Padding(
@@ -190,14 +187,12 @@ class _FilterBar extends StatelessWidget {
                       onTap: () => context.read<DashboardBloc>().add(
                         FilterTickets(
                           status: state.filterStatus,
-                          priority: null, // ← clears priority filter
+                          priority: null,
                         ),
                       ),
                     ),
                   );
                 }
-
-                // ── Individual priority pills (index 1+) ───────────────
                 final p = priorities[i - 1];
                 final active = p.name == state.filterPriority;
                 return Padding(
@@ -209,7 +204,7 @@ class _FilterBar extends StatelessWidget {
                     onTap: () => context.read<DashboardBloc>().add(
                       FilterTickets(
                         status: state.filterStatus,
-                        priority: p.name, // ← sets priority filter
+                        priority: p.name,
                       ),
                     ),
                   ),
@@ -219,6 +214,60 @@ class _FilterBar extends StatelessWidget {
           ),
           const SizedBox(height: 12),
         ],
+      ),
+    );
+  }
+}
+
+// ── Pagination Button ──────────────────────────────────────────────
+class _PageBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool disabled;
+  final VoidCallback onTap;
+
+  const _PageBtn({
+    required this.icon,
+    required this.label,
+    required this.disabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = disabled
+        ? ThemeColors.unifiedTextMuted.withOpacity(0.3)
+        : ThemeColors.unifiedPrimary;
+    return GestureDetector(
+      onTap: disabled ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: disabled
+              ? ThemeColors.unifiedBackground
+              : ThemeColors.unifiedSurface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: disabled
+                ? ThemeColors.unifiedBorder.withOpacity(0.5)
+                : ThemeColors.unifiedPrimary.withOpacity(0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -409,6 +458,62 @@ class _TicketBody extends StatelessWidget {
                     )
                     .toList(),
               ),
+              // ── Pagination ────────────────────────────────
+              if (state.totalPages > 1)
+                Padding(
+                  padding: const EdgeInsets.only(top: 24, bottom: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _PageBtn(
+                        icon: Icons.chevron_left_rounded,
+                        label: 'Previous',
+                        disabled: state.currentPage <= 1,
+                        onTap: () {
+                          if (state.currentPage > 1) {
+                            context.read<DashboardBloc>().add(
+                              LoadDashboard(page: state.currentPage - 1),
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: ThemeColors.unifiedSurface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: ThemeColors.unifiedBorder,
+                          ),
+                        ),
+                        child: Text(
+                          'Page ${state.currentPage} of ${state.totalPages}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: ThemeColors.unifiedTextPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      _PageBtn(
+                        icon: Icons.chevron_right_rounded,
+                        label: 'Next',
+                        disabled: state.currentPage >= state.totalPages,
+                        onTap: () {
+                          if (state.currentPage < state.totalPages) {
+                            context.read<DashboardBloc>().add(
+                              LoadDashboard(page: state.currentPage + 1),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
             ],
           ),
         );

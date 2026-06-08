@@ -27,26 +27,41 @@ class TicketCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = ticketPriorityColor(ticket.priority);
 
+    Color tileBg;
+    switch (ticket.priority.toLowerCase()) {
+      case 'urgent':
+        tileBg = ThemeColors.unifiedDanger.withOpacity(0.06);
+        break;
+      case 'high':
+        tileBg = const Color(0xFFEA580C).withOpacity(0.05);
+        break;
+      case 'medium':
+        tileBg = ThemeColors.unifiedWarning.withOpacity(0.06);
+        break;
+      default:
+        tileBg = ThemeColors.unifiedAccent.withOpacity(0.04);
+    }
+
     return GestureDetector(
       onTap: onTap ?? () => context.push('/ticket/${ticket.id}'),
       child: Container(
         decoration: BoxDecoration(
-          color: ThemeColors.unifiedSurface,
+          color: tileBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: ticket.isOverdue
                 ? ThemeColors.unifiedDanger.withOpacity(0.35)
-                : ThemeColors.unifiedBorder,
+                : color.withOpacity(0.25),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.08),
+              color: color.withOpacity(0.12),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withOpacity(0.03),
               blurRadius: 6,
               offset: const Offset(0, 1),
             ),
@@ -124,13 +139,13 @@ class TicketCard extends StatelessWidget {
                         children: [
                           if (ticket.hasParent)
                             Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
+                              padding: const EdgeInsets.only(bottom: 6),
                               child: Row(
                                 children: [
-                                  const Icon(
+                                  Icon(
                                     Icons.subdirectory_arrow_right_rounded,
-                                    size: 14,
-                                    color: ThemeColors.unifiedTextMuted,
+                                    size: 13,
+                                    color: ThemeColors.unifiedTextMuted.withOpacity(0.6),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
@@ -148,11 +163,23 @@ class TicketCard extends StatelessWidget {
                           Text(
                             ticket.title,
                             style: const TextStyle(
-                              fontSize: 18,
+                              fontSize: 16,
                               fontWeight: FontWeight.w800,
                               color: ThemeColors.unifiedTextPrimary,
-                              letterSpacing: -0.5,
-                              height: 1.2,
+                              letterSpacing: -0.3,
+                              height: 1.3,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            ticket.description,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: ThemeColors.unifiedTextMuted,
+                              height: 1.45,
+                              fontWeight: FontWeight.w400,
                             ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -160,36 +187,7 @@ class TicketCard extends StatelessWidget {
                         ],
                       ),
 
-                      const SizedBox(height: 12),
-
-                      // ── Row 3: Description ───────────────────────────
-                      Text(
-                        ticket.title,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: ThemeColors.unifiedTextPrimary,
-                          letterSpacing: -0.2,
-                          height: 1.3,
-                        ),
-                      ),
-
-                      const SizedBox(height: 5),
-
-                      // ── Row 3: Description ───────────────────────────
-                      Text(
-                        ticket.description,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: ThemeColors.unifiedTextMuted,
-                          height: 1.45,
-                          fontWeight: FontWeight.w400,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
 
                       // ── Row 4: Timeline / Stats ──────────────────────
                       if (ticket.isSubTicket) ...[

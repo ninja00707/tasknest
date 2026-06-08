@@ -24,6 +24,8 @@ class DashboardLoaded extends DashboardState {
   final String? filterPriority;
   final int selectedIndex;
   final int unreadNotificationCount;
+  final int currentPage;
+  final int totalPages;
 
   DashboardLoaded({
     required this.stats,
@@ -35,6 +37,8 @@ class DashboardLoaded extends DashboardState {
     this.filterPriority,
     this.selectedIndex = 0,
     this.unreadNotificationCount = 0,
+    this.currentPage = 1,
+    this.totalPages = 1,
   });
 
   DashboardLoaded copyWith({
@@ -47,6 +51,8 @@ class DashboardLoaded extends DashboardState {
     String? filterPriority,
     int? selectedIndex,
     int? unreadNotificationCount,
+    int? currentPage,
+    int? totalPages,
   }) {
     return DashboardLoaded(
       stats: stats ?? this.stats,
@@ -58,6 +64,8 @@ class DashboardLoaded extends DashboardState {
       filterPriority: filterPriority ?? this.filterPriority,
       selectedIndex: selectedIndex ?? this.selectedIndex,
       unreadNotificationCount: unreadNotificationCount ?? this.unreadNotificationCount,
+      currentPage: currentPage ?? this.currentPage,
+      totalPages: totalPages ?? this.totalPages,
     );
   }
 
@@ -72,6 +80,8 @@ class DashboardLoaded extends DashboardState {
     filterPriority,
     selectedIndex,
     unreadNotificationCount,
+    currentPage,
+    totalPages,
   ];
 }
 

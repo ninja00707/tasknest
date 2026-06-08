@@ -30,8 +30,14 @@ class TicketController {
 
   async getTickets(req, res, next) {
     try {
-      const tickets = await ticketService.getTickets(req.user, req.query);
-      res.json({ success: true, data: tickets });
+      const { tickets, total } = await ticketService.getTickets(req.user, req.query);
+      const page = Number(req.query.page) || 1;
+      const limit = Number(req.query.limit) || 15;
+      res.json({
+        success: true,
+        data: tickets,
+        pagination: { total, page, limit, totalPages: Math.ceil(total / limit) }
+      });
     } catch (err) {
       next(err);
     }

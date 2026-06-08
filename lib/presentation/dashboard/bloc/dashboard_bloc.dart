@@ -83,7 +83,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       }
       _socketDebounce?.cancel();
       _socketDebounce = Timer(const Duration(milliseconds: 500), () {
-        if (!isClosed) add(LoadDashboard());
+        if (!isClosed) {
+          final loaded = _getLoadedStateOrNull();
+          add(LoadDashboard(page: loaded?.currentPage ?? 1));
+        }
       });
     });
 
@@ -134,6 +137,12 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     }
   }
 
+  // Returns a LoadDashboard event preserving the current page
+  LoadDashboard _reloadEvent() {
+    final loaded = _getLoadedStateOrNull();
+    return LoadDashboard(page: loaded?.currentPage ?? 1);
+  }
+
   // ── Load ──────────────────────────────────────────────────────
   Future<void> _onLoad(
     LoadDashboard event,
@@ -148,7 +157,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
       // ✅ Sequential — a 401 on one won't nuke the token for others
       final stats = await _dataSource.getStats();
-      final tickets = await _dataSource.getTickets();
+      final ticketResult = await _dataSource.getTickets(page: event.page);
+      final tickets = ticketResult.tickets;
+      final currentPage = ticketResult.page;
+      final totalPages = ticketResult.totalPages;
       final departments = await _dataSource.getDepartments();
       // Only fetch employees on initial load (rarely changes)
       final needsEmployees = user.roleId == 1;
@@ -166,6 +178,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           employees: employees,
           sentTickets: sentTickets,
           selectedIndex: 0,
+          currentPage: currentPage,
+          totalPages: totalPages,
         ),
       );
 
@@ -181,15 +195,18 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   ) async {
     final prev = _getLoadedState();
     try {
-      final tickets = await _dataSource.getTickets(
+      final ticketResult = await _dataSource.getTickets(
         status: event.status,
         priority: event.priority,
+        page: 1,
       );
       emit(
         prev.copyWith(
-          tickets: tickets,
+          tickets: ticketResult.tickets,
           filterStatus: event.status,
           filterPriority: event.priority,
+          currentPage: ticketResult.page,
+          totalPages: ticketResult.totalPages,
         ),
       );
     } catch (e) {
@@ -206,7 +223,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       await _dataSource.selfAssign(event.ticketId);
       emit(DashboardActionSuccess('Ticket self-assigned!', prev));
-      add(LoadDashboard());
+      add(_reloadEvent());
     } catch (e) {
       emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
     }
@@ -225,7 +242,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         remark: event.remark,
       );
       emit(DashboardActionSuccess('Status updated to ${event.status}', prev));
-      add(LoadDashboard());
+      add(_reloadEvent());
     } catch (e) {
       // This is the specific catch for the 403 error
       emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
@@ -241,7 +258,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       await _dataSource.assignToEmployee(event.ticketId, event.employeeId);
       emit(DashboardActionSuccess('Ticket assigned successfully', prev));
-      add(LoadDashboard());
+      add(_reloadEvent());
     } catch (e) {
       // Apply error handling here too for consistency
       emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
@@ -262,7 +279,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         description: event.description,
       );
       emit(DashboardActionSuccess('Ticket transferred!', prev));
-      add(LoadDashboard());
+      add(_reloadEvent());
     } catch (e) {
       // Apply error handling here too for consistency
       emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
@@ -278,7 +295,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       await _dataSource.reopenTicket(event.ticketId);
       emit(DashboardActionSuccess('Ticket reopened!', prev));
-      add(LoadDashboard());
+      add(_reloadEvent());
     } catch (e) {
       // Apply error handling here too for consistency
       emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
@@ -328,7 +345,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
       emit(DashboardActionSuccess('Ticket created!', prev));
 
-      add(LoadDashboard());
+      add(_reloadEvent());
     } catch (e) {
       // Apply error handling here too for consistency
       emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
@@ -350,7 +367,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         parentTicketId: event.parentTicketId,
       );
       emit(DashboardActionSuccess('Sub-ticket created!', prev));
-      add(LoadDashboard());
+      add(_reloadEvent());
     } catch (e) {
       emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
     }
@@ -369,7 +386,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         note: event.note,
       );
       emit(DashboardActionSuccess('Department progress updated!', prev));
-      add(LoadDashboard());
+      add(_reloadEvent());
     } catch (e) {
       emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
     }
@@ -387,7 +404,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         employeeId: event.employeeId,
       );
       emit(DashboardActionSuccess('Department work assigned!', prev));
-      add(LoadDashboard());
+      add(_reloadEvent());
     } catch (e) {
       emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
     }
@@ -402,7 +419,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       await _dataSource.selfAssignSubDept(event.ticketId, event.departmentId);
       emit(DashboardActionSuccess('Task self-assigned!', prev));
-      add(LoadDashboard());
+      add(_reloadEvent());
     } catch (e) {
       // Apply error handling here too for consistency
       emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
@@ -418,7 +435,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       await _dataSource.reopenSubDept(event.ticketId, event.departmentId);
       emit(DashboardActionSuccess('Department task reopened!', prev));
-      add(LoadDashboard());
+      add(_reloadEvent());
     } catch (e) {
       // Apply error handling here too for consistency
       emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
@@ -434,7 +451,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       await _dataSource.completeSubTicket(event.ticketId);
       emit(DashboardActionSuccess('Sub-ticket completed!', prev));
-      add(LoadDashboard());
+      add(_reloadEvent());
     } catch (e) {
       // Apply error handling here too for consistency
       emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));
@@ -450,7 +467,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       await _dataSource.addComment(event.ticketId, event.message);
       emit(DashboardActionSuccess('Comment added!', prev));
-      add(LoadDashboard());
+      add(_reloadEvent());
     } catch (e) {
       // Apply error handling here too for consistency
       emit(DashboardActionError(_getFriendlyErrorMessage(e), prev));

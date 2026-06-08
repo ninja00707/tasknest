@@ -182,7 +182,7 @@ class TicketRepository {
 
   // ── Get tickets visible to this user based on role ────────────────────────
   async getVisibleTickets(user, filters = {}) {
-    const { status, priority, page = 1, limit = 20 } = filters;
+    const { status, priority, page = 1, limit = 15 } = filters;
     const offset = (Number(page) - 1) * Number(limit);
     const params = [];
     let whereClause = 'WHERE t.parent_ticket_id IS NULL'; // Only show top-level tickets
@@ -325,8 +325,16 @@ class TicketRepository {
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `;
 
+    const countResult = await pool.query(`
+      SELECT COUNT(*)::int AS total FROM tickets t
+      ${whereClause}
+    `, params.slice(0, params.length - 2));
+
+    const total = countResult.rows[0].total;
+
     const result = await pool.query(query, params);
-    return await this.enrichTicketsWithChildData(result.rows);
+    const tickets = await this.enrichTicketsWithChildData(result.rows);
+    return { tickets, total };
   }
 
   async enrichTicketsWithChildData(tickets) {
@@ -936,36 +944,47 @@ class TicketRepository {
 
   async getTicketParticipants(ticketId) {
     const result = await pool.query(`
-      WITH RECURSIVE chain AS (
+      WITH RECURSIVE root_finder AS (
         SELECT id, parent_ticket_id, created_by_id, assigned_to_id, created_by_dept, assigned_dept_id
         FROM tickets WHERE id = $1
         UNION ALL
         SELECT t.id, t.parent_ticket_id, t.created_by_id, t.assigned_to_id, t.created_by_dept, t.assigned_dept_id
         FROM tickets t
-        INNER JOIN chain c ON c.parent_ticket_id = t.id
+        JOIN root_finder rf ON rf.parent_ticket_id = t.id
+      ),
+      root AS (
+        SELECT id FROM root_finder WHERE parent_ticket_id IS NULL LIMIT 1
+      ),
+      all_tree_tickets AS (
+        SELECT id, parent_ticket_id, created_by_id, assigned_to_id, created_by_dept, assigned_dept_id
+        FROM tickets WHERE id = (SELECT id FROM root)
+        UNION ALL
+        SELECT t.id, t.parent_ticket_id, t.created_by_id, t.assigned_to_id, t.created_by_dept, t.assigned_dept_id
+        FROM tickets t
+        JOIN all_tree_tickets att ON att.id = t.parent_ticket_id
       )
       SELECT DISTINCT user_id FROM (
-        -- All creators in the chain
-        SELECT created_by_id AS user_id FROM chain
+        -- All creators across the entire tree
+        SELECT created_by_id AS user_id FROM all_tree_tickets
         UNION
-        -- All direct assignees in the chain
-        SELECT assigned_to_id FROM chain WHERE assigned_to_id IS NOT NULL
+        -- All direct assignees across the entire tree
+        SELECT assigned_to_id FROM all_tree_tickets WHERE assigned_to_id IS NOT NULL
         UNION
-        -- All sub-department assignees for all tickets in the chain
-        SELECT std.assigned_to_id FROM chain c
-        JOIN sub_ticket_departments std ON std.ticket_id = c.id
+        -- All sub-department assignees across the entire tree
+        SELECT std.assigned_to_id FROM all_tree_tickets att
+        JOIN sub_ticket_departments std ON std.ticket_id = att.id
         WHERE std.assigned_to_id IS NOT NULL
         UNION
-        -- Managers of ALL departments involved across the chain
+        -- Managers of ALL departments involved anywhere in the tree
         SELECT u.id FROM users u
         JOIN roles r ON r.id = u.role_id
         WHERE r.name = 'manager'
           AND u.department_id IN (
-            SELECT created_by_dept FROM chain WHERE created_by_dept IS NOT NULL
+            SELECT created_by_dept FROM all_tree_tickets WHERE created_by_dept IS NOT NULL
             UNION
-            SELECT assigned_dept_id FROM chain WHERE assigned_dept_id IS NOT NULL
+            SELECT assigned_dept_id FROM all_tree_tickets WHERE assigned_dept_id IS NOT NULL
             UNION
-            SELECT department_id FROM sub_ticket_departments WHERE ticket_id IN (SELECT id FROM chain)
+            SELECT department_id FROM sub_ticket_departments WHERE ticket_id IN (SELECT id FROM all_tree_tickets)
           )
         UNION
         -- Always include CEO

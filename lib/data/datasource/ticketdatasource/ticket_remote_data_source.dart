@@ -10,7 +10,7 @@ class TicketRemoteDataSource {
     return DashboardStats.fromJson(res['data']);
   }
 
-  Future<List<TicketModel>> getTickets({
+  Future<({List<TicketModel> tickets, int total, int page, int totalPages})> getTickets({
     String? status,
     String? priority,
     int page = 1,
@@ -19,10 +19,15 @@ class TicketRemoteDataSource {
       if (status != null) 'status': status,
       if (priority != null) 'priority': priority,
       'page': page.toString(),
-      'limit': '20',
+      'limit': '15',
     };
     final res = await _api.get('tickets', queryParams: query);
-    return (res['data'] as List).map((e) => TicketModel.fromJson(e)).toList();
+    final data = (res['data'] as List).map((e) => TicketModel.fromJson(e)).toList();
+    final pagination = res['pagination'] as Map<String, dynamic>?;
+    final total = pagination?['total'] as int? ?? data.length;
+    final totalPages = pagination?['totalPages'] as int? ?? 1;
+    final currentPage = pagination?['page'] as int? ?? page;
+    return (tickets: data, total: total, page: currentPage, totalPages: totalPages);
   }
 
   Future<TicketModel> getTicket(int id) async {

@@ -852,8 +852,33 @@ class _DetailsCard extends StatelessWidget {
             icon: Icons.replay_rounded,
             label: 'Reopen Count',
             value: '${ticket.reopenCount}',
-            isLast: true,
           ),
+          if (ticket.transferredFromCode != null &&
+              ticket.transferredFromCode != 'None')
+            _DetailRow(
+              icon: Icons.swap_horiz_rounded,
+              label: 'Transferred From',
+              value: ticket.transferredFromCode!,
+            ),
+          if (ticket.lastAction != null)
+            _DetailRow(
+              icon: Icons.info_outline_rounded,
+              label: 'Last Action',
+              value: ticket.lastAction!,
+            ),
+          if (ticket.lastActedByName != null)
+            _DetailRow(
+              icon: Icons.person_outline_rounded,
+              label: 'Last Acted By',
+              value: ticket.lastActedByName!,
+            ),
+          if (ticket.lastUpdatedAt != null)
+            _DetailRow(
+              icon: Icons.schedule_rounded,
+              label: 'Last Action At',
+              value: CommonDateFormat.formatDateTime(ticket.lastUpdatedAt!),
+              isLast: true,
+            ),
         ],
       ),
     );

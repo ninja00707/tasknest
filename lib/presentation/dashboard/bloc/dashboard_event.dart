@@ -8,7 +8,12 @@ abstract class DashboardEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class LoadDashboard extends DashboardEvent {}
+class LoadDashboard extends DashboardEvent {
+  final int page;
+  LoadDashboard({this.page = 1});
+  @override
+  List<Object?> get props => [page];
+}
 
 class LoadEmployeesForDept extends DashboardEvent {
   final int deptId;
