@@ -946,6 +946,18 @@ class TicketRepository {
     return result.rows[0];
   }
 
+  // Batch insert notifications for multiple users
+  async createNotifications(userIds, ticketId, message) {
+    if (!userIds.length) return [];
+    const values = userIds.map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})`).join(', ');
+    const params = userIds.flatMap(id => [id, ticketId, message]);
+    const result = await pool.query(`
+      INSERT INTO notifications (user_id, ticket_id, message)
+      VALUES ${values} RETURNING *
+    `, params);
+    return result.rows;
+  }
+
   async getUnreadCount(userId) {
     const result = await pool.query(`
       SELECT COUNT(*) AS count FROM notifications
@@ -997,11 +1009,9 @@ class TicketRepository {
         JOIN sub_ticket_departments std ON std.ticket_id = att.id
         WHERE std.assigned_to_id IS NOT NULL
         UNION
-        -- Managers of ALL departments involved anywhere in the tree
+        -- All users in departments involved anywhere in the tree
         SELECT u.id FROM users u
-        JOIN roles r ON r.id = u.role_id
-        WHERE r.name = 'manager'
-          AND u.department_id IN (
+        WHERE u.department_id IN (
             SELECT created_by_dept FROM all_tree_tickets WHERE created_by_dept IS NOT NULL
             UNION
             SELECT assigned_dept_id FROM all_tree_tickets WHERE assigned_dept_id IS NOT NULL
@@ -1302,7 +1312,7 @@ class TicketRepository {
     }
   }
 
-  async reopenSubDept(ticketId, departmentId) {
+  async reopenSubDept(ticketId, departmentId, nextDeptId) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -1313,6 +1323,16 @@ class TicketRepository {
             completed_at = NULL, updated_at = NOW()
         WHERE ticket_id = $1 AND department_id = $2
       `, [ticketId, departmentId]);
+
+      // Cascade unlock: clear completed_at on the next department so its
+      // 48-hour window is reset when the user chooses to reopen it.
+      if (nextDeptId) {
+        await client.query(`
+          UPDATE sub_ticket_departments
+          SET completed_at = NULL, updated_at = NOW()
+          WHERE ticket_id = $1 AND department_id = $2
+        `, [ticketId, nextDeptId]);
+      }
 
       await client.query('COMMIT');
 

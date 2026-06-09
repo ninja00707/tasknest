@@ -3,13 +3,27 @@ const ticketRepo = require('./ticket.repository');
 class TicketService {
   // ── Real-Time Notification Dispatcher ────────────────────────────────────
   async _dispatch(ticketId, userIds, message, eventType = 'NOTIFICATION', payload = {}, skipUserIds = []) {
-    for (const userId of userIds) {
-      const skipNotif = skipUserIds.includes(userId);
-      let notif = null;
-      if (!skipNotif) {
-        notif = await ticketRepo.createNotification(userId, ticketId, message);
+    // Batch-create notifications for all non-skipped users
+    const notifUsers = userIds.filter(id => !skipUserIds.includes(id));
+    let notifications = [];
+    if (notifUsers.length > 0) {
+      try {
+        notifications = await ticketRepo.createNotifications(notifUsers, ticketId, message);
+      } catch (err) {
+        console.error(`[Dispatch] Failed to batch-create notifications for ticket ${ticketId}:`, err.message);
       }
-      if (global.io) {
+    }
+
+    // Build a lookup: userId -> notification
+    const notifMap = {};
+    for (const n of notifications) {
+      notifMap[n.user_id] = n;
+    }
+
+    // Emit socket events to ALL users (regardless of notification success)
+    if (global.io) {
+      for (const userId of userIds) {
+        const notif = notifMap[userId];
         global.io.to(`user_${userId}`).emit(eventType, {
           ticketId,
           message,
@@ -19,13 +33,17 @@ class TicketService {
         });
       }
     }
-    // Emit unread count only for users who received notifications
-    if (global.io && userIds.length > 0) {
-      const notifUsers = userIds.filter(id => !skipUserIds.includes(id));
+
+    // Emit unread counts for users who received notifications
+    if (global.io && notifUsers.length > 0) {
       const uniqueUsers = [...new Set(notifUsers)];
-      for (const userId of uniqueUsers) {
-        const count = await ticketRepo.getUnreadCount(userId);
-        global.io.to(`user_${userId}`).emit('NOTIFICATION_COUNT', { count });
+      try {
+        const counts = await Promise.all(uniqueUsers.map(id => ticketRepo.getUnreadCount(id)));
+        for (let i = 0; i < uniqueUsers.length; i++) {
+          global.io.to(`user_${uniqueUsers[i]}`).emit('NOTIFICATION_COUNT', { count: counts[i] });
+        }
+      } catch (err) {
+        console.error(`[Dispatch] Failed to get unread counts for ticket ${ticketId}:`, err.message);
       }
     }
   }
@@ -517,26 +535,41 @@ class TicketService {
       throw { statusCode: 400, message: 'Only approved or completed department tasks can be reopened' };
     }
 
-    // Check 48-hour window
-    const completedTime = deptRow.completed_at || deptRow.updated_at;
-    if (!completedTime) {
-      throw { statusCode: 400, message: 'Cannot determine when this task was completed' };
-    }
-    const hoursSince = (Date.now() - new Date(completedTime).getTime()) / 36e5;
-    if (hoursSince > 48) {
-      throw { statusCode: 400, message: 'Reopen window of 48 hours has passed' };
+    // Determine cascade order (sub_departments is already ordered by d.name ASC)
+    const currentIndex = ticket.sub_departments.findIndex(d => Number(d.department_id) === Number(departmentId));
+    const prevDept = currentIndex > 0 ? ticket.sub_departments[currentIndex - 1] : null;
+    const isCascadeReopen = prevDept && prevDept.status === 'in_progress';
+
+    // For cascade reopens (previous department already in_progress), skip the
+    // 48-hour and reopen-count restrictions so the chain can continue down.
+    if (!isCascadeReopen) {
+      // Check 48-hour window
+      const completedTime = deptRow.completed_at || deptRow.updated_at;
+      if (!completedTime) {
+        throw { statusCode: 400, message: 'Cannot determine when this task was completed' };
+      }
+      const hoursSince = (Date.now() - new Date(completedTime).getTime()) / 36e5;
+      if (hoursSince > 48) {
+        throw { statusCode: 400, message: 'Reopen window of 48 hours has passed' };
+      }
+
+      // Check if already reopened once
+      const logs = await ticketRepo.getTicketLogs(ticketId);
+      const reopenedBefore = logs.some(
+        l => l.action === 'sub_dept_reopened' && String(l.old_value) === String(departmentId)
+      );
+      if (reopenedBefore) {
+        throw { statusCode: 400, message: 'This department task can only be reopened once' };
+      }
     }
 
-    // Check if already reopened once
-    const logs = await ticketRepo.getTicketLogs(ticketId);
-    const reopenedBefore = logs.some(
-      l => l.action === 'sub_dept_reopened' && String(l.old_value) === String(departmentId)
-    );
-    if (reopenedBefore) {
-      throw { statusCode: 400, message: 'This department task can only be reopened once' };
-    }
+    // Find next department for cascade unlock
+    const nextDept = currentIndex >= 0 && currentIndex < ticket.sub_departments.length - 1
+      ? ticket.sub_departments[currentIndex + 1]
+      : null;
+    const nextDeptId = nextDept ? Number(nextDept.department_id) : null;
 
-    const updated = await ticketRepo.reopenSubDept(ticketId, Number(departmentId));
+    const updated = await ticketRepo.reopenSubDept(ticketId, Number(departmentId), nextDeptId);
 
     const deptName = deptRow.department_name || `Dept ${departmentId}`;
     await ticketRepo.logAction(
@@ -614,14 +647,14 @@ class TicketService {
       }
     }
 
-    // Only the resolver or creator (or CEO) can close a ticket
+    // Only the creator or CEO can close a main ticket (not the resolver)
     if (newStatus === 'closed') {
       if (!isSystemUpdate) {
         if (ticket.is_sub_ticket) {
           if (!isResolver) {
             throw { statusCode: 403, message: 'Only the assigned resolver can close this sub-ticket.' };
           }
-        } else if (!isResolver && !isCreator && !isCeo) {
+        } else if (!isCreator && !isCeo) {
           throw { statusCode: 403, message: 'Only the creator can finalize and close this ticket' };
         }
       }

@@ -1,6 +1,7 @@
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/constant/name_by_id.dart';
 import 'package:tasknest/core/theme/color.dart';
@@ -147,6 +148,16 @@ class Sidebar extends StatelessWidget {
             selected: selectedIndex == 5,
             onTap: onNav,
           ),
+
+          // Admin Panel — only for admin user
+          if (user.email == 'qasim@um.com')
+            NavItem(
+              icon: Icons.admin_panel_settings,
+              label: 'Admin Panel',
+              index: 99,
+              selected: false,
+              onTap: (i) => context.go('/admin'),
+            ),
 
           // Notification bell
           BlocSelector<DashboardBloc, DashboardState, int>(

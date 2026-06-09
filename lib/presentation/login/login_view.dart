@@ -53,12 +53,23 @@ class _LoginScreenState extends State<LoginScreen> {
           }
 
           if (state is AuthError) {
+            final isPending = state.message.toLowerCase().contains('pending');
             AppAlertDialog.show(
               context: context,
-              title: 'Authentication Failed',
+              title: isPending ? 'Account Pending Approval' : 'Authentication Failed',
               message: state.message,
               isError: true,
             );
+          }
+
+          if (state is AuthRegistrationPending) {
+            AppAlertDialog.show(
+              context: context,
+              title: 'Registration Submitted',
+              message: state.message,
+              isError: false,
+            );
+            _switchMode(AuthViewMode.login);
           }
         } catch (e) {
           print(

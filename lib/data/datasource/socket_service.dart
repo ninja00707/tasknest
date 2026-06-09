@@ -26,8 +26,9 @@ class SocketService {
   void connect(String token, {int? userId, int? departmentId}) {
     _retryCount = 0;
     _retryTimer?.cancel();
-    // Force reconnect if credentials changed
-    if (_isConnected && (_token != token || _userId != userId)) {
+    // Force disconnect if a previous connection is still pending or
+    // credentials have changed (logout + login, or different user).
+    if (_connecting || (_isConnected && (_token != token || _userId != userId))) {
       disconnect();
     }
     _token = token;

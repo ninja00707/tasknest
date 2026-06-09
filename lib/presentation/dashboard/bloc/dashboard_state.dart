@@ -22,6 +22,7 @@ class DashboardLoaded extends DashboardState {
   final List<TicketModel> sentTickets;
   final String? filterStatus;
   final String? filterPriority;
+  final String searchQuery;
   final int selectedIndex;
   final int unreadNotificationCount;
   final int currentPage;
@@ -35,11 +36,24 @@ class DashboardLoaded extends DashboardState {
     required this.sentTickets,
     this.filterStatus,
     this.filterPriority,
+    this.searchQuery = '',
     this.selectedIndex = 0,
     this.unreadNotificationCount = 0,
     this.currentPage = 1,
     this.totalPages = 1,
   });
+
+  List<TicketModel> get filteredTickets {
+    if (searchQuery.isEmpty) return tickets;
+    final q = searchQuery.toLowerCase();
+    return tickets.where((t) {
+      return t.ticketNumber.toLowerCase().contains(q) ||
+          t.title.toLowerCase().contains(q) ||
+          t.assignedDeptCode.toLowerCase().contains(q) ||
+          t.createdByDeptCode.toLowerCase().contains(q) ||
+          t.assignedDeptName.toLowerCase().contains(q);
+    }).toList();
+  }
 
   DashboardLoaded copyWith({
     DashboardStats? stats,
@@ -49,6 +63,7 @@ class DashboardLoaded extends DashboardState {
     List<TicketModel>? sentTickets,
     String? filterStatus,
     String? filterPriority,
+    String? searchQuery,
     int? selectedIndex,
     int? unreadNotificationCount,
     int? currentPage,
@@ -62,6 +77,7 @@ class DashboardLoaded extends DashboardState {
       sentTickets: sentTickets ?? this.sentTickets,
       filterStatus: filterStatus ?? this.filterStatus,
       filterPriority: filterPriority ?? this.filterPriority,
+      searchQuery: searchQuery ?? this.searchQuery,
       selectedIndex: selectedIndex ?? this.selectedIndex,
       unreadNotificationCount: unreadNotificationCount ?? this.unreadNotificationCount,
       currentPage: currentPage ?? this.currentPage,
@@ -78,6 +94,7 @@ class DashboardLoaded extends DashboardState {
     sentTickets,
     filterStatus,
     filterPriority,
+    searchQuery,
     selectedIndex,
     unreadNotificationCount,
     currentPage,

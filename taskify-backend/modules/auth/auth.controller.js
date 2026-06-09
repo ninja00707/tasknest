@@ -2,12 +2,16 @@ const service = require('./auth.service');
 
 exports.register = async (req, res) => {
   try {
-    const user = await service.register(req.body);
+    const result = await service.register(req.body);
 
-    return res.status(201).json({
+    const message = result.pendingApproval
+      ? result.message
+      : 'User registered successfully';
+
+    return res.status(result.pendingApproval ? 201 : 201).json({
       success: true,
-      message: 'User registered successfully',
-      data: user,
+      message,
+      data: result,
     });
   } catch (err) {
     console.error('Registration Error:', err);

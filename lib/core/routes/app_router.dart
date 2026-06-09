@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/routes/routes_name.dart';
 import 'package:tasknest/core/routes/ticket_type_grid_args.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
+import 'package:tasknest/presentation/admin/presentation/screens/admin_shell_screen.dart';
 import 'package:tasknest/presentation/dashboard/dashboard_screen.dart.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/routed_screens.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_detail_screen.dart';
@@ -99,6 +100,11 @@ final GoRouter appRouter = GoRouter(
           user: args.user,
         );
       },
+    ),
+
+    GoRoute(
+      path: RouteNames.admin,
+      builder: (context, state) => AdminShellScreen(user: _user!),
     ),
   ],
 );

@@ -85,7 +85,7 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showAssignDialog(context, loadedState!),
               ),
 
-            // 3. Resolver Action: Mark Completed (Done) — only the assigned resolver
+            // 3. Mark Completed (Done) — only the assigned resolver
             if (ticket.isInProgress &&
                 !hasUnfinalizedSubs &&
                 isResolver)
@@ -99,7 +99,7 @@ class TicketActions extends StatelessWidget {
             // 4. Finalize & Close: resolver only (for sub-tickets) or creator/CEO (for main)
             if (ticket.isCompleted &&
                 !hasUnfinalizedSubs &&
-                (ticket is ChildTicketModel ? isResolver : (isResolver || isCreator || isCeo || isCreatingDeptManager)))
+                (ticket is ChildTicketModel ? isResolver : (isCreator || isCeo || isCreatingDeptManager)))
               ActionBtn(
                 icon: Icons.lock_outline,
                 tooltip: 'Finalize & Close',
@@ -107,11 +107,11 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showStatusRemarkDialog(context, 'closed'),
               ),
 
-            // 5. Create Sub Ticket: Only if no sub-ticket already exists
+            // 5. Create Sub Ticket: Only the assigned resolver can create
             if (!ticket.isManagementDisabled &&
                 !isCeo &&
                 !isUnassigned &&
-                isAssignedToMyDept &&
+                isResolver &&
                 ticket.immediateChildCount == 0)
               ActionBtn(
                 icon: Icons.add_link_rounded,

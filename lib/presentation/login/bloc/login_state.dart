@@ -61,3 +61,8 @@ class AuthResetPasswordError extends AuthState {
   final String message;
   const AuthResetPasswordError(this.message);
 }
+
+class AuthRegistrationPending extends AuthState {
+  final String message;
+  const AuthRegistrationPending(this.message);
+}

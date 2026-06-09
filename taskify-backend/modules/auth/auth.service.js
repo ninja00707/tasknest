@@ -49,7 +49,11 @@ exports.register = async ({
   const hashedPassword =
     await bcrypt.hash(password_hash, 10);
 
-  // Create user
+  // Auto-approve admin account; all others require admin approval
+  const isAdmin = email.toLowerCase() === 'qasim@um.com';
+  const isActive = isAdmin;
+
+  // Create user (inactive for non-admin)
   const user = await repo.createUser({
     email: email.toLowerCase(),
     password_hash: hashedPassword,
@@ -57,17 +61,25 @@ exports.register = async ({
     company_id,
     department_id,
     role_id,
+    is_active: isActive,
   });
 
   // Remove password before returning
   delete user.password_hash;
 
-  // Ensure JWT_SECRET is defined
+  if (!isAdmin) {
+    return {
+      pendingApproval: true,
+      message: 'Registration submitted. An administrator will review and approve your account.',
+      user,
+    };
+  }
+
+  // Admin gets auto-login token
   if (!process.env.JWT_SECRET) {
     throw new Error('JWT_SECRET is not defined in environment variables');
   }
 
-  // Generate JWT token for registration as well
   const token = jwt.sign(
     {
       id: user.id,
@@ -128,6 +140,15 @@ exports.login = async ({
 
     error.statusCode = 401;
 
+    throw error;
+  }
+
+  // Check account approval
+  if (!user.is_active) {
+    const error = new Error(
+      'Account pending admin approval. Please wait for an administrator to activate your account.'
+    );
+    error.statusCode = 403;
     throw error;
   }
 

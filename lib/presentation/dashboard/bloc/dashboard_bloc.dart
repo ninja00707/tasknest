@@ -35,8 +35,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<UpdateNotificationCount>(_onUpdateNotificationCount);
     on<LoadTicketDetail>(_onLoadTicketDetail);
     on<ClearTicketDetail>(_onClearTicketDetail);
+    on<SearchTickets>(_onSearch);
     on<LoadManagerAnalytics>(_onLoadManagerAnalytics);
     on<LoadCeoAnalytics>(_onLoadCeoAnalytics);
+    on<ResetDashboardEvent>(_onReset);
 
     _initSocket();
   }
@@ -74,6 +76,9 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   Timer? _socketDebounce;
 
   Future<void> _initSocket() async {
+    // Cancel any stale subscription before creating a new one
+    _socketSub?.cancel();
+
     final token = await LocalStorageService().getToken();
     final user = await LocalStorageService().getUser();
 
@@ -163,6 +168,9 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       final user = await LocalStorageService().getUser();
       if (user == null) throw Exception('User not found');
+
+      // Ensure socket is connected (handles first login, logout+login)
+      _initSocket();
 
       // ✅ Sequential — a 401 on one won't nuke the token for others
       final stats = await _dataSource.getStats();
@@ -507,6 +515,16 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     }
   }
 
+  // ── Search ────────────────────────────────────────────────────
+  Future<void> _onSearch(
+    SearchTickets event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final loaded = _getLoadedStateOrNull();
+    if (loaded == null) return;
+    emit(loaded.copyWith(searchQuery: event.query));
+  }
+
   // ── Manager Analytics ─────────────────────────────────────────
   Future<void> _onLoadManagerAnalytics(
     LoadManagerAnalytics event,
@@ -536,5 +554,18 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       // Apply error handling here too for consistency
       emit(AnalyticsError(_getFriendlyErrorMessage(e)));
     }
+  }
+
+  // ── Reset (used on logout) ────────────────────────────────────
+  Future<void> _onReset(
+    ResetDashboardEvent event,
+    Emitter<DashboardState> emit,
+  ) async {
+    _socketSub?.cancel();
+    _socketDebounce?.cancel();
+    _socketSub = null;
+    _socketDebounce = null;
+    SocketService().disconnect();
+    emit(DashboardInitial());
   }
 }

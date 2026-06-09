@@ -108,12 +108,11 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showStatusRemarkDialog(context, 'closed'),
               ),
 
-            // 5. Create Sub Ticket: Disabled if Completed, Closed, unassigned or if sub-ticket already exists
-            // RULE: Creator and Resolver (and anyone in assigned dept) are allowed to create multiple sub-tickets
+            // 5. Create Sub Ticket: Only the assigned resolver can create
             if (!ticket.isManagementDisabled &&
                 !isCeo &&
                 !isUnassigned &&
-                isAssignedToMyDept)
+                isResolver)
               ActionBtn(
                 icon: Icons.add_link_rounded,
                 tooltip: 'Create Sub Ticket',

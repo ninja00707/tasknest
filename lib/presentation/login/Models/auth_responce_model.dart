@@ -12,6 +12,35 @@ class AuthResponseModel {
   }
 }
 
+class RegistrationResult {
+  final bool pendingApproval;
+  final String message;
+  final AuthResponseModel? authResponse;
+
+  RegistrationResult({
+    required this.pendingApproval,
+    required this.message,
+    this.authResponse,
+  });
+
+  factory RegistrationResult.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] as Map<String, dynamic>? ?? json;
+    final pending = data['pendingApproval'] == true;
+    if (pending) {
+      return RegistrationResult(
+        pendingApproval: true,
+        message: data['message'] ?? 'Registration submitted for admin approval.',
+        authResponse: null,
+      );
+    }
+    return RegistrationResult(
+      pendingApproval: false,
+      message: json['message'] ?? 'User registered successfully',
+      authResponse: AuthResponseModel.fromJson(data),
+    );
+  }
+}
+
 class UserModel {
   final int id;
   final String name;

@@ -32,7 +32,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<AuthResponseModel> register({
+  Future<RegistrationResult> register({
     required String name,
     required String email,
     required String password,
@@ -49,11 +49,10 @@ class AuthRepositoryImpl implements AuthRepository {
       role: role,
     );
 
-    // SAVE TOKEN
-    await localStorageService.setToken(result.token);
-
-    // SAVE USER
-    await localStorageService.setUser(result.user);
+    if (!result.pendingApproval && result.authResponse != null) {
+      await localStorageService.setToken(result.authResponse!.token);
+      await localStorageService.setUser(result.authResponse!.user);
+    }
 
     return result;
   }

@@ -30,7 +30,7 @@ class AuthRemoteDataSource {
     }
   }
 
-  Future<AuthResponseModel> register({
+  Future<RegistrationResult> register({
     required String name,
     required String email,
     required String password,
@@ -48,20 +48,14 @@ class AuthRemoteDataSource {
           'company_id': companyId,
           'department_id': departmentId,
           'role_id': role,
-          'is_active': true,
         },
       );
 
-      // Backend registration returns both user info and a token.
-      // We wrap it in a Map that corresponds to what your model expects.
-      Map<String, dynamic> jsonMap;
-      if (data is Map<String, dynamic>) {
-        jsonMap = data.containsKey('data') ? data['data'] : data;
-      } else {
+      if (data is! Map<String, dynamic>) {
         throw Exception('Registration failed: Invalid response');
       }
 
-      return AuthResponseModel.fromJson(jsonMap);
+      return RegistrationResult.fromJson(data);
     } catch (e) {
       rethrow;
     }

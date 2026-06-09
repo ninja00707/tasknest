@@ -10,6 +10,8 @@ import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/side_
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/notification_toast.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/notification_panel.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
+import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
+import 'package:tasknest/presentation/login/bloc/login_state.dart';
 
 class DashboardScreen extends StatefulWidget {
   final UserModel user;
@@ -60,7 +62,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final bloc = context.read<DashboardBloc>();
     if (bloc.state is DashboardInitial) bloc.add(LoadDashboard());
 
-    return BlocConsumer<DashboardBloc, DashboardState>(
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, authState) {
+        if (authState is AuthUnauthenticated) {
+          context.read<DashboardBloc>().add(ResetDashboardEvent());
+        }
+      },
+      child: BlocConsumer<DashboardBloc, DashboardState>(
       listener: (context, state) {
         if (state is DashboardActionSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -169,6 +177,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           body: bodyContent,
         );
       },
+      ),
     );
   }
 }

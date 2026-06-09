@@ -6,7 +6,7 @@ abstract class AuthRepository {
     required String password,
   });
 
-  Future<AuthResponseModel> register({
+  Future<RegistrationResult> register({
     required String name,
     required String email,
     required String password,

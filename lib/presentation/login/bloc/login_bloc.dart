@@ -42,7 +42,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthLoading(obscurePassword: obscurePassword));
 
       try {
-        await authRepository.register(
+        final result = await authRepository.register(
           name: event.name,
           email: event.email,
           password: event.password,
@@ -51,7 +51,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           role: event.role,
         );
 
-        emit(const AuthAuthenticated());
+        if (result.pendingApproval) {
+          emit(AuthRegistrationPending(result.message));
+        } else {
+          emit(const AuthAuthenticated());
+        }
       } catch (e) {
         emit(AuthError(e.toString(), obscurePassword: obscurePassword));
       }

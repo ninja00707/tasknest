@@ -197,7 +197,8 @@ class _TopBar extends StatelessWidget {
           icon: Icons.refresh_rounded,
           label: isWide ? 'Refresh' : null,
           color: ThemeColors.unifiedPrimary,
-          onTap: () => context.read<DashboardBloc>().add(LoadDashboard(page: 1)),
+          onTap: () =>
+              context.read<DashboardBloc>().add(LoadDashboard(page: 1)),
         ),
         const SizedBox(width: 8),
         _ActionButton(

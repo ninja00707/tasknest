@@ -7,6 +7,7 @@ exports.createUser = async ({
   company_id,
   department_id,
   role_id,
+  is_active,
 }) => {
 
   try {
@@ -19,9 +20,10 @@ exports.createUser = async ({
         name,
         company_id,
         department_id,
-        role_id
+        role_id,
+        is_active
       )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `;
 
@@ -32,6 +34,7 @@ exports.createUser = async ({
       company_id,
       department_id,
       role_id,
+      is_active !== undefined ? is_active : true,
     ];
 
     const result = await pool.query(

@@ -28,6 +28,13 @@ class FilterTickets extends DashboardEvent {
   List<Object?> get props => [status, priority];
 }
 
+class SearchTickets extends DashboardEvent {
+  final String query;
+  SearchTickets(this.query);
+  @override
+  List<Object?> get props => [query];
+}
+
 class SidebarSelectedIndexEvent extends DashboardEvent {
   final int sidebarSelectedIndexEvent;
   SidebarSelectedIndexEvent({required this.sidebarSelectedIndexEvent});
@@ -250,3 +257,5 @@ class UpdateNotificationCount extends DashboardEvent {
   @override
   List<Object?> get props => [count];
 }
+
+class ResetDashboardEvent extends DashboardEvent {}

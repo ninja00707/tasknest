@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/injection.dart' hide storage;
+import 'package:tasknest/presentation/admin/presentation/bloc/admin_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:url_strategy/url_strategy.dart';
 
@@ -24,6 +25,7 @@ class MyApp extends StatelessWidget {
       providers: [
         BlocProvider<AuthBloc>(create: (_) => AuthBloc(authRepository)),
         BlocProvider<DashboardBloc>(create: (_) => createDashboardBloc()),
+        BlocProvider<AdminBloc>(create: (_) => createAdminBloc()),
       ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
