@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:html' as html;
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:socket_io_client/socket_io_client.dart';
 import 'package:tasknest/env.dart';
@@ -28,7 +29,8 @@ class SocketService {
     _retryTimer?.cancel();
     // Force disconnect if a previous connection is still pending or
     // credentials have changed (logout + login, or different user).
-    if (_connecting || (_isConnected && (_token != token || _userId != userId))) {
+    if (_connecting ||
+        (_isConnected && (_token != token || _userId != userId))) {
       disconnect();
     }
     _token = token;
@@ -51,14 +53,12 @@ class SocketService {
       _socket = null;
     }
 
-    final uri = Env.isLive
-        ? 'https://your-production-api.com'
-        : 'http://localhost:5050';
+    final uri = Env.isLive ? html.window.location.origin : Env.socketUrl;
 
     _socket = io.io(
       uri,
       OptionBuilder()
-          .setTransports(['websocket'])
+          .setTransports(['polling', 'websocket'])
           .disableAutoConnect()
           .disableReconnection() // We handle reconnection ourselves
           .setAuth({

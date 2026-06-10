@@ -1,11 +1,19 @@
 class Env {
-  static bool isLive = false;
+  static bool isLive = true;
 
   static String get baseUrl {
     if (isLive) {
-      return 'https://your-production-api.com/api/';
+      return '/api/';
     } else {
       return 'http://localhost:5050/api/';
+    }
+  }
+
+  static String get socketUrl {
+    if (isLive) {
+      return '';
+    } else {
+      return 'http://localhost:5050';
     }
   }
 }

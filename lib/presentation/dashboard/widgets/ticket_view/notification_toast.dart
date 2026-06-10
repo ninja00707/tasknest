@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/theme/color.dart';
@@ -26,8 +27,22 @@ class _LiveNotificationShellState extends State<LiveNotificationShell> {
     _sub = SocketService().events.listen(_onSocketEvent);
   }
 
+  void _requestBrowserPermission() {
+    html.Notification.requestPermission();
+  }
+
+  void _showBrowserNotification(SocketEvent event) {
+    if (html.Notification.permission != 'granted') return;
+    final data = event.data is Map ? event.data as Map : <dynamic, dynamic>{};
+    final title = _labelFor(event.type);
+    final message = data['message'] as String? ?? title;
+    html.Notification(title, body: message);
+  }
+
   void _onSocketEvent(SocketEvent event) {
     if (event.type == 'NOTIFICATION_COUNT') return;
+
+    _showBrowserNotification(event);
 
     final id = ++_idSeq;
     final data = event.data is Map ? event.data as Map : <dynamic, dynamic>{};
@@ -132,6 +147,35 @@ class _LiveNotificationShellState extends State<LiveNotificationShell> {
     return Stack(
       children: [
         widget.child,
+        // ── Browser notification permission banner ───────────────
+        if (html.Notification.permission == 'default')
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Material(
+              child: InkWell(
+                onTap: _requestBrowserPermission,
+                child: Container(
+                  color: ThemeColors.unifiedPrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.notifications_active, color: Colors.white, size: 18),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Enable desktop notifications for real-time updates',
+                          style: TextStyle(color: Colors.white, fontSize: 13),
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: Colors.white, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         // Toast stack — bottom-right, above FAB
         if (_toasts.isNotEmpty)
           Positioned(
