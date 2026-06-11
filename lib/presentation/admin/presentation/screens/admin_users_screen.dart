@@ -108,6 +108,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               headingRowColor: WidgetStateProperty.all(ThemeColors.unifiedBackground),
               columns: const [
                 DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w700))),
+                DataColumn(label: Text('Code', style: TextStyle(fontWeight: FontWeight.w700))),
                 DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w700))),
                 DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.w700))),
                 DataColumn(label: Text('Role', style: TextStyle(fontWeight: FontWeight.w700))),
@@ -118,6 +119,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               ],
               rows: users.map((u) => DataRow(cells: [
                 DataCell(Text('${u.id}')),
+                DataCell(Text(u.code ?? '-', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
                 DataCell(Text(u.name)),
                 DataCell(Text(u.email, style: const TextStyle(fontSize: 13))),
                 DataCell(_roleChip(u.roleName ?? 'N/A')),
@@ -160,6 +162,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               headingRowColor: WidgetStateProperty.all(ThemeColors.unifiedBackground),
               columns: const [
                 DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w700))),
+                DataColumn(label: Text('Code', style: TextStyle(fontWeight: FontWeight.w700))),
                 DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w700))),
                 DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.w700))),
                 DataColumn(label: Text('Role', style: TextStyle(fontWeight: FontWeight.w700))),
@@ -169,6 +172,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               ],
               rows: users.map((u) => DataRow(cells: [
                 DataCell(Text('${u.id}')),
+                DataCell(Text(u.code ?? '-', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
                 DataCell(Text(u.name)),
                 DataCell(Text(u.email, style: const TextStyle(fontSize: 13))),
                 DataCell(_roleChip(u.roleName ?? 'N/A')),
@@ -260,6 +264,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   void _showUserDialog(BuildContext context, AdminUserModel? existing) {
     final nameCtl = TextEditingController(text: existing?.name ?? '');
     final emailCtl = TextEditingController(text: existing?.email ?? '');
+    final codeCtl = TextEditingController(text: existing?.code ?? '');
     final passwordCtl = TextEditingController();
     int? roleId = existing?.roleId ?? 2;
     int? deptId = existing?.departmentId;
@@ -280,6 +285,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   TextFormField(controller: nameCtl, decoration: const InputDecoration(labelText: 'Name'), validator: (v) => v == null || v.isEmpty ? 'Required' : null),
                   const SizedBox(height: 12),
                   TextFormField(controller: emailCtl, decoration: const InputDecoration(labelText: 'Email'), validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                  const SizedBox(height: 12),
+                  TextFormField(controller: codeCtl, decoration: const InputDecoration(labelText: 'Employee Code'), validator: (v) => v == null || v.isEmpty ? 'Required' : null),
                   const SizedBox(height: 12),
                   if (existing == null)
                     TextFormField(controller: passwordCtl, decoration: const InputDecoration(labelText: 'Password'), obscureText: true, validator: (v) => v == null || v.isEmpty ? 'Required' : null),
@@ -323,6 +330,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 final body = <String, dynamic>{
                   'name': nameCtl.text,
                   'email': emailCtl.text,
+                  'code': codeCtl.text,
                   'roleId': roleId,
                   'departmentId': deptId,
                   'companyId': companyId,

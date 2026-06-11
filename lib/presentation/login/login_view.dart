@@ -12,11 +12,11 @@ import 'package:tasknest/presentation/login/bloc/login_state.dart';
 import 'package:tasknest/presentation/login/widget/footer.dart';
 import 'package:tasknest/presentation/login/widget/left_panel.dart';
 import 'package:tasknest/presentation/login/widget/login_card.dart';
-import 'package:tasknest/presentation/login/widget/signup_card.dart';
 import 'package:tasknest/presentation/login/widget/forgot_password_card.dart';
+import 'package:tasknest/presentation/login/widget/first_login_reset_card.dart';
 import 'package:tasknest/presentation/login/widget/top_bar.dart';
 
-enum AuthViewMode { login, signup, forgotPassword }
+enum AuthViewMode { login, forgotPassword, firstLoginReset }
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -52,6 +52,10 @@ class _LoginScreenState extends State<LoginScreen> {
             context.go(RouteNames.dashboard);
           }
 
+          if (state is AuthMustResetPassword) {
+            _switchMode(AuthViewMode.firstLoginReset);
+          }
+
           if (state is AuthError) {
             final isPending = state.message.toLowerCase().contains('pending');
             AppAlertDialog.show(
@@ -62,14 +66,13 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
 
-          if (state is AuthRegistrationPending) {
+          if (state is AuthFirstLoginResetError) {
             AppAlertDialog.show(
               context: context,
-              title: 'Registration Submitted',
+              title: 'Password Reset Failed',
               message: state.message,
-              isError: false,
+              isError: true,
             );
-            _switchMode(AuthViewMode.login);
           }
         } catch (e) {
           print(
@@ -80,20 +83,21 @@ class _LoginScreenState extends State<LoginScreen> {
       builder: (context, state) {
         Widget card;
         switch (currentMode) {
-          case AuthViewMode.signup:
-            card = SignupCard(
-              onNavigate: () => _switchMode(AuthViewMode.login),
-            );
-            break;
           case AuthViewMode.forgotPassword:
             card = ForgotPasswordCard(
               onNavigateToLogin: () => _switchMode(AuthViewMode.login),
             );
             break;
+          case AuthViewMode.firstLoginReset:
+            final resetState = state is AuthMustResetPassword ? state : null;
+            card = FirstLoginResetCard(
+              userId: resetState?.userId ?? 0,
+              email: resetState?.email ?? '',
+              onNavigateToLogin: () => _switchMode(AuthViewMode.login),
+            );
+            break;
           case AuthViewMode.login:
-          default:
             card = LoginCard(
-              onNavigateToSignup: () => _switchMode(AuthViewMode.signup),
               onNavigateToForgotPassword: () =>
                   _switchMode(AuthViewMode.forgotPassword),
             );

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:tasknest/core/constant/validators.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 import 'package:tasknest/presentation/login/bloc/login_event.dart';
@@ -10,15 +9,13 @@ import 'package:tasknest/core/theme/common_textForm_Field.dart';
 class LoginCard extends StatelessWidget {
   LoginCard({
     super.key,
-    required this.onNavigateToSignup,
     required this.onNavigateToForgotPassword,
   });
 
-  final VoidCallback onNavigateToSignup;
   final VoidCallback onNavigateToForgotPassword;
 
   final formKey = GlobalKey<FormState>();
-  final emailController = TextEditingController();
+  final codeController = TextEditingController();
   final passwordController = TextEditingController();
   @override
   Widget build(BuildContext context) {
@@ -144,13 +141,16 @@ class LoginCard extends StatelessWidget {
 
                       const SizedBox(height: 24),
 
-                      // EMAIL FIELD
+                      // CODE FIELD
                       CommonTextFormField(
-                        hint: 'Email address or phone number',
-                        controller: emailController,
-                        icon: Icons.email_outlined,
+                        hint: 'Employee Code',
+                        controller: codeController,
+                        icon: Icons.badge_outlined,
 
-                        validator: AuthValidators.validateEmail,
+                        validator: (val) =>
+                            val == null || val.trim().isEmpty
+                                ? 'Employee code is required'
+                                : null,
                       ),
 
                       const SizedBox(height: 12),
@@ -161,7 +161,10 @@ class LoginCard extends StatelessWidget {
                         obscurePassword: state.obscurePassword,
                         hint: '******',
                         controller: passwordController,
-                        validator: AuthValidators.validatePassword,
+                        validator: (val) =>
+                            val == null || val.isEmpty
+                                ? 'Password is required'
+                                : null,
                         onToggle: () {
                           context.read<AuthBloc>().add(
                             TogglePasswordVisibility(),
@@ -198,7 +201,7 @@ class LoginCard extends StatelessWidget {
                                     if (formKey.currentState!.validate()) {
                                       context.read<AuthBloc>().add(
                                         LoginEvent(
-                                          email: emailController.text.trim(),
+                                          code: codeController.text.trim(),
 
                                           password: passwordController.text
                                               .trim(),
@@ -262,69 +265,6 @@ class LoginCard extends StatelessWidget {
                         ),
                       ),
 
-                      // DIVIDER
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Divider(color: ThemeColors.unifiedBorder),
-                          ),
-
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-
-                            child: Text(
-                              'or',
-
-                              style: TextStyle(
-                                color: ThemeColors.unifiedTextMuted.withOpacity(
-                                  0.7,
-                                ),
-
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-
-                          const Expanded(
-                            child: Divider(color: ThemeColors.unifiedBorder),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // CREATE ACCOUNT
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-
-                        child: OutlinedButton(
-                          onPressed: onNavigateToSignup,
-
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: ThemeColors.unifiedPrimary,
-
-                            side: const BorderSide(
-                              color: ThemeColors.unifiedPrimary,
-
-                              width: 1.5,
-                            ),
-
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-
-                          child: const Text(
-                            'Create new account',
-
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),

@@ -75,6 +75,21 @@ exports.findUserByEmail = async (email) => {
   }
 };
 
+exports.findUserByCode = async (code) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM users WHERE code = $1',
+      [code]
+    );
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('Database Error (findUserByCode):', error);
+    const err = new Error('Database error while fetching user');
+    err.statusCode = 500;
+    throw err;
+  }
+};
+
 exports.saveResetToken = async (userId, token, expiresAt) => {
   try {
     await pool.query(

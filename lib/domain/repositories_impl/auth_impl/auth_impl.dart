@@ -13,20 +13,58 @@ class AuthRepositoryImpl implements AuthRepository {
   });
 
   @override
-  Future<AuthResponseModel> login({
-    required String email,
+  Future<Map<String, dynamic>> login({
+    required String code,
     required String password,
   }) async {
     final result = await remoteDataSource.login(
-      email: email,
+      code: code,
       password: password,
     );
 
-    // SAVE TOKEN using the correct method name from LocalStorageService
-    await localStorageService.setToken(result.token);
+    // If mustResetPassword, don't save token yet
+    if (result['mustResetPassword'] == true) {
+      return result;
+    }
 
-    // SAVE USER using the correct method name from LocalStorageService
-    await localStorageService.setUser(result.user);
+    // Extract data sub-object
+    final data = result['data'] as Map<String, dynamic>? ?? result;
+
+    // SAVE TOKEN
+    if (data['token'] != null) {
+      await localStorageService.setToken(data['token']);
+    }
+
+    // SAVE USER
+    if (data['user'] != null) {
+      final user = AuthResponseModel.fromJson(data).user;
+      await localStorageService.setUser(user);
+    }
+
+    return result;
+  }
+
+  @override
+  Future<Map<String, dynamic>> firstLoginReset({
+    required int userId,
+    required String email,
+    required String newPassword,
+  }) async {
+    final result = await remoteDataSource.firstLoginReset(
+      userId: userId,
+      email: email,
+      newPassword: newPassword,
+    );
+
+    // Save token and user from successful reset
+    final data = result['data'] as Map<String, dynamic>? ?? result;
+    if (data['token'] != null) {
+      await localStorageService.setToken(data['token']);
+    }
+    if (data['user'] != null) {
+      final user = AuthResponseModel.fromJson(data).user;
+      await localStorageService.setUser(user);
+    }
 
     return result;
   }

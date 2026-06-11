@@ -27,14 +27,23 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     // Basic validation before passing to service
-    if (!req.body.email || !req.body.password) {
+    if ((!req.body.code && !req.body.email) || !req.body.password) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required',
+        message: 'Code/Email and password are required',
       });
     }
 
     const result = await service.login(req.body);
+
+    if (result.mustResetPassword) {
+      return res.status(200).json({
+        success: true,
+        mustResetPassword: true,
+        message: result.message,
+        data: { userId: result.userId, email: result.email },
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -86,6 +95,26 @@ exports.resetPassword = async (req, res) => {
     });
   } catch (err) {
     console.error('Reset Password Error:', err);
+    return res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.message || 'An unexpected error occurred',
+      error: process.env.NODE_ENV === 'development' ? err.toString() : undefined,
+    });
+  }
+};
+
+exports.firstLoginReset = async (req, res) => {
+  try {
+    const { userId, email, newPassword } = req.body;
+    const result = await service.firstLoginReset({ userId, email, newPassword });
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+      data: result,
+    });
+  } catch (err) {
+    console.error('First Login Reset Error:', err);
     return res.status(err.statusCode || 500).json({
       success: false,
       message: err.message || 'An unexpected error occurred',

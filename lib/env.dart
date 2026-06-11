@@ -1,5 +1,5 @@
 class Env {
-  static bool isLive = true;
+  static bool isLive = false;
 
   static String get baseUrl {
     if (isLive) {

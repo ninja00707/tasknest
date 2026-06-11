@@ -47,12 +47,31 @@ class DashboardLoaded extends DashboardState {
     if (searchQuery.isEmpty) return tickets;
     final q = searchQuery.toLowerCase();
     return tickets.where((t) {
-      return t.ticketNumber.toLowerCase().contains(q) ||
+      // Normalize ticket number: "UMP-TKQ-001" or just "001"
+      final ticketNum = t.ticketNumber.toLowerCase();
+      final ticketNumShort = ticketNum.replaceAll('ump-tkq-', '');
+      // Sub-ticket / child ticket numbers
+      final childNums = t.children.map((c) => c.ticketNumber.toLowerCase());
+
+      return ticketNum.contains(q) ||
+          ticketNumShort.contains(q) ||
           t.title.toLowerCase().contains(q) ||
+          t.createdByName.toLowerCase().contains(q) ||
+          (t.assignedToName?.toLowerCase().contains(q) ?? false) ||
+          t.assignedDeptName.toLowerCase().contains(q) ||
           t.assignedDeptCode.toLowerCase().contains(q) ||
           t.createdByDeptCode.toLowerCase().contains(q) ||
-          t.assignedDeptName.toLowerCase().contains(q);
+          (t.parentTicketNumber?.toLowerCase().contains(q) ?? false) ||
+          childNums.any((n) => n.contains(q)) ||
+          // Search by date: "2026-06-11" or "11 Jun"
+          _formatDate(t.createdAt).contains(q);
     }).toList();
+  }
+
+  String _formatDate(DateTime dt) {
+    final months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
+        '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
 
   DashboardLoaded copyWith({

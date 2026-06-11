@@ -1,5 +1,6 @@
 const repo = require('./admin.repository');
 const bcrypt = require('bcrypt');
+const pool = require('../../database/db');
 
 exports.getStats = async () => {
   return repo.getStats();
@@ -27,15 +28,19 @@ exports.getUser = async (id) => {
 };
 
 exports.createUser = async (body) => {
-  const { name, email, password, roleId, departmentId, companyId } = body;
+  const { name, email, code, password, roleId, departmentId, companyId } = body;
   if (!name || !email || !password) {
     const e = new Error('Name, email and password are required');
     e.statusCode = 400; throw e;
   }
   const existing = await repo.findUserByEmail(email);
   if (existing) { const e = new Error('Email already in use'); e.statusCode = 409; throw e; }
+  if (code) {
+    const existingCode = await pool.query('SELECT id FROM users WHERE code = $1', [code]);
+    if (existingCode.rows.length) { const e = new Error('Code already in use'); e.statusCode = 409; throw e; }
+  }
   const hash = await bcrypt.hash(password, 10);
-  return repo.createUser({ name, email, passwordHash: hash, roleId, departmentId, companyId });
+  return repo.createUser({ name, email, code, passwordHash: hash, roleId, departmentId, companyId });
 };
 
 exports.updateUser = async (id, body) => {

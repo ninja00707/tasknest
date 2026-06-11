@@ -6,25 +6,52 @@ import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 class AuthRemoteDataSource {
   final ApiClient apiClient = ApiClient();
 
-  Future<AuthResponseModel> login({
-    required String email,
+  Future<Map<String, dynamic>> login({
+    required String code,
     required String password,
   }) async {
     try {
+      // If input contains @, treat as email; otherwise treat as employee code
+      final isEmail = code.contains('@');
+      final body = isEmail
+          ? {'email': code, 'password': password}
+          : {'code': code, 'password': password};
+
       final data = await apiClient.post(
         ApiConstants.login,
-        body: {'email': email, 'password': password},
+        body: body,
       );
 
-      // Ensure we extract the data correctly
-      Map<String, dynamic> jsonMap;
-      if (data is Map<String, dynamic>) {
-        jsonMap = data.containsKey('data') ? data['data'] : data;
-      } else {
+      if (data is! Map<String, dynamic>) {
         throw Exception('Invalid server response format');
       }
 
-      return AuthResponseModel.fromJson(jsonMap);
+      return data;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> firstLoginReset({
+    required int userId,
+    required String email,
+    required String newPassword,
+  }) async {
+    try {
+      final data = await apiClient.post(
+        '/auth/first-login-reset',
+        body: {
+          'userId': userId,
+          'email': email,
+          'newPassword': newPassword,
+        },
+      );
+
+      if (data is! Map<String, dynamic>) {
+        throw Exception('Invalid server response format');
+      }
+
+      return data;
     } catch (e) {
       rethrow;
     }

@@ -1,9 +1,15 @@
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 
 abstract class AuthRepository {
-  Future<AuthResponseModel> login({
-    required String email,
+  Future<Map<String, dynamic>> login({
+    required String code,
     required String password,
+  });
+
+  Future<Map<String, dynamic>> firstLoginReset({
+    required int userId,
+    required String email,
+    required String newPassword,
   });
 
   Future<RegistrationResult> register({

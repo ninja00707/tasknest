@@ -97,14 +97,15 @@ exports.register = async ({
   return { token, user };
 };
 exports.login = async ({
+  code,
   email,
   password,
 }) => {
 
-  if (!email || !password) {
+  if ((!code && !email) || !password) {
 
     const error = new Error(
-      'Email and password are required'
+      'Code/Email and password are required'
     );
 
     error.statusCode = 400;
@@ -112,8 +113,12 @@ exports.login = async ({
     throw error;
   }
 
-  const user =
-    await repo.findUserByEmail(email);
+  let user;
+  if (code) {
+    user = await repo.findUserByCode(code);
+  } else {
+    user = await repo.findUserByEmail(email);
+  }
 
   if (!user) {
 
@@ -150,6 +155,16 @@ exports.login = async ({
     );
     error.statusCode = 403;
     throw error;
+  }
+
+  // Check if user must reset password on first login
+  if (user.must_reset_password) {
+    return {
+      mustResetPassword: true,
+      message: 'Please set your password before logging in.',
+      userId: user.id,
+      email: user.email,
+    };
   }
 
   // Ensure JWT_SECRET is defined
@@ -251,4 +266,66 @@ exports.resetPassword = async ({ email, code, newPassword }) => {
   await repo.updatePassword(user.id, hashedPassword);
 
   return { message: 'Password reset successful. You can now log in with your new password.' };
+};
+
+exports.firstLoginReset = async ({ userId, email, newPassword }) => {
+  if (!userId || !email || !newPassword) {
+    const error = new Error('userId, email, and newPassword are required');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (newPassword.length < 6) {
+    const error = new Error('Password must be at least 6 characters');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const user = await repo.findUserByEmail(email);
+  if (!user) {
+    const error = new Error('User not found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (Number(user.id) !== Number(userId)) {
+    const error = new Error('User ID mismatch');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!user.must_reset_password) {
+    const error = new Error('Password reset not required for this user');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  const pool = require('../../database/db');
+  await pool.query(
+    'UPDATE users SET password_hash = $1, must_reset_password = false WHERE id = $2',
+    [hashedPassword, userId]
+  );
+
+  // Generate JWT token
+  const token = jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      role_id: user.role_id,
+      company_id: user.company_id,
+      department_id: user.department_id,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+  );
+
+  delete user.password_hash;
+
+  return {
+    message: 'Password set successfully. You are now logged in.',
+    token,
+    user: { id: user.id, email: user.email, name: user.name, role_id: user.role_id, company_id: user.company_id, department_id: user.department_id },
+  };
 };

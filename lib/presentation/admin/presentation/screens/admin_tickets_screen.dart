@@ -16,6 +16,7 @@ class AdminTicketsScreen extends StatefulWidget {
 
 class _AdminTicketsScreenState extends State<AdminTicketsScreen> {
   String? _statusFilter;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -27,6 +28,19 @@ class _AdminTicketsScreenState extends State<AdminTicketsScreen> {
   Widget build(BuildContext context) {
     return BlocBuilder<AdminBloc, AdminState>(
       builder: (context, state) {
+        List<AdminTicketModel> displayTickets = [];
+        if (state is TicketsLoaded) {
+          displayTickets = state.tickets.where((t) {
+            if (_searchQuery.isEmpty) return true;
+            final q = _searchQuery.toLowerCase();
+            return (t.ticketNumber?.toLowerCase().contains(q) ?? false) ||
+                t.title.toLowerCase().contains(q) ||
+                (t.assignedToName?.toLowerCase().contains(q) ?? false) ||
+                (t.createdByName?.toLowerCase().contains(q) ?? false) ||
+                (t.assignedDeptName?.toLowerCase().contains(q) ?? false);
+          }).toList();
+        }
+
         return Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -38,6 +52,30 @@ class _AdminTicketsScreenState extends State<AdminTicketsScreen> {
                   const Text('Manage Tickets', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary)),
                   Row(
                     children: [
+                      SizedBox(
+                        width: 220,
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: 'Search tickets...',
+                            hintStyle: TextStyle(color: ThemeColors.unifiedTextMuted.withOpacity(0.6), fontSize: 13),
+                            prefixIcon: Icon(Icons.search_rounded, size: 18, color: ThemeColors.unifiedTextMuted),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(Icons.clear_rounded, size: 16, color: ThemeColors.unifiedTextMuted),
+                                    onPressed: () => setState(() => _searchQuery = ''),
+                                  )
+                                : null,
+                            filled: true,
+                            fillColor: ThemeColors.unifiedBackground,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: ThemeColors.unifiedBorder)),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: ThemeColors.unifiedBorder.withOpacity(0.5))),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: ThemeColors.unifiedPrimary, width: 1.5)),
+                          ),
+                          onChanged: (v) => setState(() => _searchQuery = v),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       DropdownButton<String?>(
                         value: _statusFilter,
                         hint: const Text('All Status'),
@@ -60,8 +98,15 @@ class _AdminTicketsScreenState extends State<AdminTicketsScreen> {
                 ],
               ),
               const SizedBox(height: 16),
+              if (_searchQuery.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text('${displayTickets.length} result${displayTickets.length == 1 ? '' : 's'} for "$_searchQuery"',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted),
+                  ),
+                ),
               if (state is AdminLoading) const Expanded(child: Center(child: CircularProgressIndicator()))
-              else if (state is TicketsLoaded) _buildTable(state.tickets, state.filterStatus)
+              else if (state is TicketsLoaded) _buildTable(displayTickets, state.filterStatus)
               else if (state is AdminError) Expanded(child: Center(child: Text(state.message, style: const TextStyle(color: ThemeColors.unifiedDanger))))
               else const SizedBox.shrink(),
             ],

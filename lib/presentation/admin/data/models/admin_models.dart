@@ -35,6 +35,7 @@ class AdminUserModel {
   final int id;
   final String name;
   final String email;
+  final String? code;
   final int roleId;
   final int? departmentId;
   final int companyId;
@@ -49,6 +50,7 @@ class AdminUserModel {
     required this.id,
     required this.name,
     required this.email,
+    this.code,
     required this.roleId,
     this.departmentId,
     required this.companyId,
@@ -64,6 +66,7 @@ class AdminUserModel {
     id: json['id'],
     name: json['name'] ?? '',
     email: json['email'] ?? '',
+    code: json['code'],
     roleId: json['role_id'] ?? 2,
     departmentId: json['department_id'],
     companyId: json['company_id'] ?? 0,
@@ -78,6 +81,7 @@ class AdminUserModel {
   Map<String, dynamic> toJson() => {
     'name': name,
     'email': email,
+    'code': code,
     'roleId': roleId,
     'departmentId': departmentId,
     'companyId': companyId,

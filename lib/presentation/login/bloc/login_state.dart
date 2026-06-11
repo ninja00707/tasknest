@@ -66,3 +66,24 @@ class AuthRegistrationPending extends AuthState {
   final String message;
   const AuthRegistrationPending(this.message);
 }
+
+class AuthMustResetPassword extends AuthState {
+  final int userId;
+  final String email;
+  final String message;
+  const AuthMustResetPassword({
+    required this.userId,
+    required this.email,
+    required this.message,
+  });
+}
+
+class AuthFirstLoginResetSuccess extends AuthState {
+  final String message;
+  const AuthFirstLoginResetSuccess(this.message);
+}
+
+class AuthFirstLoginResetError extends AuthState {
+  final String message;
+  const AuthFirstLoginResetError(this.message);
+}

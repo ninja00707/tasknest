@@ -19,11 +19,63 @@ class TicketListView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        _SearchBar(state: state),
         _FilterBar(state: state),
         Expanded(
           child: _TicketBody(state: state, user: user),
         ),
       ],
+    );
+  }
+}
+
+// ── Search bar ────────────────────────────────────────────────────────────────
+class _SearchBar extends StatelessWidget {
+  final DashboardLoaded state;
+  const _SearchBar({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: ThemeColors.unifiedSurface,
+        border: Border(
+          bottom: BorderSide(color: ThemeColors.unifiedBorder, width: 1.5),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: TextField(
+        decoration: InputDecoration(
+          hintText: 'Search tickets by #, name, dept, date...',
+          hintStyle: TextStyle(
+            color: ThemeColors.unifiedTextMuted.withOpacity(0.6),
+            fontSize: 13,
+          ),
+          prefixIcon: Icon(Icons.search_rounded, size: 20, color: ThemeColors.unifiedTextMuted),
+          suffixIcon: state.searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.clear_rounded, size: 18, color: ThemeColors.unifiedTextMuted),
+                  onPressed: () => context.read<DashboardBloc>().add(SearchTickets('')),
+                )
+              : null,
+          filled: true,
+          fillColor: ThemeColors.unifiedBackground,
+          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: ThemeColors.unifiedBorder),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: ThemeColors.unifiedBorder.withOpacity(0.5)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: ThemeColors.unifiedPrimary, width: 1.5),
+          ),
+        ),
+        onChanged: (v) => context.read<DashboardBloc>().add(SearchTickets(v)),
+      ),
     );
   }
 }
@@ -410,13 +462,18 @@ class _TicketBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (state.tickets.isEmpty) {
+    final displayTickets = state.filteredTickets;
+
+    if (displayTickets.isEmpty) {
+      final hasFilters = state.filterStatus != null ||
+          state.filterPriority != null ||
+          state.searchQuery.isNotEmpty;
       return _EmptyState(
-        filterActive:
-            state.filterStatus != null || state.filterPriority != null,
-        onClear: () => context.read<DashboardBloc>().add(
-          FilterTickets(status: null, priority: null),
-        ),
+        filterActive: hasFilters,
+        onClear: () {
+          context.read<DashboardBloc>().add(FilterTickets(status: null, priority: null));
+          context.read<DashboardBloc>().add(SearchTickets(''));
+        },
       );
     }
 
@@ -441,15 +498,17 @@ class _TicketBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ── Result summary strip ────────────────────────
-              if (state.filterStatus != null || state.filterPriority != null)
-                _ResultSummary(state: state),
+              if (state.filterStatus != null ||
+                  state.filterPriority != null ||
+                  state.searchQuery.isNotEmpty)
+                _ResultSummary(state: state, count: displayTickets.length),
               const SizedBox(height: 4),
 
               // ── Ticket grid / list ──────────────────────────
               Wrap(
                 spacing: spacing,
                 runSpacing: spacing,
-                children: state.tickets
+                children: displayTickets
                     .map(
                       (t) => SizedBox(
                         width: cardWidth,
@@ -525,7 +584,8 @@ class _TicketBody extends StatelessWidget {
 // ── Result summary ────────────────────────────────────────────────────────────
 class _ResultSummary extends StatelessWidget {
   final DashboardLoaded state;
-  const _ResultSummary({required this.state});
+  final int count;
+  const _ResultSummary({required this.state, this.count = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -553,8 +613,9 @@ class _ResultSummary extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Showing ${state.tickets.length} result${state.tickets.length == 1 ? '' : 's'}'
-              ' · ${parts.join(' · ')}',
+              'Showing $count result${count == 1 ? '' : 's'}'
+              ' · ${parts.join(' · ')}'
+              '${state.searchQuery.isNotEmpty ? ' · "${state.searchQuery}"' : ''}',
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,

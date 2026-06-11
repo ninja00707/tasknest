@@ -15,15 +15,41 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthLoading(obscurePassword: obscurePassword));
 
       try {
-        await authRepository.login(
-          email: event.email!,
+        final result = await authRepository.login(
+          code: event.code!,
           password: event.password!,
+        );
+
+        // Check if must reset password on first login
+        if (result['mustResetPassword'] == true) {
+          final data = result['data'] as Map<String, dynamic>? ?? result;
+          emit(AuthMustResetPassword(
+            userId: data['userId'] ?? 0,
+            email: data['email'] ?? '',
+            message: result['message'] ?? 'Please set your password.',
+          ));
+        } else {
+          emit(const AuthAuthenticated());
+        }
+      } catch (e) {
+        print("==============================$e");
+        emit(AuthError(e.toString(), obscurePassword: obscurePassword));
+      }
+    });
+
+    on<FirstLoginResetEvent>((event, emit) async {
+      emit(AuthLoading(obscurePassword: obscurePassword));
+
+      try {
+        await authRepository.firstLoginReset(
+          userId: event.userId,
+          email: event.email,
+          newPassword: event.newPassword,
         );
 
         emit(const AuthAuthenticated());
       } catch (e) {
-        print("==============================$e");
-        emit(AuthError(e.toString(), obscurePassword: obscurePassword));
+        emit(AuthFirstLoginResetError(e.toString()));
       }
     });
 

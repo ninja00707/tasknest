@@ -127,17 +127,17 @@ class _DashboardBody extends StatelessWidget {
               const SizedBox(height: 24),
             ],
 
-            if (user.roleId == 2)
-              LayoutBuilder(
-                builder: (context, constraints) => ConstrainedBox(
-                  constraints: BoxConstraints(
-                    // gives TicketListView a finite height so Expanded children work
-                    minHeight: 0,
-                    maxHeight: MediaQuery.sizeOf(context).height - 200,
-                  ),
-                  child: TicketListView(state: state, user: user),
+            // ── Ticket search + list (all roles) ──────────────────
+            const SizedBox(height: 8),
+            LayoutBuilder(
+              builder: (context, constraints) => ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: 0,
+                  maxHeight: MediaQuery.sizeOf(context).height - 200,
                 ),
+                child: TicketListView(state: state, user: user),
               ),
+            ),
           ],
         ),
       ),
