@@ -28,6 +28,13 @@ class FilterTickets extends DashboardEvent {
   List<Object?> get props => [status, priority];
 }
 
+class ToggleTeamFilter extends DashboardEvent {
+  final bool active;
+  ToggleTeamFilter(this.active);
+  @override
+  List<Object?> get props => [active];
+}
+
 class SearchTickets extends DashboardEvent {
   final String query;
   SearchTickets(this.query);

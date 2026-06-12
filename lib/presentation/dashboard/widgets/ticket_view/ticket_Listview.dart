@@ -219,6 +219,92 @@ class _FilterBar extends StatelessWidget {
             ),
           ),
 
+          // ── Team filter ──────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: () => context.read<DashboardBloc>().add(
+                    ToggleTeamFilter(!state.filterTeam),
+                  ),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      gradient: state.filterTeam
+                          ? const LinearGradient(
+                              colors: [Color(0xFF0EA5E9), Color(0xFF06B6D4)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            )
+                          : null,
+                      color: state.filterTeam ? null : ThemeColors.unifiedBackground,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: state.filterTeam
+                            ? Colors.transparent
+                            : ThemeColors.unifiedBorder,
+                        width: 1.5,
+                      ),
+                      boxShadow: state.filterTeam
+                          ? [
+                              BoxShadow(
+                                color: const Color(0xFF0EA5E9).withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.groups_rounded,
+                          size: 14,
+                          color: state.filterTeam
+                              ? Colors.white
+                              : ThemeColors.unifiedTextMuted,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          'MY TEAM',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: state.filterTeam
+                                ? Colors.white
+                                : ThemeColors.unifiedTextMuted,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        if (state.filterTeam) ...[
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            size: 12,
+                            color: Colors.white,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                if (state.filterTeam) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    'tickets from your team',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: ThemeColors.unifiedTextMuted.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
           // ── Priority filters ──────────────────────────────────
           const SizedBox(height: 8),
           SizedBox(

@@ -239,6 +239,17 @@ class TicketCard extends StatelessWidget {
                                 iconColor: ThemeColors.unifiedTextMuted,
                                 label: ticket.assignedToName!,
                               ),
+                              if (ticket.assignedToReportsToName != null) ...[
+                                const SizedBox(width: 4),
+                                Text(
+                                  '→ ${ticket.assignedToReportsToName}',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: ThemeColors.unifiedTextMuted,
+                                  ),
+                                ),
+                              ],
                             ],
                           ] else ...[
                             _MetaDivider(),

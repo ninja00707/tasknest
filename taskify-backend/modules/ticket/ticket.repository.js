@@ -53,6 +53,8 @@ class TicketRepository {
 
         assignee.id   AS assigned_to_id,
         assignee.name AS assigned_to_name,
+        reporter_assignee.name AS assigned_to_reports_to_name,
+        reporter_creator.name AS created_by_reports_to_name,
 
         ll.action      AS last_action,
         ll.created_at  AS last_updated_at,
@@ -96,6 +98,8 @@ class TicketRepository {
       LEFT JOIN departments cd ON cd.id = t.created_by_dept
       LEFT JOIN departments ad ON ad.id = t.assigned_dept_id
       LEFT JOIN users assignee ON assignee.id = t.assigned_to_id
+      LEFT JOIN users reporter_assignee ON reporter_assignee.id = assignee.reports_to
+      LEFT JOIN users reporter_creator ON reporter_creator.id = creator.reports_to
       LEFT JOIN departments tf ON tf.id = t.transferred_from
       LEFT JOIN tickets pt     ON pt.id = t.parent_ticket_id
       LEFT JOIN LATERAL (
@@ -182,12 +186,20 @@ class TicketRepository {
 
   // ── Get tickets visible to this user based on role ────────────────────────
   async getVisibleTickets(user, filters = {}) {
-    const { status, priority, page = 1, limit = 15 } = filters;
+    const { status, priority, page = 1, limit = 15, scope } = filters;
     const offset = (Number(page) - 1) * Number(limit);
     const params = [];
     let whereClause = 'WHERE t.parent_ticket_id IS NULL'; // Only show top-level tickets
 
-    if (user.role === 'ceo') {
+    if (scope === 'team') {
+      // "My Team" — tickets where creator or assignee is a DIRECT report
+      params.push(user.id);
+      const userIdParam = `$${params.length}`;
+      whereClause += ` AND (
+        t.created_by_id IN (SELECT id FROM users WHERE reports_to = ${userIdParam})
+        OR t.assigned_to_id IN (SELECT id FROM users WHERE reports_to = ${userIdParam})
+      )`;
+    } else if (user.role === 'ceo') {
       // CEO sees everything top-level
     } else {
       params.push(user.department_id);
@@ -307,6 +319,8 @@ class TicketRepository {
       LEFT JOIN departments cd       ON cd.id        = t.created_by_dept
       LEFT JOIN departments ad       ON ad.id        = t.assigned_dept_id
       LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
+      LEFT JOIN users  reporter_assignee ON reporter_assignee.id = assignee.reports_to
+      LEFT JOIN users  reporter_creator ON reporter_creator.id = creator.reports_to
       LEFT JOIN departments tf  ON tf.id        = t.transferred_from
       LEFT JOIN tickets pt     ON pt.id        = t.parent_ticket_id
       LEFT JOIN journey_agg ja ON ja.leaf_id   = t.id
@@ -477,6 +491,8 @@ class TicketRepository {
         cd.name      AS created_by_dept_name,
         ad.name      AS assigned_dept_name,
         assignee.name AS assigned_to_name,
+        reporter_assignee.name AS assigned_to_reports_to_name,
+        reporter_creator.name AS created_by_reports_to_name,
         tf.code AS transferred_from_code,
         pt.title AS parent_ticket_title,
         pt.ticket_number AS parent_ticket_number,
@@ -496,6 +512,8 @@ class TicketRepository {
       LEFT JOIN departments cd       ON cd.id        = t.created_by_dept
       LEFT JOIN departments ad       ON ad.id        = t.assigned_dept_id
       LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
+      LEFT JOIN users  reporter_assignee ON reporter_assignee.id = assignee.reports_to
+      LEFT JOIN users  reporter_creator ON reporter_creator.id = creator.reports_to
       LEFT JOIN departments tf  ON tf.id        = t.transferred_from
       LEFT JOIN tickets pt     ON pt.id        = t.parent_ticket_id
       LEFT JOIN journey_agg ja ON ja.leaf_id   = t.id
@@ -595,6 +613,22 @@ class TicketRepository {
         step => Number(step.id) === Number(user.department_id)
       )) {
         return ticket;
+      }
+      // Check if ticket's creator or assignee is a direct report of the user
+      // (supports the "My Team" view — manager can see reports' tickets)
+      if (ticket.created_by_id) {
+        const reportsToMe = await pool.query(
+          `SELECT 1 FROM users WHERE id = $1 AND reports_to = $2 LIMIT 1`,
+          [ticket.created_by_id, user.id]
+        );
+        if (reportsToMe.rows.length > 0) return ticket;
+      }
+      if (ticket.assigned_to_id && Number(ticket.assigned_to_id) !== Number(ticket.created_by_id)) {
+        const reportsToMe = await pool.query(
+          `SELECT 1 FROM users WHERE id = $1 AND reports_to = $2 LIMIT 1`,
+          [ticket.assigned_to_id, user.id]
+        );
+        if (reportsToMe.rows.length > 0) return ticket;
       }
       // For sub-tickets, also walk up the parent chain
       if (ticket.parent_ticket_id) {
@@ -853,10 +887,13 @@ class TicketRepository {
         u.is_active,
         r.name AS role,
         d.code AS dept_code,
-        d.name AS dept_name
+        d.name AS dept_name,
+        u.reports_to,
+        reporter.name AS reports_to_name
       FROM users u
       JOIN roles r ON r.id = u.role_id
       JOIN departments d ON d.id = u.department_id
+      LEFT JOIN users reporter ON reporter.id = u.reports_to
       WHERE u.department_id = $1
         AND u.is_active = TRUE
       ORDER BY u.name ASC
@@ -888,6 +925,8 @@ class TicketRepository {
 
         assignee.id   AS assigned_to_id,
         assignee.name AS assigned_to_name,
+        reporter_assignee.name AS assigned_to_reports_to_name,
+        reporter_creator.name AS created_by_reports_to_name,
 
         tf.code AS transferred_from_code,
         pt.title AS parent_ticket_title,
@@ -918,6 +957,8 @@ class TicketRepository {
       LEFT JOIN departments cd       ON cd.id        = t.created_by_dept
       LEFT JOIN departments ad       ON ad.id        = t.assigned_dept_id
       LEFT JOIN users  assignee ON assignee.id  = t.assigned_to_id
+      LEFT JOIN users  reporter_assignee ON reporter_assignee.id = assignee.reports_to
+      LEFT JOIN users  reporter_creator ON reporter_creator.id = creator.reports_to
       LEFT JOIN departments tf  ON tf.id        = t.transferred_from
       LEFT JOIN tickets pt     ON pt.id        = t.parent_ticket_id
       LEFT JOIN LATERAL (

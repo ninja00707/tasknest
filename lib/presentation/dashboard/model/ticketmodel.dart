@@ -14,6 +14,8 @@ class TicketModel {
   final int createdById;
   final int? assignedToId;
   final String? assignedToName;
+  final String? assignedToReportsToName;
+  final String? createdByReportsToName;
   final String? transferredFromCode;
   final DateTime createdAt;
   final DateTime? dueDate;
@@ -57,6 +59,8 @@ class TicketModel {
     required this.createdById,
     this.assignedToId,
     this.assignedToName,
+    this.assignedToReportsToName,
+    this.createdByReportsToName,
     this.transferredFromCode,
     required this.createdAt,
     this.dueDate,
@@ -98,6 +102,8 @@ class TicketModel {
     createdByDeptCode: j['created_by_dept_code'] ?? '',
     assignedToId: j['assigned_to_id'],
     assignedToName: j['assigned_to_name'] ?? 'Unassigned',
+    assignedToReportsToName: j['assigned_to_reports_to_name'],
+    createdByReportsToName: j['created_by_reports_to_name'],
     transferredFromCode: j['transferred_from_code'] ?? 'None',
     createdAt: DateTime.parse(
       j['created_at'] ?? DateTime.now().toIso8601String(),
@@ -400,6 +406,8 @@ class EmployeeModel {
   final String role;
   final String deptCode;
   final String deptName;
+  final int? reportsTo;
+  final String? reportsToName;
 
   const EmployeeModel({
     required this.id,
@@ -411,6 +419,8 @@ class EmployeeModel {
     required this.role,
     required this.deptCode,
     required this.deptName,
+    this.reportsTo,
+    this.reportsToName,
   });
 
   factory EmployeeModel.fromJson(Map<String, dynamic> j) => EmployeeModel(
@@ -423,6 +433,8 @@ class EmployeeModel {
     role: j['role'] ?? '',
     deptCode: j['dept_code'] ?? '',
     deptName: j['dept_name'] ?? '',
+    reportsTo: j['reports_to'],
+    reportsToName: j['reports_to_name'],
   );
 }
 

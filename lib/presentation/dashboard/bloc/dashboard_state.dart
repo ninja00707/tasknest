@@ -22,6 +22,7 @@ class DashboardLoaded extends DashboardState {
   final List<TicketModel> sentTickets;
   final String? filterStatus;
   final String? filterPriority;
+  final bool filterTeam;
   final String searchQuery;
   final int selectedIndex;
   final int unreadNotificationCount;
@@ -36,6 +37,7 @@ class DashboardLoaded extends DashboardState {
     required this.sentTickets,
     this.filterStatus,
     this.filterPriority,
+    this.filterTeam = false,
     this.searchQuery = '',
     this.selectedIndex = 0,
     this.unreadNotificationCount = 0,
@@ -82,6 +84,7 @@ class DashboardLoaded extends DashboardState {
     List<TicketModel>? sentTickets,
     String? filterStatus,
     String? filterPriority,
+    bool? filterTeam,
     String? searchQuery,
     int? selectedIndex,
     int? unreadNotificationCount,
@@ -96,6 +99,7 @@ class DashboardLoaded extends DashboardState {
       sentTickets: sentTickets ?? this.sentTickets,
       filterStatus: filterStatus ?? this.filterStatus,
       filterPriority: filterPriority ?? this.filterPriority,
+      filterTeam: filterTeam ?? this.filterTeam,
       searchQuery: searchQuery ?? this.searchQuery,
       selectedIndex: selectedIndex ?? this.selectedIndex,
       unreadNotificationCount: unreadNotificationCount ?? this.unreadNotificationCount,
@@ -113,6 +117,7 @@ class DashboardLoaded extends DashboardState {
     sentTickets,
     filterStatus,
     filterPriority,
+    filterTeam,
     searchQuery,
     selectedIndex,
     unreadNotificationCount,

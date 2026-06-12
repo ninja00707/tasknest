@@ -36,6 +36,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<LoadTicketDetail>(_onLoadTicketDetail);
     on<ClearTicketDetail>(_onClearTicketDetail);
     on<SearchTickets>(_onSearch);
+    on<ToggleTeamFilter>(_onToggleTeamFilter);
     on<LoadManagerAnalytics>(_onLoadManagerAnalytics);
     on<LoadCeoAnalytics>(_onLoadCeoAnalytics);
     on<ResetDashboardEvent>(_onReset);
@@ -172,9 +173,15 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       // Ensure socket is connected (handles first login, logout+login)
       _initSocket();
 
+      // Read team filter state from the previous state
+      final prevFilterTeam = _getLoadedStateOrNull()?.filterTeam ?? false;
+
       // ✅ Sequential — a 401 on one won't nuke the token for others
       final stats = await _dataSource.getStats();
-      final ticketResult = await _dataSource.getTickets(page: event.page);
+      final ticketResult = await _dataSource.getTickets(
+        page: event.page,
+        scope: prevFilterTeam ? 'team' : null,
+      );
       final tickets = ticketResult.tickets;
       final currentPage = ticketResult.page;
       final totalPages = ticketResult.totalPages;
@@ -216,12 +223,39 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         status: event.status,
         priority: event.priority,
         page: 1,
+        scope: prev.filterTeam ? 'team' : null,
       );
       emit(
         prev.copyWith(
           tickets: ticketResult.tickets,
           filterStatus: event.status,
           filterPriority: event.priority,
+          currentPage: ticketResult.page,
+          totalPages: ticketResult.totalPages,
+        ),
+      );
+    } catch (e) {
+      emit(DashboardError(_getFriendlyErrorMessage(e)));
+    }
+  }
+
+  // ── Toggle Team Filter ───────────────────────────────────────
+  Future<void> _onToggleTeamFilter(
+    ToggleTeamFilter event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final prev = _getLoadedState();
+    try {
+      final ticketResult = await _dataSource.getTickets(
+        status: prev.filterStatus,
+        priority: prev.filterPriority,
+        page: 1,
+        scope: event.active ? 'team' : null,
+      );
+      emit(
+        prev.copyWith(
+          tickets: ticketResult.tickets,
+          filterTeam: event.active,
           currentPage: ticketResult.page,
           totalPages: ticketResult.totalPages,
         ),
