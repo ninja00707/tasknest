@@ -295,6 +295,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     value: roleId,
                     decoration: const InputDecoration(labelText: 'Role'),
                     items: const [
+                      DropdownMenuItem(value: 3, child: Text('Developer')),
                       DropdownMenuItem(value: 0, child: Text('CEO')),
                       DropdownMenuItem(value: 1, child: Text('Manager')),
                       DropdownMenuItem(value: 2, child: Text('Employee')),

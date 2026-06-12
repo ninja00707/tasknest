@@ -180,7 +180,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       final totalPages = ticketResult.totalPages;
       final departments = await _dataSource.getDepartments();
       // Only fetch employees on initial load (rarely changes)
-      final needsEmployees = user.roleId == 1;
+      final needsEmployees = user.roleId == 1 || user.roleId == 0 || user.roleId == 3;
       final currentEmployees = _getLoadedStateOrNull()?.employees ?? <EmployeeModel>[];
       final employees = needsEmployees && currentEmployees.isEmpty
           ? await _dataSource.getEmployees(departmentId: user.departmentId)

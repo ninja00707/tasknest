@@ -25,10 +25,14 @@ class Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dbState = context.read<DashboardBloc>().state;
+    final deptList = dbState is DashboardLoaded
+        ? dbState.departments.map((d) => Departments(name: d.name, id: d.id)).toList()
+        : <Departments>[];
     final departmentName =
         NameById.getNameById<Departments>(
           id: user.departmentId,
-          items: departments,
+          items: deptList,
           idSelector: (e) => e.id,
           nameSelector: (e) => e.name,
         ) ??
@@ -106,7 +110,7 @@ class Sidebar extends StatelessWidget {
           ),
           NavItem(
             icon: Icons.auto_awesome_outlined,
-            label: user.roleId == 0
+            label: (user.roleId == 0 || user.roleId == 3)
                 ? 'All Department Tickets'
                 : user.roleId == 1
                 ? 'Department\'s Tickets'
@@ -126,7 +130,7 @@ class Sidebar extends StatelessWidget {
           ),
 
           // Add this inside your Sidebar widget's item list
-          if (user.roleId != 0)
+          if (user.roleId != 0 && user.roleId != 3)
             NavItem(
               icon: Icons.hub_outlined,
               label: 'Sent Sub-Tickets',
@@ -149,8 +153,8 @@ class Sidebar extends StatelessWidget {
             onTap: onNav,
           ),
 
-          // Admin Panel — only for admin user
-          if (user.email == 'qasim@um.com')
+          // Admin Panel — only for Developer/CEO
+          if (user.roleId == 3 || user.email == 'qasim@um.com')
             NavItem(
               icon: Icons.admin_panel_settings,
               label: 'Admin Panel',
@@ -251,7 +255,7 @@ class Sidebar extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '$roleName · $departmentName',
+                        '${user.designation.isNotEmpty ? user.designation : roleName} · $departmentName',
                         style: const TextStyle(
                           fontSize: 11,
                           color: ThemeColors.unifiedTextMuted,

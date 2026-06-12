@@ -57,7 +57,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
         ? blocState.employees
         : <EmployeeModel>[];
     final canAssignEmployee =
-        widget.user.roleId == 0 || widget.user.roleId == 1;
+        widget.user.roleId == 0 || widget.user.roleId == 1 || widget.user.roleId == 3;
     final availableDepartments = blocState is DashboardLoaded
         ? blocState.departments
               .map((d) => Departments(name: d.name, id: d.id))

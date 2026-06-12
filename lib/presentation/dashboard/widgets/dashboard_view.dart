@@ -21,7 +21,7 @@ class DashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isManager = user.roleId == 0 || user.roleId == 1;
+    final isManager = user.roleId == 0 || user.roleId == 1 || user.roleId == 3;
     return _DashboardBody(state: state, user: user, isManager: isManager);
   }
 }
@@ -43,9 +43,10 @@ class _DashboardBody extends StatelessWidget {
     final isWide = MediaQuery.sizeOf(context).width > 768;
     final s = state.stats;
 
+    final deptLookup = state.departments.map((d) => Departments(name: d.name, id: d.id)).toList();
     final departmentName = NameById.getNameById<Departments>(
       id: user.departmentId,
-      items: departments,
+      items: deptLookup,
       idSelector: (e) => e.id,
       nameSelector: (e) => e.name,
     );
@@ -76,6 +77,7 @@ class _DashboardBody extends StatelessWidget {
             // ── Identity pill ───────────────────────────────────────────
             _IdentityPill(
               userName: user.name,
+              designation: user.designation,
               departmentName: departmentName,
               roleName: roleName,
               companyName: companyName,
@@ -267,10 +269,12 @@ class _ActionButton extends StatelessWidget {
 // ── Identity pill ─────────────────────────────────────────────────────────────
 class _IdentityPill extends StatelessWidget {
   final String userName;
+  final String designation;
   final String? departmentName, roleName, companyName;
 
   const _IdentityPill({
     required this.userName,
+    this.designation = '',
     this.departmentName,
     this.roleName,
     this.companyName,
@@ -318,8 +322,7 @@ class _IdentityPill extends StatelessWidget {
               [
                 userName.toUpperCase(),
                 if (departmentName != null) departmentName!,
-                if (roleName != null) roleName!,
-                if (companyName != null) companyName!,
+                if (designation.isNotEmpty) designation,
               ].join(' · '),
               style: const TextStyle(
                 fontSize: 12,

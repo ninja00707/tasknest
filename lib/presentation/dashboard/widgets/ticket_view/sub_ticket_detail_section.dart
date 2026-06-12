@@ -20,7 +20,7 @@ class SubTicketDetailSection extends StatelessWidget {
   bool _canCompleteTicket(UserModel user, TicketModel t) {
     if (t.isClosed || t.isCompleted) return false;
     final isCreator = t.createdById == user.id;
-    final isCeo = user.roleId == 0;
+    final isCeo = user.roleId == 0 || user.roleId == 3;
     if (!isCreator && !isCeo) return false;
     if (t.subDepartments.isEmpty) return false;
     return t.subDepartments.every((d) => d.isApproved || d.isCompleted);
@@ -197,7 +197,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
       widget.user.departmentId == widget.dept.departmentId;
 
   bool get _isManager => widget.user.roleId == 1;
-  bool get _isCeo => widget.user.roleId == 0;
+  bool get _isCeo => widget.user.roleId == 0 || widget.user.roleId == 3;
   bool get _isEmployee => widget.user.roleId == 2;
   bool get _isCreator => widget.ticket.createdById == widget.user.id;
 

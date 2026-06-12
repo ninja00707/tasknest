@@ -48,6 +48,7 @@ final roles = [
   Roles(id: 0, name: 'Director'),
   Roles(id: 1, name: 'manager'),
   Roles(id: 2, name: 'employee'),
+  Roles(id: 3, name: 'developer'),
 ];
 final priorities = [
   Priorities(name: 'low', id: 0),
@@ -56,34 +57,4 @@ final priorities = [
   Priorities(name: 'urgent', id: 3),
 ];
 
-final List<Departments> departments = [
-  Departments(id: 0, name: 'HR'),
-
-  Departments(id: 1, name: 'Admin'),
-  Departments(id: 2, name: 'IT'),
-
-  Departments(id: 3, name: 'Procurement'),
-
-  Departments(id: 4, name: 'LA'),
-
-  Departments(id: 5, name: 'Feed'),
-
-  Departments(id: 6, name: 'FM'),
-
-  Departments(id: 7, name: 'Drag'),
-
-  Departments(id: 8, name: 'Finance'),
-
-  Departments(id: 9, name: 'LARA'),
-
-  Departments(id: 10, name: 'LAFM'),
-
-  Departments(id: 11, name: 'LBFM'),
-
-  Departments(id: 12, name: 'FMAS'),
-
-  Departments(id: 13, name: 'FMPS'),
-
-  Departments(id: 14, name: 'FMSG'),
-  Departments(id: 15, name: 'Directors'),
-];
+final List<Departments> departments = [];

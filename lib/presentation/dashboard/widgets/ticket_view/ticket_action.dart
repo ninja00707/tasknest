@@ -36,7 +36,7 @@ class TicketActions extends StatelessWidget {
         }
 
         final bool isManager = user.roleId == 1;
-        final bool isCeo = user.roleId == 0;
+        final bool isCeo = user.roleId == 0 || user.roleId == 3;
         final bool isResolver =
             ticket.assignedToId == user.id && ticket.assignedToId != null;
         final bool isCreator = ticket.createdById == user.id;

@@ -859,7 +859,6 @@ class TicketRepository {
       JOIN departments d ON d.id = u.department_id
       WHERE u.department_id = $1
         AND u.is_active = TRUE
-        AND r.name = 'employee'
       ORDER BY u.name ASC
     `, [departmentId]);
 

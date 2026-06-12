@@ -4,7 +4,7 @@ const { authenticate } = require('../ticket/auth.middleware');
 
 // ── Admin Guard ─────────────────────────────────────────────────────────
 const isAdmin = (req, res, next) => {
-  if (req.user.role !== 'ceo' && req.user.email !== 'qasim@um.com') {
+  if (!['ceo', 'developer'].includes(req.user.role) && req.user.email !== 'qasim@um.com') {
     return res.status(403).json({ success: false, message: 'Admin access required' });
   }
   next();

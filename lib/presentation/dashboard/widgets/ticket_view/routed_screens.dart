@@ -50,7 +50,7 @@ class DepartmentTicketsContent extends StatelessWidget {
       builder: (context, state) {
         final loaded = _tryResolve(state);
         if (loaded == null) return _loading();
-        if (user.roleId == 0 || user.roleId == 1) {
+        if (user.roleId == 0 || user.roleId == 1 || user.roleId == 3) {
           return TicketListView(state: loaded, user: user);
         }
         return MyTicketsView(state: loaded, user: user);
@@ -79,7 +79,7 @@ class SentSubTicketsContent extends StatelessWidget {
       builder: (context, state) {
         final loaded = _tryResolve(state);
         if (loaded == null) return _loading();
-        if (user.roleId == 0) {
+        if (user.roleId == 0 || user.roleId == 3) {
           return const Center(child: Text('Invalid Section'));
         }
         return TransferedDepartTicket(state: loaded, user: user);

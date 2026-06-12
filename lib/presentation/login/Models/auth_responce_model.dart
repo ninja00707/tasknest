@@ -49,6 +49,7 @@ class UserModel {
   final int departmentId;
   final int companyId;
   final bool isActive;
+  final String designation;
 
   UserModel({
     required this.id,
@@ -58,6 +59,7 @@ class UserModel {
     required this.departmentId,
     required this.companyId,
     required this.isActive,
+    this.designation = '',
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -69,6 +71,7 @@ class UserModel {
       departmentId: json['department_id'] ?? 0,
       companyId: json['company_id'] ?? 0,
       isActive: json['is_active'] ?? false,
+      designation: json['designation'] ?? '',
     );
   }
 
@@ -81,6 +84,7 @@ class UserModel {
       'department_id': departmentId,
       'company_id': companyId,
       'is_active': isActive,
+      'designation': designation,
     };
   }
 }

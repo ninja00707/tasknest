@@ -16,7 +16,7 @@ const authenticate = async (req, res, next) => {
         // Attach full user from DB (so we always have fresh role/dept)
         // Use LEFT JOIN for departments to handle cases where department_id is NULL
         const result = await pool.query(
-            `SELECT u.id, u.name, u.email, u.department_id, u.company_id,
+            `SELECT u.id, u.name, u.email, u.department_id, u.company_id, u.designation,
               r.name AS role, COALESCE(d.code, '') AS dept_code, COALESCE(d.tier, '0') AS dept_tier,
               COALESCE(d.parent_id, NULL) AS dept_parent_id
        FROM users u
@@ -40,27 +40,27 @@ const authenticate = async (req, res, next) => {
 
 // ── Role Guards ───────────────────────────────────────────────────────────────
 const isCeo = (req, res, next) => {
-    if (req.user.role !== 'ceo') {
+    if (!['ceo', 'developer'].includes(req.user.role)) {
         return res.status(403).json({ success: false, message: 'CEO access required' });
     }
     next();
 };
 
 const isManager = (req, res, next) => {
-    if (!['ceo', 'manager'].includes(req.user.role)) {
+    if (!['ceo', 'developer', 'manager'].includes(req.user.role)) {
         return res.status(403).json({ success: false, message: 'Manager access required' });
     }
     next();
 };
 
 const isEmployee = (req, res, next) => {
-    if (!['ceo', 'manager', 'employee'].includes(req.user.role)) {
+    if (!['ceo', 'developer', 'manager', 'employee'].includes(req.user.role)) {
         return res.status(403).json({ success: false, message: 'Access denied' });
     }
     next();
 };
 
-// Department manager only (not CEO)
+// Department manager only (not CEO/Developer)
 const isDepManager = (req, res, next) => {
     if (req.user.role !== 'manager') {
         return res.status(403).json({ success: false, message: 'Department manager access required' });

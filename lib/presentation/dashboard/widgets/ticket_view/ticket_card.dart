@@ -390,7 +390,7 @@ class _SubTicketProgressSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final myDeptTask = ticket.subDeptFor(user.departmentId);
-    final isManager = user.roleId == 1;
+    final isManager = user.roleId == 1 || user.roleId == 0 || user.roleId == 3;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

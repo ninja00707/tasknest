@@ -89,12 +89,16 @@ exports.register = async ({
       department_id: user.department_id,
     },
     process.env.JWT_SECRET,
-    {
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-    }
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 
-  return { token, user };
+  delete user.password_hash;
+
+  return {
+    message: 'Password set successfully. You are now logged in.',
+    token,
+    user: { id: user.id, email: user.email, name: user.name, role_id: user.role_id, company_id: user.company_id, department_id: user.department_id, designation: user.designation },
+  };
 };
 exports.login = async ({
   code,
@@ -180,6 +184,7 @@ exports.login = async ({
       role_id: user.role_id,
       company_id: user.company_id,
       department_id: user.department_id,
+      designation: user.designation,
     },
     process.env.JWT_SECRET,
     {
