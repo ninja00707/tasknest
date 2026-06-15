@@ -12,7 +12,7 @@ class TicketController {
 
   async getDepartments(req, res, next) {
     try {
-      const depts = await ticketService.getDepartments();
+      const depts = await ticketService.getDepartments(req.user);
       res.json({ success: true, data: depts });
     } catch (err) {
       next(err);

@@ -45,6 +45,14 @@ class Sidebar extends StatelessWidget {
           nameSelector: (e) => e.name,
         ) ??
         'No Role';
+    final companyName =
+        NameById.getNameById<Company>(
+          id: user.companyId,
+          items: CompanyNames,
+          idSelector: (e) => e.id,
+          nameSelector: (e) => e.name,
+        ) ??
+        'Unknown Company';
 
     return Container(
       width: 280,
@@ -255,7 +263,7 @@ class Sidebar extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '${user.designation.isNotEmpty ? user.designation : roleName} · $departmentName',
+                        '$companyName · ${user.designation.isNotEmpty ? user.designation : roleName} · $departmentName',
                         style: const TextStyle(
                           fontSize: 11,
                           color: ThemeColors.unifiedTextMuted,

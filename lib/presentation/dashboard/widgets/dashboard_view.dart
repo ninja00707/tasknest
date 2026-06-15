@@ -321,8 +321,10 @@ class _IdentityPill extends StatelessWidget {
             child: Text(
               [
                 userName.toUpperCase(),
+                if (companyName != null) companyName!,
                 if (departmentName != null) departmentName!,
                 if (designation.isNotEmpty) designation,
+                if (roleName != null) roleName!,
               ].join(' · '),
               style: const TextStyle(
                 fontSize: 12,

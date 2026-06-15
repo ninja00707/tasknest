@@ -220,6 +220,17 @@ class TicketRepository {
       )`;
     }
 
+    // Company-level isolation (non-CEO users only see their company's depts + shared depts)
+    if (user.role !== 'ceo') {
+      params.push(user.company_id);
+      const companyParam = `$${params.length}`;
+      whereClause += ` AND EXISTS (
+        SELECT 1 FROM departments d
+        WHERE (d.company_id = ${companyParam} OR d.is_shared = TRUE)
+        AND d.id IN (t.assigned_dept_id, t.created_by_dept)
+      )`;
+    }
+
     if (status) {
       params.push(status);
       whereClause += ` AND t.status = $${params.length}`;
@@ -553,6 +564,17 @@ class TicketRepository {
       )`;
     }
 
+    // Company-level isolation
+    if (user.role !== 'ceo') {
+      params.push(user.company_id);
+      const idx = params.length;
+      whereClause += `${params.length === 2 ? '' : ' WHERE '} AND EXISTS (
+        SELECT 1 FROM departments d
+        WHERE (d.company_id = $${idx} OR d.is_shared = TRUE)
+        AND d.id IN (tickets.assigned_dept_id, tickets.created_by_dept)
+      )`;
+    }
+
     const result = await pool.query(`
       SELECT
         COUNT(*)                                          AS total,
@@ -597,6 +619,16 @@ class TicketRepository {
     const isTransferrer = Number(ticket.transferred_from) === Number(user.department_id);
     const isResolver = ticket.assigned_to_id === user.id;
 
+    // Company-level check: ticket's department must belong to user's company or be shared
+    const companyCheck = await pool.query(
+      `SELECT 1 FROM departments d
+       WHERE d.id IN ($1, $2)
+         AND (d.company_id = $3 OR d.is_shared = TRUE)
+       LIMIT 1`,
+      [ticket.assigned_dept_id, ticket.created_by_dept, user.company_id]
+    );
+    const sameCompany = companyCheck.rows.length > 0;
+
     let isSubTicketDept = false;
     if (ticket.is_sub_ticket) {
       const subDeptCheck = await pool.query(
@@ -604,6 +636,10 @@ class TicketRepository {
         [ticketId, user.department_id]
       );
       isSubTicketDept = subDeptCheck.rows.length > 0;
+    }
+
+    if (!sameCompany) {
+      return { forbidden: true };
     }
 
     if (!isAssignedDept && !isCreatorDept && !isTransferrer && !isResolver && !isSubTicketDept) {
@@ -666,14 +702,14 @@ class TicketRepository {
       if (parentNumber) {
         const subCountRes = await pool.query(`SELECT COUNT(*) AS cnt FROM tickets WHERE parent_ticket_id = $1`, [parentTicketId]);
         const subSerial = (subCountRes.rows[0]?.cnt || 0) + 1;
-        ticketNumber = `${parentNumber}-SUB-${String(subSerial).padStart(4, '0')}`;
+        ticketNumber = `${parentNumber}-SUB-${String(subSerial).padStart(3, '0')}`;
       }
     }
     if (!ticketNumber) {
       // Master ticket: use sequence
       const seqRes = await pool.query(`SELECT NEXTVAL('ticket_number_seq') AS val`);
       const seqVal = seqRes.rows[0].val;
-      ticketNumber = `UMP-TKQ-${String(seqVal).padStart(4, '0')}`;
+      ticketNumber = `UMP-TKQ-${String(seqVal).padStart(3, '0')}`;
     }
 
     const result = await pool.query(`
@@ -868,9 +904,12 @@ class TicketRepository {
   }
 
   // ── Get departments list ──────────────────────────────────────────────────
-  async getDepartments() {
+  async getDepartments(companyId) {
     const result = await pool.query(
-      `SELECT id, name, code, tier, parent_id FROM departments ORDER BY tier, name`
+      `SELECT id, name, code, tier, parent_id FROM departments
+       WHERE company_id = $1 OR is_shared = TRUE
+       ORDER BY tier, name`,
+      [companyId]
     );
     return result.rows;
   }

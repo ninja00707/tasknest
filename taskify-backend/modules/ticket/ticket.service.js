@@ -949,8 +949,8 @@ class TicketService {
     return updated;
   }
 
-  async getDepartments() {
-    return await ticketRepo.getDepartments();
+  async getDepartments(user) {
+    return await ticketRepo.getDepartments(user.company_id);
   }
 
   async getEmployees(user, departmentId) {
