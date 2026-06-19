@@ -86,6 +86,11 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     // Subscribe to events regardless of connection state
     _socketSub = SocketService().events.listen((event) {
       if (isClosed) return;
+      if (event.type == 'SOCKET_CONNECTED') {
+        final loaded = _getLoadedStateOrNull();
+        add(LoadDashboard(page: loaded?.currentPage ?? 1));
+        return;
+      }
       if (event.type == 'NOTIFICATION_COUNT') {
         final count = event.data['count'] as int?;
         if (count != null) add(UpdateNotificationCount(count));

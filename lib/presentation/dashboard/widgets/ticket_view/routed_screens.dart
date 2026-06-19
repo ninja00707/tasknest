@@ -51,7 +51,10 @@ class DepartmentTicketsContent extends StatelessWidget {
         final loaded = _tryResolve(state);
         if (loaded == null) return _loading();
         if (user.roleId == 0 || user.roleId == 1 || user.roleId == 3) {
-          return TicketListView(state: loaded, user: user);
+          return SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: TicketListView(state: loaded, user: user),
+          );
         }
         return MyTicketsView(state: loaded, user: user);
       },

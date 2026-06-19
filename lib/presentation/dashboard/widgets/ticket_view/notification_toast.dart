@@ -25,10 +25,17 @@ class _LiveNotificationShellState extends State<LiveNotificationShell> {
   void initState() {
     super.initState();
     _sub = SocketService().events.listen(_onSocketEvent);
+    html.document.onVisibilityChange.listen((_) {
+      if (html.document.hidden == false) {
+        SocketService().reconnect();
+      }
+    });
   }
 
   void _requestBrowserPermission() {
-    html.Notification.requestPermission();
+    html.Notification.requestPermission().then((perm) {
+      if (mounted) setState(() {});
+    });
   }
 
   void _showBrowserNotification(SocketEvent event) {
@@ -36,11 +43,13 @@ class _LiveNotificationShellState extends State<LiveNotificationShell> {
     final data = event.data is Map ? event.data as Map : <dynamic, dynamic>{};
     final title = _labelFor(event.type);
     final message = data['message'] as String? ?? title;
-    html.Notification(title, body: message);
+    try {
+      html.Notification(title, body: message);
+    } catch (_) {} // Chrome can throw if called from non-secure context or during tab switch
   }
 
   void _onSocketEvent(SocketEvent event) {
-    if (event.type == 'NOTIFICATION_COUNT') return;
+    if (event.type == 'NOTIFICATION_COUNT' || event.type == 'SOCKET_CONNECTED') return;
 
     _showBrowserNotification(event);
 
@@ -148,28 +157,35 @@ class _LiveNotificationShellState extends State<LiveNotificationShell> {
       children: [
         widget.child,
         // ── Browser notification permission banner ───────────────
-        if (html.Notification.permission == 'default')
+        if (html.Notification.permission != 'granted')
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: Material(
               child: InkWell(
-                onTap: _requestBrowserPermission,
+                onTap: html.Notification.permission == 'denied'
+                    ? null
+                    : _requestBrowserPermission,
                 child: Container(
-                  color: ThemeColors.unifiedPrimary,
+                  color: html.Notification.permission == 'denied'
+                      ? ThemeColors.unifiedDanger
+                      : ThemeColors.unifiedPrimary,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  child: const Row(
+                  child: Row(
                     children: [
                       Icon(Icons.notifications_active, color: Colors.white, size: 18),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Enable desktop notifications for real-time updates',
-                          style: TextStyle(color: Colors.white, fontSize: 13),
+                          html.Notification.permission == 'denied'
+                              ? 'Notifications blocked — enable in browser site settings'
+                              : 'Enable desktop notifications for real-time updates',
+                          style: const TextStyle(color: Colors.white, fontSize: 13),
                         ),
                       ),
-                      Icon(Icons.chevron_right, color: Colors.white, size: 18),
+                      if (html.Notification.permission != 'denied')
+                        const Icon(Icons.chevron_right, color: Colors.white, size: 18),
                     ],
                   ),
                 ),

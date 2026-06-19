@@ -58,7 +58,7 @@ class SocketService {
     _socket = io.io(
       uri,
       OptionBuilder()
-          .setTransports(['polling', 'websocket'])
+          .setTransports(['websocket', 'polling'])
           .disableAutoConnect()
           .disableReconnection() // We handle reconnection ourselves
           .setAuth({
@@ -73,6 +73,7 @@ class SocketService {
       _isConnected = true;
       _connecting = false;
       _retryCount = 0; // Reset retry count on successful connection
+      _eventController.add(SocketEvent('SOCKET_CONNECTED', {}));
     });
 
     _socket!.onDisconnect((_) {
