@@ -98,42 +98,42 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                 .followedBy(loadedState.sentTickets)
                 .firstWhere((t) => t.id == widget.ticketId);
           } catch (_) {
-            for (var master in loadedState.tickets.followedBy(
-              loadedState.sentTickets,
-            )) {
-              for (var child in master.children) {
-                if (child.id == widget.ticketId) {
-                  foundTicket = TicketModel(
-                    id: child.id,
-                    title: child.title,
-                    description: 'Sub-task of #${master.id}',
-                    status: child.status,
-                    priority: master.priority,
-                    assignedDeptId: child.assignedDeptId,
-                    assignedDeptCode: child.deptCode,
-                    assignedDeptName: '',
-                    createdByName: master.createdByName,
-                    createdByDeptCode: master.createdByDeptCode,
-                    createdByDeptId: master.createdByDeptId,
-                    createdById: child.createdById,
-                    createdAt: master.createdAt,
-                    reopenCount: 0,
-                    parentTicketId: master.id,
-                    parentTicketTitle: master.title,
-                    ticketType: 'standard',
-                    assignedToId: child.assignedToId,
-                    assignedToName: child.assigneeName,
-                    history: const [],
-                    deptJourney: const [],
-                    children: const [],
-                    immediateChildCount: child.immediateChildCount,
-                    hasActiveChildren: child.hasActiveChildren,
-                  );
-                  break;
+              for (var master in loadedState.tickets.followedBy(
+                loadedState.sentTickets,
+              )) {
+                for (var child in master.children) {
+                  if (child.id == widget.ticketId) {
+                    foundTicket = TicketModel(
+                      id: child.id,
+                      title: child.title,
+                      description: 'Sub-task of #${master.id}',
+                      status: child.status,
+                      priority: child.priority,
+                      assignedDeptId: child.assignedDeptId,
+                      assignedDeptCode: child.deptCode,
+                      assignedDeptName: child.deptName,
+                      createdByName: child.createdByName,
+                      createdByDeptCode: child.createdByDeptCode,
+                      createdByDeptId: child.createdByDept,
+                      createdById: child.createdById,
+                      createdAt: child.createdAt,
+                      reopenCount: 0,
+                      parentTicketId: master.id,
+                      parentTicketTitle: master.title,
+                      ticketType: 'standard',
+                      assignedToId: child.assignedToId,
+                      assignedToName: child.assigneeName,
+                      history: const [],
+                      deptJourney: const [],
+                      children: const [],
+                      immediateChildCount: child.immediateChildCount,
+                      hasActiveChildren: child.hasActiveChildren,
+                    );
+                    break;
+                  }
                 }
+                if (foundTicket != null) break;
               }
-              if (foundTicket != null) break;
-            }
           }
 
           final ticket =
@@ -850,11 +850,21 @@ class _DetailsCard extends StatelessWidget {
             label: 'Created Dept',
             value: ticket.createdByDeptCode,
           ),
-          _DetailRow(
-            icon: Icons.my_library_books_rounded,
-            label: 'Assigned Dept',
-            value: ticket.assignedDeptCode,
-          ),
+          if (ticket.deptJourney.length > 1)
+            _DetailRow(
+              icon: Icons.my_library_books_rounded,
+              label: 'Assigned Dept',
+              value: ticket.deptJourney
+                  .where((j) => j['role'] != 'ORIGIN')
+                  .map((j) => j['code'] as String)
+                  .join(' → '),
+            )
+          else
+            _DetailRow(
+              icon: Icons.my_library_books_rounded,
+              label: 'Assigned Dept',
+              value: ticket.assignedDeptCode,
+            ),
           if (ticket.assignedToName != null)
             _DetailRow(
               icon: Icons.assignment_ind_outlined,

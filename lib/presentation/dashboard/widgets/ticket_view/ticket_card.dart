@@ -690,7 +690,9 @@ class _ChildTicketsList extends StatelessWidget {
               final child = children[index];
               final isLast = index == children.length - 1;
 
-              return Column(
+              return GestureDetector(
+                onTap: () => context.push('/ticket/${child.id}'),
+                child: Column(
                 children: [
                   Padding(
                     padding: const EdgeInsets.symmetric(
@@ -757,6 +759,7 @@ class _ChildTicketsList extends StatelessWidget {
                       endIndent: 12,
                     ),
                 ],
+              ),
               );
             }),
           ),

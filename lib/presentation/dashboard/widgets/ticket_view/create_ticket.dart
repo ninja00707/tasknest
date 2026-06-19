@@ -64,22 +64,32 @@ class _CreateTicketViewState extends State<CreateTicketView> {
               .toList()
         : <Departments>[];
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(isWide ? 28 : 16).copyWith(bottom: 48),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: [
-          // ── Page header ───────────────────────────────────────────
-          _PageHeader(
-            parentId: widget.parentTicketId,
-            parentTitle: widget.parentTicketTitle,
-            isMulti: _isMulti,
-          ),
-          const SizedBox(height: 24),
+    return BlocListener<DashboardBloc, DashboardState>(
+      listener: (context, state) {
+        if (state is DashboardActionSuccess && _submitting) {
+          _showSnack('Ticket created successfully!');
+          _resetForm();
+        } else if (state is DashboardActionError && _submitting) {
+          _showSnack(state.message, isError: true);
+          setState(() => _submitting = false);
+        }
+      },
+      child: SingleChildScrollView(
+        padding: EdgeInsets.all(isWide ? 28 : 16).copyWith(bottom: 48),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            // ── Page header ───────────────────────────────────────────
+            _PageHeader(
+              parentId: widget.parentTicketId,
+              parentTitle: widget.parentTicketTitle,
+              isMulti: _isMulti,
+            ),
+            const SizedBox(height: 24),
 
-          // ── Form card ─────────────────────────────────────────────
-          _FormCard(
+            // ── Form card ─────────────────────────────────────────────
+            _FormCard(
             child: Form(
               key: _formKey,
               child: Column(
@@ -138,6 +148,7 @@ class _CreateTicketViewState extends State<CreateTicketView> {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -186,6 +197,21 @@ class _CreateTicketViewState extends State<CreateTicketView> {
     // if (picked != null) {
     //   setState(() => _dueDate = picked.toIso8601String().split('T').first);
     // }
+  }
+
+  void _resetForm() {
+    _title.clear();
+    _description.clear();
+    _priority = Priorities(name: 'medium', id: 0);
+    _selectedEmployee = null;
+    _selfAssign = false;
+    _selectedDepartments = [];
+    for (final d in _deptFormData.values) {
+      d.dispose();
+    }
+    _deptFormData.clear();
+    _formKey.currentState?.reset();
+    setState(() => _submitting = false);
   }
 
   void _submit() {
@@ -241,8 +267,6 @@ class _CreateTicketViewState extends State<CreateTicketView> {
         deptTickets: deptTickets,
       ),
     );
-
-    setState(() => _submitting = false);
   }
 
   void _showSnack(String msg, {bool isError = false}) {

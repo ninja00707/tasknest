@@ -21,9 +21,7 @@ class TicketListView extends StatelessWidget {
       children: [
         _SearchBar(state: state),
         _FilterBar(state: state),
-        Expanded(
-          child: _TicketBody(state: state, user: user),
-        ),
+        _TicketBody(state: state, user: user),
       ],
     );
   }
@@ -578,7 +576,7 @@ class _TicketBody extends StatelessWidget {
                 spacing * (crossAxisCount - 1)) /
             crossAxisCount;
 
-        return SingleChildScrollView(
+        return Padding(
           padding: const EdgeInsets.all(padding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

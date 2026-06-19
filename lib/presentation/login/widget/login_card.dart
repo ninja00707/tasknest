@@ -7,10 +7,7 @@ import 'package:tasknest/presentation/login/bloc/login_state.dart';
 import 'package:tasknest/core/theme/common_textForm_Field.dart';
 
 class LoginCard extends StatelessWidget {
-  LoginCard({
-    super.key,
-    required this.onNavigateToForgotPassword,
-  });
+  LoginCard({super.key, required this.onNavigateToForgotPassword});
 
   final VoidCallback onNavigateToForgotPassword;
 
@@ -147,10 +144,9 @@ class LoginCard extends StatelessWidget {
                         controller: codeController,
                         icon: Icons.badge_outlined,
 
-                        validator: (val) =>
-                            val == null || val.trim().isEmpty
-                                ? 'Employee code is required'
-                                : null,
+                        validator: (val) => val == null || val.trim().isEmpty
+                            ? 'Employee code is required'
+                            : null,
                       ),
 
                       const SizedBox(height: 12),
@@ -161,10 +157,9 @@ class LoginCard extends StatelessWidget {
                         obscurePassword: state.obscurePassword,
                         hint: '******',
                         controller: passwordController,
-                        validator: (val) =>
-                            val == null || val.isEmpty
-                                ? 'Password is required'
-                                : null,
+                        validator: (val) => val == null || val.isEmpty
+                            ? 'Password is required'
+                            : null,
                         onToggle: () {
                           context.read<AuthBloc>().add(
                             TogglePasswordVisibility(),
@@ -250,21 +245,21 @@ class LoginCard extends StatelessWidget {
 
                       const SizedBox(height: 12),
 
+                      //Only admin have acces
                       // FORGOT PASSWORD
-                      Center(
-                        child: TextButton(
-                          onPressed: onNavigateToForgotPassword,
-                          style: TextButton.styleFrom(
-                            foregroundColor: ThemeColors.unifiedPrimary,
-                            textStyle: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          child: const Text('Forgot password?'),
-                        ),
-                      ),
-
+                      // Center(
+                      //   child: TextButton(
+                      //     onPressed: onNavigateToForgotPassword,
+                      //     style: TextButton.styleFrom(
+                      //       foregroundColor: ThemeColors.unifiedPrimary,
+                      //       textStyle: const TextStyle(
+                      //         fontSize: 14,
+                      //         fontWeight: FontWeight.w600,
+                      //       ),
+                      //     ),
+                      //     child: const Text('Forgot password?'),
+                      //   ),
+                      // ),
                     ],
                   ),
                 ),

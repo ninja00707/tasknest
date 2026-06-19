@@ -126,12 +126,15 @@ class TicketRepository {
           JOIN descendants d ON t.parent_ticket_id = d.id
         )
         SELECT t.id, t.title, t.status, t.assigned_dept_id, t.assigned_to_id, t.created_by_id,
-               t.ticket_number,
-               d.code as dept_code, u.name as assignee_name
+               t.ticket_number, t.created_at, t.created_by_dept, t.priority,
+               d.code as dept_code, d.name as dept_name, u.name as assignee_name,
+               creator.name as created_by_name, cd.code as created_by_dept_code, cd.name as created_by_dept_name
         FROM tickets t
         JOIN descendants d_tree ON t.id = d_tree.id
         LEFT JOIN departments d ON d.id = t.assigned_dept_id
         LEFT JOIN users u ON u.id = t.assigned_to_id
+        LEFT JOIN users creator ON creator.id = t.created_by_id
+        LEFT JOIN departments cd ON cd.id = t.created_by_dept
       `, [ticketId]);
       ticket.children = childrenResult.rows;
     }

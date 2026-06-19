@@ -192,9 +192,15 @@ class ChildTicketModel {
   final String status;
   final int? assignedDeptId;
   final String deptCode;
+  final String deptName;
   final int? assignedToId;
   final String? assigneeName;
   final int createdById;
+  final int createdByDept;
+  final String createdByName;
+  final String createdByDeptCode;
+  final DateTime createdAt;
+  final String priority;
   final int immediateChildCount;
   final bool hasActiveChildren;
 
@@ -205,9 +211,15 @@ class ChildTicketModel {
     required this.status,
     this.assignedDeptId,
     required this.deptCode,
+    this.deptName = '',
     this.assignedToId,
     this.assigneeName,
     required this.createdById,
+    this.createdByDept = 0,
+    this.createdByName = '',
+    this.createdByDeptCode = '',
+    required this.createdAt,
+    this.priority = 'medium',
     this.immediateChildCount = 0,
     this.hasActiveChildren = false,
   });
@@ -219,9 +231,17 @@ class ChildTicketModel {
     status: j['status'] ?? 'open',
     assignedDeptId: int.tryParse(j['assigned_dept_id']?.toString() ?? ''),
     deptCode: j['dept_code'] ?? '',
+    deptName: j['dept_name'] ?? '',
     assignedToId: int.tryParse(j['assigned_to_id']?.toString() ?? ''),
     assigneeName: j['assignee_name'],
     createdById: int.tryParse(j['created_by_id']?.toString() ?? '0') ?? 0,
+    createdByDept: int.tryParse(j['created_by_dept']?.toString() ?? '0') ?? 0,
+    createdByName: j['created_by_name'] ?? '',
+    createdByDeptCode: j['created_by_dept_code'] ?? '',
+    createdAt: DateTime.parse(
+      j['created_at'] ?? DateTime.now().toIso8601String(),
+    ),
+    priority: j['priority'] ?? 'medium',
     immediateChildCount:
         int.tryParse(j['immediate_child_count']?.toString() ?? '0') ?? 0,
     hasActiveChildren: j['has_active_children'] == true,

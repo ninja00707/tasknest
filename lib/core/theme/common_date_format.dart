@@ -6,26 +6,26 @@ class CommonDateFormat {
   /// Standard format: Jan 10, 2024 14:30
   static String formatDateTime(DateTime? date) {
     if (date == null) return 'N/A';
-    return DateFormat('MMM dd, yyyy HH:mm').format(date);
+    return DateFormat('MMM dd, yyyy HH:mm').format(date.toLocal());
   }
 
   /// Date only: Jan 10, 2024
   static String formatDate(DateTime? date) {
     if (date == null) return 'N/A';
-    return DateFormat('MMM dd, yyyy').format(date);
+    return DateFormat('MMM dd, yyyy').format(date.toLocal());
   }
 
   /// Time only: 14:30
   static String formatTime(DateTime? date) {
     if (date == null) return 'N/A';
-    return DateFormat('HH:mm').format(date);
+    return DateFormat('HH:mm').format(date.toLocal());
   }
 
   /// Short format: Jan 10, 14:30
   /// Often used in timelines or compact lists
   static String formatShortDateTime(DateTime? date) {
     if (date == null) return 'N/A';
-    return DateFormat('MMM dd, HH:mm').format(date);
+    return DateFormat('MMM dd, HH:mm').format(date.toLocal());
   }
 
   static DateTime? parse(String? dateStr) =>
