@@ -157,35 +157,28 @@ class _LiveNotificationShellState extends State<LiveNotificationShell> {
       children: [
         widget.child,
         // ── Browser notification permission banner ───────────────
-        if (html.Notification.permission != 'granted')
+        if (html.Notification.permission == 'default')
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: Material(
               child: InkWell(
-                onTap: html.Notification.permission == 'denied'
-                    ? null
-                    : _requestBrowserPermission,
+                onTap: _requestBrowserPermission,
                 child: Container(
-                  color: html.Notification.permission == 'denied'
-                      ? ThemeColors.unifiedDanger
-                      : ThemeColors.unifiedPrimary,
+                  color: ThemeColors.unifiedPrimary,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  child: Row(
+                  child: const Row(
                     children: [
                       Icon(Icons.notifications_active, color: Colors.white, size: 18),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          html.Notification.permission == 'denied'
-                              ? 'Notifications blocked — enable in browser site settings'
-                              : 'Enable desktop notifications for real-time updates',
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                          'Enable desktop notifications for real-time updates',
+                          style: TextStyle(color: Colors.white, fontSize: 13),
                         ),
                       ),
-                      if (html.Notification.permission != 'denied')
-                        const Icon(Icons.chevron_right, color: Colors.white, size: 18),
+                      Icon(Icons.chevron_right, color: Colors.white, size: 18),
                     ],
                   ),
                 ),
