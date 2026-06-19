@@ -221,13 +221,25 @@ class TicketRepository {
     }
 
     // Company-level isolation (non-CEO users only see their company's depts + shared depts)
+    // Also checks sub-tickets recursively (for cross-department tickets to shared depts)
     if (user.role !== 'ceo') {
       params.push(user.company_id);
       const companyParam = `$${params.length}`;
       whereClause += ` AND EXISTS (
         SELECT 1 FROM departments d
         WHERE (d.company_id = ${companyParam} OR d.is_shared = TRUE)
-        AND d.id IN (t.assigned_dept_id, t.created_by_dept)
+        AND (
+          d.id IN (t.assigned_dept_id, t.created_by_dept)
+          OR EXISTS (
+            WITH RECURSIVE child_search AS (
+              SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = t.id
+              UNION ALL
+              SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
+              JOIN child_search cs ON child.parent_ticket_id = cs.id
+            )
+            SELECT 1 FROM child_search WHERE assigned_dept_id = d.id OR created_by_dept = d.id
+          )
+        )
       )`;
     }
 
@@ -571,7 +583,18 @@ class TicketRepository {
       whereClause += `${params.length === 2 ? '' : ' WHERE '} AND EXISTS (
         SELECT 1 FROM departments d
         WHERE (d.company_id = $${idx} OR d.is_shared = TRUE)
-        AND d.id IN (tickets.assigned_dept_id, tickets.created_by_dept)
+        AND (
+          d.id IN (tickets.assigned_dept_id, tickets.created_by_dept)
+          OR EXISTS (
+            WITH RECURSIVE child_search AS (
+              SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = tickets.id
+              UNION ALL
+              SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
+              JOIN child_search cs ON child.parent_ticket_id = cs.id
+            )
+            SELECT 1 FROM child_search WHERE assigned_dept_id = d.id OR created_by_dept = d.id
+          )
+        )
       )`;
     }
 
@@ -620,12 +643,24 @@ class TicketRepository {
     const isResolver = ticket.assigned_to_id === user.id;
 
     // Company-level check: ticket's department must belong to user's company or be shared
+    // Also checks sub-tickets recursively (for cross-department tickets to shared depts)
     const companyCheck = await pool.query(
       `SELECT 1 FROM departments d
-       WHERE d.id IN ($1, $2)
-         AND (d.company_id = $3 OR d.is_shared = TRUE)
+       WHERE (d.company_id = $3 OR d.is_shared = TRUE)
+       AND (
+         d.id IN ($1, $2)
+         OR EXISTS (
+           WITH RECURSIVE child_search AS (
+             SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = $4
+             UNION ALL
+             SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
+             JOIN child_search cs ON child.parent_ticket_id = cs.id
+           )
+           SELECT 1 FROM child_search WHERE assigned_dept_id = d.id OR created_by_dept = d.id
+         )
+       )
        LIMIT 1`,
-      [ticket.assigned_dept_id, ticket.created_by_dept, user.company_id]
+      [ticket.assigned_dept_id, ticket.created_by_dept, user.company_id, ticket.id]
     );
     const sameCompany = companyCheck.rows.length > 0;
 

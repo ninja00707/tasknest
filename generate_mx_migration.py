@@ -8,12 +8,12 @@ for row in ws.iter_rows(min_row=4, max_row=ws.max_row, values_only=True):
     if row[0] is not None:
         data.append(row)
 
-# Dept ID 200+ for MX-specific, 50=Admin (Combine Staff), 79=IT
+# Dept ID 200+ for MX-specific, 87=Admin (HOCM Daily Wager), 79=IT (HOCM)
 dept_map = {
-    'Admin': 50,
+    'Admin': 87,
     'IT': 79,
 }
-shared_dept_ids = [50, 79]
+shared_dept_ids = [87, 79]
 
 # Map other departments (excluding Admin/IT)
 seen = set()
@@ -66,8 +66,8 @@ lines.append("")
 lines.append("-- 1. Add is_shared column to departments")
 lines.append("ALTER TABLE departments ADD COLUMN IF NOT EXISTS is_shared BOOLEAN DEFAULT FALSE;")
 lines.append("")
-lines.append("-- 2. Mark Administration [Combine Staff] (50) and IT [HOCM] (79) as shared")
-lines.append("UPDATE departments SET is_shared = TRUE WHERE id IN (50, 79);")
+lines.append("-- 2. Mark Administration [HOCM Daily Wager] (87) and IT [HOCM] (79) as shared")
+lines.append("UPDATE departments SET is_shared = TRUE WHERE id IN (79, 87);")
 lines.append("")
 
 lines.append("-- 3. Create Matrix Pharma-specific departments (company_id=1)")
@@ -120,6 +120,6 @@ for row in data:
 
 print(f"Generated {outpath}")
 print(f"MX-specific departments: {len(depts_in_order)} (IDs {min(dept_map.values())}-{max(dept_map.values())})")
-print(f"Shared: Admin(Combine Staff)->50, IT[HOCM]->79")
+print(f"Shared: Admin(HOCM Daily Wager)->87, IT[HOCM]->79")
 print(f"Employees: {len(data)}")
 print(f"  CEO (0): {roles.get(0, 0)}, Manager (1): {roles.get(1, 0)}, Employee (2): {roles.get(2, 0)}")

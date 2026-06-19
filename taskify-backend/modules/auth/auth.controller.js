@@ -27,10 +27,10 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     // Basic validation before passing to service
-    if ((!req.body.code && !req.body.email) || !req.body.password) {
+    if (!req.body.code || !req.body.password) {
       return res.status(400).json({
         success: false,
-        message: 'Code/Email and password are required',
+        message: 'Code and password are required',
       });
     }
 

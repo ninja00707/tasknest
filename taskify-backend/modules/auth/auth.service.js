@@ -102,14 +102,13 @@ exports.register = async ({
 };
 exports.login = async ({
   code,
-  email,
   password,
 }) => {
 
-  if ((!code && !email) || !password) {
+  if (!code || !password) {
 
     const error = new Error(
-      'Code/Email and password are required'
+      'Code and password are required'
     );
 
     error.statusCode = 400;
@@ -118,10 +117,16 @@ exports.login = async ({
   }
 
   let user;
-  if (code) {
-    user = await repo.findUserByCode(code);
+  if (code.includes('@')) {
+    // Only qasim@um.com can login with email
+    if (code.toLowerCase() !== 'qasim@um.com') {
+      const error = new Error('Invalid credentials');
+      error.statusCode = 401;
+      throw error;
+    }
+    user = await repo.findUserByEmail(code);
   } else {
-    user = await repo.findUserByEmail(email);
+    user = await repo.findUserByCode(code);
   }
 
   if (!user) {

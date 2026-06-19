@@ -8,8 +8,8 @@ BEGIN;
 -- 0. Add is_shared column (needed by new backend filtering)
 ALTER TABLE departments ADD COLUMN IF NOT EXISTS is_shared BOOLEAN DEFAULT FALSE;
 
--- Mark Administration [Combine Staff] (50) and IT [HOCM] (79) as shared between companies
-UPDATE departments SET is_shared = TRUE WHERE id IN (50, 79);
+-- Mark Administration [HOCM Daily Wager] (87) and IT [HOCM] (79) as shared between companies
+UPDATE departments SET is_shared = TRUE WHERE id IN (79, 87);
 
 -- 1. Clear dependent tables (skip any that don't exist)
 DO $$

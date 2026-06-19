@@ -28,7 +28,7 @@ INSERT INTO roles (id, name) VALUES (3, 'developer') ON CONFLICT (id) DO NOTHING
 
 -- ── All 47 UM departments (from migration_complete) ───────────
 INSERT INTO departments (id, name, code, company_id, parent_id, tier, is_shared) VALUES
-  (50, 'Administration [Combine Staff]',  'ADM_CS',  0, NULL, 'lower', TRUE),
+  (50, 'Administration [Combine Staff]',  'ADM_CS',  0, NULL, 'lower', FALSE),
   (51, 'Product Management [DXDX]',       'PM_DXDX',  0, NULL, 'lower', FALSE),
   (52, 'SMD [DXDX]',                      'SMD_DXDX', 0, NULL, 'lower', FALSE),
   (53, 'Supply Chain [DXDX]',             'SC_DXDX',  0, NULL, 'lower', FALSE),
@@ -65,7 +65,7 @@ INSERT INTO departments (id, name, code, company_id, parent_id, tier, is_shared)
   (84, 'R and D [HOCM]',                  'RD_HOCM',  0, NULL, 'lower', FALSE),
   (85, 'Secretarial [HOCM]',              'SEC_HOCM', 0, NULL, 'lower', FALSE),
   (86, 'Warehouse [HOCM]',                'WH_HOCM',  0, NULL, 'lower', FALSE),
-  (87, 'Administration [HOCM Daily Wager]','ADM_HOCMDW', 0, NULL, 'lower', FALSE),
+  (87, 'Administration [HOCM Daily Wager]','ADM_HOCMDW', 0, NULL, 'lower', TRUE),
   (88, 'Production [HOCM Daily Wager]',   'PRD_HOCMDW', 0, NULL, 'lower', FALSE),
   (89, 'Warehouse [HOCM Daily Wager]',    'WH_HOCMDW', 0, NULL, 'lower', FALSE),
   (90, 'SMD [LAFM]',                      'SMD_LAFM', 0, NULL, 'lower', FALSE),
