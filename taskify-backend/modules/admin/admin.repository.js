@@ -25,7 +25,7 @@ exports.getStats = async () => {
 
 exports.findAllUsers = async () => {
   const result = await pool.query(
-    `SELECT u.id, u.name, u.email, u.role_id, u.department_id, u.company_id,
+    `SELECT u.id, u.name, u.email, u.code, u.role_id, u.department_id, u.company_id,
             u.is_active, u.created_at,
             r.name AS role_name,
             d.name AS department_name,
@@ -42,7 +42,7 @@ exports.findAllUsers = async () => {
 
 exports.findPendingUsers = async () => {
   const result = await pool.query(
-    `SELECT u.id, u.name, u.email, u.role_id, u.department_id, u.company_id,
+    `SELECT u.id, u.name, u.email, u.code, u.role_id, u.department_id, u.company_id,
             u.is_active, u.created_at,
             r.name AS role_name,
             d.name AS department_name,

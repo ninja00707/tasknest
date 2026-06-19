@@ -16,12 +16,39 @@ class AdminUsersScreen extends StatefulWidget {
 
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
   int _selectedTab = 0;
+  final TextEditingController _searchCtl = TextEditingController();
+  String _searchQuery = '';
+  bool _showMissingCodeOnly = false;
 
   @override
   void initState() {
     super.initState();
     widget.bloc.add(LoadUsers());
     widget.bloc.add(LoadPendingUsers());
+  }
+
+  @override
+  void dispose() {
+    _searchCtl.dispose();
+    super.dispose();
+  }
+
+  List<AdminUserModel> _filter(List<AdminUserModel> users) {
+    var result = users;
+    if (_showMissingCodeOnly) {
+      result = result.where((u) => u.code == null || u.code!.isEmpty).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      result = result.where((u) =>
+        u.name.toLowerCase().contains(q) ||
+        u.email.toLowerCase().contains(q) ||
+        (u.code?.toLowerCase().contains(q) ?? false) ||
+        (u.departmentName?.toLowerCase().contains(q) ?? false) ||
+        (u.roleName?.toLowerCase().contains(q) ?? false)
+      ).toList();
+    }
+    return result;
   }
 
   @override
@@ -48,7 +75,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('All registered users in the system', style: TextStyle(fontSize: 14, color: ThemeColors.unifiedTextMuted)),
+                  Text(
+                    _showMissingCodeOnly ? 'Showing users without employee code' : 'All registered users in the system',
+                    style: TextStyle(fontSize: 14, color: _showMissingCodeOnly ? ThemeColors.unifiedWarning : ThemeColors.unifiedTextMuted),
+                  ),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text('Add User'),
@@ -62,12 +92,56 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   _tabButton('All Users', 0),
                   const SizedBox(width: 8),
                   _tabButton('Pending Approval', 1),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => setState(() => _showMissingCodeOnly = !_showMissingCodeOnly),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _showMissingCodeOnly ? ThemeColors.unifiedWarning : Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: _showMissingCodeOnly ? ThemeColors.unifiedWarning : ThemeColors.unifiedBorder),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.person_off, size: 16, color: _showMissingCodeOnly ? Colors.white : ThemeColors.unifiedWarning),
+                          const SizedBox(width: 4),
+                          Text('Missing Code', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: _showMissingCodeOnly ? Colors.white : ThemeColors.unifiedWarning)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                    width: 320,
+                    child: TextField(
+                      controller: _searchCtl,
+                      decoration: InputDecoration(
+                        hintText: 'Search by name, code, email, department...',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                onPressed: () {
+                                  _searchCtl.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              )
+                            : null,
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onChanged: (v) => setState(() => _searchQuery = v),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
               if (state is AdminLoading) const Expanded(child: Center(child: CircularProgressIndicator()))
-              else if (_selectedTab == 0 && state is UsersLoaded) _buildTable(context, state.users)
-              else if (_selectedTab == 1 && state is PendingUsersLoaded) _buildPendingTable(context, state.users)
+              else if (_selectedTab == 0 && state is UsersLoaded) _buildTable(context, _filter(state.users))
+              else if (_selectedTab == 1 && state is PendingUsersLoaded) _buildPendingTable(context, _filter(state.users))
               else if (state is AdminError) Expanded(child: Center(child: Text(state.message, style: const TextStyle(color: ThemeColors.unifiedDanger))))
               else const SizedBox.shrink(),
             ],
@@ -119,7 +193,19 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               ],
               rows: users.map((u) => DataRow(cells: [
                 DataCell(Text('${u.id}')),
-                DataCell(Text(u.code ?? '-', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+                DataCell(
+                  u.code != null && u.code!.isNotEmpty
+                      ? Text(u.code!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))
+                      : Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: ThemeColors.unifiedDanger.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: ThemeColors.unifiedDanger.withOpacity(0.4)),
+                          ),
+                          child: const Text('EMPTY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedDanger)),
+                        ),
+                ),
                 DataCell(Text(u.name)),
                 DataCell(Text(u.email, style: const TextStyle(fontSize: 13))),
                 DataCell(_roleChip(u.roleName ?? 'N/A')),
@@ -172,7 +258,19 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               ],
               rows: users.map((u) => DataRow(cells: [
                 DataCell(Text('${u.id}')),
-                DataCell(Text(u.code ?? '-', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+                DataCell(
+                  u.code != null && u.code!.isNotEmpty
+                      ? Text(u.code!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))
+                      : Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: ThemeColors.unifiedDanger.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: ThemeColors.unifiedDanger.withOpacity(0.4)),
+                          ),
+                          child: const Text('EMPTY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedDanger)),
+                        ),
+                ),
                 DataCell(Text(u.name)),
                 DataCell(Text(u.email, style: const TextStyle(fontSize: 13))),
                 DataCell(_roleChip(u.roleName ?? 'N/A')),
@@ -288,8 +386,16 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   const SizedBox(height: 12),
                   TextFormField(controller: codeCtl, decoration: const InputDecoration(labelText: 'Employee Code'), validator: (v) => v == null || v.isEmpty ? 'Required' : null),
                   const SizedBox(height: 12),
-                  if (existing == null)
-                    TextFormField(controller: passwordCtl, decoration: const InputDecoration(labelText: 'Password'), obscureText: true, validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                  TextFormField(
+                    controller: passwordCtl,
+                    decoration: InputDecoration(
+                      labelText: existing == null ? 'Password' : 'New Password (leave blank to keep current)',
+                    ),
+                    obscureText: true,
+                    validator: existing == null
+                        ? (v) => v == null || v.isEmpty ? 'Required' : null
+                        : null,
+                  ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
                     value: roleId,
