@@ -15,8 +15,6 @@ class SocketService {
   String? _token;
   int? _userId;
   int? _departmentId;
-  int _retryCount = 0;
-  Timer? _retryTimer;
 
   final StreamController<SocketEvent> _eventController =
       StreamController<SocketEvent>.broadcast();
@@ -25,12 +23,10 @@ class SocketService {
   bool get isConnected => _isConnected;
 
   void connect(String token, {int? userId, int? departmentId}) {
-    _retryCount = 0;
-    _retryTimer?.cancel();
-    // Force disconnect if a previous connection is still pending or
-    // credentials have changed (logout + login, or different user).
-    if (_connecting ||
-        (_isConnected && (_token != token || _userId != userId))) {
+    // If already connected with the same credentials, nothing to do
+    if (_isConnected && _socket != null && _token == token && _userId == userId) return;
+    // If connecting or credentials changed, replace the socket
+    if (_connecting || (_isConnected && (_token != token || _userId != userId))) {
       disconnect();
     }
     _token = token;
@@ -58,9 +54,9 @@ class SocketService {
     _socket = io.io(
       uri,
       OptionBuilder()
-          .setTransports(['websocket', 'polling'])
+          .setTransports(['polling', 'websocket'])
           .disableAutoConnect()
-          .disableReconnection() // We handle reconnection ourselves
+          .enableReconnection()
           .setAuth({
             'token': _token,
             'userId': _userId,
@@ -72,20 +68,27 @@ class SocketService {
     _socket!.onConnect((_) {
       _isConnected = true;
       _connecting = false;
-      _retryCount = 0; // Reset retry count on successful connection
       _eventController.add(SocketEvent('SOCKET_CONNECTED', {}));
     });
 
-    _socket!.onDisconnect((_) {
+    _socket!.onDisconnect((reason) {
       _isConnected = false;
       _connecting = false;
-      _scheduleRetry();
     });
 
-    _socket!.onConnectError((_) {
+    _socket!.onConnectError((err) {
       _isConnected = false;
       _connecting = false;
-      _scheduleRetry();
+    });
+
+    _socket!.onError((err) {
+      _isConnected = false;
+      _connecting = false;
+    });
+
+    _socket!.onReconnect((_) {
+      _isConnected = true;
+      _connecting = false;
     });
 
     _socket!.on('TICKET_CREATED', (data) {
@@ -143,37 +146,12 @@ class SocketService {
     _socket!.connect();
   }
 
-  void _scheduleRetry() {
-    if (_token == null) return;
-    if (_retryCount >= 20) return; // Max 20 retries (~10 min)
-
-    _retryTimer?.cancel();
-    _retryCount++;
-
-    // Exponential backoff: 2s, 4s, 8s, ... up to 30s max
-    final delay = Duration(
-      milliseconds: (_retryCount > 6 ? 30000 : 2000 * (1 << (_retryCount - 1)))
-          .clamp(2000, 30000),
-    );
-
-    _retryTimer = Timer(delay, () {
-      if (!_isConnected && !_connecting && _token != null) {
-        _doConnect();
-      }
-    });
-  }
-
   void reconnect() {
-    _retryCount = 0;
-    _retryTimer?.cancel();
-    _isConnected = false;
-    _connecting = false;
+    if (_isConnected || _connecting) return;
     _doConnect();
   }
 
   void disconnect() {
-    _retryTimer?.cancel();
-    _retryCount = 0;
     _isConnected = false;
     _connecting = false;
     _socket?.disconnect();

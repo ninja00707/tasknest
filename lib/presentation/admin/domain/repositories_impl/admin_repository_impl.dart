@@ -28,6 +28,9 @@ class AdminRepositoryImpl implements AdminRepository {
   Future<void> deleteUser(int id) => _ds.deleteUser(id);
 
   @override
+  Future<List<AdminUserModel>> getUserActivity() => _ds.getUserActivity();
+
+  @override
   Future<List<AdminDeptModel>> getDepartments() => _ds.getDepartments();
 
   @override

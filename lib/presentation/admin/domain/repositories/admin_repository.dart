@@ -8,6 +8,7 @@ abstract class AdminRepository {
   Future<AdminUserModel> updateUser(int id, Map<String, dynamic> body);
   Future<void> approveUser(int id);
   Future<void> deleteUser(int id);
+  Future<List<AdminUserModel>> getUserActivity();
   Future<List<AdminDeptModel>> getDepartments();
   Future<AdminDeptModel> createDept(Map<String, dynamic> body);
   Future<AdminDeptModel> updateDept(int id, Map<String, dynamic> body);

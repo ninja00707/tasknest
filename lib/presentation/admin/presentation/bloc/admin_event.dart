@@ -27,6 +27,8 @@ class DeleteUser extends AdminEvent {
 
 class LoadPendingUsers extends AdminEvent {}
 
+class LoadUserActivity extends AdminEvent {}
+
 class ApproveUser extends AdminEvent {
   final int id;
   final BuildContext context;

@@ -18,6 +18,7 @@ router.get('/stats', controller.getStats);
 // Users
 router.get('/users', controller.listUsers);
 router.get('/users/pending', controller.listPendingUsers);
+router.get('/users/activity', controller.getUserActivity);
 router.get('/users/:id', controller.getUser);
 router.post('/users', controller.createUser);
 router.patch('/users/:id', controller.updateUser);

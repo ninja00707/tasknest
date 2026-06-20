@@ -2,10 +2,18 @@
 -- Tasknest: Full Data Reset for Live Launch
 -- Run: psql -U postgres -d taskify -f reset_for_launch.sql
 -- ============================================================
--- 1. Clears all tickets, notifications, logs, comments
--- 2. Resets all ticket-related sequences to start fresh
--- 3. Forces all users to reset password on next login
+-- 1. Adds last_active column for user activity tracking
+-- 2. Clears all tickets, notifications, logs, comments
+-- 3. Resets all ticket-related sequences to start fresh
+-- 4. Resets all passwords to UM@2024 + must_reset_password
 -- ============================================================
+
+-- Add last_active column for user login tracking (skip if exists)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_active') THEN
+    ALTER TABLE users ADD COLUMN last_active TIMESTAMP WITH TIME ZONE;
+  END IF;
+END $$;
 
 BEGIN;
 
@@ -62,7 +70,10 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- Force all users to reset password on next login (exclude dev account ADMIN001)
-UPDATE users SET must_reset_password = TRUE WHERE code <> 'ADMIN001';
+-- Reset all passwords to UM@2024 and force reset on next login (exclude dev account ADMIN001)
+UPDATE users SET
+  password_hash = '$2b$10$.hDG7BIFnsStYfXU7x2beuuafWsEtNLtkFF2uLcbAXRDG8ZHh.Aqe',
+  must_reset_password = TRUE
+WHERE code <> 'ADMIN001';
 
 COMMIT;

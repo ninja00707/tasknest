@@ -6,6 +6,8 @@ const ok = (res, data, message) =>
 const created = (res, data, message) =>
   res.status(201).json({ success: true, data, message });
 
+const safeInt = (v) => { const n = parseInt(v); if (isNaN(n)) throw { statusCode: 400, message: 'Invalid id parameter' }; return n; };
+
 const handler = (fn) => async (req, res) => {
   try { await fn(req, res); } catch (err) {
     console.error('Admin Error:', err);
@@ -34,7 +36,7 @@ exports.listPendingUsers = handler(async (req, res) => {
 });
 
 exports.getUser = handler(async (req, res) => {
-  const user = await service.getUser(parseInt(req.params.id));
+  const user = await service.getUser(safeInt(req.params.id));
   ok(res, user);
 });
 
@@ -44,17 +46,17 @@ exports.createUser = handler(async (req, res) => {
 });
 
 exports.updateUser = handler(async (req, res) => {
-  const user = await service.updateUser(parseInt(req.params.id), req.body);
+  const user = await service.updateUser(safeInt(req.params.id), req.body);
   ok(res, user, 'User updated successfully');
 });
 
 exports.approveUser = handler(async (req, res) => {
-  const user = await service.approveUser(parseInt(req.params.id));
+  const user = await service.approveUser(safeInt(req.params.id));
   ok(res, user, 'User approved successfully');
 });
 
 exports.deleteUser = handler(async (req, res) => {
-  await service.deleteUser(parseInt(req.params.id));
+  await service.deleteUser(safeInt(req.params.id));
   ok(res, null, 'User deactivated successfully');
 });
 
@@ -65,7 +67,7 @@ exports.listDepartments = handler(async (req, res) => {
 });
 
 exports.getDepartment = handler(async (req, res) => {
-  const dept = await service.getDepartment(parseInt(req.params.id));
+  const dept = await service.getDepartment(safeInt(req.params.id));
   ok(res, dept);
 });
 
@@ -75,13 +77,19 @@ exports.createDepartment = handler(async (req, res) => {
 });
 
 exports.updateDepartment = handler(async (req, res) => {
-  const dept = await service.updateDepartment(parseInt(req.params.id), req.body);
+  const dept = await service.updateDepartment(safeInt(req.params.id), req.body);
   ok(res, dept, 'Department updated successfully');
 });
 
 exports.deleteDepartment = handler(async (req, res) => {
-  await service.deleteDepartment(parseInt(req.params.id));
+  await service.deleteDepartment(safeInt(req.params.id));
   ok(res, null, 'Department deleted successfully');
+});
+
+// ── User Activity ────────────────────────────────────────────────────────
+exports.getUserActivity = handler(async (req, res) => {
+  const data = await service.getUserActivity();
+  ok(res, data);
 });
 
 // ── Tickets ─────────────────────────────────────────────────────────────
@@ -95,16 +103,16 @@ exports.listTickets = handler(async (req, res) => {
 });
 
 exports.getTicket = handler(async (req, res) => {
-  const ticket = await service.getTicket(parseInt(req.params.id));
+  const ticket = await service.getTicket(safeInt(req.params.id));
   ok(res, ticket);
 });
 
 exports.updateTicket = handler(async (req, res) => {
-  const ticket = await service.updateTicket(parseInt(req.params.id), req.body);
+  const ticket = await service.updateTicket(safeInt(req.params.id), req.body);
   ok(res, ticket, 'Ticket updated successfully');
 });
 
 exports.deleteTicket = handler(async (req, res) => {
-  await service.deleteTicket(parseInt(req.params.id));
+  await service.deleteTicket(safeInt(req.params.id));
   ok(res, null, 'Ticket deleted successfully');
 });

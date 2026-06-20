@@ -44,6 +44,12 @@ class AdminRemoteDataSource {
     await _api.delete('admin/users/$id');
   }
 
+  // ── User Activity ──────────────────────────────────────────────────
+  Future<List<AdminUserModel>> getUserActivity() async {
+    final res = await _api.get('admin/users/activity');
+    return (res['data'] as List).map((e) => AdminUserModel.fromJson(e)).toList();
+  }
+
   // ── Departments ────────────────────────────────────────────────────
   Future<List<AdminDeptModel>> getDepartments() async {
     final res = await _api.get('admin/departments');

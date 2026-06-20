@@ -25,7 +25,7 @@ exports.getStats = async () => {
 
 exports.findAllUsers = async () => {
   const result = await pool.query(
-    `SELECT u.id, u.name, u.email, u.code, u.role_id, u.department_id, u.company_id,
+    `SELECT u.id, u.name, u.email, u.code, u.designation, u.role_id, u.department_id, u.company_id,
             u.is_active, u.created_at,
             r.name AS role_name,
             d.name AS department_name,
@@ -42,7 +42,7 @@ exports.findAllUsers = async () => {
 
 exports.findPendingUsers = async () => {
   const result = await pool.query(
-    `SELECT u.id, u.name, u.email, u.code, u.role_id, u.department_id, u.company_id,
+    `SELECT u.id, u.name, u.email, u.code, u.designation, u.role_id, u.department_id, u.company_id,
             u.is_active, u.created_at,
             r.name AS role_name,
             d.name AS department_name,
@@ -74,12 +74,12 @@ exports.findUserByEmail = async (email) => {
   return result.rows[0] || null;
 };
 
-exports.createUser = async ({ name, email, code, passwordHash, roleId, departmentId, companyId }) => {
+exports.createUser = async ({ name, email, code, designation, passwordHash, roleId, departmentId, companyId }) => {
   const result = await pool.query(
-    `INSERT INTO users (name, email, code, password_hash, role_id, department_id, company_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, name, email, code, role_id, department_id, company_id, is_active, created_at`,
-    [name, email, code || null, passwordHash, roleId ?? 2, departmentId ?? null, companyId ?? 0]
+    `INSERT INTO users (name, email, code, designation, password_hash, role_id, department_id, company_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING id, name, email, code, designation, role_id, department_id, company_id, is_active, created_at`,
+    [name, email, code || null, designation || null, passwordHash, roleId ?? 2, departmentId ?? null, companyId ?? 0]
   );
   return result.rows[0];
 };
@@ -249,4 +249,20 @@ exports.deleteTicket = async (id) => {
     pool.query('DELETE FROM sub_ticket_departments WHERE ticket_id = $1', [id]),
     pool.query('DELETE FROM tickets WHERE id = $1', [id]),
   ]);
+};
+
+exports.findUserActivity = async () => {
+  const result = await pool.query(
+    `SELECT u.id, u.name, u.email, u.code, u.designation, u.is_active, u.last_active,
+            u.created_at, u.must_reset_password,
+            r.name AS role_name,
+            d.name AS department_name,
+            c.name AS company_name
+     FROM users u
+     JOIN roles r ON r.id = u.role_id
+     LEFT JOIN departments d ON d.id = u.department_id
+     LEFT JOIN companies c ON c.id = u.company_id
+     ORDER BY u.last_active DESC NULLS LAST, u.name`
+  );
+  return result.rows;
 };

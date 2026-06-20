@@ -13,6 +13,7 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     on<UpdateUser>(_onUpdateUser);
     on<DeleteUser>(_onDeleteUser);
     on<LoadPendingUsers>(_onLoadPendingUsers);
+    on<LoadUserActivity>(_onLoadUserActivity);
     on<ApproveUser>(_onApproveUser);
     on<LoadDepartments>(_onLoadDepartments);
     on<CreateDepartment>(_onCreateDept);
@@ -75,6 +76,14 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
         );
       }
       add(LoadUsers());
+    } catch (err) { _emitError(emit, err); }
+  }
+
+  Future<void> _onLoadUserActivity(LoadUserActivity event, Emitter<AdminState> emit) async {
+    emit(AdminLoading());
+    try {
+      final users = await _repo.getUserActivity();
+      emit(UserActivityLoaded(users));
     } catch (err) { _emitError(emit, err); }
   }
 

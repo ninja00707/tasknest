@@ -32,6 +32,11 @@ class PendingUsersLoaded extends AdminState {
   PendingUsersLoaded(this.users);
 }
 
+class UserActivityLoaded extends AdminState {
+  final List<AdminUserModel> users;
+  UserActivityLoaded(this.users);
+}
+
 class AdminError extends AdminState {
   final String message;
   AdminError(this.message);

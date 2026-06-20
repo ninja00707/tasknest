@@ -26,7 +26,7 @@ class _LiveNotificationShellState extends State<LiveNotificationShell> {
     super.initState();
     _sub = SocketService().events.listen(_onSocketEvent);
     html.document.onVisibilityChange.listen((_) {
-      if (html.document.hidden == false) {
+      if (html.document.hidden == false && !SocketService().isConnected) {
         SocketService().reconnect();
       }
     });

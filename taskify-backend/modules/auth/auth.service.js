@@ -1,6 +1,7 @@
 require('dotenv').config();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const pool = require('../../database/db');
 const repo = require('./auth.repository');
 
 exports.register = async ({
@@ -166,6 +167,9 @@ exports.login = async ({
     throw error;
   }
 
+  // Track last active timestamp
+  await pool.query('UPDATE users SET last_active = NOW() WHERE id = $1', [user.id]);
+
   // Check if user must reset password on first login
   if (user.must_reset_password) {
     return {
@@ -312,9 +316,8 @@ exports.firstLoginReset = async ({ userId, email, newPassword }) => {
 
   const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-  const pool = require('../../database/db');
   await pool.query(
-    'UPDATE users SET password_hash = $1, must_reset_password = false WHERE id = $2',
+    'UPDATE users SET password_hash = $1, must_reset_password = false, last_active = NOW() WHERE id = $2',
     [hashedPassword, userId]
   );
 

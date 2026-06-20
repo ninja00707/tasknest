@@ -36,26 +36,39 @@ class AdminUserModel {
   final String name;
   final String email;
   final String? code;
+  final String? designation;
   final int roleId;
   final int? departmentId;
   final int companyId;
   final bool isActive;
   final String? createdAt;
+  final String? lastActive;
+  final bool mustResetPassword;
   final String? roleName;
   final String? departmentName;
   final String? departmentCode;
   final String? companyName;
+
+  bool get isOnline {
+    if (lastActive == null) return false;
+    final dt = DateTime.tryParse(lastActive!);
+    if (dt == null) return false;
+    return DateTime.now().difference(dt).inMinutes < 15;
+  }
 
   AdminUserModel({
     required this.id,
     required this.name,
     required this.email,
     this.code,
+    this.designation,
     required this.roleId,
     this.departmentId,
     required this.companyId,
     required this.isActive,
     this.createdAt,
+    this.lastActive,
+    this.mustResetPassword = false,
     this.roleName,
     this.departmentName,
     this.departmentCode,
@@ -67,11 +80,14 @@ class AdminUserModel {
     name: json['name'] ?? '',
     email: json['email'] ?? '',
     code: json['code'],
+    designation: json['designation'],
     roleId: json['role_id'] ?? 2,
     departmentId: json['department_id'],
     companyId: json['company_id'] ?? 0,
     isActive: json['is_active'] ?? true,
     createdAt: json['created_at'],
+    lastActive: json['last_active'],
+    mustResetPassword: json['must_reset_password'] ?? false,
     roleName: json['role_name'],
     departmentName: json['department_name'],
     departmentCode: json['department_code'],
@@ -82,6 +98,7 @@ class AdminUserModel {
     'name': name,
     'email': email,
     'code': code,
+    'designation': designation,
     'roleId': roleId,
     'departmentId': departmentId,
     'companyId': companyId,

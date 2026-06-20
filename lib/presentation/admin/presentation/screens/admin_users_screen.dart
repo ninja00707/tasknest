@@ -17,8 +17,11 @@ class AdminUsersScreen extends StatefulWidget {
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
   int _selectedTab = 0;
   final TextEditingController _searchCtl = TextEditingController();
+  final ScrollController _hScrollCtl = ScrollController();
   String _searchQuery = '';
   bool _showMissingCodeOnly = false;
+  int _page = 0;
+  static const int _pageSize = 30;
 
   @override
   void initState() {
@@ -30,6 +33,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   @override
   void dispose() {
     _searchCtl.dispose();
+    _hScrollCtl.dispose();
     super.dispose();
   }
 
@@ -44,11 +48,43 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         u.name.toLowerCase().contains(q) ||
         u.email.toLowerCase().contains(q) ||
         (u.code?.toLowerCase().contains(q) ?? false) ||
+        (u.designation?.toLowerCase().contains(q) ?? false) ||
         (u.departmentName?.toLowerCase().contains(q) ?? false) ||
         (u.roleName?.toLowerCase().contains(q) ?? false)
       ).toList();
     }
     return result;
+  }
+
+  List<AdminUserModel> _pageOf(List<AdminUserModel> users) {
+    final pages = (users.length / _pageSize).ceil();
+    if (_page >= pages) _page = (pages - 1).clamp(0, pages);
+    final start = _page * _pageSize;
+    if (start >= users.length) return [];
+    return users.sublist(start, (start + _pageSize).clamp(0, users.length));
+  }
+
+  Widget _pageNav(int total) {
+    final pages = (total / _pageSize).ceil();
+    if (pages <= 1) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            onPressed: _page <= 0 ? null : () => setState(() => _page--),
+          ),
+          Text('Page ${_page + 1} of $pages ($total users)',
+            style: const TextStyle(fontSize: 13, color: ThemeColors.unifiedTextMuted)),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: _page >= pages - 1 ? null : () => setState(() => _page++),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -66,7 +102,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   const Text('Manage Users', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary)),
                   IconButton(
                     icon: const Icon(Icons.refresh),
-                    onPressed: () { widget.bloc.add(LoadUsers()); widget.bloc.add(LoadPendingUsers()); },
+                    onPressed: () { _page = 0; widget.bloc.add(LoadUsers()); widget.bloc.add(LoadPendingUsers()); },
                     tooltip: 'Refresh',
                   ),
                 ],
@@ -94,7 +130,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   _tabButton('Pending Approval', 1),
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: () => setState(() => _showMissingCodeOnly = !_showMissingCodeOnly),
+                    onTap: () => setState(() { _showMissingCodeOnly = !_showMissingCodeOnly; _page = 0; }),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
@@ -125,7 +161,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                 icon: const Icon(Icons.clear, size: 18),
                                 onPressed: () {
                                   _searchCtl.clear();
-                                  setState(() => _searchQuery = '');
+                                  setState(() { _searchQuery = ''; _page = 0; });
                                 },
                               )
                             : null,
@@ -133,7 +169,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         contentPadding: const EdgeInsets.symmetric(vertical: 10),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      onChanged: (v) => setState(() => _searchQuery = v),
+                      onChanged: (v) => setState(() { _searchQuery = v; _page = 0; }),
                     ),
                   ),
                 ],
@@ -154,7 +190,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   Widget _tabButton(String label, int index) {
     final active = _selectedTab == index;
     return GestureDetector(
-      onTap: () => setState(() => _selectedTab = index),
+      onTap: () => setState(() { _selectedTab = index; _page = 0; }),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
@@ -168,53 +204,68 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   Widget _buildTable(BuildContext context, List<AdminUserModel> users) {
+    final pageItems = _pageOf(users);
     return Expanded(
+      child: Column(
+        children: [
+          Expanded(
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: ThemeColors.unifiedBorder),
         ),
-        child: SingleChildScrollView(
+        child: Scrollbar(
+          controller: _hScrollCtl,
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+          controller: _hScrollCtl,
           scrollDirection: Axis.horizontal,
           child: SingleChildScrollView(
             child: DataTable(
               headingRowColor: WidgetStateProperty.all(ThemeColors.unifiedBackground),
               columns: const [
-                DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Code', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Role', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Department', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Company', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Active', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700))),
-              ],
-              rows: users.map((u) => DataRow(cells: [
-                DataCell(Text('${u.id}')),
-                DataCell(
-                  u.code != null && u.code!.isNotEmpty
-                      ? Text(u.code!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))
-                      : Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: ThemeColors.unifiedDanger.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: ThemeColors.unifiedDanger.withOpacity(0.4)),
-                          ),
-                          child: const Text('EMPTY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedDanger)),
-                        ),
-                ),
-                DataCell(Text(u.name)),
-                DataCell(Text(u.email, style: const TextStyle(fontSize: 13))),
-                DataCell(_roleChip(u.roleName ?? 'N/A')),
-                DataCell(Text(u.departmentName ?? '-')),
-                DataCell(Text(u.companyName ?? '-')),
-                DataCell(Icon(u.isActive ? Icons.check_circle : Icons.cancel, color: u.isActive ? ThemeColors.unifiedSuccess : ThemeColors.unifiedDanger, size: 20)),
-                DataCell(Row(
+                 DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Code', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Designation', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Role', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Department', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Company', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Active', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700))),
+               ],
+               rows: pageItems.map((u) => DataRow(cells: [
+                 DataCell(Text('${u.id}')),
+                 DataCell(
+                   u.code != null && u.code!.isNotEmpty
+                       ? Text(u.code!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))
+                       : Container(
+                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                           decoration: BoxDecoration(
+                             color: ThemeColors.unifiedDanger.withOpacity(0.15),
+                             borderRadius: BorderRadius.circular(4),
+                             border: Border.all(color: ThemeColors.unifiedDanger.withOpacity(0.4)),
+                           ),
+                           child: const Text('EMPTY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedDanger)),
+                         ),
+                 ),
+                 DataCell(Text(u.name)),
+                 DataCell(Text(u.designation ?? '-')),
+                 DataCell(Text(u.email, style: const TextStyle(fontSize: 13))),
+                 DataCell(_roleChip(u.roleName ?? 'N/A')),
+                 DataCell(Text(u.departmentName ?? '-')),
+                 DataCell(Text(u.companyName ?? '-')),
+                 DataCell(Icon(u.isActive ? Icons.check_circle : Icons.cancel, color: u.isActive ? ThemeColors.unifiedSuccess : ThemeColors.unifiedDanger, size: 20)),
+                 DataCell(Row(
                   children: [
                     IconButton(icon: const Icon(Icons.edit, size: 18), onPressed: () => _showUserDialog(context, u), tooltip: 'Edit'),
+                    IconButton(
+                      icon: Icon(Icons.lock_reset, size: 18, color: ThemeColors.unifiedWarning),
+                      onPressed: () => _confirmResetPassword(context, u),
+                      tooltip: 'Reset Password',
+                    ),
                     IconButton(
                       icon: Icon(Icons.toggle_off, size: 18, color: u.isActive ? ThemeColors.unifiedWarning : ThemeColors.unifiedSuccess),
                       onPressed: () => _confirmToggle(context, u),
@@ -226,7 +277,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             ),
           ),
         ),
+        ),
       ),
+    ),
+    _pageNav(users.length),
+    ],
+    ),
     );
   }
 
@@ -234,49 +290,59 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     if (users.isEmpty) {
       return const Expanded(child: Center(child: Text('No pending approvals', style: TextStyle(color: ThemeColors.unifiedTextMuted))));
     }
+    final pageItems = _pageOf(users);
     return Expanded(
+      child: Column(
+        children: [
+          Expanded(
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: ThemeColors.unifiedBorder),
         ),
-        child: SingleChildScrollView(
+        child: Scrollbar(
+          controller: _hScrollCtl,
+          thumbVisibility: true,
+          child: SingleChildScrollView(
+          controller: _hScrollCtl,
           scrollDirection: Axis.horizontal,
           child: SingleChildScrollView(
             child: DataTable(
               headingRowColor: WidgetStateProperty.all(ThemeColors.unifiedBackground),
               columns: const [
-                DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Code', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Role', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Department', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Company', style: TextStyle(fontWeight: FontWeight.w700))),
-                DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700))),
-              ],
-              rows: users.map((u) => DataRow(cells: [
-                DataCell(Text('${u.id}')),
-                DataCell(
-                  u.code != null && u.code!.isNotEmpty
-                      ? Text(u.code!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))
-                      : Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: ThemeColors.unifiedDanger.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: ThemeColors.unifiedDanger.withOpacity(0.4)),
-                          ),
-                          child: const Text('EMPTY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedDanger)),
-                        ),
-                ),
-                DataCell(Text(u.name)),
-                DataCell(Text(u.email, style: const TextStyle(fontSize: 13))),
-                DataCell(_roleChip(u.roleName ?? 'N/A')),
-                DataCell(Text(u.departmentName ?? '-')),
-                DataCell(Text(u.companyName ?? '-')),
-                DataCell(Row(
+                 DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Code', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Designation', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Role', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Department', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Company', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700))),
+               ],
+               rows: pageItems.map((u) => DataRow(cells: [
+                 DataCell(Text('${u.id}')),
+                 DataCell(
+                   u.code != null && u.code!.isNotEmpty
+                       ? Text(u.code!, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))
+                       : Container(
+                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                           decoration: BoxDecoration(
+                             color: ThemeColors.unifiedDanger.withOpacity(0.15),
+                             borderRadius: BorderRadius.circular(4),
+                             border: Border.all(color: ThemeColors.unifiedDanger.withOpacity(0.4)),
+                           ),
+                           child: const Text('EMPTY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedDanger)),
+                         ),
+                 ),
+                 DataCell(Text(u.name)),
+                 DataCell(Text(u.designation ?? '-')),
+                 DataCell(Text(u.email, style: const TextStyle(fontSize: 13))),
+                 DataCell(_roleChip(u.roleName ?? 'N/A')),
+                 DataCell(Text(u.departmentName ?? '-')),
+                 DataCell(Text(u.companyName ?? '-')),
+                 DataCell(Row(
                   children: [
                     ElevatedButton.icon(
                       icon: const Icon(Icons.check, size: 16),
@@ -301,7 +367,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             ),
           ),
         ),
+        ),
       ),
+    ),
+    _pageNav(users.length),
+    ],
+    ),
     );
   }
 
@@ -359,10 +430,31 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     );
   }
 
+  void _confirmResetPassword(BuildContext context, AdminUserModel u) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset Password?'),
+        content: Text('Reset password for "${u.name}" (${u.email}) to UM@2024? They will be forced to change it on next login.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              widget.bloc.add(UpdateUser(u.id, {'password': 'UM@2024', 'mustResetPassword': true}, context));
+            },
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showUserDialog(BuildContext context, AdminUserModel? existing) {
     final nameCtl = TextEditingController(text: existing?.name ?? '');
     final emailCtl = TextEditingController(text: existing?.email ?? '');
     final codeCtl = TextEditingController(text: existing?.code ?? '');
+    final designationCtl = TextEditingController(text: existing?.designation ?? '');
     final passwordCtl = TextEditingController();
     int? roleId = existing?.roleId ?? 2;
     int? deptId = existing?.departmentId;
@@ -385,6 +477,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   TextFormField(controller: emailCtl, decoration: const InputDecoration(labelText: 'Email'), validator: (v) => v == null || v.isEmpty ? 'Required' : null),
                   const SizedBox(height: 12),
                   TextFormField(controller: codeCtl, decoration: const InputDecoration(labelText: 'Employee Code'), validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                  const SizedBox(height: 12),
+                  TextFormField(controller: designationCtl, decoration: const InputDecoration(labelText: 'Designation')),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: passwordCtl,
@@ -438,6 +532,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   'name': nameCtl.text,
                   'email': emailCtl.text,
                   'code': codeCtl.text,
+                  'designation': designationCtl.text,
                   'roleId': roleId,
                   'departmentId': deptId,
                   'companyId': companyId,

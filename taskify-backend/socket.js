@@ -33,6 +33,7 @@ function setupSocketIO(server, isWorker = false) {
   // ── Connection handler ─────────────────────────────────────────
   io.on('connection', (socket) => {
     const userId = socket.userId;
+    console.log(`[Socket] User ${userId} connected (handshake auth:`, JSON.stringify(socket.handshake.auth), ')');
 
     // Join user-specific room
     socket.join(`user_${userId}`);
@@ -42,8 +43,8 @@ function setupSocketIO(server, isWorker = false) {
       socket.join(`dept_${socket.handshake.auth.departmentId}`);
     }
 
-    socket.on('disconnect', () => {
-      // cleanup if needed
+    socket.on('disconnect', (reason) => {
+      console.log(`[Socket] User ${userId} disconnected: ${reason}`);
     });
   });
 

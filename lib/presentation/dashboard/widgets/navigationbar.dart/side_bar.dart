@@ -263,7 +263,7 @@ class Sidebar extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '$companyName · ${user.designation.isNotEmpty ? user.designation : roleName} · $departmentName',
+                        '$companyName · ${roleName?.toLowerCase() == 'ceo' ? 'CEO' : user.designation.isNotEmpty ? user.designation : roleName} · $departmentName',
                         style: const TextStyle(
                           fontSize: 11,
                           color: ThemeColors.unifiedTextMuted,
