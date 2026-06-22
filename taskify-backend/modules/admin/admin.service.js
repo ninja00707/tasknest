@@ -80,7 +80,7 @@ exports.getDepartment = async (id) => {
 };
 
 exports.createDepartment = async (body) => {
-  const { name, code, companyId, tier, parentId } = body;
+  const { name, code, companyId, tier, parentId, isShared } = body;
   if (!name || !code || companyId === undefined) {
     const e = new Error('Name, code and companyId are required');
     e.statusCode = 400; throw e;
@@ -92,7 +92,7 @@ exports.createDepartment = async (body) => {
       e.statusCode = 400; throw e;
     }
   }
-  return repo.createDepartment({ name, code, companyId, tier, parentId });
+  return repo.createDepartment({ name, code, companyId, tier, parentId, isShared });
 };
 
 exports.updateDepartment = async (id, body) => {
@@ -104,6 +104,7 @@ exports.updateDepartment = async (id, body) => {
   if (body.companyId !== undefined) updates.company_id = body.companyId;
   if (body.tier !== undefined) updates.tier = body.tier;
   if (body.parentId !== undefined) updates.parent_id = body.parentId;
+  if (body.isShared !== undefined) updates.is_shared = body.isShared;
   if (Object.keys(updates).length === 0) return dept;
   return repo.updateDepartment(id, updates);
 };

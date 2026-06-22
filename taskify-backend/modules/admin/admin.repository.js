@@ -122,14 +122,14 @@ exports.findDepartmentById = async (id) => {
   return result.rows[0] || null;
 };
 
-exports.createDepartment = async ({ name, code, companyId, tier, parentId }) => {
+exports.createDepartment = async ({ name, code, companyId, tier, parentId, isShared }) => {
   const idResult = await pool.query('SELECT COALESCE(MAX(id), -1) + 1 AS next_id FROM departments');
   const nextId = idResult.rows[0].next_id;
   const result = await pool.query(
-    `INSERT INTO departments (id, name, code, company_id, tier, parent_id)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO departments (id, name, code, company_id, tier, parent_id, is_shared)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
-    [nextId, name, code, companyId, tier ?? 'upper', parentId ?? null]
+    [nextId, name, code, companyId, tier ?? 'upper', parentId ?? null, isShared ?? false]
   );
   return result.rows[0];
 };

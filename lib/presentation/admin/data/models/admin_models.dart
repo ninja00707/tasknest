@@ -115,6 +115,7 @@ class AdminDeptModel {
   final int? parentId;
   final String? parentName;
   final String? companyName;
+  final bool isShared;
 
   AdminDeptModel({
     required this.id,
@@ -125,6 +126,7 @@ class AdminDeptModel {
     this.parentId,
     this.parentName,
     this.companyName,
+    this.isShared = false,
   });
 
   factory AdminDeptModel.fromJson(Map<String, dynamic> json) => AdminDeptModel(
@@ -136,6 +138,7 @@ class AdminDeptModel {
     parentId: json['parent_id'],
     parentName: json['parent_name'],
     companyName: json['company_name'],
+    isShared: json['is_shared'] ?? false,
   );
 
   Map<String, dynamic> toJson() => {
@@ -144,6 +147,7 @@ class AdminDeptModel {
     'companyId': companyId,
     'tier': tier,
     'parentId': parentId,
+    'isShared': isShared,
   };
 }
 

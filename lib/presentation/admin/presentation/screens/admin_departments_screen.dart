@@ -15,13 +15,24 @@ class AdminDepartmentsScreen extends StatefulWidget {
 }
 
 class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
+  final _searchCtl = TextEditingController();
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
     widget.bloc.add(LoadDepartments());
   }
 
-    List<AdminDeptModel>? _allDepts;
+  @override
+  void dispose() {
+    _searchCtl.dispose();
+    super.dispose();
+  }
+
+  List<AdminDeptModel>? _allDepts;
+  int _page = 1;
+  static const int _pageSize = 15;
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +63,23 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _searchCtl,
+                decoration: InputDecoration(
+                  hintText: 'Search by name or code...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchCtl.clear(); setState(() { _searchQuery = ''; _page = 1; }); })
+                      : null,
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: ThemeColors.unifiedBorder)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                onChanged: (v) => setState(() { _searchQuery = v.toLowerCase(); _page = 1; }),
+              ),
+              const SizedBox(height: 12),
               if (state is AdminLoading) const Expanded(child: Center(child: CircularProgressIndicator()))
               else if (state is DepartmentsLoaded) _buildTable(context, state.departments)
               else if (state is AdminError) Expanded(child: Center(child: Text(state.message, style: const TextStyle(color: ThemeColors.unifiedDanger))))
@@ -64,43 +91,74 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
     );
   }
 
-  Widget _buildTable(BuildContext context, List<AdminDeptModel> depts) {
+  Widget _buildTable(BuildContext context, List<AdminDeptModel> allDepts) {
+    final filtered = allDepts.where((d) {
+      if (_searchQuery.isEmpty) return true;
+      return d.name.toLowerCase().contains(_searchQuery) ||
+             d.code.toLowerCase().contains(_searchQuery);
+    }).toList();
+    final totalPages = (filtered.length / _pageSize).ceil().clamp(1, filtered.length);
+    final page = _page.clamp(1, totalPages);
+    final displayed = filtered.skip((page - 1) * _pageSize).take(_pageSize).toList();
+
     return Expanded(
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: ThemeColors.unifiedBorder),
-        ),
-        child: SingleChildScrollView(
-          child: DataTable(
-            headingRowColor: WidgetStateProperty.all(ThemeColors.unifiedBackground),
-            columns: const [
-              DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w700))),
-              DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w700))),
-              DataColumn(label: Text('Code', style: TextStyle(fontWeight: FontWeight.w700))),
-              DataColumn(label: Text('Company', style: TextStyle(fontWeight: FontWeight.w700))),
-              DataColumn(label: Text('Tier', style: TextStyle(fontWeight: FontWeight.w700))),
-              DataColumn(label: Text('Parent', style: TextStyle(fontWeight: FontWeight.w700))),
-              DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700))),
-            ],
-            rows: depts.map((d) => DataRow(cells: [
-              DataCell(Text('${d.id}')),
-              DataCell(Text(d.name)),
-              DataCell(Text(d.code)),
-              DataCell(Text(d.companyName ?? '-')),
-              DataCell(Text(d.tier ?? '-')),
-              DataCell(Text(d.parentName ?? '-')),
-              DataCell(Row(
-                children: [
-                  IconButton(icon: const Icon(Icons.edit, size: 18), onPressed: () => _showDeptDialog(context, d, _allDepts ?? [])),
-                  IconButton(icon: const Icon(Icons.delete, size: 18, color: ThemeColors.unifiedDanger),
-                    onPressed: () => _confirmDelete(context, d)),
-                ],
-              )),
-            ])).toList(),
+      child: Column(
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: ThemeColors.unifiedBorder),
+              ),
+              child: SingleChildScrollView(
+                child: DataTable(
+                  headingRowColor: WidgetStateProperty.all(ThemeColors.unifiedBackground),
+                    columns: const [
+                      DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w700))),
+                      DataColumn(label: Text('Name', style: TextStyle(fontWeight: FontWeight.w700))),
+                      DataColumn(label: Text('Code', style: TextStyle(fontWeight: FontWeight.w700))),
+                      DataColumn(label: Text('Company', style: TextStyle(fontWeight: FontWeight.w700))),
+                      DataColumn(label: Text('Tier', style: TextStyle(fontWeight: FontWeight.w700))),
+                      DataColumn(label: Text('Parent', style: TextStyle(fontWeight: FontWeight.w700))),
+                      DataColumn(label: Text('Shared', style: TextStyle(fontWeight: FontWeight.w700))),
+                      DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700))),
+                    ],
+                  rows: displayed.map((d) => DataRow(cells: [
+                    DataCell(Text('${d.id}')),
+                    DataCell(Text(d.name)),
+                    DataCell(Text(d.code)),
+                    DataCell(Text(d.companyName ?? '-')),
+                    DataCell(Text(d.tier ?? '-')),
+                    DataCell(Text(d.parentName ?? '-')),
+                    DataCell(d.isShared
+                      ? const Icon(Icons.public, size: 18, color: ThemeColors.unifiedSuccess)
+                      : const Icon(Icons.business, size: 18, color: ThemeColors.unifiedTextMuted)),
+                    DataCell(Row(
+                      children: [
+                        IconButton(icon: const Icon(Icons.edit, size: 18), onPressed: () => _showDeptDialog(context, d, _allDepts ?? [])),
+                        IconButton(icon: const Icon(Icons.delete, size: 18, color: ThemeColors.unifiedDanger),
+                          onPressed: () => _confirmDelete(context, d)),
+                      ],
+                    )),
+                  ])).toList(),
+                ),
+              ),
+            ),
           ),
-        ),
+          if (filtered.length > _pageSize)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(icon: const Icon(Icons.chevron_left), onPressed: page > 1 ? () => setState(() => _page--) : null),
+                  Text('Page $page of $totalPages (${filtered.length} total)'),
+                  IconButton(icon: const Icon(Icons.chevron_right), onPressed: page < totalPages ? () => setState(() => _page++) : null),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -132,6 +190,7 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
     int companyId = existing?.companyId ?? 0;
     String? tier = existing?.tier ?? 'upper';
     int? parentId = existing?.parentId;
+    bool isShared = existing?.isShared ?? false;
     final formKey = GlobalKey<FormState>();
 
     // Filter out the department being edited and its children to avoid circular reference
@@ -187,6 +246,15 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
                     ],
                     onChanged: (v) => setDlgState(() => parentId = v),
                   ),
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    title: const Text('Shared Department'),
+                    subtitle: const Text('Visible across all companies'),
+                    value: isShared,
+                    activeColor: ThemeColors.unifiedSuccess,
+                    contentPadding: EdgeInsets.zero,
+                    onChanged: (v) => setDlgState(() => isShared = v),
+                  ),
                 ],
               ),
             ),
@@ -202,6 +270,7 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
                   'companyId': companyId,
                   'tier': tier,
                   'parentId': parentId,
+                  'isShared': isShared,
                 };
                 Navigator.pop(ctx);
                 if (existing == null) {
