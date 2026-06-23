@@ -97,7 +97,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         return;
       }
       _socketDebounce?.cancel();
-      _socketDebounce = Timer(const Duration(milliseconds: 500), () {
+      _socketDebounce = Timer(const Duration(milliseconds: 2000), () {
         if (!isClosed) {
           final loaded = _getLoadedStateOrNull();
           add(LoadDashboard(page: loaded?.currentPage ?? 1));
@@ -195,14 +195,22 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       final tickets = ticketResult.tickets;
       final currentPage = ticketResult.page;
       final totalPages = ticketResult.totalPages;
-      final departments = await _dataSource.getDepartments();
+      // Cache departments (rarely changes)
+      final currentDepts = prev?.departments ?? <DepartmentModel>[];
+      final departments = currentDepts.isEmpty
+          ? await _dataSource.getDepartments()
+          : currentDepts;
       // Only fetch employees on initial load (rarely changes)
       final needsEmployees = user.roleId == 1 || user.roleId == 0 || user.roleId == 3;
       final currentEmployees = prev?.employees ?? <EmployeeModel>[];
       final employees = needsEmployees && currentEmployees.isEmpty
           ? await _dataSource.getEmployees(departmentId: user.departmentId)
           : currentEmployees;
-      final sentTickets = await _dataSource.getSentTickets();
+      // Cache sent tickets (rarely changes)
+      final currentSent = prev?.sentTickets ?? <TicketModel>[];
+      final sentTickets = currentSent.isEmpty
+          ? await _dataSource.getSentTickets()
+          : currentSent;
 
       emit(
         DashboardLoaded(

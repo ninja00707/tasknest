@@ -223,21 +223,54 @@ class TicketRepository {
       )`;
     }
 
-    // Company-level isolation (users only see their own company's depts + shared depts)
+    // Company-level isolation (role-dependent: CEO is stricter, normal users see all shared)
     params.push(user.see_all_companies || false);
     params.push(user.company_id);
     const seeAllIdx = `$${params.length - 1}`;
     const companyParam = `$${params.length}`;
-    whereClause += ` AND (${seeAllIdx} OR EXISTS (
-      SELECT 1 FROM departments d
-      WHERE d.id IN (t.assigned_dept_id, t.created_by_dept)
-      AND (
-        d.company_id = ${companyParam}
-        OR (d.is_shared = TRUE AND EXISTS (
-          SELECT 1 FROM users u WHERE u.id = t.created_by_id AND u.company_id = ${companyParam}
-        ))
-      )
-    ))`;
+    if (user.role === 'ceo') {
+      // CEO: only own company tickets OR shared-dept tickets created by own employees
+      whereClause += ` AND (${seeAllIdx} OR EXISTS (
+        SELECT 1 FROM departments d
+        WHERE d.id IN (t.assigned_dept_id, t.created_by_dept)
+        AND (
+          d.company_id = ${companyParam}
+          OR (d.is_shared = TRUE AND EXISTS (
+            SELECT 1 FROM users u WHERE u.id = t.created_by_id AND u.company_id = ${companyParam}
+          ))
+        )
+      ) OR EXISTS (
+        WITH RECURSIVE sub_dept_search AS (
+          SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = t.id
+          UNION ALL
+          SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
+          JOIN sub_dept_search sds ON child.parent_ticket_id = sds.id
+        )
+        SELECT 1 FROM sub_dept_search sds
+        JOIN departments d ON d.id IN (sds.assigned_dept_id, sds.created_by_dept)
+        WHERE d.company_id = ${companyParam}
+          OR (d.is_shared = TRUE AND EXISTS (
+            SELECT 1 FROM users u WHERE u.id = t.created_by_id AND u.company_id = ${companyParam}
+          ))
+      ))`;
+    } else {
+      // Non-CEO: own-company departments OR any shared department
+      whereClause += ` AND (${seeAllIdx} OR EXISTS (
+        SELECT 1 FROM departments d
+        WHERE d.id IN (t.assigned_dept_id, t.created_by_dept)
+        AND (d.company_id = ${companyParam} OR d.is_shared = TRUE)
+      ) OR EXISTS (
+        WITH RECURSIVE sub_dept_search AS (
+          SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = t.id
+          UNION ALL
+          SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
+          JOIN sub_dept_search sds ON child.parent_ticket_id = sds.id
+        )
+        SELECT 1 FROM sub_dept_search sds
+        JOIN departments d ON d.id IN (sds.assigned_dept_id, sds.created_by_dept)
+        WHERE d.company_id = ${companyParam} OR d.is_shared = TRUE
+      ))`;
+    }
 
     if (status) {
       params.push(status);
@@ -563,11 +596,15 @@ class TicketRepository {
       whereClause = `WHERE (
         assigned_dept_id = $1
         OR created_by_dept = $1
-        OR (
-          is_sub_ticket = TRUE AND EXISTS (
-            SELECT 1 FROM sub_ticket_departments std
-            WHERE std.ticket_id = task.id AND std.department_id = $1
+        OR EXISTS (
+          WITH RECURSIVE child_search AS (
+            SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = task.id
+            UNION ALL
+            SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
+            JOIN child_search cs ON child.parent_ticket_id = cs.id
           )
+          SELECT 1 FROM child_search
+          WHERE assigned_dept_id = $1 OR created_by_dept = $1
         )
       )`;
     }
@@ -578,6 +615,7 @@ class TicketRepository {
     const seeAllIdx = `$${params.length - 1}`;
     const companyIdx = `$${params.length}`;
     if (whereClause === '') {
+      // CEO path: only own-company or shared-dept tickets created by own employees
       whereClause = `WHERE (${seeAllIdx} OR EXISTS (
         SELECT 1 FROM departments d
         WHERE d.id IN (task.assigned_dept_id, task.created_by_dept)
@@ -587,17 +625,36 @@ class TicketRepository {
             SELECT 1 FROM users u WHERE u.id = task.created_by_id AND u.company_id = ${companyIdx}
           ))
         )
-      ))`;
-    } else {
-      whereClause += ` AND (${seeAllIdx} OR EXISTS (
-        SELECT 1 FROM departments d
-        WHERE d.id IN (task.assigned_dept_id, task.created_by_dept)
-        AND (
-          d.company_id = ${companyIdx}
+      ) OR EXISTS (
+        WITH RECURSIVE sub_dept_search AS (
+          SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = task.id
+          UNION ALL
+          SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
+          JOIN sub_dept_search sds ON child.parent_ticket_id = sds.id
+        )
+        SELECT 1 FROM sub_dept_search sds
+        JOIN departments d ON d.id IN (sds.assigned_dept_id, sds.created_by_dept)
+        WHERE d.company_id = ${companyIdx}
           OR (d.is_shared = TRUE AND EXISTS (
             SELECT 1 FROM users u WHERE u.id = task.created_by_id AND u.company_id = ${companyIdx}
           ))
+      ))`;
+    } else {
+      // Non-CEO: own-company departments OR any shared department
+      whereClause += ` AND (${seeAllIdx} OR EXISTS (
+        SELECT 1 FROM departments d
+        WHERE d.id IN (task.assigned_dept_id, task.created_by_dept)
+        AND (d.company_id = ${companyIdx} OR d.is_shared = TRUE)
+      ) OR EXISTS (
+        WITH RECURSIVE sub_dept_search AS (
+          SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = task.id
+          UNION ALL
+          SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
+          JOIN sub_dept_search sds ON child.parent_ticket_id = sds.id
         )
+        SELECT 1 FROM sub_dept_search sds
+        JOIN departments d ON d.id IN (sds.assigned_dept_id, sds.created_by_dept)
+        WHERE d.company_id = ${companyIdx} OR d.is_shared = TRUE
       ))`;
     }
 
@@ -645,6 +702,7 @@ class TicketRepository {
     // CEO: company-level check instead of department-level
     if (user.role === 'ceo') {
       if (!user.see_all_companies) {
+        // CEO: only own-company tickets OR shared-dept tickets created by own employees
         const ceoCompanyCheck = await pool.query(
           `SELECT 1 FROM departments d
            WHERE d.id IN ($2, $3)
@@ -658,7 +716,25 @@ class TicketRepository {
           [user.company_id, ticket.assigned_dept_id, ticket.created_by_dept, ticket.created_by_id]
         );
         if (ceoCompanyCheck.rows.length === 0) {
-          return { forbidden: true };
+          // Also check sub-ticket departments
+          const subCheck = await pool.query(
+            `WITH RECURSIVE sub_dept_search AS (
+               SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = $1
+               UNION ALL
+               SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
+               JOIN sub_dept_search sds ON child.parent_ticket_id = sds.id
+             )
+             SELECT 1 FROM sub_dept_search sds
+             JOIN departments d ON d.id IN (sds.assigned_dept_id, sds.created_by_dept)
+             WHERE d.company_id = $2 OR (d.is_shared = TRUE AND EXISTS (
+               SELECT 1 FROM users u WHERE u.id = $3 AND u.company_id = $2
+             ))
+             LIMIT 1`,
+            [ticket.id, user.company_id, ticket.created_by_id]
+          );
+          if (subCheck.rows.length === 0) {
+            return { forbidden: true };
+          }
         }
       }
       return ticket;
@@ -670,18 +746,33 @@ class TicketRepository {
     const isResolver = ticket.assigned_to_id === user.id;
 
     // Company-level check: ticket's department must belong to user's company or be shared
-    const sameCompany = user.see_all_companies || (await pool.query(
-      `SELECT 1 FROM departments d
-       WHERE d.id IN ($1, $2)
-       AND (
-         d.company_id = $3
-         OR (d.is_shared = TRUE AND EXISTS (
-           SELECT 1 FROM users u WHERE u.id = $4 AND u.company_id = $3
-         ))
-       )
-       LIMIT 1`,
-      [ticket.assigned_dept_id, ticket.created_by_dept, user.company_id, ticket.created_by_id]
-    )).rows.length > 0;
+    let sameCompany = user.see_all_companies;
+    if (!sameCompany) {
+      const directCheck = await pool.query(
+        `SELECT 1 FROM departments d
+         WHERE d.id IN ($1, $2)
+         AND (d.company_id = $3 OR d.is_shared = TRUE)
+         LIMIT 1`,
+        [ticket.assigned_dept_id, ticket.created_by_dept, user.company_id]
+      );
+      sameCompany = directCheck.rows.length > 0;
+      if (!sameCompany) {
+        const subCheck = await pool.query(
+          `WITH RECURSIVE sub_dept_search AS (
+             SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = $1
+             UNION ALL
+             SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
+             JOIN sub_dept_search sds ON child.parent_ticket_id = sds.id
+           )
+           SELECT 1 FROM sub_dept_search sds
+           JOIN departments d ON d.id IN (sds.assigned_dept_id, sds.created_by_dept)
+           WHERE d.company_id = $2 OR d.is_shared = TRUE
+           LIMIT 1`,
+          [ticket.id, user.company_id]
+        );
+        sameCompany = subCheck.rows.length > 0;
+      }
+    }
 
     let isSubTicketDept = false;
     if (ticket.is_sub_ticket) {
@@ -1141,21 +1232,6 @@ class TicketRepository {
         SELECT std.assigned_to_id FROM all_tree_tickets att
         JOIN sub_ticket_departments std ON std.ticket_id = att.id
         WHERE std.assigned_to_id IS NOT NULL
-        UNION
-        -- All users in departments involved anywhere in the tree
-        SELECT u.id FROM users u
-        WHERE u.department_id IN (
-            SELECT created_by_dept FROM all_tree_tickets WHERE created_by_dept IS NOT NULL
-            UNION
-            SELECT assigned_dept_id FROM all_tree_tickets WHERE assigned_dept_id IS NOT NULL
-            UNION
-            SELECT department_id FROM sub_ticket_departments WHERE ticket_id IN (SELECT id FROM all_tree_tickets)
-          )
-        UNION
-        -- Always include CEO
-        SELECT u.id FROM users u
-        JOIN roles r ON r.id = u.role_id
-        WHERE r.name = 'ceo'
       ) sub
     `, [ticketId]);
     return result.rows.map(r => r.user_id);

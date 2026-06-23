@@ -23,10 +23,14 @@ class SocketService {
   bool get isConnected => _isConnected;
 
   void connect(String token, {int? userId, int? departmentId}) {
-    // If already connected with the same credentials, nothing to do
+    // Already connected with the same credentials — nothing to do
     if (_isConnected && _socket != null && _token == token && _userId == userId) return;
-    // If connecting or credentials changed, replace the socket
-    if (_connecting || (_isConnected && (_token != token || _userId != userId))) {
+    // Already connecting with the same credentials — let it finish
+    if (_connecting && _token == token && _userId == userId) return;
+    // Different credentials mid-flight — tear down, will reconnect
+    if (_connecting) {
+      disconnect();
+    } else if (_isConnected && (_token != token || _userId != userId)) {
       disconnect();
     }
     _token = token;
