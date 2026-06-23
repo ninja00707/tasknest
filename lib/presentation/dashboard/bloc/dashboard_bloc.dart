@@ -178,12 +178,17 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       // Ensure socket is connected (handles first login, logout+login)
       _initSocket();
 
-      // Read team filter state from the previous state
-      final prevFilterTeam = _getLoadedStateOrNull()?.filterTeam ?? false;
+      // Preserve filter state across reloads
+      final prev = _getLoadedStateOrNull();
+      final prevFilterTeam = prev?.filterTeam ?? false;
+      final prevFilterStatus = prev?.filterStatus;
+      final prevFilterPriority = prev?.filterPriority;
 
       // ✅ Sequential — a 401 on one won't nuke the token for others
       final stats = await _dataSource.getStats();
       final ticketResult = await _dataSource.getTickets(
+        status: prevFilterStatus,
+        priority: prevFilterPriority,
         page: event.page,
         scope: prevFilterTeam ? 'team' : null,
       );
@@ -193,7 +198,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       final departments = await _dataSource.getDepartments();
       // Only fetch employees on initial load (rarely changes)
       final needsEmployees = user.roleId == 1 || user.roleId == 0 || user.roleId == 3;
-      final currentEmployees = _getLoadedStateOrNull()?.employees ?? <EmployeeModel>[];
+      final currentEmployees = prev?.employees ?? <EmployeeModel>[];
       final employees = needsEmployees && currentEmployees.isEmpty
           ? await _dataSource.getEmployees(departmentId: user.departmentId)
           : currentEmployees;
@@ -206,6 +211,9 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           departments: departments,
           employees: employees,
           sentTickets: sentTickets,
+          filterStatus: prevFilterStatus,
+          filterPriority: prevFilterPriority,
+          filterTeam: prevFilterTeam,
           selectedIndex: 0,
           currentPage: currentPage,
           totalPages: totalPages,
@@ -223,6 +231,11 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     Emitter<DashboardState> emit,
   ) async {
     final prev = _getLoadedState();
+    // Optimistic update — filter chips respond instantly, no lag
+    emit(prev.copyWith(
+      filterStatus: event.status,
+      filterPriority: event.priority,
+    ));
     try {
       final ticketResult = await _dataSource.getTickets(
         status: event.status,

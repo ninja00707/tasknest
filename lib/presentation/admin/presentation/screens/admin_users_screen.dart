@@ -22,6 +22,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   bool _showMissingCodeOnly = false;
   int _page = 0;
   static const int _pageSize = 30;
+  List<AdminUserModel> _allUsers = [];
 
   @override
   void initState() {
@@ -91,6 +92,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   Widget build(BuildContext context) {
     return BlocBuilder<AdminBloc, AdminState>(
       builder: (context, state) {
+        if (state is UsersLoaded) _allUsers = state.users;
+        if (state is PendingUsersLoaded) _allUsers = state.users;
         return Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -118,7 +121,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   ElevatedButton.icon(
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text('Add User'),
-                    onPressed: () => _showUserDialog(context, null),
+                    onPressed: () => _showUserDialog(context, null, _allUsers),
                   ),
                 ],
               ),
@@ -233,6 +236,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                  DataColumn(label: Text('Role', style: TextStyle(fontWeight: FontWeight.w700))),
                  DataColumn(label: Text('Department', style: TextStyle(fontWeight: FontWeight.w700))),
                  DataColumn(label: Text('Company', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Access', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Reports To', style: TextStyle(fontWeight: FontWeight.w700))),
                  DataColumn(label: Text('Active', style: TextStyle(fontWeight: FontWeight.w700))),
                  DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700))),
                ],
@@ -257,10 +262,30 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                  DataCell(_roleChip(u.roleName ?? 'N/A')),
                  DataCell(Text(u.departmentName ?? '-')),
                  DataCell(Text(u.companyName ?? '-')),
+                 DataCell(u.seeAllCompanies
+                   ? Container(
+                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                       decoration: BoxDecoration(
+                         color: ThemeColors.unifiedSecondary.withOpacity(0.15),
+                         borderRadius: BorderRadius.circular(4),
+                         border: Border.all(color: ThemeColors.unifiedSecondary.withOpacity(0.4)),
+                       ),
+                       child: const Text('ALL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedSecondary)),
+                     )
+                   : Container(
+                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                       decoration: BoxDecoration(
+                         color: ThemeColors.unifiedTextMuted.withOpacity(0.15),
+                         borderRadius: BorderRadius.circular(4),
+                         border: Border.all(color: ThemeColors.unifiedTextMuted.withOpacity(0.3)),
+                       ),
+                       child: const Text('OWN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted)),
+                     )),
+                 DataCell(Text(u.reportsToName ?? '-')),
                  DataCell(Icon(u.isActive ? Icons.check_circle : Icons.cancel, color: u.isActive ? ThemeColors.unifiedSuccess : ThemeColors.unifiedDanger, size: 20)),
                  DataCell(Row(
                   children: [
-                    IconButton(icon: const Icon(Icons.edit, size: 18), onPressed: () => _showUserDialog(context, u), tooltip: 'Edit'),
+                    IconButton(icon: const Icon(Icons.edit, size: 18), onPressed: () => _showUserDialog(context, u, _allUsers), tooltip: 'Edit'),
                     IconButton(
                       icon: Icon(Icons.lock_reset, size: 18, color: ThemeColors.unifiedWarning),
                       onPressed: () => _confirmResetPassword(context, u),
@@ -319,6 +344,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                  DataColumn(label: Text('Role', style: TextStyle(fontWeight: FontWeight.w700))),
                  DataColumn(label: Text('Department', style: TextStyle(fontWeight: FontWeight.w700))),
                  DataColumn(label: Text('Company', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Access', style: TextStyle(fontWeight: FontWeight.w700))),
+                 DataColumn(label: Text('Reports To', style: TextStyle(fontWeight: FontWeight.w700))),
                  DataColumn(label: Text('Actions', style: TextStyle(fontWeight: FontWeight.w700))),
                ],
                rows: pageItems.map((u) => DataRow(cells: [
@@ -342,6 +369,26 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                  DataCell(_roleChip(u.roleName ?? 'N/A')),
                  DataCell(Text(u.departmentName ?? '-')),
                  DataCell(Text(u.companyName ?? '-')),
+                 DataCell(u.seeAllCompanies
+                   ? Container(
+                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                       decoration: BoxDecoration(
+                         color: ThemeColors.unifiedSecondary.withOpacity(0.15),
+                         borderRadius: BorderRadius.circular(4),
+                         border: Border.all(color: ThemeColors.unifiedSecondary.withOpacity(0.4)),
+                       ),
+                       child: const Text('ALL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedSecondary)),
+                     )
+                   : Container(
+                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                       decoration: BoxDecoration(
+                         color: ThemeColors.unifiedTextMuted.withOpacity(0.15),
+                         borderRadius: BorderRadius.circular(4),
+                         border: Border.all(color: ThemeColors.unifiedTextMuted.withOpacity(0.3)),
+                       ),
+                       child: const Text('OWN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted)),
+                     )),
+                 DataCell(Text(u.reportsToName ?? '-')),
                  DataCell(Row(
                   children: [
                     ElevatedButton.icon(
@@ -450,7 +497,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     );
   }
 
-  void _showUserDialog(BuildContext context, AdminUserModel? existing) {
+  void _showUserDialog(BuildContext context, AdminUserModel? existing, List<AdminUserModel> allUsers) {
     final nameCtl = TextEditingController(text: existing?.name ?? '');
     final emailCtl = TextEditingController(text: existing?.email ?? '');
     final codeCtl = TextEditingController(text: existing?.code ?? '');
@@ -459,6 +506,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     int? roleId = existing?.roleId ?? 2;
     int? deptId = existing?.departmentId;
     int companyId = existing?.companyId ?? 0;
+    int? reportsTo = existing?.reportsTo;
+    bool seeAllCompanies = existing?.seeAllCompanies ?? false;
     final formKey = GlobalKey<FormState>();
 
     showDialog(
@@ -519,6 +568,31 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     ],
                     onChanged: (v) => setDlgState(() => companyId = v!),
                   ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<int?>(
+                    value: reportsTo,
+                    decoration: const InputDecoration(labelText: 'Reports To'),
+                    items: [
+                      const DropdownMenuItem(value: null, child: Text('None')),
+                      ...allUsers
+                        .where((u) => u.id != (existing?.id ?? -1))
+                        .map((u) => DropdownMenuItem(
+                          value: u.id,
+                          child: Text('${u.name} (${u.email})'),
+                        )),
+                    ],
+                    onChanged: (v) => setDlgState(() => reportsTo = v),
+                  ),
+                  const SizedBox(height: 12),
+                  CheckboxListTile(
+                    value: seeAllCompanies,
+                    onChanged: (v) => setDlgState(() => seeAllCompanies = v ?? false),
+                    title: const Text('See All Companies', style: TextStyle(fontSize: 14)),
+                    subtitle: const Text('Bypasses company-level ticket isolation', style: TextStyle(fontSize: 11, color: ThemeColors.unifiedTextMuted)),
+                    contentPadding: EdgeInsets.zero,
+                    dense: true,
+                    controlAffinity: ListTileControlAffinity.leading,
+                  ),
                 ],
               ),
             ),
@@ -537,6 +611,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   'departmentId': deptId,
                   'companyId': companyId,
                 };
+                body['reportsTo'] = reportsTo;
+                body['seeAllCompanies'] = seeAllCompanies;
                 if (passwordCtl.text.isNotEmpty) body['password'] = passwordCtl.text;
                 Navigator.pop(ctx);
                 if (existing == null) {

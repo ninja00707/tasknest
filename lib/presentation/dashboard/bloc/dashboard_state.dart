@@ -4,6 +4,11 @@
 import 'package:equatable/equatable.dart';
 import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
 
+// Sentinel for copyWith to distinguish "set to null" from "keep existing"
+class _Sentinel {
+  const _Sentinel();
+}
+
 abstract class DashboardState extends Equatable {
   String? get message => null;
   @override
@@ -76,14 +81,16 @@ class DashboardLoaded extends DashboardState {
         '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
 
+  static const _sentinel = _Sentinel();
+
   DashboardLoaded copyWith({
     DashboardStats? stats,
     List<TicketModel>? tickets,
     List<DepartmentModel>? departments,
     List<EmployeeModel>? employees,
     List<TicketModel>? sentTickets,
-    String? filterStatus,
-    String? filterPriority,
+    Object? filterStatus = _sentinel,
+    Object? filterPriority = _sentinel,
     bool? filterTeam,
     String? searchQuery,
     int? selectedIndex,
@@ -97,8 +104,8 @@ class DashboardLoaded extends DashboardState {
       departments: departments ?? this.departments,
       employees: employees ?? this.employees,
       sentTickets: sentTickets ?? this.sentTickets,
-      filterStatus: filterStatus ?? this.filterStatus,
-      filterPriority: filterPriority ?? this.filterPriority,
+      filterStatus: identical(filterStatus, _sentinel) ? this.filterStatus : filterStatus as String?,
+      filterPriority: identical(filterPriority, _sentinel) ? this.filterPriority : filterPriority as String?,
       filterTeam: filterTeam ?? this.filterTeam,
       searchQuery: searchQuery ?? this.searchQuery,
       selectedIndex: selectedIndex ?? this.selectedIndex,

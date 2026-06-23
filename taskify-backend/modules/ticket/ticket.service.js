@@ -970,10 +970,11 @@ class TicketService {
     return await ticketRepo.enrichTicketsWithSubData(tickets);
   }
 
-  async getDepartmentAnalytics(departmentId) {
+  async getDepartmentAnalytics(departmentId, user) {
     return await ticketRepo.getDashboardStats({
       role: 'manager',
-      department_id: Number(departmentId)
+      department_id: Number(departmentId),
+      company_id: user.company_id
     });
   }
 
@@ -984,12 +985,12 @@ class TicketService {
     return await ticketRepo.getTicketLogs(ticketId);
   }
 
-  async getAnalyticsByDepartment() {
-    return await ticketRepo.getAnalyticsByDepartment();
+  async getAnalyticsByDepartment(user) {
+    return await ticketRepo.getAnalyticsByDepartment(user);
   }
 
-  async getOrganizationAnalytics() {
-    return await ticketRepo.getAnalyticsByDepartment(); // Reusing the existing repo method for now
+  async getOrganizationAnalytics(user) {
+    return await ticketRepo.getAnalyticsByDepartment(user); // Reusing the existing repo method for now
   }
 }
 

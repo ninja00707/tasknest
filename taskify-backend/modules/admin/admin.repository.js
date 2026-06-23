@@ -26,15 +26,17 @@ exports.getStats = async () => {
 exports.findAllUsers = async () => {
   const result = await pool.query(
     `SELECT u.id, u.name, u.email, u.code, u.designation, u.role_id, u.department_id, u.company_id,
-            u.is_active, u.created_at,
+            u.is_active, u.created_at, u.reports_to, u.see_all_companies,
             r.name AS role_name,
             d.name AS department_name,
             d.code AS department_code,
-            c.name AS company_name
+            c.name AS company_name,
+            reporter.name AS reports_to_name
      FROM users u
      JOIN roles r ON r.id = u.role_id
      LEFT JOIN departments d ON d.id = u.department_id
      LEFT JOIN companies c ON c.id = u.company_id
+     LEFT JOIN users reporter ON reporter.id = u.reports_to
      ORDER BY u.created_at DESC`
   );
   return result.rows;
@@ -43,15 +45,17 @@ exports.findAllUsers = async () => {
 exports.findPendingUsers = async () => {
   const result = await pool.query(
     `SELECT u.id, u.name, u.email, u.code, u.designation, u.role_id, u.department_id, u.company_id,
-            u.is_active, u.created_at,
+            u.is_active, u.created_at, u.reports_to, u.see_all_companies,
             r.name AS role_name,
             d.name AS department_name,
             d.code AS department_code,
-            c.name AS company_name
+            c.name AS company_name,
+            reporter.name AS reports_to_name
      FROM users u
      JOIN roles r ON r.id = u.role_id
      LEFT JOIN departments d ON d.id = u.department_id
      LEFT JOIN companies c ON c.id = u.company_id
+     LEFT JOIN users reporter ON reporter.id = u.reports_to
      WHERE u.is_active = FALSE
      ORDER BY u.created_at DESC`
   );
@@ -74,12 +78,12 @@ exports.findUserByEmail = async (email) => {
   return result.rows[0] || null;
 };
 
-exports.createUser = async ({ name, email, code, designation, passwordHash, roleId, departmentId, companyId }) => {
+exports.createUser = async ({ name, email, code, designation, passwordHash, roleId, departmentId, companyId, reportsTo, seeAllCompanies }) => {
   const result = await pool.query(
-    `INSERT INTO users (name, email, code, designation, password_hash, role_id, department_id, company_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING id, name, email, code, designation, role_id, department_id, company_id, is_active, created_at`,
-    [name, email, code || null, designation || null, passwordHash, roleId ?? 2, departmentId ?? null, companyId ?? 0]
+    `INSERT INTO users (name, email, code, designation, password_hash, role_id, department_id, company_id, reports_to, see_all_companies)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     RETURNING id, name, email, code, designation, role_id, department_id, company_id, is_active, created_at, reports_to, see_all_companies`,
+    [name, email, code || null, designation || null, passwordHash, roleId ?? 2, departmentId ?? null, companyId ?? 0, reportsTo ?? null, seeAllCompanies ?? false]
   );
   return result.rows[0];
 };

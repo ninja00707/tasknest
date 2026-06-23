@@ -97,7 +97,7 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
       return d.name.toLowerCase().contains(_searchQuery) ||
              d.code.toLowerCase().contains(_searchQuery);
     }).toList();
-    final totalPages = (filtered.length / _pageSize).ceil().clamp(1, filtered.length);
+    final totalPages = filtered.isEmpty ? 1 : (filtered.length / _pageSize).ceil();
     final page = _page.clamp(1, totalPages);
     final displayed = filtered.skip((page - 1) * _pageSize).take(_pageSize).toList();
 

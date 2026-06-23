@@ -223,28 +223,21 @@ class TicketRepository {
       )`;
     }
 
-    // Company-level isolation (non-CEO users only see their company's depts + shared depts)
-    // Also checks sub-tickets recursively (for cross-department tickets to shared depts)
-    if (user.role !== 'ceo') {
-      params.push(user.company_id);
-      const companyParam = `$${params.length}`;
-      whereClause += ` AND EXISTS (
-        SELECT 1 FROM departments d
-        WHERE (d.company_id = ${companyParam} OR d.is_shared = TRUE)
-        AND (
-          d.id IN (t.assigned_dept_id, t.created_by_dept)
-          OR EXISTS (
-            WITH RECURSIVE child_search AS (
-              SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = t.id
-              UNION ALL
-              SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
-              JOIN child_search cs ON child.parent_ticket_id = cs.id
-            )
-            SELECT 1 FROM child_search WHERE assigned_dept_id = d.id OR created_by_dept = d.id
-          )
-        )
-      )`;
-    }
+    // Company-level isolation (users only see their own company's depts + shared depts)
+    params.push(user.see_all_companies || false);
+    params.push(user.company_id);
+    const seeAllIdx = `$${params.length - 1}`;
+    const companyParam = `$${params.length}`;
+    whereClause += ` AND (${seeAllIdx} OR EXISTS (
+      SELECT 1 FROM departments d
+      WHERE d.id IN (t.assigned_dept_id, t.created_by_dept)
+      AND (
+        d.company_id = ${companyParam}
+        OR (d.is_shared = TRUE AND EXISTS (
+          SELECT 1 FROM users u WHERE u.id = t.created_by_id AND u.company_id = ${companyParam}
+        ))
+      )
+    ))`;
 
     if (status) {
       params.push(status);
@@ -573,34 +566,43 @@ class TicketRepository {
         OR (
           is_sub_ticket = TRUE AND EXISTS (
             SELECT 1 FROM sub_ticket_departments std
-            WHERE std.ticket_id = tickets.id AND std.department_id = $1
+            WHERE std.ticket_id = task.id AND std.department_id = $1
           )
         )
       )`;
     }
 
-    // Company-level isolation
-    if (user.role !== 'ceo') {
-      params.push(user.company_id);
-      const idx = params.length;
-      whereClause += `${params.length === 2 ? '' : ' WHERE '} AND EXISTS (
+    // Company-level isolation (applies to all users, including CEO)
+    params.push(user.see_all_companies || false);
+    params.push(user.company_id);
+    const seeAllIdx = `$${params.length - 1}`;
+    const companyIdx = `$${params.length}`;
+    if (whereClause === '') {
+      whereClause = `WHERE (${seeAllIdx} OR EXISTS (
         SELECT 1 FROM departments d
-        WHERE (d.company_id = $${idx} OR d.is_shared = TRUE)
+        WHERE d.id IN (task.assigned_dept_id, task.created_by_dept)
         AND (
-          d.id IN (tickets.assigned_dept_id, tickets.created_by_dept)
-          OR EXISTS (
-            WITH RECURSIVE child_search AS (
-              SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = tickets.id
-              UNION ALL
-              SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
-              JOIN child_search cs ON child.parent_ticket_id = cs.id
-            )
-            SELECT 1 FROM child_search WHERE assigned_dept_id = d.id OR created_by_dept = d.id
-          )
+          d.company_id = ${companyIdx}
+          OR (d.is_shared = TRUE AND EXISTS (
+            SELECT 1 FROM users u WHERE u.id = task.created_by_id AND u.company_id = ${companyIdx}
+          ))
         )
-      )`;
+      ))`;
+    } else {
+      whereClause += ` AND (${seeAllIdx} OR EXISTS (
+        SELECT 1 FROM departments d
+        WHERE d.id IN (task.assigned_dept_id, task.created_by_dept)
+        AND (
+          d.company_id = ${companyIdx}
+          OR (d.is_shared = TRUE AND EXISTS (
+            SELECT 1 FROM users u WHERE u.id = task.created_by_id AND u.company_id = ${companyIdx}
+          ))
+        )
+      ))`;
     }
 
+    // Only count top-level tickets (matches what the ticket list shows)
+    const parentNullClause = whereClause === '' ? 'WHERE task.parent_ticket_id IS NULL' : ' AND task.parent_ticket_id IS NULL';
     const result = await pool.query(`
       SELECT
         COUNT(*)                                          AS total,
@@ -611,7 +613,7 @@ class TicketRepository {
         COUNT(*) FILTER (WHERE priority = 'urgent')      AS urgent,
         COUNT(*) FILTER (WHERE priority = 'high')        AS high_priority,
         COUNT(*) FILTER (WHERE due_date < NOW() AND status NOT IN ('completed','closed')) AS overdue
-      FROM tickets ${whereClause}
+      FROM tickets task ${whereClause}${parentNullClause}
     `, params);
 
     return result.rows[0];
@@ -636,7 +638,29 @@ class TicketRepository {
     `, [ticketId]);
     ticket.comments = commentsRes.rows;
 
-    if (user.role === 'ceo' || isSystemUpdate) {
+    if (isSystemUpdate) {
+      return ticket;
+    }
+
+    // CEO: company-level check instead of department-level
+    if (user.role === 'ceo') {
+      if (!user.see_all_companies) {
+        const ceoCompanyCheck = await pool.query(
+          `SELECT 1 FROM departments d
+           WHERE d.id IN ($2, $3)
+           AND (
+             d.company_id = $1
+             OR (d.is_shared = TRUE AND EXISTS (
+               SELECT 1 FROM users u WHERE u.id = $4 AND u.company_id = $1
+             ))
+           )
+           LIMIT 1`,
+          [user.company_id, ticket.assigned_dept_id, ticket.created_by_dept, ticket.created_by_id]
+        );
+        if (ceoCompanyCheck.rows.length === 0) {
+          return { forbidden: true };
+        }
+      }
       return ticket;
     }
 
@@ -646,26 +670,18 @@ class TicketRepository {
     const isResolver = ticket.assigned_to_id === user.id;
 
     // Company-level check: ticket's department must belong to user's company or be shared
-    // Also checks sub-tickets recursively (for cross-department tickets to shared depts)
-    const companyCheck = await pool.query(
+    const sameCompany = user.see_all_companies || (await pool.query(
       `SELECT 1 FROM departments d
-       WHERE (d.company_id = $3 OR d.is_shared = TRUE)
+       WHERE d.id IN ($1, $2)
        AND (
-         d.id IN ($1, $2)
-         OR EXISTS (
-           WITH RECURSIVE child_search AS (
-             SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = $4
-             UNION ALL
-             SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
-             JOIN child_search cs ON child.parent_ticket_id = cs.id
-           )
-           SELECT 1 FROM child_search WHERE assigned_dept_id = d.id OR created_by_dept = d.id
-         )
+         d.company_id = $3
+         OR (d.is_shared = TRUE AND EXISTS (
+           SELECT 1 FROM users u WHERE u.id = $4 AND u.company_id = $3
+         ))
        )
        LIMIT 1`,
-      [ticket.assigned_dept_id, ticket.created_by_dept, user.company_id, ticket.id]
-    );
-    const sameCompany = companyCheck.rows.length > 0;
+      [ticket.assigned_dept_id, ticket.created_by_dept, user.company_id, ticket.created_by_id]
+    )).rows.length > 0;
 
     let isSubTicketDept = false;
     if (ticket.is_sub_ticket) {
@@ -1464,7 +1480,7 @@ class TicketRepository {
   }
 
   // ── Get analytics grouped by department ──────────────────────────────────
-  async getAnalyticsByDepartment() {
+  async getAnalyticsByDepartment(user) {
     const result = await pool.query(`
       SELECT
         d.id AS dept_id,
@@ -1481,9 +1497,10 @@ class TicketRepository {
         ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(t.closed_at, t.updated_at) - t.created_at)) / 3600)::numeric, 2) AS avg_resolution_hours
       FROM departments d
       LEFT JOIN tickets t ON t.assigned_dept_id = d.id
+      WHERE ($1::boolean OR (d.company_id = $2 OR d.is_shared = TRUE))
       GROUP BY d.id, d.code, d.name
       ORDER BY d.name ASC
-    `);
+    `, [user.see_all_companies || false, user.company_id]);
 
     return result.rows;
   }

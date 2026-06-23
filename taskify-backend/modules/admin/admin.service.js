@@ -28,7 +28,7 @@ exports.getUser = async (id) => {
 };
 
 exports.createUser = async (body) => {
-  const { name, email, code, designation, password, roleId, departmentId, companyId } = body;
+  const { name, email, code, designation, password, roleId, departmentId, companyId, reportsTo, seeAllCompanies } = body;
   if (!name || !email || !password) {
     const e = new Error('Name, email and password are required');
     e.statusCode = 400; throw e;
@@ -40,13 +40,13 @@ exports.createUser = async (body) => {
     if (existingCode.rows.length) { const e = new Error('Code already in use'); e.statusCode = 409; throw e; }
   }
   const hash = await bcrypt.hash(password, 10);
-  return repo.createUser({ name, email, code, designation, passwordHash: hash, roleId, departmentId, companyId });
+  return repo.createUser({ name, email, code, designation, passwordHash: hash, roleId, departmentId, companyId, reportsTo, seeAllCompanies });
 };
 
 exports.updateUser = async (id, body) => {
   const user = await repo.findUserById(id);
   if (!user) { const e = new Error('User not found'); e.statusCode = 404; throw e; }
-  const { name, email, roleId, departmentId, companyId, isActive, designation } = body;
+  const { name, email, roleId, departmentId, companyId, isActive, designation, reportsTo, seeAllCompanies } = body;
   const updates = {};
   if (name !== undefined) updates.name = name;
   if (email !== undefined) updates.email = email;
@@ -55,6 +55,8 @@ exports.updateUser = async (id, body) => {
   if (companyId !== undefined) updates.company_id = companyId;
   if (isActive !== undefined) updates.is_active = isActive;
   if (designation !== undefined) updates.designation = designation;
+  if (reportsTo !== undefined) updates.reports_to = reportsTo;
+  if (seeAllCompanies !== undefined) updates.see_all_companies = seeAllCompanies;
   if (body.mustResetPassword !== undefined) updates.must_reset_password = body.mustResetPassword;
   if (body.password) {
     updates.password_hash = await bcrypt.hash(body.password, 10);

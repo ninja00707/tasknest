@@ -239,7 +239,16 @@ class TicketController {
 
   async getAnalyticsByDepartment(req, res, next) {
     try {
-      const analytics = await ticketService.getAnalyticsByDepartment();
+      const analytics = await ticketService.getAnalyticsByDepartment(req.user);
+      res.json({ success: true, data: analytics });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getOrganizationAnalytics(req, res, next) {
+    try {
+      const analytics = await ticketService.getOrganizationAnalytics(req.user);
       res.json({ success: true, data: analytics });
     } catch (err) {
       next(err);
@@ -248,17 +257,8 @@ class TicketController {
 
   async getDepartmentAnalytics(req, res, next) {
     try {
-      const stats = await ticketService.getDepartmentAnalytics(req.params.departmentId);
+      const stats = await ticketService.getDepartmentAnalytics(req.params.departmentId, req.user);
       res.json({ success: true, data: stats });
-    } catch (err) {
-      next(err);
-    }
-  }
-
-  async getOrganizationAnalytics(req, res, next) {
-    try {
-      const analytics = await ticketService.getOrganizationAnalytics();
-      res.json({ success: true, data: analytics });
     } catch (err) {
       next(err);
     }

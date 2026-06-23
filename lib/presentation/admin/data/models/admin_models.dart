@@ -48,6 +48,9 @@ class AdminUserModel {
   final String? departmentName;
   final String? departmentCode;
   final String? companyName;
+  final int? reportsTo;
+  final String? reportsToName;
+  final bool seeAllCompanies;
 
   bool get isOnline {
     if (lastActive == null) return false;
@@ -73,6 +76,9 @@ class AdminUserModel {
     this.departmentName,
     this.departmentCode,
     this.companyName,
+    this.reportsTo,
+    this.reportsToName,
+    this.seeAllCompanies = false,
   });
 
   factory AdminUserModel.fromJson(Map<String, dynamic> json) => AdminUserModel(
@@ -92,6 +98,9 @@ class AdminUserModel {
     departmentName: json['department_name'],
     departmentCode: json['department_code'],
     companyName: json['company_name'],
+    reportsTo: json['reports_to'],
+    reportsToName: json['reports_to_name'],
+    seeAllCompanies: json['see_all_companies'] ?? false,
   );
 
   Map<String, dynamic> toJson() => {
@@ -103,6 +112,8 @@ class AdminUserModel {
     'departmentId': departmentId,
     'companyId': companyId,
     'isActive': isActive,
+    if (reportsTo != null) 'reportsTo': reportsTo,
+    'seeAllCompanies': seeAllCompanies,
   };
 }
 
