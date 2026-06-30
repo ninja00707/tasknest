@@ -95,7 +95,11 @@ class TicketCard extends StatelessWidget {
                       // ── Row 1: ID + flags + badges ───────────────────
                       Row(
                         children: [
-                          _IdChip(label: ticket.ticketNumber.isNotEmpty ? ticket.ticketNumber : '#${ticket.id}'),
+                          _IdChip(
+                            label: ticket.ticketNumber.isNotEmpty
+                                ? ticket.ticketNumber
+                                : '#${ticket.id}',
+                          ),
                           const SizedBox(width: 8),
                           if (ticket.isStandardTicket)
                             _FlagChip(
@@ -145,7 +149,8 @@ class TicketCard extends StatelessWidget {
                                   Icon(
                                     Icons.subdirectory_arrow_right_rounded,
                                     size: 13,
-                                    color: ThemeColors.unifiedTextMuted.withOpacity(0.6),
+                                    color: ThemeColors.unifiedTextMuted
+                                        .withOpacity(0.6),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
@@ -220,11 +225,11 @@ class TicketCard extends StatelessWidget {
                       // ── Row 6: Meta Info ─────────────────────────────
                       Row(
                         children: [
-                          _MetaChip(
-                            icon: Icons.arrow_upward_rounded,
-                            iconColor: ThemeColors.unifiedPrimary,
-                            label: ticket.createdByDeptCode,
-                          ),
+                          // _MetaChip(
+                          //   icon: Icons.arrow_upward_rounded,
+                          //   iconColor: ThemeColors.unifiedPrimary,
+                          //   label: ticket.createdByDeptCode,
+                          // ),
                           if (!ticket.isSubTicket) ...[
                             _MetaDivider(),
                             _MetaChip(
@@ -241,24 +246,24 @@ class TicketCard extends StatelessWidget {
                               ),
                               if (ticket.assignedToReportsToName != null) ...[
                                 const SizedBox(width: 4),
-                                Text(
-                                  '→ ${ticket.assignedToReportsToName}',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                    color: ThemeColors.unifiedTextMuted,
-                                  ),
-                                ),
+                                // Text(
+                                //   '→ ${ticket.assignedToReportsToName}',
+                                //   style: const TextStyle(
+                                //     fontSize: 10,
+                                //     fontWeight: FontWeight.w500,
+                                //     color: ThemeColors.unifiedTextMuted,
+                                //   ),
+                                // ),
                               ],
                             ],
                           ] else ...[
-                            _MetaDivider(),
-                            _MetaChip(
-                              icon: Icons.groups_outlined,
-                              iconColor: const Color(0xFF7C3AED),
-                              label:
-                                  '${ticket.departmentCount} dept${ticket.departmentCount == 1 ? '' : 's'}',
-                            ),
+                            // _MetaDivider(),
+                            // _MetaChip(
+                            //   icon: Icons.groups_outlined,
+                            //   iconColor: const Color(0xFF7C3AED),
+                            //   label:
+                            //       '${ticket.departmentCount} dept${ticket.departmentCount == 1 ? '' : 's'}',
+                            // ),
                           ],
                           const Spacer(),
                           TicketActions(ticket: ticket, user: user),
@@ -693,73 +698,77 @@ class _ChildTicketsList extends StatelessWidget {
               return GestureDetector(
                 onTap: () => context.push('/ticket/${child.id}'),
                 child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: ThemeColors.unifiedPrimary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            child.ticketNumber.isNotEmpty ? child.ticketNumber : '#${child.id}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: ThemeColors.unifiedPrimary,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: ThemeColors.unifiedPrimary.withOpacity(
+                                0.1,
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              child.ticketNumber.isNotEmpty
+                                  ? child.ticketNumber
+                                  : '#${child.id}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: ThemeColors.unifiedPrimary,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                child.title,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: ThemeColors.unifiedTextPrimary,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  child.title,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: ThemeColors.unifiedTextPrimary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                'Dept: ${child.deptCode} • ${child.assigneeName ?? "Unassigned"}',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: ThemeColors.unifiedTextMuted,
+                                Text(
+                                  'Dept: ${child.deptCode} • ${child.assigneeName ?? "Unassigned"}',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: ThemeColors.unifiedTextMuted,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        TicketActions(ticket: child, user: user),
-                        const SizedBox(width: 8),
-                        StatusBadge(status: child.status),
-                      ],
+                          const SizedBox(width: 8),
+                          TicketActions(ticket: child, user: user),
+                          const SizedBox(width: 8),
+                          StatusBadge(status: child.status),
+                        ],
+                      ),
                     ),
-                  ),
-                  if (!isLast)
-                    Divider(
-                      height: 1,
-                      color: ThemeColors.unifiedBorder.withOpacity(0.3),
-                      indent: 12,
-                      endIndent: 12,
-                    ),
-                ],
-              ),
+                    if (!isLast)
+                      Divider(
+                        height: 1,
+                        color: ThemeColors.unifiedBorder.withOpacity(0.3),
+                        indent: 12,
+                        endIndent: 12,
+                      ),
+                  ],
+                ),
               );
             }),
           ),

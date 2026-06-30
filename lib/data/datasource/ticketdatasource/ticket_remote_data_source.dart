@@ -231,6 +231,11 @@ class TicketRemoteDataSource {
     return TicketModel.fromJson(res['data']);
   }
 
+  Future<int> getUnreadCount() async {
+    final res = await _api.get('notifications/unread-count');
+    return res['data']['count'] as int;
+  }
+
   Future<void> addComment(int ticketId, String message) async {
     await _api.post('tickets/$ticketId/comments', body: {'message': message});
   }

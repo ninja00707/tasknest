@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/data/datasource/socket_service.dart';
@@ -212,6 +213,9 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           ? await _dataSource.getSentTickets()
           : currentSent;
 
+      // Initial unread notification count
+      final notifCount = await _dataSource.getUnreadCount();
+
       emit(
         DashboardLoaded(
           stats: stats,
@@ -225,6 +229,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           selectedIndex: 0,
           currentPage: currentPage,
           totalPages: totalPages,
+          unreadNotificationCount: notifCount,
         ),
       );
 

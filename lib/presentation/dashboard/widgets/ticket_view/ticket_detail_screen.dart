@@ -98,42 +98,42 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                 .followedBy(loadedState.sentTickets)
                 .firstWhere((t) => t.id == widget.ticketId);
           } catch (_) {
-              for (var master in loadedState.tickets.followedBy(
-                loadedState.sentTickets,
-              )) {
-                for (var child in master.children) {
-                  if (child.id == widget.ticketId) {
-                    foundTicket = TicketModel(
-                      id: child.id,
-                      title: child.title,
-                      description: 'Sub-task of #${master.id}',
-                      status: child.status,
-                      priority: child.priority,
-                      assignedDeptId: child.assignedDeptId,
-                      assignedDeptCode: child.deptCode,
-                      assignedDeptName: child.deptName,
-                      createdByName: child.createdByName,
-                      createdByDeptCode: child.createdByDeptCode,
-                      createdByDeptId: child.createdByDept,
-                      createdById: child.createdById,
-                      createdAt: child.createdAt,
-                      reopenCount: 0,
-                      parentTicketId: master.id,
-                      parentTicketTitle: master.title,
-                      ticketType: 'standard',
-                      assignedToId: child.assignedToId,
-                      assignedToName: child.assigneeName,
-                      history: const [],
-                      deptJourney: const [],
-                      children: const [],
-                      immediateChildCount: child.immediateChildCount,
-                      hasActiveChildren: child.hasActiveChildren,
-                    );
-                    break;
-                  }
+            for (var master in loadedState.tickets.followedBy(
+              loadedState.sentTickets,
+            )) {
+              for (var child in master.children) {
+                if (child.id == widget.ticketId) {
+                  foundTicket = TicketModel(
+                    id: child.id,
+                    title: child.title,
+                    description: 'Sub-task of #${master.id}',
+                    status: child.status,
+                    priority: child.priority,
+                    assignedDeptId: child.assignedDeptId,
+                    assignedDeptCode: child.deptCode,
+                    assignedDeptName: child.deptName,
+                    createdByName: child.createdByName,
+                    createdByDeptCode: child.createdByDeptCode,
+                    createdByDeptId: child.createdByDept,
+                    createdById: child.createdById,
+                    createdAt: child.createdAt,
+                    reopenCount: 0,
+                    parentTicketId: master.id,
+                    parentTicketTitle: master.title,
+                    ticketType: 'standard',
+                    assignedToId: child.assignedToId,
+                    assignedToName: child.assigneeName,
+                    history: const [],
+                    deptJourney: const [],
+                    children: const [],
+                    immediateChildCount: child.immediateChildCount,
+                    hasActiveChildren: child.hasActiveChildren,
+                  );
+                  break;
                 }
-                if (foundTicket != null) break;
               }
+              if (foundTicket != null) break;
+            }
           }
 
           final ticket =
@@ -173,12 +173,11 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
         ticket: ticket,
         title: null,
         issuffixStatus: true,
+        userName: widget.user.name,
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
-          horizontal: isWide
-              ? MediaQuery.of(context).size.width * 0.1
-              : 16,
+          horizontal: isWide ? MediaQuery.of(context).size.width * 0.1 : 16,
           vertical: 24,
         ),
         child: isWide
@@ -234,7 +233,10 @@ class _WideLayout extends StatelessWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(flex: 2, child: _LeftColumn(ticket: ticket, user: user)),
+            Expanded(
+              flex: 2,
+              child: _LeftColumn(ticket: ticket, user: user),
+            ),
             const SizedBox(width: 20),
             Expanded(
               flex: 1,
@@ -371,8 +373,8 @@ class _HeroSection extends StatelessWidget {
                                 label: ticket.isMultiTaskTicket
                                     ? 'Multi Task'
                                     : ticket.isSubTicket
-                                        ? 'Sub Ticket'
-                                        : 'Standard',
+                                    ? 'Sub Ticket'
+                                    : 'Standard',
                                 color: ThemeColors.unifiedSecondary,
                               ),
                               _PriorityBadge(priority: ticket.priority),
@@ -430,29 +432,30 @@ class _HeroSection extends StatelessWidget {
                   const SizedBox(height: 14),
                   _DeptJourneySection(journey: ticket.deptJourney),
                 ],
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    _RouteChip(
-                      icon: Icons.arrow_upward_rounded,
-                      label: ticket.createdByDeptCode,
-                      color: ThemeColors.unifiedPrimary,
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: Icon(
-                        Icons.arrow_forward_rounded,
-                        size: 14,
-                        color: ThemeColors.unifiedTextMuted,
-                      ),
-                    ),
-                    _RouteChip(
-                      icon: Icons.arrow_forward_rounded,
-                      label: ticket.assignedDeptCode,
-                      color: ThemeColors.unifiedSecondary,
-                    ),
-                  ],
-                ),
+
+                // const SizedBox(height: 14),
+                // Row(
+                //   children: [
+                //     _RouteChip(
+                //       icon: Icons.arrow_upward_rounded,
+                //       label: ticket.createdByDeptCode,
+                //       color: ThemeColors.unifiedPrimary,
+                //     ),
+                //     Padding(
+                //       padding: const EdgeInsets.symmetric(horizontal: 6),
+                //       child: Icon(
+                //         Icons.arrow_forward_rounded,
+                //         size: 14,
+                //         color: ThemeColors.unifiedTextMuted,
+                //       ),
+                //     ),
+                //     _RouteChip(
+                //       icon: Icons.arrow_forward_rounded,
+                //       label: ticket.assignedDeptCode,
+                //       color: ThemeColors.unifiedSecondary,
+                //     ),
+                //   ],
+                // ),
               ],
             ),
           ),
@@ -622,9 +625,7 @@ class _ProgressSection extends StatelessWidget {
                     minHeight: 10,
                     backgroundColor: deptColor.withOpacity(0.12),
                     valueColor: AlwaysStoppedAnimation(
-                      progress == 100
-                          ? ThemeColors.unifiedSuccess
-                          : deptColor,
+                      progress == 100 ? ThemeColors.unifiedSuccess : deptColor,
                     ),
                   ),
                 ),
@@ -766,8 +767,11 @@ class _DeptMiniCard extends StatelessWidget {
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.person_outline, size: 12,
-                    color: ThemeColors.unifiedTextMuted),
+                const Icon(
+                  Icons.person_outline,
+                  size: 12,
+                  color: ThemeColors.unifiedTextMuted,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   dept.assignedToName!,
@@ -817,7 +821,9 @@ class _LeftColumn extends StatelessWidget {
             icon: Icons.account_tree_outlined,
             title: 'Sub Tickets (${ticket.children.length})',
             child: Column(
-              children: ticket.children.map((child) => _ChildDetailCard(child: child)).toList(),
+              children: ticket.children
+                  .map((child) => _ChildDetailCard(child: child))
+                  .toList(),
             ),
           ),
         ],
@@ -826,6 +832,41 @@ class _LeftColumn extends StatelessWidget {
       ],
     );
   }
+}
+
+// ── Assigned To helper ───────────────────────────────────────────────────────
+List<Widget> _buildAssignedTo(TicketModel ticket) {
+  final parts = <String>[];
+  if (ticket.myAssignedToName != null) parts.add(ticket.myAssignedToName!);
+  for (final sd in ticket.subDepartments) {
+    if (sd.assignedToName != null && !parts.contains(sd.assignedToName)) {
+      parts.add('${sd.assignedToName} (${sd.departmentCode})');
+    }
+  }
+  for (final child in ticket.children) {
+    if (child.assigneeName != null && !parts.contains(child.assigneeName)) {
+      parts.add('${child.assigneeName} (${child.deptCode})');
+    }
+  }
+  if (parts.isEmpty) {
+    if (ticket.assignedToName != null) {
+      return [
+        _DetailRow(
+          icon: Icons.assignment_ind_outlined,
+          label: 'Assigned To',
+          value: ticket.assignedToName!,
+        ),
+      ];
+    }
+    return [];
+  }
+  return [
+    _DetailRow(
+      icon: Icons.assignment_ind_outlined,
+      label: 'Assigned To',
+      value: parts.join(', '),
+    ),
+  ];
 }
 
 // ── Details Card ─────────────────────────────────────────────────────────────
@@ -865,12 +906,8 @@ class _DetailsCard extends StatelessWidget {
               label: 'Assigned Dept',
               value: ticket.assignedDeptCode,
             ),
-          if (ticket.assignedToName != null)
-            _DetailRow(
-              icon: Icons.assignment_ind_outlined,
-              label: 'Assigned To',
-              value: ticket.assignedToName!,
-            ),
+          // ── Assigned To (all sub-department assignees) ────────────
+          ..._buildAssignedTo(ticket),
           _DetailRow(
             icon: Icons.calendar_today_outlined,
             label: 'Created',
@@ -881,9 +918,7 @@ class _DetailsCard extends StatelessWidget {
               icon: Icons.event_outlined,
               label: 'Due Date',
               value: CommonDateFormat.formatDateTime(ticket.dueDate),
-              valueColor: ticket.isOverdue
-                  ? ThemeColors.unifiedDanger
-                  : null,
+              valueColor: ticket.isOverdue ? ThemeColors.unifiedDanger : null,
             ),
           if (ticket.closedAt != null)
             _DetailRow(
@@ -1031,8 +1066,11 @@ class _ChildDetailCard extends StatelessWidget {
           Row(
             children: [
               if (child.ticketNumber.isNotEmpty) ...[
-                Icon(Icons.tag_rounded, size: 11,
-                    color: ThemeColors.unifiedTextMuted),
+                Icon(
+                  Icons.tag_rounded,
+                  size: 11,
+                  color: ThemeColors.unifiedTextMuted,
+                ),
                 const SizedBox(width: 3),
                 Text(
                   child.ticketNumber,
@@ -1044,8 +1082,11 @@ class _ChildDetailCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
               ],
-              Icon(Icons.business_outlined, size: 11,
-                  color: ThemeColors.unifiedTextMuted),
+              Icon(
+                Icons.business_outlined,
+                size: 11,
+                color: ThemeColors.unifiedTextMuted,
+              ),
               const SizedBox(width: 3),
               Text(
                 child.deptCode,
@@ -1061,8 +1102,11 @@ class _ChildDetailCard extends StatelessWidget {
           Row(
             children: [
               if (child.assigneeName != null) ...[
-                Icon(Icons.person_outline, size: 11,
-                    color: ThemeColors.unifiedTextMuted),
+                Icon(
+                  Icons.person_outline,
+                  size: 11,
+                  color: ThemeColors.unifiedTextMuted,
+                ),
                 const SizedBox(width: 3),
                 Text(
                   child.assigneeName!,
@@ -1075,7 +1119,10 @@ class _ChildDetailCard extends StatelessWidget {
               ],
               if (child.hasActiveChildren)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF7C3AED).withOpacity(0.08),
                     borderRadius: BorderRadius.circular(4),
@@ -1153,7 +1200,11 @@ class _SectionCard extends StatelessWidget {
                     color: ThemeColors.unifiedPrimary.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(7),
                   ),
-                  child: Icon(icon, size: 15, color: ThemeColors.unifiedPrimary),
+                  child: Icon(
+                    icon,
+                    size: 15,
+                    color: ThemeColors.unifiedPrimary,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Text(
@@ -1450,7 +1501,23 @@ class _CommentSectionState extends State<_CommentSection> {
     super.dispose();
   }
 
-  bool get _isCreator => widget.user.id == widget.ticket.createdById;
+  bool get _canComment {
+    if (widget.ticket.isClosed) return false;
+    if (widget.ticket.canComment) return true;
+    final uid = widget.user.id;
+    if (uid == widget.ticket.createdById) return true;
+    if (widget.ticket.myAssignedToId != null &&
+        uid == widget.ticket.myAssignedToId)
+      return true;
+    if (widget.ticket.assignedToId != null && uid == widget.ticket.assignedToId)
+      return true;
+    if (widget.ticket.subDepartments.any((sd) => sd.assignedToId == uid))
+      return true;
+    if (widget.ticket.assignedDeptId != null &&
+        widget.ticket.assignedDeptId == widget.user.departmentId)
+      return true;
+    return false;
+  }
 
   void _submitComment() {
     final msg = _commentController.text.trim();
@@ -1468,61 +1535,62 @@ class _CommentSectionState extends State<_CommentSection> {
       title: 'Comments (${comments.length})',
       child: Column(
         children: [
-          // Comment input — only creator can post
-          if (_isCreator && !widget.ticket.isClosed)
-            Container(
-              decoration: BoxDecoration(
-                color: ThemeColors.unifiedBackground,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: ThemeColors.unifiedBorder),
-              ),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _commentController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      hintText: 'Write a comment or update...',
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.all(14),
-                    ),
+          // Comment input — always in tree (matters for Flutter web), disabled when can't comment
+          Container(
+            decoration: BoxDecoration(
+              color: _canComment
+                  ? ThemeColors.unifiedBackground
+                  : ThemeColors.unifiedBackground.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: ThemeColors.unifiedBorder),
+            ),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _commentController,
+                  enabled: _canComment,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: _canComment
+                        ? 'Write a comment or update...'
+                        : 'Comments are closed',
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.all(14),
                   ),
-                  Container(
-                    height: 1,
-                    color: ThemeColors.unifiedBorder,
+                ),
+                Container(height: 1, color: ThemeColors.unifiedBorder),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 6,
-                    ),
-                    child: Row(
-                      children: [
-                        const Spacer(),
-                        ElevatedButton.icon(
-                          onPressed: _submitComment,
-                          icon: const Icon(Icons.send_rounded, size: 15),
-                          label: const Text('Post'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ThemeColors.unifiedPrimary,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
+                  child: Row(
+                    children: [
+                      const Spacer(),
+                      ElevatedButton.icon(
+                        onPressed: _canComment ? _submitComment : null,
+                        icon: const Icon(Icons.send_rounded, size: 15),
+                        label: const Text('Post'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ThemeColors.unifiedPrimary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          if (!_isCreator)
+          ),
+          if (widget.ticket.isClosed)
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -1542,9 +1610,7 @@ class _CommentSectionState extends State<_CommentSection> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      widget.ticket.isClosed
-                          ? 'Comments are closed for this ticket.'
-                          : 'Only the ticket creator can post comments.',
+                      'Comments are closed for this ticket.',
                       style: const TextStyle(
                         fontSize: 12,
                         color: ThemeColors.unifiedInfo,
@@ -1585,14 +1651,17 @@ class _CommentTile extends StatelessWidget {
       comment.message.startsWith('[COMPLETED REMARK]') ||
       comment.message.startsWith('[CLOSED REMARK]');
 
-  bool get _isDeptRemark =>
-      RegExp(r'^\[DEPT (COMPLETION|APPROVED|COMPLETED|PROGRESS)').hasMatch(comment.message);
+  bool get _isDeptRemark => RegExp(
+    r'^\[DEPT (COMPLETION|APPROVED|COMPLETED|PROGRESS)',
+  ).hasMatch(comment.message);
 
   bool get _isSpecial => _isStatusRemark || _isDeptRemark;
 
   String get _typeLabel {
     if (_isStatusRemark) {
-      return comment.message.startsWith('[COMPLETED REMARK]') ? 'MARKS DONE' : 'CLOSES';
+      return comment.message.startsWith('[COMPLETED REMARK]')
+          ? 'MARKS DONE'
+          : 'CLOSES';
     }
     if (_isDeptRemark) {
       if (comment.message.contains('COMPLETION')) return 'DEPT DONE';
@@ -1622,7 +1691,9 @@ class _CommentTile extends StatelessWidget {
           : 'Finalized & Closed';
     }
     if (_isDeptRemark) {
-      final match = RegExp(r'^\[DEPT \w+ - (.+?)\]').firstMatch(comment.message);
+      final match = RegExp(
+        r'^\[DEPT \w+ - (.+?)\]',
+      ).firstMatch(comment.message);
       return match?.group(1) ?? 'Department';
     }
     return comment.userName;
@@ -1672,6 +1743,17 @@ class _CommentTile extends StatelessWidget {
                         color: _tintColor,
                       ),
                     ),
+                    if (!_isSpecial && comment.deptCode.isNotEmpty) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        '(${comment.deptCode})',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: ThemeColors.unifiedTextMuted,
+                        ),
+                      ),
+                    ],
                     const SizedBox(width: 6),
                     if (_isSpecial)
                       Container(
@@ -1690,25 +1772,6 @@ class _CommentTile extends StatelessWidget {
                             fontWeight: FontWeight.w900,
                             color: _tintColor,
                             letterSpacing: 0.4,
-                          ),
-                        ),
-                      )
-                    else
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: ThemeColors.unifiedSecondary.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          comment.deptCode,
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: ThemeColors.unifiedSecondary,
                           ),
                         ),
                       ),
@@ -1922,4 +1985,3 @@ class _DeptJourneySection extends StatelessWidget {
     );
   }
 }
-

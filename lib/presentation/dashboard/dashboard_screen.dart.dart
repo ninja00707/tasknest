@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/constant/changelog.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
@@ -9,6 +11,7 @@ import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/botto
 import 'package:tasknest/presentation/dashboard/widgets/navigationbar.dart/side_bar.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/notification_toast.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_view/notification_panel.dart';
+import 'package:tasknest/presentation/dashboard/widgets/ticket_view/update_dialog.dart';
 import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 import 'package:tasknest/presentation/login/bloc/login_state.dart';
@@ -45,6 +48,19 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool _sidebarOpen = true;
+  bool _versionChecked = false;
+
+  Future<void> _showUpdateIfNeeded() async {
+    if (_versionChecked) return;
+    _versionChecked = true;
+    final storage = LocalStorageService();
+    final lastSeen = await storage.getLastSeenVersion();
+    if (lastSeen != currentVersion) {
+      await storage.setLastSeenVersion(currentVersion);
+      if (mounted) showUpdateDialog(context);
+    }
+  }
 
   void _onNavCloseDrawer(int index) {
     if (_scaffoldKey.currentState?.isDrawerOpen == true) {
@@ -66,6 +82,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       listener: (context, authState) {
         if (authState is AuthUnauthenticated) {
           context.read<DashboardBloc>().add(ResetDashboardEvent());
+          _versionChecked = false;
         }
       },
       child: BlocConsumer<DashboardBloc, DashboardState>(
@@ -106,6 +123,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           );
         }
+        if (state is DashboardLoaded) {
+          _showUpdateIfNeeded();
+        }
       },
       builder: (context, state) {
         if ((state is DashboardLoading || state is DashboardInitial) &&
@@ -141,11 +161,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: isWeb
                 ? Row(
                     children: [
-                      // Inline sidebar (always visible on web)
-                      Sidebar(
-                        user: widget.user,
-                        selectedIndex: selectedIndex,
-                        onNav: (i) => DashboardScreen._onNav(context, i),
+                      // Inline sidebar (collapsible on web)
+                      if (_sidebarOpen)
+                        Sidebar(
+                          user: widget.user,
+                          selectedIndex: selectedIndex,
+                          onNav: (i) => DashboardScreen._onNav(context, i),
+                        ),
+                      // Toggle button for sidebar
+                      GestureDetector(
+                        onTap: () => setState(() => _sidebarOpen = !_sidebarOpen),
+                        child: Container(
+                          width: 20,
+                          color: ThemeColors.unifiedBackground,
+                          child: Center(
+                            child: Container(
+                              width: 16,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: ThemeColors.unifiedSurface,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: ThemeColors.unifiedBorder.withOpacity(0.5)),
+                              ),
+                              child: Icon(
+                                _sidebarOpen ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
+                                size: 14,
+                                color: ThemeColors.unifiedTextMuted,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
                       Expanded(child: widget.child ?? const SizedBox.shrink()),
                     ],
@@ -228,30 +273,29 @@ class DashboardTopBar extends StatelessWidget {
               icon: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  const Icon(Icons.notifications_outlined, color: Colors.white),
-                  if (count > 0)
-                    Positioned(
-                      right: -4,
-                      top: -4,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: ThemeColors.unifiedDanger,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints:
-                            const BoxConstraints(minWidth: 18, minHeight: 18),
-                        child: Text(
-                          count > 99 ? '99+' : '$count',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
+                        const Icon(Icons.notifications_outlined, color: Colors.white),
+                      Positioned(
+                        right: -4,
+                        top: -4,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: count > 0 ? ThemeColors.unifiedDanger : Colors.grey,
+                            shape: BoxShape.circle,
                           ),
-                          textAlign: TextAlign.center,
+                          constraints:
+                              const BoxConstraints(minWidth: 18, minHeight: 18),
+                          child: Text(
+                            count > 99 ? '99+' : '$count',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
-                    ),
                 ],
               ),
               onPressed: () => NotificationPanel.show(context),

@@ -1173,8 +1173,18 @@ class TicketRepository {
   // Batch insert notifications for multiple users
   async createNotifications(userIds, ticketId, message) {
     if (!userIds.length) return [];
-    const values = userIds.map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})`).join(', ');
-    const params = userIds.flatMap(id => [id, ticketId, message]);
+
+    // De-duplicate: skip users who already have an unread notification with same (ticket_id, message)
+    const existing = await pool.query(`
+      SELECT DISTINCT user_id FROM notifications
+      WHERE user_id = ANY($1) AND ticket_id = $2 AND message = $3 AND is_read = FALSE
+    `, [userIds, ticketId, message]);
+    const existingSet = new Set(existing.rows.map(r => r.user_id));
+    const filtered = userIds.filter(id => !existingSet.has(id));
+    if (!filtered.length) return [];
+
+    const values = filtered.map((_, i) => `($${i * 3 + 1}, $${i * 3 + 2}, $${i * 3 + 3})`).join(', ');
+    const params = filtered.flatMap(id => [id, ticketId, message]);
     const result = await pool.query(`
       INSERT INTO notifications (user_id, ticket_id, message)
       VALUES ${values} RETURNING *
@@ -1229,6 +1239,51 @@ class TicketRepository {
         SELECT assigned_to_id FROM all_tree_tickets WHERE assigned_to_id IS NOT NULL
         UNION
         -- All sub-department assignees across the entire tree
+        SELECT std.assigned_to_id FROM all_tree_tickets att
+        JOIN sub_ticket_departments std ON std.ticket_id = att.id
+        WHERE std.assigned_to_id IS NOT NULL
+        UNION
+        -- All users in departments involved anywhere in the tree
+        SELECT u.id FROM users u
+        WHERE u.department_id IN (
+            SELECT created_by_dept FROM all_tree_tickets WHERE created_by_dept IS NOT NULL
+            UNION
+            SELECT assigned_dept_id FROM all_tree_tickets WHERE assigned_dept_id IS NOT NULL
+            UNION
+            SELECT department_id FROM sub_ticket_departments WHERE ticket_id IN (SELECT id FROM all_tree_tickets)
+          )
+      ) sub
+    `, [ticketId]);
+    return result.rows.map(r => r.user_id);
+  }
+
+  // Narrower: only people directly involved in the ticket (for notification records, not socket events)
+  async getTicketInvolvedUsers(ticketId) {
+    const result = await pool.query(`
+      WITH RECURSIVE root_finder AS (
+        SELECT id, parent_ticket_id, created_by_id, assigned_to_id, created_by_dept, assigned_dept_id
+        FROM tickets WHERE id = $1
+        UNION ALL
+        SELECT t.id, t.parent_ticket_id, t.created_by_id, t.assigned_to_id, t.created_by_dept, t.assigned_dept_id
+        FROM tickets t
+        JOIN root_finder rf ON rf.parent_ticket_id = t.id
+      ),
+      root AS (
+        SELECT id FROM root_finder WHERE parent_ticket_id IS NULL LIMIT 1
+      ),
+      all_tree_tickets AS (
+        SELECT id, parent_ticket_id, created_by_id, assigned_to_id, created_by_dept, assigned_dept_id
+        FROM tickets WHERE id = (SELECT id FROM root)
+        UNION ALL
+        SELECT t.id, t.parent_ticket_id, t.created_by_id, t.assigned_to_id, t.created_by_dept, t.assigned_dept_id
+        FROM tickets t
+        JOIN all_tree_tickets att ON att.id = t.parent_ticket_id
+      )
+      SELECT DISTINCT user_id FROM (
+        SELECT created_by_id AS user_id FROM all_tree_tickets
+        UNION
+        SELECT assigned_to_id FROM all_tree_tickets WHERE assigned_to_id IS NOT NULL
+        UNION
         SELECT std.assigned_to_id FROM all_tree_tickets att
         JOIN sub_ticket_departments std ON std.ticket_id = att.id
         WHERE std.assigned_to_id IS NOT NULL

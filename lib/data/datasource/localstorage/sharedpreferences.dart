@@ -6,6 +6,7 @@ import 'package:tasknest/presentation/login/Models/auth_responce_model.dart'; //
 class LocalStorageService {
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';
+  static const String _versionKey = 'last_seen_version';
 
   Future<void> setToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
@@ -30,7 +31,8 @@ class LocalStorageService {
     if (kDebugMode) {
       debugPrint('LocalStorageService: Token cleared.');
     }
-    await prefs.remove(_userKey); // Clear user data as well
+    await prefs.remove(_userKey);
+    await prefs.remove(_versionKey);
   }
 
   Future<void> setUser(UserModel user) async {
@@ -52,5 +54,15 @@ class LocalStorageService {
       return UserModel.fromJson(jsonDecode(userJson));
     }
     return null;
+  }
+
+  Future<String?> getLastSeenVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_versionKey);
+  }
+
+  Future<void> setLastSeenVersion(String version) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_versionKey, version);
   }
 }

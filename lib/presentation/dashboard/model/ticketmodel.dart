@@ -14,6 +14,8 @@ class TicketModel {
   final int createdById;
   final int? assignedToId;
   final String? assignedToName;
+  final int? myAssignedToId;
+  final String? myAssignedToName;
   final String? assignedToReportsToName;
   final String? createdByReportsToName;
   final String? transferredFromCode;
@@ -42,6 +44,7 @@ class TicketModel {
   final int immediateChildCount;
   final bool hasActiveChildren;
   final List<CommentModel> comments;
+  final bool canComment;
 
   const TicketModel({
     required this.id,
@@ -59,6 +62,8 @@ class TicketModel {
     required this.createdById,
     this.assignedToId,
     this.assignedToName,
+    this.myAssignedToId,
+    this.myAssignedToName,
     this.assignedToReportsToName,
     this.createdByReportsToName,
     this.transferredFromCode,
@@ -84,6 +89,7 @@ class TicketModel {
     this.immediateChildCount = 0,
     this.hasActiveChildren = false,
     this.comments = const [],
+    this.canComment = false,
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> j) => TicketModel(
@@ -93,15 +99,17 @@ class TicketModel {
     description: j['description'] ?? '',
     status: j['status'] ?? 'open',
     priority: j['priority'] ?? 'low',
-    assignedDeptId: j['assigned_dept_id'],
+    assignedDeptId: (j['assigned_dept_id'] is num) ? (j['assigned_dept_id'] as num).toInt() : int.tryParse(j['assigned_dept_id']?.toString() ?? ''),
     assignedDeptCode: j['assigned_dept_code'] ?? '',
     assignedDeptName: j['assigned_dept_name'] ?? '',
     createdByName: j['created_by_name'] ?? '',
-    createdById: int.tryParse(j['created_by_id']?.toString() ?? '0') ?? 0,
-    createdByDeptId: int.tryParse(j['created_by_dept']?.toString() ?? '0') ?? 0,
+    createdById: (j['created_by_id'] is num) ? (j['created_by_id'] as num).toInt() : (int.tryParse(j['created_by_id']?.toString() ?? '0') ?? 0),
+    createdByDeptId: (j['created_by_dept'] is num) ? (j['created_by_dept'] as num).toInt() : (int.tryParse(j['created_by_dept']?.toString() ?? '0') ?? 0),
     createdByDeptCode: j['created_by_dept_code'] ?? '',
-    assignedToId: j['assigned_to_id'],
+    assignedToId: (j['assigned_to_id'] is num) ? (j['assigned_to_id'] as num).toInt() : int.tryParse(j['assigned_to_id']?.toString() ?? ''),
     assignedToName: j['assigned_to_name'] ?? 'Unassigned',
+    myAssignedToId: (j['my_assigned_to_id'] is num) ? (j['my_assigned_to_id'] as num).toInt() : int.tryParse(j['my_assigned_to_id']?.toString() ?? ''),
+    myAssignedToName: j['my_assigned_to_name'],
     assignedToReportsToName: j['assigned_to_reports_to_name'],
     createdByReportsToName: j['created_by_reports_to_name'],
     transferredFromCode: j['transferred_from_code'] ?? 'None',
@@ -148,6 +156,7 @@ class TicketModel {
             ?.map((e) => CommentModel.fromJson(e))
             .toList() ??
         const [],
+    canComment: j['can_comment'] == true,
   );
 
   bool get isStandardTicket => ticketType == 'standard';
@@ -229,13 +238,13 @@ class ChildTicketModel {
     ticketNumber: j['ticket_number'] ?? '',
     title: j['title'] ?? '',
     status: j['status'] ?? 'open',
-    assignedDeptId: int.tryParse(j['assigned_dept_id']?.toString() ?? ''),
+    assignedDeptId: (j['assigned_dept_id'] is num) ? (j['assigned_dept_id'] as num).toInt() : int.tryParse(j['assigned_dept_id']?.toString() ?? ''),
     deptCode: j['dept_code'] ?? '',
     deptName: j['dept_name'] ?? '',
-    assignedToId: int.tryParse(j['assigned_to_id']?.toString() ?? ''),
+    assignedToId: (j['assigned_to_id'] is num) ? (j['assigned_to_id'] as num).toInt() : int.tryParse(j['assigned_to_id']?.toString() ?? ''),
     assigneeName: j['assignee_name'],
-    createdById: int.tryParse(j['created_by_id']?.toString() ?? '0') ?? 0,
-    createdByDept: int.tryParse(j['created_by_dept']?.toString() ?? '0') ?? 0,
+    createdById: (j['created_by_id'] is num) ? (j['created_by_id'] as num).toInt() : (int.tryParse(j['created_by_id']?.toString() ?? '0') ?? 0),
+    createdByDept: (j['created_by_dept'] is num) ? (j['created_by_dept'] as num).toInt() : (int.tryParse(j['created_by_dept']?.toString() ?? '0') ?? 0),
     createdByName: j['created_by_name'] ?? '',
     createdByDeptCode: j['created_by_dept_code'] ?? '',
     createdAt: DateTime.parse(
@@ -297,7 +306,7 @@ class SubTicketDepartmentModel {
         taskDescription: j['task_description'] ?? '',
         status: j['status'] ?? 'open',
         progressPercent: j['progress_percent'] ?? 0,
-        assignedToId: j['assigned_to_id'],
+        assignedToId: (j['assigned_to_id'] is num) ? (j['assigned_to_id'] as num).toInt() : int.tryParse(j['assigned_to_id']?.toString() ?? ''),
         assignedToName: j['assigned_to_name'],
         completedAt: j['completed_at'] != null
             ? DateTime.parse(j['completed_at'])

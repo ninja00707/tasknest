@@ -20,6 +20,7 @@ class _LiveNotificationShellState extends State<LiveNotificationShell> {
   StreamSubscription<SocketEvent>? _sub;
   final List<_ToastData> _toasts = [];
   int _idSeq = 0;
+  final Set<int> _recentNotificationIds = {};
 
   @override
   void initState() {
@@ -51,10 +52,22 @@ class _LiveNotificationShellState extends State<LiveNotificationShell> {
   void _onSocketEvent(SocketEvent event) {
     if (event.type == 'NOTIFICATION_COUNT' || event.type == 'SOCKET_CONNECTED') return;
 
+    final data = event.data is Map ? event.data as Map : <dynamic, dynamic>{};
+
+    // Only show toast/browser notification when a real notification record exists
+    final notifId = data['notificationId'];
+    if (notifId == null) return;
+
+    // Deduplicate: skip if we already showed a toast for this notificationId
+    if (_recentNotificationIds.contains(notifId)) return;
+    _recentNotificationIds.add(notifId);
+    if (_recentNotificationIds.length > 50) {
+      _recentNotificationIds.remove(_recentNotificationIds.first);
+    }
+
     _showBrowserNotification(event);
 
     final id = ++_idSeq;
-    final data = event.data is Map ? event.data as Map : <dynamic, dynamic>{};
 
     final toast = _ToastData(
       id: id,

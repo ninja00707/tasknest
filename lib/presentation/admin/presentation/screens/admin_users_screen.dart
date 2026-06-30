@@ -569,19 +569,86 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     onChanged: (v) => setDlgState(() => companyId = v!),
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<int?>(
-                    value: reportsTo,
-                    decoration: const InputDecoration(labelText: 'Reports To'),
-                    items: [
-                      const DropdownMenuItem(value: null, child: Text('None')),
-                      ...allUsers
-                        .where((u) => u.id != (existing?.id ?? -1))
-                        .map((u) => DropdownMenuItem(
-                          value: u.id,
-                          child: Text('${u.name} (${u.email})'),
-                        )),
-                    ],
-                    onChanged: (v) => setDlgState(() => reportsTo = v),
+                  InkWell(
+                    onTap: () {
+                      final searchCtl = TextEditingController();
+                      showDialog(
+                        context: ctx,
+                        builder: (sctx) => StatefulBuilder(
+                          builder: (sctx, setSearchState) {
+                            final filtered = searchCtl.text.isEmpty
+                                ? allUsers.where((u) => u.id != (existing?.id ?? -1)).toList()
+                                : allUsers.where((u) =>
+                                    u.id != (existing?.id ?? -1) &&
+                                    ('${u.name} ${u.email}'.toLowerCase().contains(searchCtl.text.toLowerCase())))
+                                    .toList();
+                            return AlertDialog(
+                              title: const Text('Select Reports To'),
+                              content: SizedBox(
+                                width: double.maxFinite,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    TextField(
+                                      controller: searchCtl,
+                                      autofocus: true,
+                                      decoration: const InputDecoration(
+                                        hintText: 'Search by name or email...',
+                                        prefixIcon: Icon(Icons.search),
+                                      ),
+                                      onChanged: (_) => setSearchState(() {}),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Flexible(
+                                      child: ListView(
+                                        shrinkWrap: true,
+                                        children: [
+                                          ListTile(
+                                            dense: true,
+                                            title: const Text('None'),
+                                            selected: reportsTo == null,
+                                            onTap: () {
+                                              Navigator.pop(sctx);
+                                              setDlgState(() => reportsTo = null);
+                                            },
+                                          ),
+                                          ...filtered.map((u) => ListTile(
+                                            dense: true,
+                                            title: Text('${u.name} (${u.email})'),
+                                            selected: u.id == reportsTo,
+                                            onTap: () {
+                                              Navigator.pop(sctx);
+                                              setDlgState(() => reportsTo = u.id);
+                                            },
+                                          )),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Reports To',
+                        suffixIcon: Icon(Icons.search),
+                      ),
+                      child: Text(
+                        () {
+                          if (reportsTo == null) return 'Tap to search...';
+                          final u = allUsers.cast<AdminUserModel?>().firstWhere((u) => u?.id == reportsTo, orElse: () => null);
+                          return u != null ? '${u.name} (${u.email})' : 'User #$reportsTo';
+                        }(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: reportsTo != null ? ThemeColors.unifiedTextPrimary : ThemeColors.unifiedTextMuted,
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   CheckboxListTile(
