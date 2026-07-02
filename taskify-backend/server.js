@@ -4,6 +4,15 @@ const http = require('http');
 const { setupSocketIO } = require('./socket');
 require('dotenv').config();
 
+// ── Global error handlers to prevent crash ─────────────────────────────
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught Exception:', err);
+  // Don't exit — let PM2 keep serving while logging the error
+});
+
 function startServer(app) {
   const port = normalizePort(process.env.PORT || '3000');
   app.set('port', port);

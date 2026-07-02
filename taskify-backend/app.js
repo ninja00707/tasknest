@@ -38,6 +38,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ── Health check (for IIS uptime monitoring) ─────────────────────────────
+app.get('/health', (req, res) => res.json({ status: 'ok', pid: process.pid }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', pid: process.pid }));
+
 // ── Routes ───────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
