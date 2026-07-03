@@ -105,6 +105,8 @@ class _SearchBar extends StatelessWidget {
           ),
         ),
         onChanged: (v) => context.read<DashboardBloc>().add(SearchTickets(v)),
+        onSubmitted: (v) =>
+            context.read<DashboardBloc>().add(LoadDashboard(page: 1)),
       ),
     );
   }
@@ -784,8 +786,8 @@ class _TicketBody extends StatelessWidget {
                       ),
                     ),
 
-              // ── Pagination ────────────────────────────────
-              if (state.totalPages > 1)
+              // ── Pagination (hidden when searching — all results on page 1) ──
+              if (state.totalPages > 1 && state.searchQuery.isEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8, bottom: 8),
                   child: Row(

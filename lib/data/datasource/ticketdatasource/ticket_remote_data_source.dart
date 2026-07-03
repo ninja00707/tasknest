@@ -15,11 +15,13 @@ class TicketRemoteDataSource {
     String? priority,
     int page = 1,
     String? scope,
+    String? search,
   }) async {
-    final query = {
+    final query = <String, String>{
       if (status != null) 'status': status,
       if (priority != null) 'priority': priority,
       if (scope != null) 'scope': scope,
+      if (search != null && search.isNotEmpty) 'search': search,
       'page': page.toString(),
       'limit': '15',
     };

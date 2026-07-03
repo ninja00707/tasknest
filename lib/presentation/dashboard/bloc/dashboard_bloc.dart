@@ -187,11 +187,14 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
       // ✅ Sequential — a 401 on one won't nuke the token for others
       final stats = await _dataSource.getStats();
+      // Force page 1 when searching (backend returns all results with limit=1000)
+      final effectivePage = (prev?.searchQuery?.isNotEmpty ?? false) ? 1 : event.page;
       final ticketResult = await _dataSource.getTickets(
         status: prevFilterStatus,
         priority: prevFilterPriority,
-        page: event.page,
+        page: effectivePage,
         scope: prevFilterTeam ? 'team' : null,
+        search: prev?.searchQuery,
       );
       final tickets = ticketResult.tickets;
       final currentPage = ticketResult.page;
@@ -255,6 +258,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         priority: event.priority,
         page: 1,
         scope: prev.filterTeam ? 'team' : null,
+        search: prev.searchQuery.isNotEmpty ? prev.searchQuery : null,
       );
       emit(
         prev.copyWith(
@@ -282,6 +286,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         priority: prev.filterPriority,
         page: 1,
         scope: event.active ? 'team' : null,
+        search: prev.searchQuery.isNotEmpty ? prev.searchQuery : null,
       );
       emit(
         prev.copyWith(
@@ -588,6 +593,9 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     final loaded = _getLoadedStateOrNull();
     if (loaded == null) return;
     emit(loaded.copyWith(searchQuery: event.query));
+    if (event.query.isEmpty) {
+      add(LoadDashboard(page: 1));
+    }
   }
 
   // ── Manager Analytics ─────────────────────────────────────────

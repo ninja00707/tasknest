@@ -189,8 +189,9 @@ class TicketRepository {
 
   // ── Get tickets visible to this user based on role ────────────────────────
   async getVisibleTickets(user, filters = {}) {
-    const { status, priority, page = 1, limit = 15, scope } = filters;
-    const offset = (Number(page) - 1) * Number(limit);
+    const { status, priority, page = 1, limit = 15, scope, search } = filters;
+    const effectiveLimit = search ? 1000 : Number(limit);
+    const offset = (Number(page) - 1) * effectiveLimit;
     const params = [];
     let whereClause = 'WHERE t.parent_ticket_id IS NULL'; // Only show top-level tickets
 
@@ -280,8 +281,13 @@ class TicketRepository {
       params.push(priority);
       whereClause += ` AND t.priority = $${params.length}`;
     }
+    if (search) {
+      params.push(`%${search}%`);
+      const searchParam = `$${params.length}`;
+      whereClause += ` AND (t.ticket_number::text ILIKE ${searchParam} OR t.title ILIKE ${searchParam})`;
+    }
 
-    params.push(Number(limit), offset);
+    params.push(effectiveLimit, offset);
 
     const query = `
       WITH RECURSIVE root_finder AS (
