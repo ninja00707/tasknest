@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/routes/routes_name.dart';
 import 'package:tasknest/core/routes/ticket_type_grid_args.dart';
+import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/presentation/ticket/widgets/ticket_list.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/admin/presentation/screens/admin_shell_screen.dart';
-import 'package:tasknest/presentation/dashboard/dashboard_screen.dart.dart';
-import 'package:tasknest/presentation/dashboard/widgets/ticket_view/routed_screens.dart';
-import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_detail_screen.dart';
-import 'package:tasknest/presentation/dashboard/widgets/ticket_view/ticket_type_grid_screen.dart';
-import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
+import 'package:tasknest/presentation/dashboard/dashboard_screen.dart';
+import 'package:tasknest/presentation/ticket/widgets/routed_screens.dart';
+import 'package:tasknest/presentation/ticket/widgets/ticket_detail_screen.dart';
+import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 import 'package:tasknest/presentation/login/signup_screen.dart';
 
 import 'package:tasknest/presentation/login/login_view.dart';
@@ -94,10 +95,22 @@ final GoRouter appRouter = GoRouter(
       path: RouteNames.ticketTypeGrid,
       builder: (context, state) {
         final args = state.extra as TicketTypeGridArgs;
-        return TicketTypeGridScreen(
-          tickets: args.tickets,
-          title: args.title,
-          user: args.user,
+        return Scaffold(
+          backgroundColor: ThemeColors.unifiedBackground,
+          appBar: AppBar(
+            title: Text(args.title),
+            backgroundColor: ThemeColors.unifiedSurface,
+            surfaceTintColor: ThemeColors.unifiedSurface,
+          ),
+          body: TicketListWidget(
+            tickets: args.tickets,
+            config: TicketListConfig(
+              viewType: TicketViewType.grid,
+              cardStyle: TicketCardStyle.full,
+              emptyTitle: 'No tickets found.',
+              user: args.user,
+            ),
+          ),
         );
       },
     ),

@@ -2,7 +2,7 @@
 //  STATES
 // ══════════════════════════════════════════════════════════════
 import 'package:equatable/equatable.dart';
-import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
+import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
 // Sentinel for copyWith to distinguish "set to null" from "keep existing"
 class _Sentinel {

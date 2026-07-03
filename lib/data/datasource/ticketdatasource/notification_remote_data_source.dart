@@ -1,5 +1,5 @@
 import 'package:tasknest/core/constant/api_client.dart';
-import 'package:tasknest/presentation/dashboard/model/ticketmodel.dart';
+import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
 class NotificationRemoteDataSource {
   final ApiClient _api;

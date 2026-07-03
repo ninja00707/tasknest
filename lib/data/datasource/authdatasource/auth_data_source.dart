@@ -1,6 +1,6 @@
 import 'package:tasknest/core/constant/api_client.dart';
 import 'package:tasknest/core/constant/api_constant.dart';
-import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
+import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 
 // AuthRemoteDataSource uses the singleton ApiClient instance.
 class AuthRemoteDataSource {

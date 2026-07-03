@@ -1,31 +1,59 @@
+import 'package:get_it/get_it.dart';
 import 'package:tasknest/core/constant/api_client.dart';
 import 'package:tasknest/data/datasource/authdatasource/auth_data_source.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
+import 'package:tasknest/data/datasource/ticketdatasource/notification_remote_data_source.dart';
 import 'package:tasknest/data/datasource/ticketdatasource/ticket_remote_data_source.dart';
 import 'package:tasknest/domain/repositories_impl/auth_impl/auth_impl.dart';
+import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
 import 'package:tasknest/presentation/admin/data/datasource/admin_remote_data_source.dart';
 import 'package:tasknest/presentation/admin/domain/repositories_impl/admin_repository_impl.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
+import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
+import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 
-// ── Storage & API ─────────────────────────────────────────────────────────────
-final storage = LocalStorageService();
-final apiClient = ApiClient();
+final sl = GetIt.instance;
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
-final authRemoteDataSource = AuthRemoteDataSource();
-final authRepository = AuthRepositoryImpl(
-  remoteDataSource: authRemoteDataSource,
-  localStorageService: storage,
-);
+Future<void> initDependencies() async {
+  // ── Core ──
+  sl.registerLazySingleton<LocalStorageService>(() => LocalStorageService());
+  sl.registerLazySingleton<ApiClient>(() => ApiClient());
 
-// ── Tickets ───────────────────────────────────────────────────────────────────
-final ticketRemoteDataSource = TicketRemoteDataSource(apiClient);
+  // ── Data Sources ──
+  sl.registerLazySingleton<AuthRemoteDataSource>(() => AuthRemoteDataSource());
+  sl.registerLazySingleton<TicketRemoteDataSource>(
+    () => TicketRemoteDataSource(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<NotificationRemoteDataSource>(
+    () => NotificationRemoteDataSource(sl<ApiClient>()),
+  );
+  sl.registerLazySingleton<AdminRemoteDataSource>(
+    () => AdminRemoteDataSource(sl<ApiClient>()),
+  );
 
-// ── Admin ─────────────────────────────────────────────────────────────────────
-final adminRemoteDataSource = AdminRemoteDataSource(apiClient);
-final adminRepository = AdminRepositoryImpl(adminRemoteDataSource);
-AdminBloc createAdminBloc() => AdminBloc(adminRepository);
+  // ── Repositories ──
+  sl.registerLazySingleton<AuthRepositoryImpl>(
+    () => AuthRepositoryImpl(
+      remoteDataSource: sl<AuthRemoteDataSource>(),
+      localStorageService: sl<LocalStorageService>(),
+    ),
+  );
+  sl.registerLazySingleton<TicketRepositoryImpl>(
+    () => TicketRepositoryImpl(
+      sl<TicketRemoteDataSource>(),
+      sl<NotificationRemoteDataSource>(),
+    ),
+  );
+  sl.registerLazySingleton<AdminRepositoryImpl>(
+    () => AdminRepositoryImpl(sl<AdminRemoteDataSource>()),
+  );
 
-// Factory: create a new DashboardBloc whenever needed
-DashboardBloc createDashboardBloc() => DashboardBloc(ticketRemoteDataSource);
+  // ── BLoCs (not singletons — new instance per page) ──
+  sl.registerFactory<AuthBloc>(() => AuthBloc(sl<AuthRepositoryImpl>()));
+  sl.registerFactory<DashboardBloc>(
+    () => DashboardBloc(sl<TicketRepositoryImpl>()),
+  );
+  sl.registerFactory<AdminBloc>(() => AdminBloc(sl<AdminRepositoryImpl>()));
+  sl.registerFactory<TicketBloc>(() => TicketBloc(sl<TicketRepositoryImpl>()));
+}

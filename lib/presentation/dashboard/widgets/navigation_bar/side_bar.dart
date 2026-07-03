@@ -1,0 +1,281 @@
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/constant/const_dep.dart';
+import 'package:tasknest/core/constant/name_by_id.dart';
+import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
+import 'package:tasknest/presentation/dashboard/widgets/navigation_bar/nav_items.dart';
+import 'package:tasknest/presentation/ticket/widgets/notification_panel.dart';
+import 'package:tasknest/presentation/login/models/auth_response_model.dart';
+
+class Sidebar extends StatelessWidget {
+  final int selectedIndex;
+  final void Function(int) onNav;
+  final UserModel user;
+
+  const Sidebar({
+    super.key,
+    required this.selectedIndex,
+    required this.onNav,
+    required this.user,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dbState = context.read<DashboardBloc>().state;
+    final deptList = dbState is DashboardLoaded
+        ? dbState.departments.map((d) => Departments(name: d.name, id: d.id)).toList()
+        : <Departments>[];
+    final departmentName =
+        NameById.getNameById<Departments>(
+          id: user.departmentId,
+          items: deptList,
+          idSelector: (e) => e.id,
+          nameSelector: (e) => e.name,
+        ) ??
+        'Unknown Dept';
+    final roleName =
+        NameById.getNameById<Roles>(
+          id: user.roleId,
+          items: roles,
+          idSelector: (e) => e.id,
+          nameSelector: (e) => e.name,
+        ) ??
+        'No Role';
+    final companyName =
+        NameById.getNameById<Company>(
+          id: user.companyId,
+          items: CompanyNames,
+          idSelector: (e) => e.id,
+          nameSelector: (e) => e.name,
+        ) ??
+        'Unknown Company';
+
+    return Container(
+      width: 280,
+      decoration: const BoxDecoration(
+        color: ThemeColors.unifiedSurface,
+        border: Border(right: BorderSide(color: ThemeColors.unifiedBorder)),
+      ),
+      child: Column(
+        children: [
+          // Logo gradient bar
+          Container(
+            height: 60,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  ThemeColors.unifiedGradStart,
+                  ThemeColors.unifiedGradEnd,
+                ],
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            alignment: Alignment.centerLeft,
+            child: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'TK',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Taskify',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Nav items
+          NavItem(
+            icon: Icons.dashboard_outlined,
+            label: 'Dashboard',
+            index: 0,
+            selected: selectedIndex == 0,
+            onTap: onNav,
+          ),
+          NavItem(
+            icon: Icons.auto_awesome_outlined,
+            label: (user.roleId == 0 || user.roleId == 3)
+                ? 'All Department Tickets'
+                : user.roleId == 1
+                ? 'Department\'s Tickets'
+                : user.roleId == 2
+                ? 'My Tickets'
+                : '',
+            index: 1,
+            selected: selectedIndex == 1,
+            onTap: onNav,
+          ),
+          NavItem(
+            icon: Icons.add_circle_outline,
+            label: 'New Ticket',
+            index: 2,
+            selected: selectedIndex == 2,
+            onTap: onNav,
+          ),
+
+          // Add this inside your Sidebar widget's item list
+          if (user.roleId != 0 && user.roleId != 3)
+            NavItem(
+              icon: Icons.hub_outlined,
+              label: 'Sent Sub-Tickets',
+              index: 3,
+              selected: selectedIndex == 3,
+              onTap: onNav,
+            ),
+          NavItem(
+            icon: Icons.task_alt_outlined,
+            label: 'Recent Activities',
+            index: 4,
+            selected: selectedIndex == 4,
+            onTap: onNav,
+          ),
+          NavItem(
+            icon: Icons.category_outlined,
+            label: 'Ticket Types',
+            index: 5,
+            selected: selectedIndex == 5,
+            onTap: onNav,
+          ),
+
+          // Admin Panel — only for Developer/CEO
+          if (user.roleId == 3 || user.email == 'qasim@um.com')
+            NavItem(
+              icon: Icons.admin_panel_settings,
+              label: 'Admin Panel',
+              index: 99,
+              selected: false,
+              onTap: (i) => context.go('/admin'),
+            ),
+
+          // Notification bell
+          BlocSelector<DashboardBloc, DashboardState, int>(
+            selector: (state) => state is DashboardLoaded ? state.unreadNotificationCount : 0,
+            builder: (context, count) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: InkWell(
+                onTap: () => NotificationPanel.show(context),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  child: Row(
+                    children: [
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Icon(Icons.notifications_outlined, size: 19, color: ThemeColors.unifiedTextMuted),
+                          Positioned(
+                            right: -6,
+                            top: -6,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                color: count > 0 ? ThemeColors.unifiedDanger : Colors.grey,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                              child: Text(
+                                count > 99 ? '99+' : '$count',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Notifications',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: ThemeColors.unifiedTextMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const Spacer(),
+          Container(
+            margin: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: ThemeColors.unifiedBackground,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: ThemeColors.unifiedBorder),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: ThemeColors.unifiedPrimary,
+                  child: Text(
+                    user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user.name,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: ThemeColors.unifiedTextPrimary,
+                        ),
+                      ),
+                      Text(
+                        '$companyName · ${roleName?.toLowerCase() == 'ceo' ? 'CEO' : user.designation.isNotEmpty ? user.designation : roleName} · $departmentName',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: ThemeColors.unifiedTextMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

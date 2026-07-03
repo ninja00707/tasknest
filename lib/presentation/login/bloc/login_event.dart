@@ -1,10 +1,19 @@
-abstract class AuthEvent {}
+import 'package:equatable/equatable.dart';
+import 'package:tasknest/presentation/login/bloc/auth_view_mode.dart';
+
+abstract class AuthEvent extends Equatable {
+  @override
+  List<Object?> get props => [];
+}
 
 class LoginEvent extends AuthEvent {
   final String? code;
   final String? password;
 
   LoginEvent({this.code, this.password});
+
+  @override
+  List<Object?> get props => [code, password];
 }
 
 class FirstLoginResetEvent extends AuthEvent {
@@ -16,6 +25,9 @@ class FirstLoginResetEvent extends AuthEvent {
     required this.email,
     required this.newPassword,
   });
+
+  @override
+  List<Object?> get props => [userId, email, newPassword];
 }
 
 class RegisterEvent extends AuthEvent {
@@ -34,6 +46,16 @@ class RegisterEvent extends AuthEvent {
     required this.departmentId,
     required this.role,
   });
+
+  @override
+  List<Object?> get props => [
+    name,
+    email,
+    password,
+    companyId,
+    departmentId,
+    role,
+  ];
 }
 
 class LogoutEvent extends AuthEvent {}
@@ -43,6 +65,9 @@ class TogglePasswordVisibility extends AuthEvent {}
 class ForgotPasswordEvent extends AuthEvent {
   final String email;
   ForgotPasswordEvent({required this.email});
+
+  @override
+  List<Object?> get props => [email];
 }
 
 class ResetPasswordEvent extends AuthEvent {
@@ -54,4 +79,15 @@ class ResetPasswordEvent extends AuthEvent {
     required this.code,
     required this.newPassword,
   });
+
+  @override
+  List<Object?> get props => [email, code, newPassword];
+}
+
+class SwitchModeEvent extends AuthEvent {
+  final AuthViewMode mode;
+  SwitchModeEvent({required this.mode});
+
+  @override
+  List<Object?> get props => [mode];
 }

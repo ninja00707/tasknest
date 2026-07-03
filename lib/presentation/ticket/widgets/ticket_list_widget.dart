@@ -1,0 +1,1005 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_helpers.dart';
+import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
+import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
+import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
+import 'package:tasknest/presentation/ticket/widgets/ticket_card.dart';
+import 'package:tasknest/presentation/ticket/widgets/ticket_grid_card.dart';
+import 'config.dart';
+
+// ══════════════════════════════════════════════════════════════════════════════
+// UNIVERSAL TICKET LIST WIDGET
+// ══════════════════════════════════════════════════════════════════════════════
+class TicketListWidget extends StatefulWidget {
+  final List<TicketModel> tickets;
+  final TicketListConfig config;
+
+  const TicketListWidget({
+    super.key,
+    required this.tickets,
+    required this.config,
+  });
+
+  @override
+  State<TicketListWidget> createState() => _TicketListWidgetState();
+}
+
+class _TicketListWidgetState extends State<TicketListWidget> {
+  String _filter = 'All';
+  int _page = 1;
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+
+  int _statusWeight(String? s) {
+    const flow = ['open', 'in_progress', 'completed', 'closed'];
+    final idx = flow.indexOf(s ?? '');
+    return idx == -1 ? flow.length : idx;
+  }
+
+  int _priorityWeight(String? p) {
+    switch ((p ?? '').toLowerCase()) {
+      case 'urgent':  return 0;
+      case 'high':    return 1;
+      case 'medium':  return 2;
+      case 'low':     return 3;
+      default:        return 4;
+    }
+  }
+
+  List<TicketModel> get _sorted {
+    final list = List<TicketModel>.from(widget.tickets);
+    list.sort((a, b) {
+      final p = _priorityWeight(a.priority).compareTo(_priorityWeight(b.priority));
+      if (p != 0) return p;
+      return _statusWeight(a.status).compareTo(_statusWeight(b.status));
+    });
+    return list;
+  }
+
+  String _filterToStatus(String filter) {
+    switch (filter) {
+      case 'All':          return '';
+      case 'Open':         return 'open';
+      case 'In Progress':  return 'in_progress';
+      case 'Completed':    return 'completed';
+      case 'Closed':       return 'closed';
+      default:             return filter.toLowerCase().replaceAll(' ', '_');
+    }
+  }
+
+  List<TicketModel> get _filtered {
+    final s = _filterToStatus(_filter);
+    if (s.isEmpty) return _sorted;
+    return _sorted.where((t) => t.status == s).toList();
+  }
+
+  int get _totalPages {
+    if (!widget.config.enablePagination) return 1;
+    final count = _filtered.length;
+    if (count == 0) return 1;
+    return (count / widget.config.pageSize).ceil().clamp(1, 9999);
+  }
+
+  List<TicketModel> get _paged {
+    final all = _filtered;
+    if (!widget.config.enablePagination) return all;
+    final total = _totalPages;
+    if (_page > total) _page = total;
+    final start = (_page - 1) * widget.config.pageSize;
+    final end = start + widget.config.pageSize;
+    return all.sublist(start, end > all.length ? all.length : end);
+  }
+
+  List<TicketModel> get _pageTickets => _paged;
+
+  @override
+  void didUpdateWidget(TicketListWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tickets != widget.tickets) {
+      final total = _totalPages;
+      if (_page > total) _page = total;
+    }
+  }
+
+  String _statusLabel(String s) {
+    switch (s) {
+      case 'open':         return 'Open';
+      case 'in_progress':  return 'In Progress';
+      case 'completed':    return 'Completed';
+      case 'closed':       return 'Closed';
+      default:             return s.replaceAll('_', ' ');
+    }
+  }
+
+  // ── Tap handler ─────────────────────────────────────────────────────────
+
+  void _onTap(TicketModel t) {
+    if (widget.config.onTap != null) {
+      widget.config.onTap!(t);
+    } else {
+      context.push('/ticket/${t.id}');
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // BUILD
+  // ═══════════════════════════════════════════════════════════════════════
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Header ──────────────────────────────────────────────────
+        if (widget.config.headerStyle != TicketHeaderStyle.none ||
+            widget.config.customHeader != null)
+          _buildHeader(),
+
+        // ── Filter tabs ─────────────────────────────────────────────
+        if (widget.config.enableFilters &&
+            widget.config.statusTabs != null &&
+            widget.config.viewType != TicketViewType.kanban)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+            child: _FilterTabs(
+              tabs: widget.config.statusTabs!,
+              active: _filter,
+              onChanged: (v) => setState(() {
+                _filter = v;
+                _page = 1;
+              }),
+            ),
+          ),
+
+        // ── Body ────────────────────────────────────────────────────
+        Expanded(
+          child: _buildBody(),
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // HEADER
+  // ═══════════════════════════════════════════════════════════════════════
+
+  Widget _buildHeader() {
+    if (widget.config.customHeader != null) {
+      return widget.config.customHeader!;
+    }
+
+    final all = widget.tickets;
+
+    switch (widget.config.headerStyle) {
+      case TicketHeaderStyle.myTickets:
+        final open = all.where((t) => t.status == 'open').length;
+        final inProgress = all.where((t) => t.status == 'in_progress').length;
+        final completed = all.where((t) => t.status == 'completed').length;
+        return _GradientHeader(
+          icon: Icons.assignment_ind_rounded,
+          gradientColors: const [Color(0xFF0EA5E9), Color(0xFF06B6D4)],
+          title: 'My Tickets',
+          subtitle: '${all.length} assigned tickets',
+          stats: [
+            _StatData(label: 'Open',       count: open,       color: ThemeColors.unifiedSecondary),
+            _StatData(label: 'In Progress', count: inProgress,  color: ThemeColors.unifiedWarning),
+            _StatData(label: 'Completed',  count: completed,   color: ThemeColors.unifiedAccent),
+          ],
+        );
+
+      case TicketHeaderStyle.recentActivity:
+        return _GradientHeader(
+          icon: Icons.history_rounded,
+          gradientColors: const [Color(0xFF10B981), Color(0xFF34D399)],
+          title: 'Recent Activity',
+          subtitle: '$all tickets · sorted by newest first',
+        );
+
+      case TicketHeaderStyle.sentSubTickets:
+        final pending = all.where((t) => t.status == 'open' || t.status == 'in_progress').length;
+        final completed = all.where((t) => t.status == 'completed' || t.status == 'closed').length;
+        return _GradientHeader(
+          icon: Icons.hub_outlined,
+          gradientColors: const [Color(0xFF7C3AED), Color(0xFFA855F7)],
+          title: 'Sent Sub-Tickets',
+          subtitle: '$all tickets forwarded to other departments',
+          stats: [
+            _StatData(label: 'Total Sent', count: all.length,    color: const Color(0xFF7C3AED)),
+            _StatData(label: 'Active',     count: pending,       color: ThemeColors.unifiedWarning),
+            _StatData(label: 'Completed',  count: completed,     color: ThemeColors.unifiedAccent),
+          ],
+        );
+
+      case TicketHeaderStyle.none:
+        return const SizedBox.shrink();
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // BODY
+  // ═══════════════════════════════════════════════════════════════════════
+
+  Widget _buildBody() {
+    final all = _pageTickets;
+
+    if (all.isEmpty) {
+      return _EmptyState(
+        icon: widget.config.emptyIcon,
+        title: widget.config.emptyTitle,
+        subtitle: widget.config.emptySubtitle,
+      );
+    }
+
+    switch (widget.config.viewType) {
+      case TicketViewType.grid:
+        return _buildGrid(all);
+      case TicketViewType.timeline:
+        return _buildTimeline(all);
+      case TicketViewType.kanban:
+        return _buildKanban();
+      case TicketViewType.list:
+        return _buildList();
+    }
+  }
+
+  // ── Grid ──────────────────────────────────────────────────────────────
+
+  Widget _buildGrid(List<TicketModel> tickets) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        children: [
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final crossAxisCount = constraints.maxWidth > 1200
+                    ? 3
+                    : constraints.maxWidth > 700
+                    ? 2
+                    : 1;
+                const spacing = 12.0;
+                final cardWidth = (constraints.maxWidth - spacing * (crossAxisCount - 1)) / crossAxisCount;
+
+                return SingleChildScrollView(
+                  child: Wrap(
+                    spacing: spacing,
+                    runSpacing: spacing,
+                    children: tickets.map((t) {
+                      final card = widget.config.cardStyle == TicketCardStyle.compact
+                          ? SizedBox(width: cardWidth, child: TicketGridCard(ticket: t))
+                          : SizedBox(width: cardWidth, child: TicketCard(ticket: t, user: widget.config.user));
+                      return card;
+                    }).toList(),
+                  ),
+                );
+              },
+            ),
+          ),
+          _buildPagination(),
+        ],
+      ),
+    );
+  }
+
+  // ── Timeline ───────────────────────────────────────────────────────────
+
+  Widget _buildTimeline(List<TicketModel> tickets) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: tickets.map((t) => _TimelineCard(
+                  ticket: t,
+                  onTap: () => _onTap(t),
+                )).toList(),
+              ),
+            ),
+          ),
+          _buildPagination(),
+        ],
+      ),
+    );
+  }
+
+  // ── Kanban ─────────────────────────────────────────────────────────────
+
+  Widget _buildKanban() {
+    final all = widget.tickets;
+    const statuses = ['open', 'in_progress', 'completed', 'closed'];
+
+    final grouped = <String, List<TicketModel>>{};
+    for (final s in statuses) {
+      final list = all.where((t) => t.status == s).toList()
+        ..sort((a, b) => _priorityWeight(a.priority).compareTo(_priorityWeight(b.priority)));
+      grouped[s] = list;
+    }
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.65,
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: statuses.map((status) {
+          final tickets = grouped[status]!;
+          return _KanbanColumn(
+            status: status,
+            label: _statusLabel(status),
+            tickets: tickets,
+            onTap: (t) => _onTap(t),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // ── List (grouped by status) ─────────────────────────────────────────
+
+  Widget _buildList() {
+    final all = widget.tickets;
+    const statusFlow = ['open', 'in_progress', 'completed', 'closed'];
+    final visible = all.where((t) => statusFlow.contains(t.status));
+    final grouped = <String, List<TicketModel>>{};
+    for (final t in visible) {
+      grouped.putIfAbsent(t.status, () => []).add(t);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final crossAxisCount = constraints.maxWidth > 1200 ? 3
+              : constraints.maxWidth > 700 ? 2 : 1;
+          const spacing = 12.0;
+          final cardWidth = (constraints.maxWidth - spacing * (crossAxisCount - 1)) / crossAxisCount;
+
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final status in statusFlow)
+                  if ((grouped[status]?.isNotEmpty ?? false))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 22),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _StatusHeader(status: status, count: grouped[status]!.length),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: spacing,
+                            runSpacing: spacing,
+                            children: grouped[status]!.map((t) => SizedBox(
+                              width: cardWidth,
+                              child: TicketCard(ticket: t, user: widget.config.user),
+                            )).toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                _buildPagination(),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── Pagination ─────────────────────────────────────────────────────────
+
+  Widget _buildPagination() {
+    if (!widget.config.enablePagination) return const SizedBox.shrink();
+    final total = _totalPages;
+    if (total <= 1) return const SizedBox.shrink();
+    final tickets = widget.config.enableFilters ? _filtered : _sorted;
+    if (tickets.length <= widget.config.pageSize) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _PageBtn(
+            icon: Icons.chevron_left,
+            label: 'Previous',
+            disabled: _page <= 1,
+            onTap: () => setState(() => _page--),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: ThemeColors.unifiedBackground,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: ThemeColors.unifiedBorder.withOpacity(0.5)),
+            ),
+            child: Text(
+              'Page $_page of $total',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ThemeColors.unifiedTextMuted),
+            ),
+          ),
+          const SizedBox(width: 12),
+          _PageBtn(
+            icon: Icons.chevron_right,
+            label: 'Next',
+            disabled: _page >= total,
+            onTap: () => setState(() => _page++),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// INTERNAL WIDGETS
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Gradient header ───────────────────────────────────────────────────────────
+
+class _StatData {
+  final String label;
+  final int count;
+  final Color color;
+  const _StatData({required this.label, required this.count, required this.color});
+}
+
+class _GradientHeader extends StatelessWidget {
+  final IconData icon;
+  final List<Color> gradientColors;
+  final String title;
+  final String subtitle;
+  final List<_StatData>? stats;
+
+  const _GradientHeader({
+    required this.icon,
+    required this.gradientColors,
+    required this.title,
+    required this.subtitle,
+    this.stats,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isWide = MediaQuery.of(context).size.width > 900;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(isWide ? 28 : 16, isWide ? 28 : 16, isWide ? 28 : 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: gradientColors),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary)),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                      style: const TextStyle(fontSize: 13, color: ThemeColors.unifiedTextMuted)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (stats != null) ...[
+            const SizedBox(height: 18),
+            Row(
+              children: stats!.map((s) => Padding(
+                padding: const EdgeInsets.only(right: 10),
+                child: Expanded(
+                  child: _MiniStat(label: s.label, count: s.count, color: s.color),
+                ),
+              )).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniStat extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color color;
+  const _MiniStat({required this.label, required this.count, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Text('$count', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: color)),
+          const SizedBox(height: 2),
+          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color.withOpacity(0.8))),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Filter tabs ────────────────────────────────────────────────────────────────
+
+class _FilterTabs extends StatelessWidget {
+  final List<String> tabs;
+  final String active;
+  final ValueChanged<String> onChanged;
+
+  const _FilterTabs({
+    required this.tabs,
+    required this.active,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: tabs.map((t) {
+          final isActive = active == t;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => onChanged(t),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isActive ? ThemeColors.unifiedPrimary : ThemeColors.unifiedSurface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isActive ? ThemeColors.unifiedPrimary : ThemeColors.unifiedBorder,
+                  ),
+                ),
+                child: Text(
+                  t,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isActive ? Colors.white : ThemeColors.unifiedTextMuted,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+// ── Empty state ────────────────────────────────────────────────────────────────
+
+class _EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 64, color: ThemeColors.unifiedTextMuted.withOpacity(0.3)),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted),
+              textAlign: TextAlign.center,
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                subtitle!,
+                style: const TextStyle(fontSize: 12, color: ThemeColors.unifiedTextMuted),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Pagination button ──────────────────────────────────────────────────────────
+
+class _PageBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool disabled;
+  final VoidCallback onTap;
+
+  const _PageBtn({
+    required this.icon,
+    required this.label,
+    required this.disabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = disabled
+        ? ThemeColors.unifiedTextMuted.withOpacity(0.3)
+        : ThemeColors.unifiedPrimary;
+    return GestureDetector(
+      onTap: disabled ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: disabled ? ThemeColors.unifiedBackground : ThemeColors.unifiedSurface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: disabled
+                ? ThemeColors.unifiedBorder.withOpacity(0.5)
+                : ThemeColors.unifiedPrimary.withOpacity(0.3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon == Icons.chevron_left) ...[
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: 4),
+            ],
+            Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+            if (icon == Icons.chevron_right) ...[
+              const SizedBox(width: 4),
+              Icon(icon, size: 16, color: color),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Timeline card (internal, no go_router dependency needed) ──────────────────
+
+class _TimelineCard extends StatelessWidget {
+  final TicketModel ticket;
+  final VoidCallback onTap;
+
+  const _TimelineCard({required this.ticket, required this.onTap});
+
+  Color get _tint {
+    switch (ticket.status) {
+      case 'open':         return ThemeColors.unifiedSecondary;
+      case 'in_progress':  return ThemeColors.unifiedWarning;
+      case 'completed':    return ThemeColors.unifiedAccent;
+      case 'closed':       return ThemeColors.unifiedTextMuted;
+      default:             return ThemeColors.unifiedPrimary;
+    }
+  }
+
+  IconData get _icon {
+    if (ticket.isMultiTaskTicket) return Icons.hub_rounded;
+    if (ticket.children.isNotEmpty) return Icons.account_tree_rounded;
+    return Icons.article_rounded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dateStr = ticket.createdAt.toString().substring(0, 10);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Timeline dot + line
+            SizedBox(
+              width: 32,
+              child: Column(
+                children: [
+                  Container(
+                    width: 28, height: 28,
+                    decoration: BoxDecoration(
+                      color: _tint.withOpacity(0.12),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: _tint.withOpacity(0.4), width: 2),
+                    ),
+                    child: Icon(_icon, size: 13, color: _tint),
+                  ),
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      color: ThemeColors.unifiedBorder.withOpacity(0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: GestureDetector(
+                onTap: onTap,
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: ThemeColors.unifiedSurface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: ThemeColors.unifiedBorder.withOpacity(0.7)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            ticket.ticketNumber.isNotEmpty ? ticket.ticketNumber : '#${ticket.id}',
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: ThemeColors.unifiedTextMuted),
+                          ),
+                          const SizedBox(width: 6),
+                          PriorityBadge(priority: ticket.priority),
+                          const SizedBox(width: 4),
+                          StatusBadge(status: ticket.status),
+                          const Spacer(),
+                          Text(dateStr, style: const TextStyle(fontSize: 10, color: ThemeColors.unifiedTextMuted)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        ticket.title,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ThemeColors.unifiedTextPrimary),
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                      ),
+                      if (ticket.description.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(ticket.description,
+                          style: const TextStyle(fontSize: 11, color: ThemeColors.unifiedTextMuted),
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ],
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.arrow_upward_rounded, size: 11, color: ThemeColors.unifiedPrimary),
+                          const SizedBox(width: 3),
+                          Text(ticket.createdByDeptCode,
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted)),
+                          const SizedBox(width: 6),
+                          Icon(Icons.arrow_forward_rounded, size: 11, color: ThemeColors.unifiedSecondary),
+                          const SizedBox(width: 3),
+                          Text(ticket.assignedDeptCode,
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted)),
+                          if (ticket.assignedToName != null) ...[
+                            const SizedBox(width: 6),
+                            Icon(Icons.person_outline_rounded, size: 11, color: ThemeColors.unifiedTextMuted),
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(ticket.assignedToName!,
+                                style: const TextStyle(fontSize: 10, color: ThemeColors.unifiedTextMuted),
+                                overflow: TextOverflow.ellipsis),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Kanban column ──────────────────────────────────────────────────────────────
+
+Color _columnColor(String status) {
+  switch (status) {
+    case 'open':         return const Color(0xFF22C55E);
+    case 'in_progress':  return const Color(0xFF3B82F6);
+    case 'completed':    return const Color(0xFF10B981);
+    case 'closed':       return const Color(0xFF6B7280);
+    default:             return Colors.grey;
+  }
+}
+
+class _KanbanColumn extends StatelessWidget {
+  final String status;
+  final String label;
+  final List<TicketModel> tickets;
+  final void Function(TicketModel) onTap;
+
+  const _KanbanColumn({
+    required this.status,
+    required this.label,
+    required this.tickets,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _columnColor(status);
+    return Container(
+      width: 300,
+      margin: const EdgeInsets.only(right: 12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.15)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
+            ),
+            child: Row(
+              children: [
+                Container(width: 10, height: 10,
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                const SizedBox(width: 8),
+                Text(label,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color, letterSpacing: 0.3)),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                  child: Text('${tickets.length}',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color)),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: tickets.isEmpty
+                ? Center(
+                    child: Text('No tickets',
+                      style: TextStyle(fontSize: 12, color: color.withOpacity(0.4), fontWeight: FontWeight.w600)),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                    itemCount: tickets.length,
+                    itemBuilder: (context, i) => _KanbanCard(ticket: tickets[i], onTap: () => onTap(tickets[i])),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Kanban card (internal) ──────────────────────────────────────────────────────
+
+class _KanbanCard extends StatelessWidget {
+  final TicketModel ticket;
+  final VoidCallback onTap;
+
+  const _KanbanCard({required this.ticket, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final pColor = ticketPriorityColor(ticket.priority);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border(left: BorderSide(color: pColor, width: 3)),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    ticket.ticketNumber.isNotEmpty ? ticket.ticketNumber : '#${ticket.id}',
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF9CA3AF), letterSpacing: 0.5),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Spacer(),
+                Container(width: 8, height: 8,
+                  decoration: BoxDecoration(color: pColor, shape: BoxShape.circle)),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(ticket.title,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1F2937), height: 1.3),
+              maxLines: 2, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.person_outline_rounded, size: 11, color: ThemeColors.unifiedTextMuted.withOpacity(0.6)),
+                const SizedBox(width: 3),
+                Expanded(
+                  child: Text(ticket.assignedToName ?? 'Unassigned',
+                    style: TextStyle(fontSize: 10, color: ThemeColors.unifiedTextMuted.withOpacity(0.7), fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Status header (for list view grouping) ─────────────────────────────────────
+
+class _StatusHeader extends StatelessWidget {
+  final String status;
+  final int count;
+
+  const _StatusHeader({required this.status, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = ticketStatusColor(status);
+    return Row(
+      children: [
+        Container(width: 10, height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        const SizedBox(width: 8),
+        Text(
+          _label(status),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary, letterSpacing: -0.1),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+          child: Text('$count', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Container(height: 1, color: ThemeColors.unifiedBorder.withOpacity(0.6))),
+      ],
+    );
+  }
+
+  String _label(String s) {
+    switch (s) {
+      case 'open':         return 'Open';
+      case 'in_progress':  return 'In Progress';
+      case 'completed':    return 'Completed';
+      case 'closed':       return 'Closed';
+      default:             return s.replaceAll('_', ' ');
+    }
+  }
+}

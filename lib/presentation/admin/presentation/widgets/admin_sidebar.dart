@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
+import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 
 class AdminSidebar extends StatelessWidget {
   final int selectedIndex;

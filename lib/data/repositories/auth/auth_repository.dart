@@ -1,4 +1,4 @@
-import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
+import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 
 abstract class AuthRepository {
   Future<Map<String, dynamic>> login({

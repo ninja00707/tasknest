@@ -9,7 +9,7 @@ import 'package:tasknest/presentation/admin/presentation/screens/admin_departmen
 import 'package:tasknest/presentation/admin/presentation/screens/admin_tickets_screen.dart';
 import 'package:tasknest/presentation/admin/presentation/screens/admin_user_activity_screen.dart';
 import 'package:tasknest/presentation/admin/presentation/widgets/admin_sidebar.dart';
-import 'package:tasknest/presentation/login/Models/auth_responce_model.dart';
+import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 
 class AdminShellScreen extends StatefulWidget {
   final UserModel user;

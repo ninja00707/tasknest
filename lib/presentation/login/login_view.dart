@@ -3,10 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:tasknest/core/routes/routes_name.dart';
-import 'package:tasknest/core/theme/aleertbox.dart';
+import 'package:tasknest/core/theme/alert_box.dart';
 import 'package:tasknest/core/theme/color.dart';
 
+import 'package:tasknest/presentation/login/bloc/auth_view_mode.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
+import 'package:tasknest/presentation/login/bloc/login_event.dart';
 import 'package:tasknest/presentation/login/bloc/login_state.dart';
 
 import 'package:tasknest/presentation/login/widget/footer.dart';
@@ -16,23 +18,8 @@ import 'package:tasknest/presentation/login/widget/forgot_password_card.dart';
 import 'package:tasknest/presentation/login/widget/first_login_reset_card.dart';
 import 'package:tasknest/presentation/login/widget/top_bar.dart';
 
-enum AuthViewMode { login, forgotPassword, firstLoginReset }
-
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
-
-  @override
-  State<LoginScreen> createState() => _LoginScreenState();
-}
-
-class _LoginScreenState extends State<LoginScreen> {
-  AuthViewMode currentMode = AuthViewMode.login;
-
-  void _switchMode(AuthViewMode mode) {
-    setState(() {
-      currentMode = mode;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,52 +27,51 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return BlocConsumer<AuthBloc, AuthState>(
       listener: (context, state) {
-        try {
-          if (state is AuthAuthenticated) {
-            AppAlertDialog.show(
-              context: context,
-              title: 'Success',
-              message: 'Login Success',
-              isError: false,
-            );
+        if (state is AuthAuthenticated) {
+          AppAlertDialog.show(
+            context: context,
+            title: 'Success',
+            message: 'Login Success',
+            isError: false,
+          );
+          context.go(RouteNames.dashboard);
+        }
 
-            context.go(RouteNames.dashboard);
-          }
+        if (state is AuthMustResetPassword) {
+          context.read<AuthBloc>().add(
+            SwitchModeEvent(mode: AuthViewMode.firstLoginReset),
+          );
+        }
 
-          if (state is AuthMustResetPassword) {
-            _switchMode(AuthViewMode.firstLoginReset);
-          }
+        if (state is AuthError) {
+          final isPending = state.message.toLowerCase().contains('pending');
+          AppAlertDialog.show(
+            context: context,
+            title: isPending
+                ? 'Account Pending Approval'
+                : 'Authentication Failed',
+            message: state.message,
+            isError: true,
+          );
+        }
 
-          if (state is AuthError) {
-            final isPending = state.message.toLowerCase().contains('pending');
-            AppAlertDialog.show(
-              context: context,
-              title: isPending ? 'Account Pending Approval' : 'Authentication Failed',
-              message: state.message,
-              isError: true,
-            );
-          }
-
-          if (state is AuthFirstLoginResetError) {
-            AppAlertDialog.show(
-              context: context,
-              title: 'Password Reset Failed',
-              message: state.message,
-              isError: true,
-            );
-          }
-        } catch (e) {
-          print(
-            "=====================Loginview listner=========================>$e",
+        if (state is AuthFirstLoginResetError) {
+          AppAlertDialog.show(
+            context: context,
+            title: 'Password Reset Failed',
+            message: state.message,
+            isError: true,
           );
         }
       },
       builder: (context, state) {
         Widget card;
-        switch (currentMode) {
+        switch (state.currentMode) {
           case AuthViewMode.forgotPassword:
             card = ForgotPasswordCard(
-              onNavigateToLogin: () => _switchMode(AuthViewMode.login),
+              onNavigateToLogin: () => context.read<AuthBloc>().add(
+                SwitchModeEvent(mode: AuthViewMode.login),
+              ),
             );
             break;
           case AuthViewMode.firstLoginReset:
@@ -93,13 +79,16 @@ class _LoginScreenState extends State<LoginScreen> {
             card = FirstLoginResetCard(
               userId: resetState?.userId ?? 0,
               email: resetState?.email ?? '',
-              onNavigateToLogin: () => _switchMode(AuthViewMode.login),
+              onNavigateToLogin: () => context.read<AuthBloc>().add(
+                SwitchModeEvent(mode: AuthViewMode.login),
+              ),
             );
             break;
           case AuthViewMode.login:
             card = LoginCard(
-              onNavigateToForgotPassword: () =>
-                  _switchMode(AuthViewMode.forgotPassword),
+              onNavigateToForgotPassword: () => context.read<AuthBloc>().add(
+                SwitchModeEvent(mode: AuthViewMode.forgotPassword),
+              ),
             );
             break;
         }

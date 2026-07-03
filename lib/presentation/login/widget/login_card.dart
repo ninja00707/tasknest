@@ -4,22 +4,35 @@ import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 import 'package:tasknest/presentation/login/bloc/login_event.dart';
 import 'package:tasknest/presentation/login/bloc/login_state.dart';
-import 'package:tasknest/core/theme/common_textForm_Field.dart';
+import 'package:tasknest/core/theme/common_text_form_field.dart';
 
-class LoginCard extends StatelessWidget {
-  LoginCard({super.key, required this.onNavigateToForgotPassword});
+class LoginCard extends StatefulWidget {
+  const LoginCard({super.key, required this.onNavigateToForgotPassword});
 
   final VoidCallback onNavigateToForgotPassword;
 
-  final formKey = GlobalKey<FormState>();
-  final codeController = TextEditingController();
-  final passwordController = TextEditingController();
+  @override
+  State<LoginCard> createState() => _LoginCardState();
+}
+
+class _LoginCardState extends State<LoginCard> {
+  final _formKey = GlobalKey<FormState>();
+  final _codeController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _codeController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         return Form(
-          key: formKey,
+          key: _formKey,
           child: Container(
             width: 396,
 
@@ -141,7 +154,7 @@ class LoginCard extends StatelessWidget {
                       // CODE FIELD
                       CommonTextFormField(
                         hint: 'Employee Code',
-                        controller: codeController,
+                        controller: _codeController,
                         icon: Icons.badge_outlined,
 
                         validator: (val) => val == null || val.trim().isEmpty
@@ -156,7 +169,7 @@ class LoginCard extends StatelessWidget {
                         icon: Icons.lock_outline,
                         obscurePassword: state.obscurePassword,
                         hint: '******',
-                        controller: passwordController,
+                        controller: _passwordController,
                         validator: (val) => val == null || val.isEmpty
                             ? 'Password is required'
                             : null,
@@ -193,12 +206,12 @@ class LoginCard extends StatelessWidget {
                             onPressed: state.isLoading
                                 ? null
                                 : () {
-                                    if (formKey.currentState!.validate()) {
+                                    if (_formKey.currentState!.validate()) {
                                       context.read<AuthBloc>().add(
                                         LoginEvent(
-                                          code: codeController.text.trim(),
+                                          code: _codeController.text.trim(),
 
-                                          password: passwordController.text
+                                          password: _passwordController.text
                                               .trim(),
                                         ),
                                       );
