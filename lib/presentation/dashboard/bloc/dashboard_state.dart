@@ -33,6 +33,12 @@ class DashboardLoaded extends DashboardState {
   final int unreadNotificationCount;
   final int currentPage;
   final int totalPages;
+  final bool sidebarOpen;
+  final bool shouldShowUpdateDialog;
+  final String departmentName;
+  final String roleName;
+  final String companyName;
+  final bool isWide;
 
   DashboardLoaded({
     required this.stats,
@@ -48,6 +54,12 @@ class DashboardLoaded extends DashboardState {
     this.unreadNotificationCount = 0,
     this.currentPage = 1,
     this.totalPages = 1,
+    this.sidebarOpen = true,
+    this.shouldShowUpdateDialog = false,
+    this.departmentName = '',
+    this.roleName = '',
+    this.companyName = '',
+    this.isWide = false,
   });
 
   List<TicketModel> get filteredTickets {
@@ -97,6 +109,12 @@ class DashboardLoaded extends DashboardState {
     int? unreadNotificationCount,
     int? currentPage,
     int? totalPages,
+    bool? sidebarOpen,
+    bool? shouldShowUpdateDialog,
+    String? departmentName,
+    String? roleName,
+    String? companyName,
+    bool? isWide,
   }) {
     return DashboardLoaded(
       stats: stats ?? this.stats,
@@ -112,6 +130,12 @@ class DashboardLoaded extends DashboardState {
       unreadNotificationCount: unreadNotificationCount ?? this.unreadNotificationCount,
       currentPage: currentPage ?? this.currentPage,
       totalPages: totalPages ?? this.totalPages,
+      sidebarOpen: sidebarOpen ?? this.sidebarOpen,
+      shouldShowUpdateDialog: shouldShowUpdateDialog ?? this.shouldShowUpdateDialog,
+      departmentName: departmentName ?? this.departmentName,
+      roleName: roleName ?? this.roleName,
+      companyName: companyName ?? this.companyName,
+      isWide: isWide ?? this.isWide,
     );
   }
 
@@ -130,6 +154,12 @@ class DashboardLoaded extends DashboardState {
     unreadNotificationCount,
     currentPage,
     totalPages,
+    sidebarOpen,
+    shouldShowUpdateDialog,
+    departmentName,
+    roleName,
+    companyName,
+    isWide,
   ];
 }
 
@@ -157,20 +187,6 @@ class DashboardActionError extends DashboardState {
   DashboardActionError(this.message, this.previousState);
   @override
   List<Object?> get props => [message];
-}
-
-class SidebarSelectedIndexState extends DashboardState {
-  final int sidebarSelectedIndexState;
-
-  SidebarSelectedIndexState({required this.sidebarSelectedIndexState});
-
-  SidebarSelectedIndexState copyWith({int? sidebarSelectedIndexState}) =>
-      SidebarSelectedIndexState(
-        sidebarSelectedIndexState:
-            sidebarSelectedIndexState ?? this.sidebarSelectedIndexState,
-      );
-  @override
-  List<Object?> get props => [sidebarSelectedIndexState];
 }
 
 class TicketDetailLoaded extends DashboardState {

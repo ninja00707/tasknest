@@ -1,7 +1,6 @@
-// ── Bottom Nav ────────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/presentation/dashboard/widgets/navigation_bar/bottom_item.dart';
+import 'package:tasknest/presentation/navigation/bot_item.dart';
 
 class BottomNav extends StatelessWidget {
   final int selectedIndex;

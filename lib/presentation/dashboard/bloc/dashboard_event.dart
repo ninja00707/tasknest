@@ -39,13 +39,6 @@ class SearchTickets extends DashboardEvent {
   List<Object?> get props => [query];
 }
 
-class SidebarSelectedIndexEvent extends DashboardEvent {
-  final int sidebarSelectedIndexEvent;
-  SidebarSelectedIndexEvent({required this.sidebarSelectedIndexEvent});
-  @override
-  List<Object?> get props => [sidebarSelectedIndexEvent];
-}
-
 class UpdateNotificationCount extends DashboardEvent {
   final int count;
   UpdateNotificationCount(this.count);
@@ -72,3 +65,14 @@ class LoadTicketDetail extends DashboardEvent {
 }
 
 class ClearTicketDetail extends DashboardEvent {}
+
+class ToggleSidebar extends DashboardEvent {}
+
+class MarkVersionSeen extends DashboardEvent {}
+
+class UpdateScreenSize extends DashboardEvent {
+  final bool isWide;
+  UpdateScreenSize(this.isWide);
+  @override
+  List<Object?> get props => [isWide];
+}

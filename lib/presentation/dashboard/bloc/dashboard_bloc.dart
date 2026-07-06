@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/changelog.dart';
+import 'package:tasknest/core/constant/const_dep.dart';
+import 'package:tasknest/core/constant/name_by_id.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/data/datasource/socket_service.dart';
 import 'package:tasknest/data/repositories/ticket/ticket_repository.dart';
@@ -15,7 +18,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<LoadDashboard>(_onLoad);
     on<LoadEmployeesForDept>(_onLoadEmployeesForDept);
     on<FilterTickets>(_onFilter);
-    on<SidebarSelectedIndexEvent>(_onSelectedIndex);
+    on<SearchTickets>(_onSearch);
     on<UpdateNotificationCount>(_onUpdateNotificationCount);
     on<LoadTicketDetail>(_onLoadTicketDetail);
     on<ClearTicketDetail>(_onClearTicketDetail);
@@ -24,6 +27,9 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<LoadManagerAnalytics>(_onLoadManagerAnalytics);
     on<LoadCeoAnalytics>(_onLoadCeoAnalytics);
     on<ResetDashboardEvent>(_onReset);
+    on<ToggleSidebar>(_onToggleSidebar);
+    on<MarkVersionSeen>(_onMarkVersionSeen);
+    on<UpdateScreenSize>(_onUpdateScreenSize);
 
     _initSocket();
   }
@@ -122,23 +128,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     return errorMessage;
   }
 
-  Future<void> _onSelectedIndex(
-    SidebarSelectedIndexEvent event,
-    Emitter<DashboardState> emit,
-  ) async {
-    final currentState = state;
-    if (currentState is DashboardLoaded) {
-      emit(
-        currentState.copyWith(selectedIndex: event.sidebarSelectedIndexEvent),
-      );
-    }
-  }
-
-  LoadDashboard _reloadEvent() {
-    final loaded = _getLoadedStateOrNull();
-    return LoadDashboard(page: loaded?.currentPage ?? 1);
-  }
-
   // ── Load ──────────────────────────────────────────────────────
   Future<void> _onLoad(
     LoadDashboard event,
@@ -186,6 +175,31 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
       final notifCount = await _dataSource.getUnreadCount();
 
+      final lastSeenVersion = await LocalStorageService().getLastSeenVersion();
+      final shouldShowUpdate = lastSeenVersion != currentVersion;
+
+      final deptLookup = departments
+          .map((d) => Departments(name: d.name, id: d.id))
+          .toList();
+      final departmentName = NameById.getNameById<Departments>(
+        id: user.departmentId,
+        items: deptLookup,
+        idSelector: (e) => e.id,
+        nameSelector: (e) => e.name,
+      ) ?? '';
+      final roleName = NameById.getNameById<Roles>(
+        id: user.roleId,
+        items: roles,
+        idSelector: (e) => e.id,
+        nameSelector: (e) => e.name,
+      ) ?? '';
+      final companyName = NameById.getNameById<Company>(
+        id: user.companyId,
+        items: CompanyNames,
+        idSelector: (e) => e.id,
+        nameSelector: (e) => e.name,
+      ) ?? '';
+
       emit(
         DashboardLoaded(
           stats: stats,
@@ -200,6 +214,10 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           currentPage: currentPage,
           totalPages: totalPages,
           unreadNotificationCount: notifCount,
+          shouldShowUpdateDialog: shouldShowUpdate,
+          departmentName: departmentName,
+          roleName: roleName,
+          companyName: companyName,
         ),
       );
     } catch (e) {
@@ -361,5 +379,36 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     _socketDebounce = null;
     SocketService().disconnect();
     emit(DashboardInitial());
+  }
+
+  void _onToggleSidebar(
+    ToggleSidebar event,
+    Emitter<DashboardState> emit,
+  ) {
+    final loaded = _getLoadedStateOrNull();
+    if (loaded != null) {
+      emit(loaded.copyWith(sidebarOpen: !loaded.sidebarOpen));
+    }
+  }
+
+  Future<void> _onMarkVersionSeen(
+    MarkVersionSeen event,
+    Emitter<DashboardState> emit,
+  ) async {
+    await LocalStorageService().setLastSeenVersion(currentVersion);
+    final loaded = _getLoadedStateOrNull();
+    if (loaded != null) {
+      emit(loaded.copyWith(shouldShowUpdateDialog: false));
+    }
+  }
+
+  void _onUpdateScreenSize(
+    UpdateScreenSize event,
+    Emitter<DashboardState> emit,
+  ) {
+    final loaded = _getLoadedStateOrNull();
+    if (loaded != null && loaded.isWide != event.isWide) {
+      emit(loaded.copyWith(isWide: event.isWide));
+    }
   }
 }
