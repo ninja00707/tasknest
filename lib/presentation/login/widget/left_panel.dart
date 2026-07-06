@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 
 class LeftPanel extends StatelessWidget {
   const LeftPanel({super.key});
@@ -30,8 +32,8 @@ class LeftPanel extends StatelessWidget {
                   ],
                 ),
                 alignment: Alignment.center,
-                child: const Text(
-                  'UM',
+                child: Text(
+                  ConstStrings.appShortName,
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -90,11 +92,11 @@ class LeftPanel extends StatelessWidget {
 
           // ── Company names ────────────────────────────────────────────────
           RichText(
-            text: const TextSpan(
+            text: TextSpan(
               children: [
                 TextSpan(
-                  text: 'UM Enterprises\n',
-                  style: TextStyle(
+                  text: '${ConstStrings.umEnterprises}\n',
+                  style: const TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w800,
                     color: ThemeColors.unifiedPrimary,
@@ -102,8 +104,8 @@ class LeftPanel extends StatelessWidget {
                   ),
                 ),
                 TextSpan(
-                  text: '& Matrix Pharma',
-                  style: TextStyle(
+                  text: '& ${ConstStrings.matrixPharma}',
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
                     color: ThemeColors.unifiedSecondary,
@@ -116,13 +118,9 @@ class LeftPanel extends StatelessWidget {
           const SizedBox(height: 16),
 
           // ── Tagline ──────────────────────────────────────────────────────
-          const Text(
+          Text(
             'One platform. Two companies. Seamless collaboration — manage tasks, track tickets, and keep every department in sync.',
-            style: TextStyle(
-              fontSize: 15,
-              color: ThemeColors.unifiedTextMuted,
-              height: 1.65,
-            ),
+            style: AppTextStyles.bodyMuted.copyWith(height: 1.65),
           ),
           const SizedBox(height: 28),
 

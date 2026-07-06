@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 
 class AppAlertDialog {
   static Future<void> show({
@@ -92,12 +94,7 @@ class AppAlertDialog {
                     message,
                     textAlign: TextAlign.center,
 
-                    style: const TextStyle(
-                      fontSize: 15,
-                      height: 1.5,
-
-                      color: ThemeColors.unifiedTextMuted,
-                    ),
+                    style: AppTextStyles.subtitle,
                   ),
 
                   const SizedBox(height: 24),
@@ -124,13 +121,9 @@ class AppAlertDialog {
                       ),
 
                       child: const Text(
-                        'OK',
+                        ConstStrings.ok,
 
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
+                        style: AppTextStyles.button,
                       ),
                     ),
                   ),

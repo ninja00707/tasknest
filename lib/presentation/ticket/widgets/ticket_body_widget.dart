@@ -5,10 +5,9 @@ import 'package:tasknest/core/theme/common_helpers.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
-import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_card.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 import 'filter_bar_widget.dart';
 import 'empty_state_widget.dart';
 

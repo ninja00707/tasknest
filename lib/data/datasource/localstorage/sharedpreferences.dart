@@ -1,7 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart'; // For debugPrint
 import 'dart:convert'; // For jsonEncode and jsonDecode
-import 'package:tasknest/presentation/login/models/auth_response_model.dart'; // For UserModel
+import 'package:tasknest/presentation/login/models/user_model.dart'; // For UserModel
 
 class LocalStorageService {
   static const String _tokenKey = 'auth_token';

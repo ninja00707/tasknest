@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_date_format.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_action.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_comment_section.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_progress_timeline.dart';
@@ -18,7 +20,7 @@ class LeftColumn extends StatelessWidget {
       children: [
         SectionCard(
           icon: Icons.article_outlined,
-          title: 'Description',
+          title: ConstStrings.description,
           child: Text(
             ticket.description,
             style: const TextStyle(
@@ -61,7 +63,7 @@ class RightColumn extends StatelessWidget {
       children: [
         SectionCard(
           icon: Icons.bolt_rounded,
-          title: 'Actions',
+          title: ConstStrings.actions,
           child: Center(
             child: TicketActions(ticket: ticket, user: user),
           ),
@@ -69,7 +71,7 @@ class RightColumn extends StatelessWidget {
         const SizedBox(height: 16),
         SectionCard(
           icon: Icons.timeline_rounded,
-          title: 'Progress',
+          title: ConstStrings.progress,
           child: ProgressTimeline(status: ticket.status),
         ),
       ],
@@ -159,23 +161,23 @@ class DetailsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       icon: Icons.info_outline_rounded,
-      title: 'Ticket Details',
+      title: ConstStrings.ticketDetails,
       child: Column(
         children: [
           InfoRow(
             icon: Icons.person_outline_rounded,
-            label: 'Created By',
+            label: ConstStrings.createdBy,
             value: ticket.createdByName,
           ),
           InfoRow(
             icon: Icons.business_outlined,
-            label: 'Created Dept',
+            label: ConstStrings.createdDept,
             value: ticket.createdByDeptCode,
           ),
           if (ticket.deptJourney.length > 1)
             InfoRow(
               icon: Icons.my_library_books_rounded,
-              label: 'Assigned Dept',
+              label: ConstStrings.assignedDept,
               value: ticket.deptJourney
                   .where((j) => j['role'] != 'ORIGIN')
                   .map((j) => j['code'] as String)
@@ -184,56 +186,56 @@ class DetailsCard extends StatelessWidget {
           else
             InfoRow(
               icon: Icons.my_library_books_rounded,
-              label: 'Assigned Dept',
+              label: ConstStrings.assignedDept,
               value: ticket.assignedDeptCode,
             ),
           ...buildAssignedTo(ticket),
           InfoRow(
             icon: Icons.calendar_today_outlined,
-            label: 'Created',
+            label: ConstStrings.created,
             value: CommonDateFormat.formatDateTime(ticket.createdAt),
           ),
           if (ticket.dueDate != null)
             InfoRow(
               icon: Icons.event_outlined,
-              label: 'Due Date',
+              label: ConstStrings.dueDate,
               value: CommonDateFormat.formatDateTime(ticket.dueDate),
               valueColor: ticket.isOverdue ? ThemeColors.unifiedDanger : null,
             ),
           if (ticket.closedAt != null)
             InfoRow(
               icon: Icons.lock_outline_rounded,
-              label: 'Closed At',
+              label: ConstStrings.closedAt,
               value: CommonDateFormat.formatDateTime(ticket.closedAt),
             ),
           InfoRow(
             icon: Icons.replay_rounded,
-            label: 'Reopen Count',
+            label: ConstStrings.reopenCount,
             value: '${ticket.reopenCount}',
           ),
           if (ticket.transferredFromCode != null &&
               ticket.transferredFromCode != 'None')
             InfoRow(
               icon: Icons.swap_horiz_rounded,
-              label: 'Transferred From',
+              label: ConstStrings.transferredFrom,
               value: ticket.transferredFromCode!,
             ),
           if (ticket.lastAction != null)
             InfoRow(
               icon: Icons.info_outline_rounded,
-              label: 'Last Action',
+              label: ConstStrings.lastAction,
               value: ticket.lastAction!,
             ),
           if (ticket.lastActedByName != null)
             InfoRow(
               icon: Icons.person_outline_rounded,
-              label: 'Last Acted By',
+              label: ConstStrings.lastActedBy,
               value: ticket.lastActedByName!,
             ),
           if (ticket.lastUpdatedAt != null)
             InfoRow(
               icon: Icons.schedule_rounded,
-              label: 'Last Action At',
+              label: ConstStrings.lastActionAt,
               value: CommonDateFormat.formatDateTime(ticket.lastUpdatedAt!),
               isLast: true,
             ),
@@ -380,14 +382,9 @@ class ChildDetailCard extends StatelessWidget {
                     color: const Color(0xFF7C3AED).withOpacity(0.08),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Text(
-                    'HAS SUB-TASKS',
-                    style: TextStyle(
-                      fontSize: 8,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF7C3AED),
-                      letterSpacing: 0.4,
-                    ),
+                  child: Text(
+                    ConstStrings.hasSubTasks,
+                    style: AppTextStyles.micro,
                   ),
                 ),
               if (child.immediateChildCount > 0 && !child.hasActiveChildren)
@@ -482,7 +479,7 @@ List<Widget> buildAssignedTo(TicketModel ticket) {
       return [
         InfoRow(
           icon: Icons.assignment_ind_outlined,
-          label: 'Assigned To',
+          label: ConstStrings.assignedTo,
           value: ticket.assignedToName!,
         ),
       ];
@@ -492,7 +489,7 @@ List<Widget> buildAssignedTo(TicketModel ticket) {
   return [
     InfoRow(
       icon: Icons.assignment_ind_outlined,
-      label: 'Assigned To',
+      label: ConstStrings.assignedTo,
       value: parts.join(', '),
     ),
   ];

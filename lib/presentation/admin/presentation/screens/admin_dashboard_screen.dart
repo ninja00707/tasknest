@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_bloc.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_event.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_state.dart';
@@ -29,9 +31,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Admin Dashboard', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary)),
+              const Text('Admin Dashboard', style: AppTextStyles.pageTitle),
               const SizedBox(height: 8),
-              Text('System overview and management', style: TextStyle(fontSize: 14, color: ThemeColors.unifiedTextMuted)),
+              const Text('System overview and management', style: AppTextStyles.bodyMuted),
               const SizedBox(height: 24),
               if (state is AdminLoading) const Center(child: CircularProgressIndicator())
               else if (state is AdminDashboardLoaded) _buildStats(state.stats)
@@ -61,7 +63,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         const SizedBox(height: 24),
         Row(
           children: [
-            _card('Open', '${stats.openTickets}', Icons.pending, ThemeColors.statusOpenFg),
+            _card(ConstStrings.statOpen, '${stats.openTickets}', Icons.pending, ThemeColors.statusOpenFg),
             const SizedBox(width: 16),
             _card('In Progress', '${stats.inProgressTickets}', Icons.play_circle, ThemeColors.statusProgressFg),
             const SizedBox(width: 16),
@@ -96,7 +98,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               children: [
                 Text(value, style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: color)),
                 const SizedBox(height: 2),
-                Text(label, style: const TextStyle(fontSize: 13, color: ThemeColors.unifiedTextMuted)),
+                Text(label, style: AppTextStyles.bodySmallMuted),
               ],
             ),
           ],

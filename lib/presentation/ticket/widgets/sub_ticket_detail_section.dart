@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_event.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 
 class SubTicketDetailSection extends StatelessWidget {
   final TicketModel ticket;
@@ -75,7 +76,7 @@ class SubTicketDetailSection extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Text(
-                        'SUB TICKET',
+                        ConstStrings.subTicket,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
@@ -117,7 +118,7 @@ class SubTicketDetailSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Department Breakdown',
+                  ConstStrings.departmentBreakdown,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
@@ -126,11 +127,8 @@ class SubTicketDetailSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 ...ticket.subDepartments.map(
-                  (dept) => _DeptProgressCard(
-                    ticket: ticket,
-                    dept: dept,
-                    user: user,
-                  ),
+                  (dept) =>
+                      _DeptProgressCard(ticket: ticket, dept: dept, user: user),
                 ),
                 // ── Creator "Complete Ticket" Button ────────────
                 if (_canCompleteTicket(user, ticket))
@@ -143,7 +141,7 @@ class SubTicketDetailSection extends StatelessWidget {
                           CompleteSubTicket(ticket.id),
                         ),
                         icon: const Icon(Icons.verified, size: 20),
-                        label: const Text('Complete Ticket'),
+                        label: const Text(ConstStrings.completeTicket),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF16A34A),
                           foregroundColor: Colors.white,
@@ -194,8 +192,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
   bool get _isAssignedToMe =>
       widget.dept.assignedToId == widget.user.id && widget.dept.isAssigned;
 
-  bool get _isMyDept =>
-      widget.user.departmentId == widget.dept.departmentId;
+  bool get _isMyDept => widget.user.departmentId == widget.dept.departmentId;
 
   bool get _isManager => widget.user.roleId == 1;
   bool get _isCeo => widget.user.roleId == 0 || widget.user.roleId == 3;
@@ -206,7 +203,9 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
     if (widget.ticket.isClosed || widget.ticket.isCompleted) return false;
     if (_isCeo) return true;
     if (widget.dept.isCompleted || widget.dept.isApproved) return false;
-    return _isMyDept || _isAssignedToMe || widget.user.departmentId == widget.ticket.assignedDeptId;
+    return _isMyDept ||
+        _isAssignedToMe ||
+        widget.user.departmentId == widget.ticket.assignedDeptId;
   }
 
   // in_progress -> pending_approval: only assigned employee
@@ -215,7 +214,10 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
 
   // pending_approval -> approved: only this department's manager or CEO
   bool get _canApprove =>
-      _canEdit && widget.dept.isPendingApproval && (_isManager || _isCeo) && _isMyDept;
+      _canEdit &&
+      widget.dept.isPendingApproval &&
+      (_isManager || _isCeo) &&
+      _isMyDept;
 
   // Creator can reopen an approved/completed department (48h, once)
   bool get _canCreatorReopen {
@@ -374,7 +376,11 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.person_outline, size: 14, color: ThemeColors.unifiedTextMuted),
+                const Icon(
+                  Icons.person_outline,
+                  size: 14,
+                  color: ThemeColors.unifiedTextMuted,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   'Assigned to: ${dept.assignedToName}',
@@ -434,10 +440,11 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
                               ),
                             )
                             .toList(),
-                        onChanged: (v) => setState(() => _selectedEmployeeId = v),
+                        onChanged: (v) =>
+                            setState(() => _selectedEmployeeId = v),
                         decoration: const InputDecoration(
                           isDense: true,
-                          labelText: 'Assign to employee',
+                          labelText: ConstStrings.assignToEmployee,
                           border: OutlineInputBorder(),
                         ),
                       ),
@@ -445,7 +452,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
                     const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: _assignEmployee,
-                      child: const Text('Assign'),
+                      child: const Text(ConstStrings.assign),
                     ),
                   ],
                 );
@@ -461,7 +468,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
                 child: ElevatedButton.icon(
                   onPressed: _selfAssign,
                   icon: const Icon(Icons.person_add_outlined, size: 16),
-                  label: const Text('Self-Assign to this Task'),
+                  label: const Text(ConstStrings.selfAssignToTask),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: ThemeColors.unifiedPrimary,
                     foregroundColor: Colors.white,
@@ -482,17 +489,16 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
                 controller: _noteController,
                 maxLines: 3,
                 decoration: InputDecoration(
-                  hintText: 'Last comment before marking as done (required)',
+                  hintText: ConstStrings.completionRemarkHint,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                   filled: true,
                   fillColor: ThemeColors.unifiedInputBg,
                 ),
-                validator: (value) =>
-                    value == null || value.trim().isEmpty
-                        ? 'A completion remark is required'
-                        : null,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? ConstStrings.completionRemarkRequired
+                    : null,
               ),
             ),
             const SizedBox(height: 8),
@@ -501,7 +507,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
               child: ElevatedButton.icon(
                 onPressed: _markDone,
                 icon: const Icon(Icons.check_circle_outline, size: 18),
-                label: const Text('Mark as Done'),
+                label: const Text(ConstStrings.markAsDone),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF7C3AED),
                   foregroundColor: Colors.white,
@@ -523,7 +529,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
                 child: ElevatedButton.icon(
                   onPressed: _approveCompletion,
                   icon: const Icon(Icons.verified_outlined, size: 18),
-                  label: const Text('Approve Completion'),
+                  label: const Text(ConstStrings.approveCompletion),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF16A34A),
                     foregroundColor: Colors.white,
@@ -547,12 +553,19 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.hourglass_empty, size: 16, color: Color(0xFF92400E)),
+                    Icon(
+                      Icons.hourglass_empty,
+                      size: 16,
+                      color: Color(0xFF92400E),
+                    ),
                     SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Work submitted. Waiting for manager approval.',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+                        ConstStrings.workSubmittedWaitingApproval,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF92400E),
+                        ),
                       ),
                     ),
                   ],
@@ -571,14 +584,21 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF1E40AF)),
+                    const Icon(
+                      Icons.check_circle_outline,
+                      size: 16,
+                      color: Color(0xFF1E40AF),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _isCreator || _isCeo
-                            ? 'Manager approved. You can complete the ticket or reopen this department.'
-                            : 'Manager approved. Waiting for creator to finalize.',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF1E40AF)),
+                            ? ConstStrings.managerApprovedYouCanComplete
+                            : ConstStrings.managerApprovedWaitingFinalize,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF1E40AF),
+                        ),
                       ),
                     ),
                   ],
@@ -594,7 +614,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
                 child: OutlinedButton.icon(
                   onPressed: _reopenDept,
                   icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('Reopen this Department'),
+                  label: const Text(ConstStrings.reopenThisDept),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFFDC2626),
                     side: const BorderSide(color: Color(0xFFDC2626)),

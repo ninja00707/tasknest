@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tasknest/data/repositories/auth/auth_repository.dart';
+import 'package:tasknest/presentation/login/bloc/auth_view_mode.dart';
 
 import 'login_event.dart';
 import 'login_state.dart';
@@ -18,6 +19,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<SwitchModeEvent>(_onSwitchMode);
     on<ForgotPasswordEvent>(_onForgotPassword);
     on<ResetPasswordEvent>(_onResetPassword);
+    on<SignupNameChanged>(_onSignupNameChanged);
+    on<SignupEmailChanged>(_onSignupEmailChanged);
+    on<SignupPasswordChanged>(_onSignupPasswordChanged);
+    on<SignupRoleChanged>(_onSignupRoleChanged);
+    on<SignupCompanyChanged>(_onSignupCompanyChanged);
+    on<SignupDeptChanged>(_onSignupDeptChanged);
   }
 
   Future<void> _onLogin(LoginEvent event, Emitter<AuthState> emit) async {
@@ -36,6 +43,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             userId: data['userId'] ?? 0,
             email: data['email'] ?? '',
             message: result['message'] ?? 'Please set your password.',
+            currentMode: AuthViewMode.firstLoginReset,
           ),
         );
       } else {
@@ -183,5 +191,35 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } else {
       emit(AuthInitial(currentMode: event.mode));
     }
+  }
+
+  void _onSignupNameChanged(
+      SignupNameChanged event, Emitter<AuthState> emit) {
+    emit(state.copyWithSignup(name: event.name));
+  }
+
+  void _onSignupEmailChanged(
+      SignupEmailChanged event, Emitter<AuthState> emit) {
+    emit(state.copyWithSignup(email: event.email));
+  }
+
+  void _onSignupPasswordChanged(
+      SignupPasswordChanged event, Emitter<AuthState> emit) {
+    emit(state.copyWithSignup(password: event.password));
+  }
+
+  void _onSignupRoleChanged(
+      SignupRoleChanged event, Emitter<AuthState> emit) {
+    emit(state.copyWithSignup(roleId: event.roleId));
+  }
+
+  void _onSignupCompanyChanged(
+      SignupCompanyChanged event, Emitter<AuthState> emit) {
+    emit(state.copyWithSignup(companyId: event.companyId));
+  }
+
+  void _onSignupDeptChanged(
+      SignupDeptChanged event, Emitter<AuthState> emit) {
+    emit(state.copyWithSignup(deptId: event.deptId));
   }
 }

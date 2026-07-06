@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
+import 'package:tasknest/core/constant/validators.dart';
+import 'package:tasknest/core/theme/common_auth_widgets.dart';
+import 'package:tasknest/core/theme/common_text.dart';
+import 'package:tasknest/core/theme/common_text_form_field.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 import 'package:tasknest/presentation/login/bloc/login_event.dart';
 import 'package:tasknest/presentation/login/bloc/login_state.dart';
-import 'package:tasknest/core/theme/common_text_form_field.dart';
 
 class LoginCard extends StatefulWidget {
-  const LoginCard({super.key, required this.onNavigateToForgotPassword});
-
-  final VoidCallback onNavigateToForgotPassword;
+  const LoginCard({super.key});
 
   @override
   State<LoginCard> createState() => _LoginCardState();
@@ -33,250 +34,91 @@ class _LoginCardState extends State<LoginCard> {
       builder: (context, state) {
         return Form(
           key: _formKey,
-          child: Container(
-            width: 396,
-
-            decoration: BoxDecoration(
-              color: ThemeColors.unifiedSurface,
-
-              borderRadius: BorderRadius.circular(16),
-
-              border: Border.all(color: ThemeColors.unifiedBorder),
-
-              boxShadow: [
-                BoxShadow(
-                  color: ThemeColors.unifiedPrimary.withOpacity(0.06),
-
-                  blurRadius: 24,
-                  offset: const Offset(0, 6),
-                ),
-
-                BoxShadow(
-                  color: ThemeColors.unifiedSecondary.withOpacity(0.06),
-
-                  blurRadius: 40,
-                  offset: const Offset(0, 12),
-                ),
-              ],
-            ),
-
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-
-              children: [
-                // TOP GRADIENT
-                Container(
-                  height: 5,
-
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        ThemeColors.unifiedGradStart,
-                        ThemeColors.unifiedGradEnd,
+          child: AuthCard(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const CommonText(
+                    ConstStrings.loginWelcomeBack,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  const SizedBox(height: 4),
+                  RichText(
+                    text: const TextSpan(
+                      children: [
+                        TextSpan(
+                          text: ConstStrings.signInTo,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF4A7B7B),
+                          ),
+                        ),
+                        TextSpan(
+                          text: ConstStrings.umEnterprises,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF2E7D32),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        TextSpan(
+                          text: ' \u00b7 ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF4A7B7B),
+                          ),
+                        ),
+                        TextSpan(
+                          text: ConstStrings.matrixPharma,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF1E88E5),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
-
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(16),
-                      topRight: Radius.circular(16),
-                    ),
                   ),
-                ),
-
-                Padding(
-                  padding: const EdgeInsets.all(24),
-
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-
-                    children: [
-                      // HEADER
-                      const Text(
-                        'Welcome back',
-
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: ThemeColors.unifiedTextPrimary,
-                        ),
-                      ),
-
-                      const SizedBox(height: 4),
-
-                      RichText(
-                        text: const TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'Sign in to ',
-
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: ThemeColors.unifiedTextMuted,
-                              ),
-                            ),
-
-                            TextSpan(
-                              text: 'UM Enterprises',
-
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: ThemeColors.unifiedPrimary,
-
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-
-                            TextSpan(
-                              text: ' · ',
-
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: ThemeColors.unifiedTextMuted,
-                              ),
-                            ),
-
-                            TextSpan(
-                              text: 'Matrix Pharma',
-
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: ThemeColors.unifiedSecondary,
-
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // CODE FIELD
-                      CommonTextFormField(
-                        hint: 'Employee Code',
-                        controller: _codeController,
-                        icon: Icons.badge_outlined,
-
-                        validator: (val) => val == null || val.trim().isEmpty
-                            ? 'Employee code is required'
-                            : null,
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // PASSWORD FIELD
-                      CommonTextFormField(
-                        icon: Icons.lock_outline,
-                        obscurePassword: state.obscurePassword,
-                        hint: '******',
-                        controller: _passwordController,
-                        validator: (val) => val == null || val.isEmpty
-                            ? 'Password is required'
-                            : null,
-                        onToggle: () {
-                          context.read<AuthBloc>().add(
-                            TogglePasswordVisibility(),
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // LOGIN BUTTON
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: state.isLoading
-                                ? null
-                                : const LinearGradient(
-                                    colors: [
-                                      ThemeColors.unifiedGradStart,
-
-                                      ThemeColors.unifiedGradEnd,
-                                    ],
-                                  ),
-
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-
-                          child: ElevatedButton(
-                            onPressed: state.isLoading
-                                ? null
-                                : () {
-                                    if (_formKey.currentState!.validate()) {
-                                      context.read<AuthBloc>().add(
-                                        LoginEvent(
-                                          code: _codeController.text.trim(),
-
-                                          password: _passwordController.text
-                                              .trim(),
-                                        ),
-                                      );
-                                    }
-                                  },
-
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-
-                              shadowColor: Colors.transparent,
-
-                              foregroundColor: Colors.white,
-
-                              elevation: 0,
-
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-
-                            child: state.isLoading
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2.5,
-                                    ),
-                                  )
-                                : const Text(
-                                    'Log In',
-
-                                    style: TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w700,
-
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      //Only admin have acces
-                      // FORGOT PASSWORD
-                      // Center(
-                      //   child: TextButton(
-                      //     onPressed: onNavigateToForgotPassword,
-                      //     style: TextButton.styleFrom(
-                      //       foregroundColor: ThemeColors.unifiedPrimary,
-                      //       textStyle: const TextStyle(
-                      //         fontSize: 14,
-                      //         fontWeight: FontWeight.w600,
-                      //       ),
-                      //     ),
-                      //     child: const Text('Forgot password?'),
-                      //   ),
-                      // ),
-                    ],
+                  const SizedBox(height: 24),
+                  CommonTextFormField(
+                    hint: ConstStrings.employeeCode,
+                    controller: _codeController,
+                    icon: Icons.badge_outlined,
+                    validator: (val) => val == null || val.trim().isEmpty
+                        ? ConstStrings.employeeCodeRequired
+                        : null,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  CommonTextFormField(
+                    icon: Icons.lock_outline,
+                    obscurePassword: state.obscurePassword,
+                    hint: '\u2022\u2022\u2022\u2022\u2022\u2022',
+                    controller: _passwordController,
+                    validator: AuthValidators.validatePassword,
+                    onToggle: () {
+                      context.read<AuthBloc>().add(TogglePasswordVisibility());
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  AuthGradientButton(
+                    label: ConstStrings.logIn,
+                    isLoading: state.isLoading,
+                    onPressed: () {
+                      if (_formKey.currentState!.validate()) {
+                        context.read<AuthBloc>().add(
+                              LoginEvent(
+                                code: _codeController.text.trim(),
+                                password: _passwordController.text.trim(),
+                              ),
+                            );
+                      }
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         );

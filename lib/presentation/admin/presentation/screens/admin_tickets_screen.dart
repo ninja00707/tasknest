@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/admin/data/models/admin_models.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_bloc.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_event.dart';
@@ -49,14 +51,14 @@ class _AdminTicketsScreenState extends State<AdminTicketsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Manage Tickets', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary)),
+                  const Text('Manage Tickets', style: AppTextStyles.pageTitle),
                   Row(
                     children: [
                       SizedBox(
                         width: 220,
                         child: TextField(
                           decoration: InputDecoration(
-                            hintText: 'Search tickets...',
+                            hintText: ConstStrings.searchTickets,
                             hintStyle: TextStyle(color: ThemeColors.unifiedTextMuted.withOpacity(0.6), fontSize: 13),
                             prefixIcon: Icon(Icons.search_rounded, size: 18, color: ThemeColors.unifiedTextMuted),
                             suffixIcon: _searchQuery.isNotEmpty
@@ -78,9 +80,9 @@ class _AdminTicketsScreenState extends State<AdminTicketsScreen> {
                       const SizedBox(width: 8),
                       DropdownButton<String?>(
                         value: _statusFilter,
-                        hint: const Text('All Status'),
+                        hint: const Text(ConstStrings.allStatus),
                         items: const [
-                          DropdownMenuItem(value: null, child: Text('All Status')),
+                          DropdownMenuItem(value: null, child: Text(ConstStrings.allStatus)),
                           DropdownMenuItem(value: 'open', child: Text('Open')),
                           DropdownMenuItem(value: 'in_progress', child: Text('In Progress')),
                           DropdownMenuItem(value: 'completed', child: Text('Completed')),
@@ -140,13 +142,13 @@ class _AdminTicketsScreenState extends State<AdminTicketsScreen> {
             ],
             rows: tickets.map((t) => DataRow(cells: [
               DataCell(Text('${t.id}')),
-              DataCell(Text(t.ticketNumber ?? '-', style: const TextStyle(fontSize: 12))),
+              DataCell(Text(t.ticketNumber ?? '-', style: AppTextStyles.caption)),
               DataCell(ConstrainedBox(constraints: const BoxConstraints(maxWidth: 200), child: Text(t.title, overflow: TextOverflow.ellipsis))),
               DataCell(_badge(t.status)),
               DataCell(_priorityBadge(t.priority)),
-              DataCell(Text(t.assignedDeptName ?? '-', style: const TextStyle(fontSize: 12))),
-              DataCell(Text(t.assignedToName ?? '-', style: const TextStyle(fontSize: 12))),
-              DataCell(Text(t.createdByName ?? '-', style: const TextStyle(fontSize: 12))),
+              DataCell(Text(t.assignedDeptName ?? '-', style: AppTextStyles.caption)),
+              DataCell(Text(t.assignedToName ?? '-', style: AppTextStyles.caption)),
+              DataCell(Text(t.createdByName ?? '-', style: AppTextStyles.caption)),
               DataCell(IconButton(
                 icon: const Icon(Icons.delete, size: 18, color: ThemeColors.unifiedDanger),
                 onPressed: () => _confirmDelete(context, t),
@@ -193,17 +195,17 @@ class _AdminTicketsScreenState extends State<AdminTicketsScreen> {
     showDialog(
       context: dialogContext,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Ticket?'),
+        title: const Text(ConstStrings.deleteTicket),
         content: Text('Delete ticket "${t.ticketNumber ?? t.title}"? This cannot be undone.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(ConstStrings.cancel)),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: ThemeColors.unifiedDanger),
             onPressed: () {
               Navigator.pop(ctx);
               widget.bloc.add(DeleteTicket(t.id, context));
             },
-            child: const Text('Delete'),
+            child: const Text(ConstStrings.delete),
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 
 class StatusBadge extends StatelessWidget {
@@ -13,22 +14,22 @@ class StatusBadge extends StatelessWidget {
       case 'open':
         bg = ThemeColors.statusOpenBg;
         fg = ThemeColors.statusOpenFg;
-        label = 'Open';
+        label = ConstStrings.statusOpen;
         break;
       case 'in_progress':
         bg = ThemeColors.statusProgressBg;
         fg = ThemeColors.statusProgressFg;
-        label = 'In Progress';
+        label = ConstStrings.statusInProgress;
         break;
       case 'completed':
         bg = ThemeColors.statusDoneBg;
         fg = ThemeColors.statusDoneFg;
-        label = 'Completed';
+        label = ConstStrings.statusCompleted;
         break;
       default:
         bg = ThemeColors.statusClosedBg;
         fg = ThemeColors.statusClosedFg;
-        label = 'Closed';
+        label = ConstStrings.statusClosed;
         break;
     }
     return Container(

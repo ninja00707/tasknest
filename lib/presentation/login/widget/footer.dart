@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 
 class Footer extends StatelessWidget {
   const Footer({super.key});
@@ -28,10 +30,7 @@ class Footer extends StatelessWidget {
                     ),
                     child: Text(
                       item,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: ThemeColors.unifiedTextMuted,
-                      ),
+                      style: AppTextStyles.caption,
                     ),
                   ),
                 )
@@ -42,32 +41,22 @@ class Footer extends StatelessWidget {
           // ── Brand names with color ────────────────────────────────────────
           RichText(
             textAlign: TextAlign.center,
-            text: const TextSpan(
+            text: TextSpan(
               children: [
                 TextSpan(
                   text: '© 2025 ',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: ThemeColors.unifiedTextMuted,
-                  ),
+                  style: AppTextStyles.label,
                 ),
                 TextSpan(
-                  text: 'UM Enterprises',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: ThemeColors.unifiedPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  text: ConstStrings.umEnterprises,
+                  style: AppTextStyles.buttonText.copyWith(fontSize: 11),
                 ),
                 TextSpan(
                   text: ' & ',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: ThemeColors.unifiedTextMuted,
-                  ),
+                  style: AppTextStyles.label,
                 ),
                 TextSpan(
-                  text: 'Matrix Pharma',
+                  text: ConstStrings.matrixPharma,
                   style: TextStyle(
                     fontSize: 11,
                     color: ThemeColors.unifiedSecondary,
@@ -76,10 +65,7 @@ class Footer extends StatelessWidget {
                 ),
                 TextSpan(
                   text: '. All rights reserved.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: ThemeColors.unifiedTextMuted,
-                  ),
+                  style: AppTextStyles.label,
                 ),
               ],
             ),

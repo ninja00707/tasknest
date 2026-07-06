@@ -10,8 +10,8 @@ class CommonTextFormField extends StatelessWidget {
   final VoidCallback? onToggle;
   final TextInputType keyboardType;
   final TextEditingController? controller;
+  final String? initialValue;
 
-  // NEW
   final int maxLines;
   final int minLines;
 
@@ -25,8 +25,7 @@ class CommonTextFormField extends StatelessWidget {
     this.onToggle,
     this.keyboardType = TextInputType.text,
     this.controller,
-
-    // DEFAULT VALUES
+    this.initialValue,
     this.maxLines = 1,
     this.minLines = 1,
   });
@@ -35,6 +34,7 @@ class CommonTextFormField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
+      initialValue: controller == null ? initialValue : null,
       onChanged: onChanged,
       validator: validator,
       obscureText: obscurePassword,

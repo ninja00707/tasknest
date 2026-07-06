@@ -1,7 +1,8 @@
 class RouteNames {
   static const login = '/login';
+  static const loginForgotPassword = '/login/forgot-password';
+  static const loginFirstReset = '/login/first-reset';
   static const signup = '/signup';
-  static const forgotPassword = '/forgot-password';
   static const dashboard = '/dashboard';
   static const home = '/';
   static const analyticsManager = '/analytics/manager';

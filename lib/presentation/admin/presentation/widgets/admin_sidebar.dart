@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 
 class AdminSidebar extends StatelessWidget {
   final int selectedIndex;
@@ -30,7 +30,10 @@ class AdminSidebar extends StatelessWidget {
             height: 60,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [ThemeColors.unifiedGradStart, ThemeColors.unifiedGradEnd],
+                colors: [
+                  ThemeColors.unifiedGradStart,
+                  ThemeColors.unifiedGradEnd,
+                ],
               ),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -39,7 +42,14 @@ class AdminSidebar extends StatelessWidget {
               children: [
                 Icon(Icons.admin_panel_settings, color: Colors.white, size: 24),
                 SizedBox(width: 8),
-                Text('Admin Panel', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
+                Text(
+                  'Admin Panel',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                  ),
+                ),
               ],
             ),
           ),
@@ -57,12 +67,26 @@ class AdminSidebar extends StatelessWidget {
                 onTap: onBackToMain,
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
                   child: const Row(
                     children: [
-                      Icon(Icons.arrow_back, size: 19, color: ThemeColors.unifiedTextMuted),
+                      Icon(
+                        Icons.arrow_back,
+                        size: 19,
+                        color: ThemeColors.unifiedTextMuted,
+                      ),
                       SizedBox(width: 12),
-                      Text('Back to Main', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: ThemeColors.unifiedTextMuted)),
+                      Text(
+                        'Back to Main',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: ThemeColors.unifiedTextMuted,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -81,16 +105,35 @@ class AdminSidebar extends StatelessWidget {
                 CircleAvatar(
                   radius: 16,
                   backgroundColor: ThemeColors.unifiedPrimary,
-                  child: Text(user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                  child: Text(
+                    user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(user.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ThemeColors.unifiedTextPrimary)),
-                      const Text('Admin', style: TextStyle(fontSize: 11, color: ThemeColors.unifiedTextMuted)),
+                      Text(
+                        user.name,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: ThemeColors.unifiedTextPrimary,
+                        ),
+                      ),
+                      const Text(
+                        'Admin',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: ThemeColors.unifiedTextMuted,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -110,15 +153,32 @@ class AdminSidebar extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
-          gradient: sel ? const LinearGradient(colors: [ThemeColors.unifiedGradStart, ThemeColors.unifiedGradEnd]) : null,
+          gradient: sel
+              ? const LinearGradient(
+                  colors: [
+                    ThemeColors.unifiedGradStart,
+                    ThemeColors.unifiedGradEnd,
+                  ],
+                )
+              : null,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 19, color: sel ? Colors.white : ThemeColors.unifiedTextMuted),
+            Icon(
+              icon,
+              size: 19,
+              color: sel ? Colors.white : ThemeColors.unifiedTextMuted,
+            ),
             const SizedBox(width: 12),
-            Text(label, style: TextStyle(fontSize: 13, fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
-                color: sel ? Colors.white : ThemeColors.unifiedTextMuted)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                color: sel ? Colors.white : ThemeColors.unifiedTextMuted,
+              ),
+            ),
           ],
         ),
       ),

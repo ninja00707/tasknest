@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_helpers.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
@@ -180,7 +182,7 @@ class _TicketListWidgetState extends State<TicketListWidget> {
         return _GradientHeader(
           icon: Icons.assignment_ind_rounded,
           gradientColors: const [Color(0xFF0EA5E9), Color(0xFF06B6D4)],
-          title: 'My Tickets',
+          title: ConstStrings.navMyTickets,
           subtitle: '${all.length} assigned tickets',
           stats: [
             _StatData(label: 'Open',       count: open,       color: ThemeColors.unifiedSecondary),
@@ -193,7 +195,7 @@ class _TicketListWidgetState extends State<TicketListWidget> {
         return _GradientHeader(
           icon: Icons.history_rounded,
           gradientColors: const [Color(0xFF10B981), Color(0xFF34D399)],
-          title: 'Recent Activity',
+          title: ConstStrings.navRecentActivities,
           subtitle: '$all tickets · sorted by newest first',
         );
 
@@ -203,7 +205,7 @@ class _TicketListWidgetState extends State<TicketListWidget> {
         return _GradientHeader(
           icon: Icons.hub_outlined,
           gradientColors: const [Color(0xFF7C3AED), Color(0xFFA855F7)],
-          title: 'Sent Sub-Tickets',
+          title: ConstStrings.navSentSubTickets,
           subtitle: '$all tickets forwarded to other departments',
           stats: [
             _StatData(label: 'Total Sent', count: all.length,    color: const Color(0xFF7C3AED)),
@@ -406,7 +408,7 @@ class _TicketListWidgetState extends State<TicketListWidget> {
         children: [
           _PageBtn(
             icon: Icons.chevron_left,
-            label: 'Previous',
+            label: ConstStrings.previous,
             disabled: _page <= 1,
             onTap: () => setState(() => _page--),
           ),
@@ -426,7 +428,7 @@ class _TicketListWidgetState extends State<TicketListWidget> {
           const SizedBox(width: 12),
           _PageBtn(
             icon: Icons.chevron_right,
-            label: 'Next',
+            label: ConstStrings.next,
             disabled: _page >= total,
             onTap: () => setState(() => _page++),
           ),
@@ -491,7 +493,7 @@ class _GradientHeader extends StatelessWidget {
                       style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary)),
                     const SizedBox(height: 2),
                     Text(subtitle,
-                      style: const TextStyle(fontSize: 13, color: ThemeColors.unifiedTextMuted)),
+                      style: AppTextStyles.bodySmallMuted),
                   ],
                 ),
               ),
@@ -622,7 +624,7 @@ class _EmptyState extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 subtitle!,
-                style: const TextStyle(fontSize: 12, color: ThemeColors.unifiedTextMuted),
+                style: AppTextStyles.caption,
                 textAlign: TextAlign.center,
               ),
             ],
@@ -766,7 +768,7 @@ class _TimelineCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           StatusBadge(status: ticket.status),
                           const Spacer(),
-                          Text(dateStr, style: const TextStyle(fontSize: 10, color: ThemeColors.unifiedTextMuted)),
+                          Text(dateStr, style: AppTextStyles.micro),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -799,7 +801,7 @@ class _TimelineCard extends StatelessWidget {
                             const SizedBox(width: 3),
                             Flexible(
                               child: Text(ticket.assignedToName!,
-                                style: const TextStyle(fontSize: 10, color: ThemeColors.unifiedTextMuted),
+                                style: AppTextStyles.micro,
                                 overflow: TextOverflow.ellipsis),
                             ),
                           ],
@@ -882,7 +884,7 @@ class _KanbanColumn extends StatelessWidget {
           Expanded(
             child: tickets.isEmpty
                 ? Center(
-                    child: Text('No tickets',
+                    child: Text(ConstStrings.noTickets,
                       style: TextStyle(fontSize: 12, color: color.withOpacity(0.4), fontWeight: FontWeight.w600)),
                   )
                 : ListView.builder(

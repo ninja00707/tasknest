@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 import 'package:tasknest/presentation/login/bloc/login_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  COMMON TOP BAR
@@ -106,7 +108,7 @@ class _AppTopBar extends StatelessWidget implements PreferredSizeWidget {
             ),
             alignment: Alignment.center,
             child: const Text(
-              'TN',
+              ConstStrings.appShortName,
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w800,
@@ -125,23 +127,13 @@ class _AppTopBar extends StatelessWidget implements PreferredSizeWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: ThemeColors.unifiedTextPrimary,
-                    letterSpacing: -0.3,
-                    height: 1.1,
-                  ),
+                  style: AppTextStyles.sectionHeader,
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 1),
                   Text(
                     subtitle!,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: ThemeColors.unifiedTextMuted,
-                    ),
+                    style: AppTextStyles.label,
                   ),
                 ],
               ],
@@ -159,7 +151,7 @@ class _AppTopBar extends StatelessWidget implements PreferredSizeWidget {
               icon: Icons.refresh_rounded,
               color: ThemeColors.unifiedPrimary,
               onTap: () => context.read<DashboardBloc>().add(LoadDashboard()),
-              tooltip: 'Refresh',
+              tooltip: ConstStrings.refresh,
             ),
             const SizedBox(width: 8),
           ],
@@ -198,7 +190,7 @@ class _AppTopBar extends StatelessWidget implements PreferredSizeWidget {
               context.read<AuthBloc>().add(LogoutEvent());
               context.go('/login');
             },
-            tooltip: 'Logout',
+            tooltip: ConstStrings.logout,
           ),
         ],
       ),

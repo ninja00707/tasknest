@@ -6,40 +6,184 @@ abstract class AuthState extends Equatable {
   final bool obscurePassword;
   final AuthViewMode currentMode;
 
+  // Signup form fields
+  final String signupName;
+  final String signupEmail;
+  final String signupPassword;
+  final int signupRoleId;
+  final int signupCompanyId;
+  final int signupDeptId;
+
   const AuthState({
     this.isLoading = false,
     this.obscurePassword = true,
     this.currentMode = AuthViewMode.login,
+    this.signupName = '',
+    this.signupEmail = '',
+    this.signupPassword = '',
+    this.signupRoleId = 0,
+    this.signupCompanyId = 0,
+    this.signupDeptId = 0,
   });
 
   @override
-  List<Object?> get props => [isLoading, obscurePassword, currentMode];
+  List<Object?> get props => [
+        isLoading,
+        obscurePassword,
+        currentMode,
+        signupName,
+        signupEmail,
+        signupPassword,
+        signupRoleId,
+        signupCompanyId,
+        signupDeptId,
+      ];
+
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  });
 }
 
 class AuthInitial extends AuthState {
-  const AuthInitial({super.currentMode});
+  const AuthInitial({
+    super.currentMode,
+    super.signupName,
+    super.signupEmail,
+    super.signupPassword,
+    super.signupRoleId,
+    super.signupCompanyId,
+    super.signupDeptId,
+  });
+
+  @override
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  }) {
+    return AuthInitial(
+      currentMode: currentMode,
+      signupName: name ?? signupName,
+      signupEmail: email ?? signupEmail,
+      signupPassword: password ?? signupPassword,
+      signupRoleId: roleId ?? signupRoleId,
+      signupCompanyId: companyId ?? signupCompanyId,
+      signupDeptId: deptId ?? signupDeptId,
+    );
+  }
 }
 
 class AuthLoading extends AuthState {
-  const AuthLoading({super.obscurePassword, super.currentMode})
-    : super(isLoading: true);
+  const AuthLoading({
+    super.obscurePassword,
+    super.currentMode,
+    super.signupName,
+    super.signupEmail,
+    super.signupPassword,
+    super.signupRoleId,
+    super.signupCompanyId,
+    super.signupDeptId,
+  }) : super(isLoading: true);
+
+  @override
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  }) {
+    return AuthLoading(
+      obscurePassword: obscurePassword,
+      currentMode: currentMode,
+      signupName: name ?? signupName,
+      signupEmail: email ?? signupEmail,
+      signupPassword: password ?? signupPassword,
+      signupRoleId: roleId ?? signupRoleId,
+      signupCompanyId: companyId ?? signupCompanyId,
+      signupDeptId: deptId ?? signupDeptId,
+    );
+  }
 }
 
 class AuthAuthenticated extends AuthState {
   const AuthAuthenticated({super.currentMode});
+
+  @override
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  }) =>
+      this;
 }
 
 class AuthUnauthenticated extends AuthState {
   const AuthUnauthenticated({super.currentMode});
+
+  @override
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  }) =>
+      this;
 }
 
 class AuthError extends AuthState {
   final String message;
 
-  const AuthError(this.message, {super.obscurePassword, super.currentMode});
+  const AuthError(
+    this.message, {
+    super.obscurePassword,
+    super.currentMode,
+    super.signupName,
+    super.signupEmail,
+    super.signupPassword,
+    super.signupRoleId,
+    super.signupCompanyId,
+    super.signupDeptId,
+  });
 
   @override
   List<Object?> get props => [message, isLoading, obscurePassword, currentMode];
+
+  @override
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  }) {
+    return AuthError(
+      message,
+      obscurePassword: obscurePassword,
+      currentMode: currentMode,
+      signupName: name ?? signupName,
+      signupEmail: email ?? signupEmail,
+      signupPassword: password ?? signupPassword,
+      signupRoleId: roleId ?? signupRoleId,
+      signupCompanyId: companyId ?? signupCompanyId,
+      signupDeptId: deptId ?? signupDeptId,
+    );
+  }
 }
 
 class PasswordVisibilityState extends AuthState {
@@ -47,7 +191,29 @@ class PasswordVisibilityState extends AuthState {
     required bool obscurePassword,
     required bool isLoading,
     super.currentMode,
+    super.signupName,
+    super.signupEmail,
+    super.signupPassword,
+    super.signupRoleId,
+    super.signupCompanyId,
+    super.signupDeptId,
   }) : super(obscurePassword: obscurePassword, isLoading: isLoading);
+
+  @override
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  }) {
+    return PasswordVisibilityState(
+      obscurePassword: obscurePassword,
+      isLoading: isLoading,
+      currentMode: currentMode,
+    );
+  }
 }
 
 class AuthForgotPasswordSent extends AuthState {
@@ -65,14 +231,25 @@ class AuthForgotPasswordSent extends AuthState {
 
   @override
   List<Object?> get props => [
-    message,
-    resetToken,
-    expiresIn,
-    email,
-    isLoading,
-    obscurePassword,
-    currentMode,
-  ];
+        message,
+        resetToken,
+        expiresIn,
+        email,
+        isLoading,
+        obscurePassword,
+        currentMode,
+      ];
+
+  @override
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  }) =>
+      this;
 }
 
 class AuthForgotPasswordError extends AuthState {
@@ -81,6 +258,17 @@ class AuthForgotPasswordError extends AuthState {
 
   @override
   List<Object?> get props => [message, isLoading, obscurePassword, currentMode];
+
+  @override
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  }) =>
+      this;
 }
 
 class AuthResetPasswordSuccess extends AuthState {
@@ -89,6 +277,17 @@ class AuthResetPasswordSuccess extends AuthState {
 
   @override
   List<Object?> get props => [message, isLoading, obscurePassword, currentMode];
+
+  @override
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  }) =>
+      this;
 }
 
 class AuthResetPasswordError extends AuthState {
@@ -97,6 +296,17 @@ class AuthResetPasswordError extends AuthState {
 
   @override
   List<Object?> get props => [message, isLoading, obscurePassword, currentMode];
+
+  @override
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  }) =>
+      this;
 }
 
 class AuthRegistrationPending extends AuthState {
@@ -105,6 +315,17 @@ class AuthRegistrationPending extends AuthState {
 
   @override
   List<Object?> get props => [message, isLoading, obscurePassword, currentMode];
+
+  @override
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  }) =>
+      this;
 }
 
 class AuthMustResetPassword extends AuthState {
@@ -120,13 +341,24 @@ class AuthMustResetPassword extends AuthState {
 
   @override
   List<Object?> get props => [
-    userId,
-    email,
-    message,
-    isLoading,
-    obscurePassword,
-    currentMode,
-  ];
+        userId,
+        email,
+        message,
+        isLoading,
+        obscurePassword,
+        currentMode,
+      ];
+
+  @override
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  }) =>
+      this;
 }
 
 class AuthFirstLoginResetSuccess extends AuthState {
@@ -135,6 +367,17 @@ class AuthFirstLoginResetSuccess extends AuthState {
 
   @override
   List<Object?> get props => [message, isLoading, obscurePassword, currentMode];
+
+  @override
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  }) =>
+      this;
 }
 
 class AuthFirstLoginResetError extends AuthState {
@@ -143,4 +386,15 @@ class AuthFirstLoginResetError extends AuthState {
 
   @override
   List<Object?> get props => [message, isLoading, obscurePassword, currentMode];
+
+  @override
+  AuthState copyWithSignup({
+    String? name,
+    String? email,
+    String? password,
+    int? roleId,
+    int? companyId,
+    int? deptId,
+  }) =>
+      this;
 }

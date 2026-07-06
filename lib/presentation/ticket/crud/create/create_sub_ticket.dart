@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_event.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 
 class CreateSubTicketView extends StatefulWidget {
   final UserModel user;
@@ -180,7 +182,7 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Creating sub-ticket for #${widget.parentTicketId} ${widget.parentTicketTitle ?? ""}',
+                      '${ConstStrings.creatingSubTicketFor}${widget.parentTicketId} ${widget.parentTicketTitle ?? ""}',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -218,7 +220,7 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
                     Text(
-                      'Create Multi Task Ticket',
+                      ConstStrings.createMultiTaskTicket,
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
@@ -228,11 +230,8 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'Multi-department collaborative ticket (Manager only)',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: ThemeColors.unifiedTextMuted,
-                      ),
+                      ConstStrings.multiDeptCollabTicket,
+                      style: AppTextStyles.bodySmallMuted,
                     ),
                   ],
                 ),
@@ -250,7 +249,7 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                   ),
                 ),
                 child: const Text(
-                  'MULTI TASK',
+                  ConstStrings.multiTask,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -293,29 +292,28 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _label('Title', Icons.title_rounded, required: true),
+                        _label(ConstStrings.title, Icons.title_rounded, required: true),
                         const SizedBox(height: 8),
                         _textField(
                           controller: _title,
-                          hint: 'Sub-ticket title',
+                          hint: ConstStrings.title,
                           validator: (v) => v == null || v.isEmpty
-                              ? 'Title is required'
+                              ? ConstStrings.titleRequired
                               : null,
                         ),
                         const SizedBox(height: 20),
                         _label(
-                          'Overall Description',
+                          ConstStrings.overallDescription,
                           Icons.notes_rounded,
                           required: true,
                         ),
                         const SizedBox(height: 8),
                         _textField(
                           controller: _description,
-                          hint:
-                              'Describe the overall objective across departments...',
+                          hint: ConstStrings.describeOverallObjective,
                           maxLines: 3,
                           validator: (v) => v == null || v.isEmpty
-                              ? 'Description is required'
+                              ? ConstStrings.descriptionIsRequired
                               : null,
                         ),
                         const SizedBox(height: 20),
@@ -329,7 +327,7 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                         Row(
                           children: [
                             _label(
-                              'Select Departments',
+                              ConstStrings.selectDepartments,
                               Icons.business_outlined,
                               required: true,
                             ),
@@ -359,11 +357,8 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          'Pick 2 or more departments. A task box appears for each.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: ThemeColors.unifiedTextMuted,
-                          ),
+                          ConstStrings.pick2OrMoreDepts,
+                          style: AppTextStyles.caption,
                         ),
                         const SizedBox(height: 12),
                         Wrap(
@@ -399,7 +394,7 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                         if (_selectedDepts.isNotEmpty) ...[
                           const SizedBox(height: 24),
                           _label(
-                            'Department Tasks',
+                            ConstStrings.departmentTasks,
                             Icons.assignment_outlined,
                             required: true,
                           ),
@@ -462,8 +457,8 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                                   const SizedBox(width: 8),
                                   Text(
                                     _submitting
-                                        ? 'Creating...'
-                                        : 'Create Sub-Ticket',
+                                        ? ConstStrings.creating
+                                        : ConstStrings.createSubTicketBtn,
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
@@ -538,7 +533,7 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
             hint: 'Task instructions for ${entry.department.name}...',
             maxLines: 3,
             validator: (v) => v == null || v.trim().isEmpty
-                ? 'Task description required'
+                ? ConstStrings.taskDescriptionRequired
                 : null,
           ),
         ],
@@ -577,16 +572,10 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
       controller: controller,
       maxLines: maxLines,
       validator: validator,
-      style: const TextStyle(
-        fontSize: 14,
-        color: ThemeColors.unifiedTextPrimary,
-      ),
+      style: AppTextStyles.body,
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(
-          color: ThemeColors.unifiedTextMuted,
-          fontSize: 14,
-        ),
+        hintStyle: AppTextStyles.bodyMuted,
         filled: true,
         fillColor: ThemeColors.unifiedInputBg,
         contentPadding: const EdgeInsets.symmetric(
@@ -692,7 +681,7 @@ class _DateField extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Text(
-              dueDate ?? 'Pick a due date (optional)',
+              dueDate ?? ConstStrings.pickDueDateOptional,
               style: TextStyle(
                 fontSize: 14,
                 color: dueDate != null

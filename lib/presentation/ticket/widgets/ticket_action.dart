@@ -1,12 +1,12 @@
 // ── Ticket Actions ────────────────────────────────────────────────────────────
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
-
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/widgets/action_button.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_event.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
@@ -66,11 +66,10 @@ class TicketActions extends StatelessWidget {
                 !hasUnfinalizedSubs)
               ActionBtn(
                 icon: Icons.person_add_outlined,
-                tooltip: 'Self Assign',
+                tooltip: ConstStrings.selfAssign,
                 color: ThemeColors.unifiedSecondary,
-                onTap: () => context.read<TicketBloc>().add(
-                  SelfAssignTicket(ticket.id),
-                ),
+                onTap: () =>
+                    context.read<TicketBloc>().add(SelfAssignTicket(ticket.id)),
               ),
 
             // 2. Managerial Assign: Only for Managers of the assigned department if unassigned
@@ -81,18 +80,16 @@ class TicketActions extends StatelessWidget {
                 !hasUnfinalizedSubs)
               ActionBtn(
                 icon: Icons.manage_accounts_outlined,
-                tooltip: 'Assign to Employee',
+                tooltip: ConstStrings.assignToEmployee,
                 color: ThemeColors.unifiedAccent,
                 onTap: () => _showAssignDialog(context, loadedState!),
               ),
 
             // 3. Mark Completed (Done) — only the assigned resolver
-            if (ticket.isInProgress &&
-                !hasUnfinalizedSubs &&
-                isResolver)
+            if (ticket.isInProgress && !hasUnfinalizedSubs && isResolver)
               ActionBtn(
                 icon: Icons.check_circle_outline,
-                tooltip: 'Mark Done',
+                tooltip: ConstStrings.markDone,
                 color: ThemeColors.unifiedPrimary,
                 onTap: () => _showStatusRemarkDialog(context, 'completed'),
               ),
@@ -100,10 +97,12 @@ class TicketActions extends StatelessWidget {
             // 4. Finalize & Close: resolver only (for sub-tickets) or creator/CEO (for main)
             if (ticket.isCompleted &&
                 !hasUnfinalizedSubs &&
-                (ticket is ChildTicketModel ? isResolver : (isCreator || isCeo || isCreatingDeptManager)))
+                (ticket is ChildTicketModel
+                    ? isResolver
+                    : (isCreator || isCeo || isCreatingDeptManager)))
               ActionBtn(
                 icon: Icons.lock_outline,
-                tooltip: 'Finalize & Close',
+                tooltip: ConstStrings.finalizeAndClose,
                 color: ThemeColors.unifiedPrimary,
                 onTap: () => _showStatusRemarkDialog(context, 'closed'),
               ),
@@ -116,7 +115,7 @@ class TicketActions extends StatelessWidget {
                 ticket.immediateChildCount == 0)
               ActionBtn(
                 icon: Icons.add_link_rounded,
-                tooltip: 'Create Sub Ticket',
+                tooltip: ConstStrings.createSubTicket,
                 color: ThemeColors.unifiedWarning,
                 onTap: () => _showSubTicketDialog(context, ticket),
               ),
@@ -125,7 +124,7 @@ class TicketActions extends StatelessWidget {
             if ((isCreator || isCeo) && ticket.canReopenBy(user.id))
               ActionBtn(
                 icon: Icons.replay_rounded,
-                tooltip: 'Reopen',
+                tooltip: ConstStrings.reopen,
                 color: ThemeColors.unifiedAccent,
                 onTap: () =>
                     context.read<TicketBloc>().add(ReopenTicket(ticket.id)),
@@ -141,7 +140,7 @@ class TicketActions extends StatelessWidget {
     if (state.employees.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No employees found in your department'),
+          content: Text(ConstStrings.noEmployeesInDept),
           backgroundColor: ThemeColors.unifiedDanger,
         ),
       );
@@ -160,7 +159,7 @@ class TicketActions extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               title: const Text(
-                'Assign Ticket',
+                ConstStrings.assignTicket,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: ThemeColors.unifiedTextPrimary,
@@ -169,7 +168,7 @@ class TicketActions extends StatelessWidget {
               content: DropdownButtonFormField<int>(
                 value: selectedEmployeeId,
                 decoration: InputDecoration(
-                  labelText: 'Employee',
+                  labelText: ConstStrings.employee,
                   filled: true,
                   fillColor: ThemeColors.unifiedInputBg,
                   border: OutlineInputBorder(
@@ -196,7 +195,7 @@ class TicketActions extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
+                  child: const Text(ConstStrings.cancel),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -210,7 +209,7 @@ class TicketActions extends StatelessWidget {
                     foregroundColor: Colors.white,
                     elevation: 0,
                   ),
-                  child: const Text('Assign'),
+                  child: const Text(ConstStrings.assign),
                 ),
               ],
             );
@@ -233,14 +232,14 @@ class TicketActions extends StatelessWidget {
             controller: controller,
             maxLines: 3,
             decoration: const InputDecoration(
-              hintText: 'Write work summary / closing remark',
+              hintText: ConstStrings.workSummaryHint,
               border: OutlineInputBorder(),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
+              child: const Text(ConstStrings.cancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -249,7 +248,7 @@ class TicketActions extends StatelessWidget {
                 Navigator.pop(dialogContext);
                 bloc.add(UpdateTicketStatus(ticket.id, status, remark: remark));
               },
-              child: const Text('Submit'),
+              child: const Text(ConstStrings.submit),
             ),
           ],
         );
@@ -278,8 +277,7 @@ class TicketActions extends StatelessWidget {
     if (loadedState == null) return;
 
     // Rule 3: Prevent duplicate sub-ticket creation for the same department in the chain
-    final occupiedDeptIds =
-        ticket.deptJourney.map((j) => j['id']).toList();
+    final occupiedDeptIds = ticket.deptJourney.map((j) => j['id']).toList();
 
     final depts = loadedState.departments
         .where((d) => !occupiedDeptIds.contains(d.id))
@@ -288,7 +286,7 @@ class TicketActions extends StatelessWidget {
     if (depts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No departments available for sub-ticket'),
+          content: Text(ConstStrings.noDeptsForSubTicket),
         ),
       );
 
@@ -307,7 +305,7 @@ class TicketActions extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               title: const Text(
-                'Create Sub Ticket',
+                ConstStrings.createSubTicket,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   color: ThemeColors.unifiedTextPrimary,
@@ -321,27 +319,27 @@ class TicketActions extends StatelessWidget {
                     TextFormField(
                       controller: titleController,
                       decoration: const InputDecoration(
-                        labelText: 'Title',
-                        hintText: 'Enter sub-ticket title',
+                        labelText: ConstStrings.title,
+                        hintText: ConstStrings.enterSubTicketTitle,
                       ),
-                      validator: (v) => v!.isEmpty ? 'Title is required' : null,
+                      validator: (v) => v!.isEmpty ? ConstStrings.titleRequired : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: descController,
                       decoration: const InputDecoration(
-                        labelText: 'Description',
-                        hintText: 'Enter task description',
+                        labelText: ConstStrings.descriptionLabel,
+                        hintText: ConstStrings.enterTaskDescription,
                       ),
                       maxLines: 2,
                       validator: (v) =>
-                          v!.isEmpty ? 'Description is required' : null,
+                          v!.isEmpty ? ConstStrings.descriptionRequired : null,
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<int>(
                       value: selectedDeptId,
                       decoration: InputDecoration(
-                        labelText: 'Target Department',
+                        labelText: ConstStrings.targetDepartment,
                         filled: true,
                         fillColor: ThemeColors.unifiedInputBg,
                         border: OutlineInputBorder(
@@ -371,7 +369,7 @@ class TicketActions extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
+                  child: const Text(ConstStrings.cancel),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -392,7 +390,7 @@ class TicketActions extends StatelessWidget {
                     foregroundColor: Colors.white,
                     elevation: 0,
                   ),
-                  child: const Text('Create Sub Ticket'),
+                  child: const Text(ConstStrings.createSubTicket),
                 ),
               ],
             );

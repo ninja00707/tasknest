@@ -3,16 +3,15 @@ import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/routes/routes_name.dart';
 import 'package:tasknest/core/routes/ticket_type_grid_args.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
+import 'package:tasknest/presentation/login/widget/welcome_screen.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_list.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/admin/presentation/screens/admin_shell_screen.dart';
 import 'package:tasknest/presentation/dashboard/dashboard_screen.dart';
 import 'package:tasknest/presentation/ticket/widgets/routed_screens.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_detail_screen.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
-import 'package:tasknest/presentation/login/signup_screen.dart';
-
-import 'package:tasknest/presentation/login/login_view.dart';
+import 'package:tasknest/presentation/login/signup_view.dart';
 
 final LocalStorageService storage = LocalStorageService();
 UserModel? _user;
@@ -24,7 +23,9 @@ final GoRouter appRouter = GoRouter(
 
     final loggedIn = token != null && token.isNotEmpty;
 
-    final isLoginRoute = state.matchedLocation == RouteNames.login;
+    final isLoginRoute = state.matchedLocation == RouteNames.login ||
+        state.matchedLocation == RouteNames.loginForgotPassword ||
+        state.matchedLocation == RouteNames.loginFirstReset;
 
     if (!loggedIn && !isLoginRoute) {
       return RouteNames.login;
@@ -40,17 +41,18 @@ final GoRouter appRouter = GoRouter(
   routes: [
     GoRoute(
       path: RouteNames.login,
-      builder: (context, state) => const LoginScreen(),
+      builder: (context, state) => const WelcomeScreen(),
     ),
 
-    GoRoute(path: '/signup', builder: (context, state) => const SignupScreen()),
+    GoRoute(
+      path: RouteNames.signup,
+      builder: (context, state) => SignupScreen(),
+    ),
 
     // Dashboard shell — sidebar persists, only content swaps, URL updates
     ShellRoute(
-      builder: (context, state, child) => DashboardScreen(
-        user: _user!,
-        child: child,
-      ),
+      builder: (context, state, child) =>
+          DashboardScreen(user: _user!, child: child),
       routes: [
         GoRoute(
           path: RouteNames.dashboard,
@@ -58,8 +60,7 @@ final GoRouter appRouter = GoRouter(
         ),
         GoRoute(
           path: RouteNames.departmentTickets,
-          builder: (context, state) =>
-              DepartmentTicketsContent(user: _user!),
+          builder: (context, state) => DepartmentTicketsContent(user: _user!),
         ),
         GoRoute(
           path: RouteNames.newTicket,
@@ -67,13 +68,11 @@ final GoRouter appRouter = GoRouter(
         ),
         GoRoute(
           path: RouteNames.sentSubTickets,
-          builder: (context, state) =>
-              SentSubTicketsContent(user: _user!),
+          builder: (context, state) => SentSubTicketsContent(user: _user!),
         ),
         GoRoute(
           path: RouteNames.recentActivities,
-          builder: (context, state) =>
-              RecentActivitiesContent(user: _user!),
+          builder: (context, state) => RecentActivitiesContent(user: _user!),
         ),
         GoRoute(
           path: RouteNames.ticketTypes,

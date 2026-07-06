@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 
 // ── Empty state ───────────────────────────────────────────────────────────────
 class EmptyState extends StatelessWidget {
@@ -37,18 +39,14 @@ class EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              filterActive ? 'No matching tickets' : 'No tickets yet',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: ThemeColors.unifiedTextPrimary,
-              ),
+              filterActive ? ConstStrings.noMatchingTickets : ConstStrings.noTicketsYet,
+              style: AppTextStyles.cardTitle,
             ),
             const SizedBox(height: 6),
             Text(
               filterActive
-                  ? 'Try adjusting or clearing your filters'
-                  : 'Tickets assigned to your department will appear here',
+                  ? ConstStrings.tryAdjustingFilters
+                  : ConstStrings.ticketsWillAppear,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 13,
@@ -91,7 +89,7 @@ class EmptyState extends StatelessWidget {
                       ),
                       SizedBox(width: 7),
                       Text(
-                        'Clear Filters',
+                        ConstStrings.clearFilters,
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,

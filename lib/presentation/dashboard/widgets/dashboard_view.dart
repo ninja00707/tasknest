@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/constant/name_by_id.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_section_headers.dart';
@@ -13,6 +14,7 @@ import 'package:tasknest/presentation/dashboard/widgets/dashboard_ticket_section
 import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 import 'package:tasknest/presentation/login/bloc/login_event.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 
 class DashboardView extends StatelessWidget {
   final DashboardLoaded state;
@@ -94,7 +96,8 @@ class _DashboardBody extends StatelessWidget {
                   if (isManager) DashboardStatsSection(s: s, isWide: isWide),
 
                   // ── Ticket section (employees only) ────────────────
-                  if (!isManager) DashboardTicketSection(state: state, user: user),
+                  if (!isManager)
+                    DashboardTicketSection(state: state, user: user),
                 ],
               ),
             ),
@@ -123,10 +126,10 @@ class _HeroHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final hour = DateTime.now().hour;
     final greeting = hour < 12
-        ? 'Good morning'
+        ? ConstStrings.goodMorning
         : hour < 17
-        ? 'Good afternoon'
-        : 'Good evening';
+        ? ConstStrings.goodAfternoon
+        : ConstStrings.goodEvening;
 
     return Container(
       width: double.infinity,
@@ -203,7 +206,7 @@ class _HeroHeader extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Here\'s what\'s happening with your tickets today',
+                            ConstStrings.dashboardSubtitle,
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.white.withOpacity(0.75),
@@ -216,7 +219,7 @@ class _HeroHeader extends StatelessWidget {
                     const SizedBox(width: 12),
                     _HeroActionButton(
                       icon: Icons.refresh_rounded,
-                      label: isWide ? 'Refresh' : null,
+                      label: isWide ? ConstStrings.refresh : null,
                       onTap: () => context.read<DashboardBloc>().add(
                         LoadDashboard(page: 1),
                       ),
@@ -224,7 +227,7 @@ class _HeroHeader extends StatelessWidget {
                     const SizedBox(width: 8),
                     _HeroActionButton(
                       icon: Icons.power_settings_new_rounded,
-                      label: isWide ? 'Logout' : null,
+                      label: isWide ? ConstStrings.logout : null,
                       onTap: () {
                         context.read<AuthBloc>().add(LogoutEvent());
                         context.go('/login');

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_helpers.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
@@ -52,13 +54,8 @@ class FilterBarWidget extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 const Text(
-                  'Tickets',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: ThemeColors.unifiedTextPrimary,
-                    letterSpacing: -0.2,
-                  ),
+                  ConstStrings.tickets,
+                  style: AppTextStyles.sectionHeader,
                 ),
                 const Spacer(),
                 // ── View toggle ──────────────────────────────
@@ -95,7 +92,7 @@ class FilterBarWidget extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          boardView ? 'List' : 'Board',
+                          boardView ? ConstStrings.listView : ConstStrings.boardView,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -138,7 +135,7 @@ class FilterBarWidget extends StatelessWidget {
                           ),
                           SizedBox(width: 4),
                           Text(
-                            'Clear',
+                            ConstStrings.clearFilters,
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -257,7 +254,7 @@ class FilterBarWidget extends StatelessWidget {
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          'MY TEAM',
+                          ConstStrings.myTeam,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
@@ -282,7 +279,7 @@ class FilterBarWidget extends StatelessWidget {
                 if (state.filterTeam) ...[
                   const SizedBox(width: 8),
                   Text(
-                    'tickets from your team',
+                    ConstStrings.ticketsFromYourTeam,
                     style: TextStyle(
                       fontSize: 11,
                       color: ThemeColors.unifiedTextMuted.withOpacity(0.7),

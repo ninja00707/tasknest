@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
@@ -22,7 +23,7 @@ class SearchBarWidget extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: TextField(
         decoration: InputDecoration(
-          hintText: 'Search tickets by #, name, dept, date...',
+          hintText: ConstStrings.searchHint,
           hintStyle: TextStyle(
             color: ThemeColors.unifiedTextMuted.withOpacity(0.6),
             fontSize: 13,

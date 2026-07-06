@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'search_bar_widget.dart';
 import 'filter_bar_widget.dart';
 import 'ticket_body_widget.dart';

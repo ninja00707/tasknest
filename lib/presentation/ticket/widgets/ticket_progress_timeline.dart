@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 
 class ProgressTimeline extends StatelessWidget {
@@ -29,29 +30,29 @@ class ProgressTimeline extends StatelessWidget {
       TimelineStep(
         step: 1,
         icon: Icons.add_circle_outline_rounded,
-        title: 'Ticket Created',
-        description: 'Request logged in the system.',
+        title: ConstStrings.stepTicketCreated,
+        description: ConstStrings.stepTicketCreatedDesc,
         color: ThemeColors.unifiedPrimary,
       ),
       TimelineStep(
         step: 2,
         icon: Icons.assignment_ind_outlined,
-        title: 'In Progress',
-        description: 'A resolver is working on this.',
+        title: ConstStrings.stepInProgress,
+        description: ConstStrings.stepInProgressDesc,
         color: ThemeColors.unifiedSecondary,
       ),
       TimelineStep(
         step: 3,
         icon: Icons.check_circle_outline_rounded,
-        title: 'Completed',
-        description: 'Task finished, awaiting closure.',
+        title: ConstStrings.stepCompleted,
+        description: ConstStrings.stepCompletedDesc,
         color: ThemeColors.unifiedAccent,
       ),
       TimelineStep(
         step: 4,
         icon: Icons.lock_outline_rounded,
-        title: 'Closed',
-        description: 'Resolved and archived.',
+        title: ConstStrings.stepClosed,
+        description: ConstStrings.stepClosedDesc,
         color: ThemeColors.unifiedTextMuted,
         isLast: true,
       ),
@@ -182,7 +183,7 @@ class TimelineItem extends StatelessWidget {
                       border: Border.all(color: step.color.withOpacity(0.3)),
                     ),
                     child: Text(
-                      'NOW',
+                      ConstStrings.now,
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.w800,

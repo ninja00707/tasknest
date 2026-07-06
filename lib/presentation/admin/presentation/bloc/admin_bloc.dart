@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/presentation/admin/domain/repositories/admin_repository.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_event.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_state.dart';
@@ -48,7 +49,7 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
       await _repo.createUser(event.body);
       if (event.context.mounted) {
         ScaffoldMessenger.of(event.context).showSnackBar(
-          const SnackBar(content: Text('User created successfully')),
+          const SnackBar(content: Text(ConstStrings.userCreatedSuccess)),
         );
       }
       add(LoadUsers());
@@ -60,7 +61,7 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
       await _repo.updateUser(event.id, event.body);
       if (event.context.mounted) {
         ScaffoldMessenger.of(event.context).showSnackBar(
-          const SnackBar(content: Text('User updated successfully')),
+          const SnackBar(content: Text(ConstStrings.userUpdatedSuccess)),
         );
       }
       add(LoadUsers());
@@ -72,7 +73,7 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
       await _repo.deleteUser(event.id);
       if (event.context.mounted) {
         ScaffoldMessenger.of(event.context).showSnackBar(
-          const SnackBar(content: Text('User deactivated successfully')),
+          const SnackBar(content: Text(ConstStrings.userDeactivatedSuccess)),
         );
       }
       add(LoadUsers());
@@ -100,7 +101,7 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
       await _repo.approveUser(event.id);
       if (event.context.mounted) {
         ScaffoldMessenger.of(event.context).showSnackBar(
-          const SnackBar(content: Text('User approved successfully')),
+          const SnackBar(content: Text(ConstStrings.userApprovedSuccess)),
         );
       }
       add(LoadPendingUsers());
@@ -121,7 +122,7 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
       await _repo.createDept(event.body);
       if (event.context.mounted) {
         ScaffoldMessenger.of(event.context).showSnackBar(
-          const SnackBar(content: Text('Department created successfully')),
+          const SnackBar(content: Text(ConstStrings.deptCreatedSuccess)),
         );
       }
       add(LoadDepartments());
@@ -133,7 +134,7 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
       await _repo.updateDept(event.id, event.body);
       if (event.context.mounted) {
         ScaffoldMessenger.of(event.context).showSnackBar(
-          const SnackBar(content: Text('Department updated successfully')),
+          const SnackBar(content: Text(ConstStrings.deptUpdatedSuccess)),
         );
       }
       add(LoadDepartments());
@@ -145,7 +146,7 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
       await _repo.deleteDept(event.id);
       if (event.context.mounted) {
         ScaffoldMessenger.of(event.context).showSnackBar(
-          const SnackBar(content: Text('Department deleted successfully')),
+          const SnackBar(content: Text(ConstStrings.deptDeletedSuccess)),
         );
       }
       add(LoadDepartments());
@@ -165,7 +166,7 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
       await _repo.deleteTicket(event.id);
       if (event.context.mounted) {
         ScaffoldMessenger.of(event.context).showSnackBar(
-          const SnackBar(content: Text('Ticket deleted successfully')),
+          const SnackBar(content: Text(ConstStrings.ticketDeletedSuccess)),
         );
       }
       add(LoadTickets(status: state is TicketsLoaded ? (state as TicketsLoaded).filterStatus : null));

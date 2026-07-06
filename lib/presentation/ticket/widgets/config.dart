@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
 /// Determines how tickets are visually arranged.
@@ -99,7 +100,7 @@ class TicketListConfig {
     this.pageSize = 15,
     this.enableFilters = false,
     this.emptyIcon = Icons.inbox_rounded,
-    this.emptyTitle = 'No tickets',
+    this.emptyTitle = ConstStrings.noTickets,
     this.emptySubtitle,
     this.user,
   });
@@ -115,8 +116,8 @@ class TicketListConfig {
         enablePagination: false,
         enableFilters: true,
         emptyIcon: Icons.inbox_rounded,
-        emptyTitle: 'No tickets assigned to you',
-        emptySubtitle: 'New tickets will appear here when assigned',
+        emptyTitle: ConstStrings.noTicketsAssigned,
+        emptySubtitle: ConstStrings.newTicketsWillAppear,
         user: user,
         onTap: null,
       );
@@ -129,7 +130,7 @@ class TicketListConfig {
         enablePagination: true,
         pageSize: 15,
         emptyIcon: Icons.history_toggle_off,
-        emptyTitle: 'No recent activity',
+        emptyTitle: ConstStrings.noRecentActivity,
         emptySubtitle: 'Ticket activity will appear here as updates come in',
       );
 
@@ -142,7 +143,7 @@ class TicketListConfig {
         enablePagination: true,
         pageSize: 15,
         emptyIcon: Icons.share_outlined,
-        emptyTitle: 'No sub-tickets sent yet',
+        emptyTitle: ConstStrings.noSubTicketsSent,
         emptySubtitle:
             'Sub-tickets created for other departments will appear here',
         user: user,

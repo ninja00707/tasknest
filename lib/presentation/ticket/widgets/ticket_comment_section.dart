@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_date_format.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_event.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_detail_info.dart';
 
 class CommentSection extends StatefulWidget {
@@ -57,7 +59,7 @@ class _CommentSectionState extends State<CommentSection> {
 
     return SectionCard(
       icon: Icons.chat_outlined,
-      title: 'Comments (${comments.length})',
+      title: ConstStrings.commentsCount(comments.length),
       child: Column(
         children: [
           Container(
@@ -76,8 +78,8 @@ class _CommentSectionState extends State<CommentSection> {
                   maxLines: 3,
                   decoration: InputDecoration(
                     hintText: _canComment
-                        ? 'Write a comment or update...'
-                        : 'Comments are closed',
+                        ? ConstStrings.writeCommentHint
+                        : ConstStrings.commentsClosed,
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.all(14),
                   ),
@@ -94,7 +96,7 @@ class _CommentSectionState extends State<CommentSection> {
                       ElevatedButton.icon(
                         onPressed: _canComment ? _submitComment : null,
                         icon: const Icon(Icons.send_rounded, size: 15),
-                        label: const Text('Post'),
+                        label: const Text(ConstStrings.post),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: ThemeColors.unifiedPrimary,
                           foregroundColor: Colors.white,
@@ -134,7 +136,7 @@ class _CommentSectionState extends State<CommentSection> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Comments are closed for this ticket.',
+                      ConstStrings.commentsClosedForTicket,
                       style: const TextStyle(
                         fontSize: 12,
                         color: ThemeColors.unifiedInfo,
@@ -150,11 +152,8 @@ class _CommentSectionState extends State<CommentSection> {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 20),
               child: Text(
-                'No comments yet.',
-                style: TextStyle(
-                  color: ThemeColors.unifiedTextMuted,
-                  fontSize: 13,
-                ),
+                ConstStrings.noCommentsYet,
+                style: AppTextStyles.bodySmallMuted,
               ),
             )
           else
@@ -297,13 +296,10 @@ class CommentTile extends StatelessWidget {
                         ),
                       ),
                     const Spacer(),
-                    Text(
-                      CommonDateFormat.formatDateTime(comment.createdAt),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: ThemeColors.unifiedTextMuted,
+                      Text(
+                        CommonDateFormat.formatDateTime(comment.createdAt),
+                        style: AppTextStyles.micro,
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 8),

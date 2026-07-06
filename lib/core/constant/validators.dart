@@ -6,7 +6,7 @@ class AuthValidators {
 
   // STRONG PASSWORD REGEX
   static final RegExp passwordRegex = RegExp(
-    r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$',
+    r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{7,}$',
   );
 
   // EMAIL VALIDATOR
@@ -31,7 +31,7 @@ class AuthValidators {
     if (!passwordRegex.hasMatch(value)) {
       return '''
 Password must contain:
-• 8 characters
+• at least 7 characters
 • uppercase letter
 • lowercase letter
 • number

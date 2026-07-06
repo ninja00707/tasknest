@@ -5,11 +5,11 @@ import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_event.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_state.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 import 'package:tasknest/presentation/ticket/crud/create/create_ticket_form.dart';
 import 'package:tasknest/presentation/ticket/crud/create/create_ticket_layouts.dart';
 
@@ -61,7 +61,9 @@ class CreateTicketViewState extends State<CreateTicketView> {
         ? blocState.employees
         : <EmployeeModel>[];
     final canAssignEmployee =
-        widget.user.roleId == 0 || widget.user.roleId == 1 || widget.user.roleId == 3;
+        widget.user.roleId == 0 ||
+        widget.user.roleId == 1 ||
+        widget.user.roleId == 3;
     final availableDepartments = blocState is DashboardLoaded
         ? blocState.departments
               .map((d) => Departments(name: d.name, id: d.id))
@@ -91,65 +93,65 @@ class CreateTicketViewState extends State<CreateTicketView> {
             ),
             const SizedBox(height: 24),
             FormCard(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  isWide
-                      ? WideFormLayout(
-                          titleCtrl: _title,
-                          descCtrl: _description,
-                          priority: _priority,
-                          selectedEmployee: _selectedEmployee,
-                          employeeList: employeeList,
-                          canAssignEmployee: canAssignEmployee && !_isMulti,
-                          selfAssign: _selfAssign,
-                          submitting: _submitting,
-                          isMulti: _isMulti,
-                          selectedDepartments: _selectedDepartments,
-                          availableDepartments: availableDepartments,
-                          onPriorityChanged: (v) =>
-                              setState(() => _priority = v),
-                          onAddDepartment: _onAddDepartment,
-                          onRemoveDepartment: _onRemoveDepartment,
-                          onEmployeeChanged: (v) =>
-                              setState(() => _selectedEmployee = v),
-                          onSelfAssignChanged: (v) =>
-                              setState(() => _selfAssign = v),
-                          deptFormData: _deptFormData,
-                          onSubmit: _submit,
-                        )
-                      : NarrowFormLayout(
-                          deptFormData: _deptFormData,
-                          titleCtrl: _title,
-                          descCtrl: _description,
-                          priority: _priority,
-                          selectedEmployee: _selectedEmployee,
-                          employeeList: employeeList,
-                          canAssignEmployee: canAssignEmployee && !_isMulti,
-                          selfAssign: _selfAssign,
-                          submitting: _submitting,
-                          isMulti: _isMulti,
-                          selectedDepartments: _selectedDepartments,
-                          availableDepartments: availableDepartments,
-                          onPriorityChanged: (v) =>
-                              setState(() => _priority = v),
-                          onAddDepartment: _onAddDepartment,
-                          onRemoveDepartment: _onRemoveDepartment,
-                          onEmployeeChanged: (v) =>
-                              setState(() => _selectedEmployee = v),
-                          onSelfAssignChanged: (v) =>
-                              setState(() => _selfAssign = v),
-                          onSubmit: _submit,
-                        ),
-                ],
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    isWide
+                        ? WideFormLayout(
+                            titleCtrl: _title,
+                            descCtrl: _description,
+                            priority: _priority,
+                            selectedEmployee: _selectedEmployee,
+                            employeeList: employeeList,
+                            canAssignEmployee: canAssignEmployee && !_isMulti,
+                            selfAssign: _selfAssign,
+                            submitting: _submitting,
+                            isMulti: _isMulti,
+                            selectedDepartments: _selectedDepartments,
+                            availableDepartments: availableDepartments,
+                            onPriorityChanged: (v) =>
+                                setState(() => _priority = v),
+                            onAddDepartment: _onAddDepartment,
+                            onRemoveDepartment: _onRemoveDepartment,
+                            onEmployeeChanged: (v) =>
+                                setState(() => _selectedEmployee = v),
+                            onSelfAssignChanged: (v) =>
+                                setState(() => _selfAssign = v),
+                            deptFormData: _deptFormData,
+                            onSubmit: _submit,
+                          )
+                        : NarrowFormLayout(
+                            deptFormData: _deptFormData,
+                            titleCtrl: _title,
+                            descCtrl: _description,
+                            priority: _priority,
+                            selectedEmployee: _selectedEmployee,
+                            employeeList: employeeList,
+                            canAssignEmployee: canAssignEmployee && !_isMulti,
+                            selfAssign: _selfAssign,
+                            submitting: _submitting,
+                            isMulti: _isMulti,
+                            selectedDepartments: _selectedDepartments,
+                            availableDepartments: availableDepartments,
+                            onPriorityChanged: (v) =>
+                                setState(() => _priority = v),
+                            onAddDepartment: _onAddDepartment,
+                            onRemoveDepartment: _onRemoveDepartment,
+                            onEmployeeChanged: (v) =>
+                                setState(() => _selectedEmployee = v),
+                            onSelfAssignChanged: (v) =>
+                                setState(() => _selfAssign = v),
+                            onSubmit: _submit,
+                          ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
     );
   }
 

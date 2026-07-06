@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 
 class TopBar extends StatelessWidget {
@@ -33,9 +34,9 @@ class TopBar extends StatelessWidget {
                   border: Border.all(color: Colors.white.withOpacity(0.4)),
                 ),
                 alignment: Alignment.center,
-                child: const Text(
-                  'UM',
-                  style: TextStyle(
+                child: Text(
+                  ConstStrings.appShortName,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
                     fontSize: 13,
@@ -44,7 +45,7 @@ class TopBar extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               const Text(
-                'UM Enterprises',
+                ConstStrings.umEnterprises,
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
@@ -87,7 +88,7 @@ class TopBar extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               const Text(
-                'Matrix Pharma',
+                ConstStrings.matrixPharma,
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 15,

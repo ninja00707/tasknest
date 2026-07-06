@@ -91,3 +91,51 @@ class SwitchModeEvent extends AuthEvent {
   @override
   List<Object?> get props => [mode];
 }
+
+class SignupNameChanged extends AuthEvent {
+  final String name;
+  SignupNameChanged(this.name);
+
+  @override
+  List<Object?> get props => [name];
+}
+
+class SignupEmailChanged extends AuthEvent {
+  final String email;
+  SignupEmailChanged(this.email);
+
+  @override
+  List<Object?> get props => [email];
+}
+
+class SignupPasswordChanged extends AuthEvent {
+  final String password;
+  SignupPasswordChanged(this.password);
+
+  @override
+  List<Object?> get props => [password];
+}
+
+class SignupRoleChanged extends AuthEvent {
+  final int roleId;
+  SignupRoleChanged(this.roleId);
+
+  @override
+  List<Object?> get props => [roleId];
+}
+
+class SignupCompanyChanged extends AuthEvent {
+  final int companyId;
+  SignupCompanyChanged(this.companyId);
+
+  @override
+  List<Object?> get props => [companyId];
+}
+
+class SignupDeptChanged extends AuthEvent {
+  final int deptId;
+  SignupDeptChanged(this.deptId);
+
+  @override
+  List<Object?> get props => [deptId];
+}

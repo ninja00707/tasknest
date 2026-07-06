@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_detail_appbar.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_event.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_state.dart';
@@ -9,7 +11,6 @@ import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/ticket/widgets/sub_ticket_detail_section.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_detail_hero.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_detail_info.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 
 class TicketDetailScreen extends StatefulWidget {
   final int ticketId;
@@ -104,7 +105,7 @@ class _LoadingScaffold extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: ThemeColors.unifiedSurface,
         elevation: 0,
-        title: const Text('Loading...'),
+        title: const Text(ConstStrings.loading),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(height: 1, color: ThemeColors.unifiedBorder),
@@ -229,7 +230,7 @@ class _ProgressSection extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        ticket.isMultiTaskTicket ? 'MULTI TASK' : 'SUB TICKET',
+                        ticket.isMultiTaskTicket ? ConstStrings.multiTask : ConstStrings.subTicket,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
@@ -275,7 +276,7 @@ class _ProgressSection extends StatelessWidget {
                 if (ticket.subDepartments.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   const Text(
-                    'Department Breakdown',
+                    ConstStrings.departmentBreakdown,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 
 class DropdownItem<T> {
   final T value;
@@ -30,10 +31,7 @@ class CommonDropdown<T> extends StatelessWidget {
       // IMPORTANT
       hint: Text(
         hint,
-        style: const TextStyle(
-          color: ThemeColors.unifiedTextMuted,
-          fontSize: 14,
-        ),
+        style: AppTextStyles.bodyMuted,
       ),
 
       isExpanded: true,
@@ -55,10 +53,7 @@ class CommonDropdown<T> extends StatelessWidget {
           value: item.value,
           child: Text(
             item.label,
-            style: const TextStyle(
-              fontSize: 14,
-              color: ThemeColors.unifiedTextPrimary,
-            ),
+            style: AppTextStyles.body,
           ),
         );
       }).toList(),

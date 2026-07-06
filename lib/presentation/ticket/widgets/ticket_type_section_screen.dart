@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/routes/routes_name.dart';
 import 'package:tasknest/core/routes/ticket_type_grid_args.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 
 class TicketTypeSectionScreen extends StatelessWidget {
   final DashboardLoaded state;
@@ -24,35 +26,35 @@ class TicketTypeSectionScreen extends StatelessWidget {
     final types = [
       _TypeData(
         icon: Icons.article_rounded,
-        label: 'Standard',
-        subtitle: 'Single-department tickets',
+        label: ConstStrings.standardLabel,
+        subtitle: ConstStrings.singleDeptTickets,
         accentColor: ThemeColors.unifiedPrimary,
         gradientColors: [const Color(0xFF2E7D32), const Color(0xFF1B5E20)],
         count: state.tickets.where((t) => t.isStandardTicket).length,
         tickets: state.tickets.where((t) => t.isStandardTicket).toList(),
-        title: 'Standard Tickets',
+        title: ConstStrings.standardTickets,
         patternIcon: Icons.layers_rounded,
       ),
       _TypeData(
         icon: Icons.account_tree_rounded,
         label: 'Sub',
-        subtitle: 'Child sub-tickets',
+        subtitle: ConstStrings.childSubTickets,
         accentColor: const Color(0xFFD97706),
         gradientColors: [const Color(0xFFD97706), const Color(0xFF92400E)],
         count: state.tickets.where((t) => t.isSubTicket).length,
         tickets: state.tickets.where((t) => t.isSubTicket).toList(),
-        title: 'Sub-Tickets',
+        title: ConstStrings.subTicketsTitle,
         patternIcon: Icons.share_rounded,
       ),
       _TypeData(
         icon: Icons.hub_rounded,
         label: 'Multi',
-        subtitle: 'Multi-department tasks',
+        subtitle: ConstStrings.multiDeptTasks,
         accentColor: const Color(0xFF7C3AED),
         gradientColors: [const Color(0xFF7C3AED), const Color(0xFF4C1D95)],
         count: state.tickets.where((t) => t.isMultiTaskTicket).length,
         tickets: state.tickets.where((t) => t.isMultiTaskTicket).toList(),
-        title: 'Multi Task Tickets',
+        title: ConstStrings.multiTaskTickets,
         patternIcon: Icons.device_hub_rounded,
       ),
     ];
@@ -82,13 +84,8 @@ class TicketTypeSectionScreen extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               const Text(
-                'Ticket Types',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: ThemeColors.unifiedTextPrimary,
-                  letterSpacing: -0.2,
-                ),
+                ConstStrings.ticketTypes,
+                style: AppTextStyles.sectionHeader,
               ),
               const Spacer(),
               Text(
@@ -522,7 +519,7 @@ class _HorizontalCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'tickets',
+                            ConstStrings.ticketsLabel,
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,

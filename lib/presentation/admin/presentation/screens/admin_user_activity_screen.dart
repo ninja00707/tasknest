@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/admin/data/models/admin_models.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_bloc.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_event.dart';
@@ -45,11 +47,11 @@ class _AdminUserActivityScreenState extends State<AdminUserActivityScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('User Activity', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary)),
+                  const Text('User Activity', style: AppTextStyles.pageTitle),
                   IconButton(
                     icon: const Icon(Icons.refresh),
                     onPressed: () { _page = 0; widget.bloc.add(LoadUserActivity()); },
-                    tooltip: 'Refresh',
+                    tooltip: ConstStrings.refresh,
                   ),
                 ],
               ),
@@ -162,7 +164,7 @@ class _AdminUserActivityScreenState extends State<AdminUserActivityScreen> {
             onPressed: _page <= 0 ? null : () => setState(() => _page--),
           ),
           Text('Page ${_page + 1} of $pages ($total users)',
-            style: const TextStyle(fontSize: 13, color: ThemeColors.unifiedTextMuted)),
+            style: AppTextStyles.bodySmallMuted),
           IconButton(
             icon: const Icon(Icons.chevron_right),
             onPressed: _page >= pages - 1 ? null : () => setState(() => _page++),
@@ -227,7 +229,7 @@ class _AdminUserActivityScreenState extends State<AdminUserActivityScreen> {
                         leading: _activeDot(u.isOnline),
                         title: Text('${u.name} (${u.code ?? 'N/A'})', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                         subtitle: Text('${u.departmentName ?? '-'} · ${u.companyName ?? '-'}',
-                          style: const TextStyle(fontSize: 12, color: ThemeColors.unifiedTextMuted)),
+                          style: AppTextStyles.caption),
                         trailing: Text(lastActiveStr, style: TextStyle(fontSize: 12, color: u.isOnline ? const Color(0xFF22C55E) : ThemeColors.unifiedTextMuted)),
                       );
                     },
@@ -256,7 +258,7 @@ class _AdminUserActivityScreenState extends State<AdminUserActivityScreen> {
           children: [
             Text(value, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: color ?? ThemeColors.unifiedTextPrimary)),
             const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 12, color: ThemeColors.unifiedTextMuted)),
+            Text(label, style: AppTextStyles.caption),
           ],
         ),
       ),

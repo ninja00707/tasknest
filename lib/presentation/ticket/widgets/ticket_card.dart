@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_helpers.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_action.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_card_base.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 
 class TicketCard extends StatelessWidget {
   final TicketModel ticket;
@@ -211,10 +211,7 @@ class TicketCard extends StatelessWidget {
                       // ── Row 5: Nested Child Tickets (One Card View) ──
                       if (ticket.children.isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        ChildTicketsList(
-                          children: ticket.children,
-                          user: user,
-                        ),
+                        ChildTicketsList(children: ticket.children, user: user),
                       ],
 
                       const SizedBox(height: 16),

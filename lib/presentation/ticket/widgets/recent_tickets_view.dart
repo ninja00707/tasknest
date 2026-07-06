@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 
 const int _pageSize = 15;
 
@@ -109,7 +111,7 @@ class _ActivityHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Recent Activity',
+                ConstStrings.navRecentActivities,
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
@@ -119,10 +121,7 @@ class _ActivityHeader extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 '$total tickets · sorted by newest first',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: ThemeColors.unifiedTextMuted,
-                ),
+                style: AppTextStyles.bodySmallMuted,
               ),
             ],
           ),
@@ -226,13 +225,10 @@ class _ActivityTicketCard extends StatelessWidget {
                           const SizedBox(width: 4),
                           StatusBadge(status: ticket.status),
                           const Spacer(),
-                          Text(
-                            dateStr,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: ThemeColors.unifiedTextMuted,
-                            ),
-                          ),
+                           Text(
+                             dateStr,
+                             style: AppTextStyles.micro,
+                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -301,10 +297,7 @@ class _ActivityTicketCard extends StatelessWidget {
                             Flexible(
                               child: Text(
                                 ticket.assignedToName!,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: ThemeColors.unifiedTextMuted,
-                                ),
+                                style: AppTextStyles.micro,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -340,7 +333,7 @@ class _ActivityPagination extends StatelessWidget {
       children: [
         _PageBtn(
           icon: Icons.chevron_left,
-          label: 'Previous',
+            label: ConstStrings.previous,
           disabled: onPrev == null,
           onTap: onPrev ?? () {},
         ),
@@ -366,7 +359,7 @@ class _ActivityPagination extends StatelessWidget {
         const SizedBox(width: 12),
         _PageBtn(
           icon: Icons.chevron_right,
-          label: 'Next',
+            label: ConstStrings.next,
           disabled: onNext == null,
           onTap: onNext ?? () {},
         ),
@@ -447,7 +440,7 @@ class _ActivityEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Text(
-            'No recent activity',
+            ConstStrings.noRecentActivity,
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -456,8 +449,8 @@ class _ActivityEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Ticket activity will appear here as updates come in',
-            style: TextStyle(fontSize: 12, color: ThemeColors.unifiedTextMuted),
+            ConstStrings.ticketActivityWillAppear,
+            style: AppTextStyles.caption,
           ),
         ],
       ),

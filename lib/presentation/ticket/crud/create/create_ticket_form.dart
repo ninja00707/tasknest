@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart' hide FormField;
 import 'package:tasknest/core/constant/const_dep.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_helpers.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 
 class PageHeader extends StatelessWidget {
   final int? parentId;
@@ -34,7 +36,7 @@ class PageHeader extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Creating sub-ticket for #$parentId ${parentTitle ?? ""}',
+                    '${ConstStrings.creatingSubTicketFor}$parentId ${parentTitle ?? ""}',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -74,7 +76,7 @@ class PageHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isMulti ? 'Create Multi Ticket' : 'Create Standard Ticket',
+                  isMulti ? ConstStrings.createMultiTicket : ConstStrings.createStandardTicket,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -84,12 +86,8 @@ class PageHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 const Text(
-                  'Fill in the details and assign to a department.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: ThemeColors.unifiedTextMuted,
-                    fontWeight: FontWeight.w400,
-                  ),
+                  ConstStrings.fillDetailsAndAssign,
+                  style: AppTextStyles.bodySmallMuted,
                 ),
               ],
             ),
@@ -446,7 +444,7 @@ class SubmitButton extends StatelessWidget {
               const Icon(Icons.send_rounded, size: 16, color: Colors.white),
             const SizedBox(width: 8),
             Text(
-              submitting ? 'Submitting...' : 'Submit Ticket',
+              submitting ? ConstStrings.submitting : ConstStrings.submitTicket,
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -536,7 +534,7 @@ class MultiDeptSection extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             const Text(
-              'Department Tickets',
+              ConstStrings.departmentTickets,
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
@@ -631,7 +629,7 @@ class MultiDeptSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       FormField(
-                        label: 'Title',
+                        label: ConstStrings.title,
                         icon: Icons.title_rounded,
                         required: true,
                       ),
@@ -645,7 +643,7 @@ class MultiDeptSection extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       FormField(
-                        label: 'Description',
+                        label: ConstStrings.descriptionLabel,
                         icon: Icons.notes_rounded,
                         required: true,
                       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_date_format.dart';
 
@@ -15,7 +16,7 @@ class TicketHistoryTimeline extends StatelessWidget {
         padding: EdgeInsets.all(20.0),
         child: Center(
           child: Text(
-            "No history records found for this ticket.",
+            ConstStrings.noHistoryRecords,
             style: TextStyle(color: ThemeColors.unifiedTextMuted),
           ),
         ),
@@ -117,19 +118,19 @@ class TicketHistoryTimeline extends StatelessWidget {
   ) {
     switch (action) {
       case 'created':
-        return "TICKET INITIATED";
+        return ConstStrings.historyInitiated;
       case 'assigned':
-        return "PERSONNEL ASSIGNMENT";
+        return ConstStrings.historyAssigned;
       case 'transferred':
-        return "DEPARTMENTAL TRANSFER";
+        return ConstStrings.historyTransferred;
       case 'sub_ticket_created':
-        return "SUB-TICKET GENERATED";
+        return ConstStrings.historySubTicket;
       case 'status_changed':
-        return "WORKFLOW UPDATE";
+        return ConstStrings.historyUpdated;
       case 'comment_added':
-        return "NEW COMMENT";
+        return ConstStrings.historyComment;
       case 'reopened':
-        return "TICKET REOPENED";
+        return ConstStrings.historyReopened;
       default:
         return action.toUpperCase().replaceAll('_', ' ');
     }
@@ -145,20 +146,20 @@ class TicketHistoryTimeline extends StatelessWidget {
     switch (action) {
       case 'transferred':
         // Shows: "HR ➔ Transferred to IT"
-        return "${oldV ?? 'Origin'} ➔ Transferred to ${newV ?? 'Target'}";
+        return "${oldV ?? ConstStrings.historyOrigin} ➔ ${ConstStrings.historyTransferredTo} ${newV ?? ConstStrings.historyTarget}";
       case 'assigned':
         // Shows: "IT: Assigned to Alice (Previously: Unassigned)"
-        final prev = (oldV == null || oldV == 'Unassigned')
-            ? 'Unassigned'
+        final prev = (oldV == null || oldV == ConstStrings.historyUnassigned)
+            ? ConstStrings.historyUnassigned
             : oldV;
-        return "${currentDept ?? 'Dept'}: Assigned to ${newV ?? 'Personnel'} (Prev: $prev)";
+        return "${currentDept ?? ''}: ${ConstStrings.historyAssignedTo} ${newV ?? ConstStrings.historyPersonnel} (${ConstStrings.historyPrev} $prev)";
       case 'status_changed':
         // Shows: "Status: OPEN ➔ IN PROGRESS"
         return "Status: ${oldV?.toUpperCase()} ➔ ${newV?.toUpperCase()}";
       case 'created':
-        return "Ticket born in ${currentDept ?? 'Department'}";
+        return "${ConstStrings.historyBornIn} ${currentDept ?? ConstStrings.historyDepartment}";
       case 'reopened':
-        return "Returned to ${newV?.toUpperCase()} state for further work.";
+        return "Returned to ${newV?.toUpperCase()} state for further work."; // dynamic - cannot use ConstStrings.historyReturned
       default:
         return note;
     }

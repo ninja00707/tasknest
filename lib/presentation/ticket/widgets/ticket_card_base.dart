@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/core/theme/common_helpers.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_event.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_action.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 
 // ── #ID Chip ──────────────────────────────────────────────────────────────────
 class IdChip extends StatelessWidget {
@@ -147,7 +148,7 @@ class SubTicketProgressSection extends StatelessWidget {
         Row(
           children: [
             const Text(
-              'Overall Progress',
+              ConstStrings.overallProgress,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
@@ -315,7 +316,7 @@ class SubTicketProgressSection extends StatelessWidget {
     if (loadedState.employees.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('No employees found')));
+      ).showSnackBar(const SnackBar(content: Text(ConstStrings.noEmployeesInDept)));
       return;
     }
 
@@ -327,7 +328,7 @@ class SubTicketProgressSection extends StatelessWidget {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: const Text('Assign Dept Task'),
+              title: const Text(ConstStrings.assignTicket),
               content: DropdownButtonFormField<int>(
                 value: selectedId,
                 items: loadedState!.employees.map((e) {
@@ -338,7 +339,7 @@ class SubTicketProgressSection extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
+                  child: const Text(ConstStrings.cancel),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -351,7 +352,7 @@ class SubTicketProgressSection extends StatelessWidget {
                     );
                     Navigator.pop(dialogContext);
                   },
-                  child: const Text('Assign'),
+                  child: const Text(ConstStrings.assign),
                 ),
               ],
             );
@@ -479,10 +480,7 @@ class ChildTicketsList extends StatelessWidget {
                                 ),
                                 Text(
                                   'Dept: ${child.deptCode} • ${child.assigneeName ?? "Unassigned"}',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: ThemeColors.unifiedTextMuted,
-                                  ),
+                                  style: AppTextStyles.micro,
                                 ),
                               ],
                             ),
@@ -538,7 +536,7 @@ class DeptJourneySection extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                'LIFECYCLE PATH',
+                ConstStrings.lifecyclePath,
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w900,
@@ -563,16 +561,16 @@ class DeptJourneySection extends StatelessWidget {
 
                 if (role == 'ORIGIN') {
                   activeColor = ThemeColors.unifiedPrimary;
-                  label = 'ORIGIN';
+                  label = ConstStrings.origin;
                 } else if (role == 'CURRENT') {
                   activeColor = ThemeColors.unifiedSecondary;
-                  label = 'CURRENT';
+                  label = ConstStrings.current;
                 } else if (role == 'TRANSFER') {
                   activeColor = ThemeColors.unifiedWarning;
-                  label = 'TRANSFER';
+                  label = ConstStrings.transfer;
                 } else {
                   activeColor = ThemeColors.unifiedTextMuted;
-                  label = 'LINK';
+                  label = ConstStrings.link;
                 }
 
                 return Row(

@@ -3,13 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/constant/name_by_id.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/widgets/navigation_bar/nav_items.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/widgets/notification_panel.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 
 class Sidebar extends StatelessWidget {
   final int selectedIndex;
@@ -27,7 +28,9 @@ class Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final dbState = context.read<DashboardBloc>().state;
     final deptList = dbState is DashboardLoaded
-        ? dbState.departments.map((d) => Departments(name: d.name, id: d.id)).toList()
+        ? dbState.departments
+              .map((d) => Departments(name: d.name, id: d.id))
+              .toList()
         : <Departments>[];
     final departmentName =
         NameById.getNameById<Departments>(
@@ -36,7 +39,7 @@ class Sidebar extends StatelessWidget {
           idSelector: (e) => e.id,
           nameSelector: (e) => e.name,
         ) ??
-        'Unknown Dept';
+        'No Department';
     final roleName =
         NameById.getNameById<Roles>(
           id: user.roleId,
@@ -95,8 +98,8 @@ class Sidebar extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Text(
-                  'Taskify',
+                Text(
+                  ConstStrings.taskify,
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -111,7 +114,7 @@ class Sidebar extends StatelessWidget {
           // Nav items
           NavItem(
             icon: Icons.dashboard_outlined,
-            label: 'Dashboard',
+            label: ConstStrings.navDashboard,
             index: 0,
             selected: selectedIndex == 0,
             onTap: onNav,
@@ -119,11 +122,11 @@ class Sidebar extends StatelessWidget {
           NavItem(
             icon: Icons.auto_awesome_outlined,
             label: (user.roleId == 0 || user.roleId == 3)
-                ? 'All Department Tickets'
+                ? ConstStrings.navAllDeptTickets
                 : user.roleId == 1
-                ? 'Department\'s Tickets'
+                ? ConstStrings.navDeptTickets
                 : user.roleId == 2
-                ? 'My Tickets'
+                ? ConstStrings.navMyTickets
                 : '',
             index: 1,
             selected: selectedIndex == 1,
@@ -131,7 +134,7 @@ class Sidebar extends StatelessWidget {
           ),
           NavItem(
             icon: Icons.add_circle_outline,
-            label: 'New Ticket',
+            label: ConstStrings.navNewTicket,
             index: 2,
             selected: selectedIndex == 2,
             onTap: onNav,
@@ -141,21 +144,21 @@ class Sidebar extends StatelessWidget {
           if (user.roleId != 0 && user.roleId != 3)
             NavItem(
               icon: Icons.hub_outlined,
-              label: 'Sent Sub-Tickets',
+              label: ConstStrings.navSentSubTickets,
               index: 3,
               selected: selectedIndex == 3,
               onTap: onNav,
             ),
           NavItem(
             icon: Icons.task_alt_outlined,
-            label: 'Recent Activities',
+            label: ConstStrings.navRecentActivities,
             index: 4,
             selected: selectedIndex == 4,
             onTap: onNav,
           ),
           NavItem(
             icon: Icons.category_outlined,
-            label: 'Ticket Types',
+            label: ConstStrings.navTicketTypes,
             index: 5,
             selected: selectedIndex == 5,
             onTap: onNav,
@@ -165,7 +168,7 @@ class Sidebar extends StatelessWidget {
           if (user.roleId == 3 || user.email == 'qasim@um.com')
             NavItem(
               icon: Icons.admin_panel_settings,
-              label: 'Admin Panel',
+              label: ConstStrings.navAdminPanel,
               index: 99,
               selected: false,
               onTap: (i) => context.go('/admin'),
@@ -173,30 +176,43 @@ class Sidebar extends StatelessWidget {
 
           // Notification bell
           BlocSelector<DashboardBloc, DashboardState, int>(
-            selector: (state) => state is DashboardLoaded ? state.unreadNotificationCount : 0,
+            selector: (state) =>
+                state is DashboardLoaded ? state.unreadNotificationCount : 0,
             builder: (context, count) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: InkWell(
                 onTap: () => NotificationPanel.show(context),
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 11,
+                  ),
                   child: Row(
                     children: [
                       Stack(
                         clipBehavior: Clip.none,
                         children: [
-                          const Icon(Icons.notifications_outlined, size: 19, color: ThemeColors.unifiedTextMuted),
+                          const Icon(
+                            Icons.notifications_outlined,
+                            size: 19,
+                            color: ThemeColors.unifiedTextMuted,
+                          ),
                           Positioned(
                             right: -6,
                             top: -6,
                             child: Container(
                               padding: const EdgeInsets.all(3),
                               decoration: BoxDecoration(
-                                color: count > 0 ? ThemeColors.unifiedDanger : Colors.grey,
+                                color: count > 0
+                                    ? ThemeColors.unifiedDanger
+                                    : Colors.grey,
                                 shape: BoxShape.circle,
                               ),
-                              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
                               child: Text(
                                 count > 99 ? '99+' : '$count',
                                 style: const TextStyle(
@@ -211,8 +227,8 @@ class Sidebar extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(width: 12),
-                      const Text(
-                        'Notifications',
+                      Text(
+                        ConstStrings.navNotifications,
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
@@ -262,7 +278,11 @@ class Sidebar extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        '$companyName · ${roleName?.toLowerCase() == 'ceo' ? 'CEO' : user.designation.isNotEmpty ? user.designation : roleName} · $departmentName',
+                        '$companyName · ${roleName?.toLowerCase() == 'ceo'
+                            ? 'CEO'
+                            : user.designation.isNotEmpty
+                            ? user.designation
+                            : roleName} · $departmentName',
                         style: const TextStyle(
                           fontSize: 11,
                           color: ThemeColors.unifiedTextMuted,

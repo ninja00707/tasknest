@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/admin/data/models/admin_models.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_bloc.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_event.dart';
@@ -78,7 +80,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             onPressed: _page <= 0 ? null : () => setState(() => _page--),
           ),
           Text('Page ${_page + 1} of $pages ($total users)',
-            style: const TextStyle(fontSize: 13, color: ThemeColors.unifiedTextMuted)),
+            style: AppTextStyles.bodySmallMuted),
           IconButton(
             icon: const Icon(Icons.chevron_right),
             onPressed: _page >= pages - 1 ? null : () => setState(() => _page++),
@@ -102,11 +104,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Manage Users', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary)),
+                  const Text('Manage Users', style: AppTextStyles.pageTitle),
                   IconButton(
                     icon: const Icon(Icons.refresh),
                     onPressed: () { _page = 0; widget.bloc.add(LoadUsers()); widget.bloc.add(LoadPendingUsers()); },
-                    tooltip: 'Refresh',
+                    tooltip: ConstStrings.refresh,
                   ),
                 ],
               ),
@@ -120,7 +122,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   ),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add User'),
+                    label: Text(ConstStrings.addUser),
                     onPressed: () => _showUserDialog(context, null, _allUsers),
                   ),
                 ],
@@ -157,7 +159,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     child: TextField(
                       controller: _searchCtl,
                       decoration: InputDecoration(
-                        hintText: 'Search by name, code, email, department...',
+                        hintText: ConstStrings.searchByNameEmailCodeDept,
                         prefixIcon: const Icon(Icons.search, size: 20),
                         suffixIcon: _searchQuery.isNotEmpty
                             ? IconButton(
@@ -258,60 +260,60 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                  ),
                  DataCell(Text(u.name)),
                  DataCell(Text(u.designation ?? '-')),
-                 DataCell(Text(u.email, style: const TextStyle(fontSize: 13))),
-                 DataCell(_roleChip(u.roleName ?? 'N/A')),
-                 DataCell(Text(u.departmentName ?? '-')),
-                 DataCell(Text(u.companyName ?? '-')),
-                 DataCell(u.seeAllCompanies
-                   ? Container(
-                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                       decoration: BoxDecoration(
-                         color: ThemeColors.unifiedSecondary.withOpacity(0.15),
-                         borderRadius: BorderRadius.circular(4),
-                         border: Border.all(color: ThemeColors.unifiedSecondary.withOpacity(0.4)),
-                       ),
-                       child: const Text('ALL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedSecondary)),
-                     )
-                   : Container(
-                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                       decoration: BoxDecoration(
-                         color: ThemeColors.unifiedTextMuted.withOpacity(0.15),
-                         borderRadius: BorderRadius.circular(4),
-                         border: Border.all(color: ThemeColors.unifiedTextMuted.withOpacity(0.3)),
-                       ),
-                       child: const Text('OWN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted)),
-                     )),
-                 DataCell(Text(u.reportsToName ?? '-')),
-                 DataCell(Icon(u.isActive ? Icons.check_circle : Icons.cancel, color: u.isActive ? ThemeColors.unifiedSuccess : ThemeColors.unifiedDanger, size: 20)),
-                 DataCell(Row(
-                  children: [
-                    IconButton(icon: const Icon(Icons.edit, size: 18), onPressed: () => _showUserDialog(context, u, _allUsers), tooltip: 'Edit'),
-                    IconButton(
-                      icon: Icon(Icons.lock_reset, size: 18, color: ThemeColors.unifiedWarning),
-                      onPressed: () => _confirmResetPassword(context, u),
-                      tooltip: 'Reset Password',
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.toggle_off, size: 18, color: u.isActive ? ThemeColors.unifiedWarning : ThemeColors.unifiedSuccess),
-                      onPressed: () => _confirmToggle(context, u),
-                      tooltip: u.isActive ? 'Deactivate' : 'Activate',
-                    ),
-                  ],
-                )),
-              ])).toList(),
-            ),
-          ),
-        ),
-        ),
-      ),
-    ),
-    _pageNav(users.length),
-    ],
-    ),
-    );
-  }
+                  DataCell(Text(u.email, style: AppTextStyles.bodyMedium)),
+                  DataCell(_roleChip(u.roleName ?? 'N/A')),
+                  DataCell(Text(u.departmentName ?? '-')),
+                  DataCell(Text(u.companyName ?? '-')),
+                  DataCell(u.seeAllCompanies
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: ThemeColors.unifiedSecondary.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: ThemeColors.unifiedSecondary.withOpacity(0.4)),
+                        ),
+                        child: const Text('ALL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedSecondary)),
+                      )
+                    : Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: ThemeColors.unifiedTextMuted.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: ThemeColors.unifiedTextMuted.withOpacity(0.3)),
+                        ),
+                        child: const Text('OWN', style: AppTextStyles.label),
+                      )),
+                  DataCell(Text(u.reportsToName ?? '-')),
+                  DataCell(Icon(u.isActive ? Icons.check_circle : Icons.cancel, color: u.isActive ? ThemeColors.unifiedSuccess : ThemeColors.unifiedDanger, size: 20)),
+                  DataCell(Row(
+                   children: [
+                     IconButton(icon: const Icon(Icons.edit, size: 18), onPressed: () => _showUserDialog(context, u, _allUsers), tooltip: ConstStrings.edit),
+                     IconButton(
+                       icon: Icon(Icons.lock_reset, size: 18, color: ThemeColors.unifiedWarning),
+                       onPressed: () => _confirmResetPassword(context, u),
+                       tooltip: 'Reset Password',
+                     ),
+                     IconButton(
+                       icon: Icon(Icons.toggle_off, size: 18, color: u.isActive ? ThemeColors.unifiedWarning : ThemeColors.unifiedSuccess),
+                       onPressed: () => _confirmToggle(context, u),
+                       tooltip: u.isActive ? 'Deactivate' : 'Activate',
+                     ),
+                   ],
+                 )),
+               ])).toList(),
+             ),
+           ),
+         ),
+         ),
+       ),
+     ),
+     _pageNav(users.length),
+     ],
+     ),
+     );
+   }
 
-  Widget _buildPendingTable(BuildContext context, List<AdminUserModel> users) {
+   Widget _buildPendingTable(BuildContext context, List<AdminUserModel> users) {
     if (users.isEmpty) {
       return const Expanded(child: Center(child: Text('No pending approvals', style: TextStyle(color: ThemeColors.unifiedTextMuted))));
     }
@@ -365,30 +367,30 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                  ),
                  DataCell(Text(u.name)),
                  DataCell(Text(u.designation ?? '-')),
-                 DataCell(Text(u.email, style: const TextStyle(fontSize: 13))),
-                 DataCell(_roleChip(u.roleName ?? 'N/A')),
-                 DataCell(Text(u.departmentName ?? '-')),
-                 DataCell(Text(u.companyName ?? '-')),
-                 DataCell(u.seeAllCompanies
-                   ? Container(
-                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                       decoration: BoxDecoration(
-                         color: ThemeColors.unifiedSecondary.withOpacity(0.15),
-                         borderRadius: BorderRadius.circular(4),
-                         border: Border.all(color: ThemeColors.unifiedSecondary.withOpacity(0.4)),
-                       ),
-                       child: const Text('ALL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedSecondary)),
-                     )
-                   : Container(
-                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                       decoration: BoxDecoration(
-                         color: ThemeColors.unifiedTextMuted.withOpacity(0.15),
-                         borderRadius: BorderRadius.circular(4),
-                         border: Border.all(color: ThemeColors.unifiedTextMuted.withOpacity(0.3)),
-                       ),
-                       child: const Text('OWN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted)),
-                     )),
-                 DataCell(Text(u.reportsToName ?? '-')),
+                  DataCell(Text(u.email, style: AppTextStyles.bodyMedium)),
+                  DataCell(_roleChip(u.roleName ?? 'N/A')),
+                  DataCell(Text(u.departmentName ?? '-')),
+                  DataCell(Text(u.companyName ?? '-')),
+                  DataCell(u.seeAllCompanies
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: ThemeColors.unifiedSecondary.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: ThemeColors.unifiedSecondary.withOpacity(0.4)),
+                        ),
+                        child: const Text('ALL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedSecondary)),
+                      )
+                    : Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: ThemeColors.unifiedTextMuted.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: ThemeColors.unifiedTextMuted.withOpacity(0.3)),
+                        ),
+                        child: const Text('OWN', style: AppTextStyles.label),
+                      )),
+                  DataCell(Text(u.reportsToName ?? '-')),
                  DataCell(Row(
                   children: [
                     ElevatedButton.icon(
@@ -427,16 +429,16 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Approve User?'),
+        title: const Text(ConstStrings.approveUser),
         content: Text('Approve "${u.name}" (${u.email})? They will be able to log in immediately.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(ConstStrings.cancel)),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
               widget.bloc.add(ApproveUser(u.id, context));
             },
-            child: const Text('Approve'),
+            child: const Text(ConstStrings.approve),
           ),
         ],
       ),
@@ -464,7 +466,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         title: Text(u.isActive ? 'Deactivate User?' : 'Activate User?'),
         content: Text('${u.isActive ? "Deactivate" : "Activate"} "${u.name}" (${u.email})?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(ConstStrings.cancel)),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -481,16 +483,16 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Reset Password?'),
+        title: const Text(ConstStrings.resetPasswordTitle),
         content: Text('Reset password for "${u.name}" (${u.email}) to UM@2024? They will be forced to change it on next login.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(ConstStrings.cancel)),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
               widget.bloc.add(UpdateUser(u.id, {'password': 'UM@2024', 'mustResetPassword': true}, context));
             },
-            child: const Text('Reset'),
+            child: const Text(ConstStrings.reset),
           ),
         ],
       ),
@@ -514,46 +516,46 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) => AlertDialog(
-          title: Text(existing == null ? 'Add User' : 'Edit User'),
+          title: Text(existing == null ? ConstStrings.addUser : 'Edit User'),
           content: Form(
             key: formKey,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextFormField(controller: nameCtl, decoration: const InputDecoration(labelText: 'Name'), validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                  TextFormField(controller: nameCtl, decoration: const InputDecoration(labelText: ConstStrings.nameLabel), validator: (v) => v == null || v.isEmpty ? ConstStrings.required_ : null),
                   const SizedBox(height: 12),
-                  TextFormField(controller: emailCtl, decoration: const InputDecoration(labelText: 'Email'), validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                  TextFormField(controller: emailCtl, decoration: const InputDecoration(labelText: ConstStrings.emailLabel), validator: (v) => v == null || v.isEmpty ? ConstStrings.required_ : null),
                   const SizedBox(height: 12),
-                  TextFormField(controller: codeCtl, decoration: const InputDecoration(labelText: 'Employee Code'), validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                  TextFormField(controller: codeCtl, decoration: const InputDecoration(labelText: ConstStrings.employeeCodeLabel), validator: (v) => v == null || v.isEmpty ? ConstStrings.required_ : null),
                   const SizedBox(height: 12),
-                  TextFormField(controller: designationCtl, decoration: const InputDecoration(labelText: 'Designation')),
+                  TextFormField(controller: designationCtl, decoration: const InputDecoration(labelText: ConstStrings.designationLabel)),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: passwordCtl,
                     decoration: InputDecoration(
-                      labelText: existing == null ? 'Password' : 'New Password (leave blank to keep current)',
+                      labelText: existing == null ? ConstStrings.password : ConstStrings.newPasswordLabel,
                     ),
                     obscureText: true,
                     validator: existing == null
-                        ? (v) => v == null || v.isEmpty ? 'Required' : null
+                        ? (v) => v == null || v.isEmpty ? ConstStrings.required_ : null
                         : null,
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
                     value: roleId,
-                    decoration: const InputDecoration(labelText: 'Role'),
+                    decoration: const InputDecoration(labelText: ConstStrings.roleLabel),
                     items: const [
-                      DropdownMenuItem(value: 3, child: Text('Developer')),
-                      DropdownMenuItem(value: 0, child: Text('CEO')),
-                      DropdownMenuItem(value: 1, child: Text('Manager')),
-                      DropdownMenuItem(value: 2, child: Text('Employee')),
+                      DropdownMenuItem(value: 3, child: Text(ConstStrings.roleDeveloper)),
+                      DropdownMenuItem(value: 0, child: Text(ConstStrings.roleCeo)),
+                      DropdownMenuItem(value: 1, child: Text(ConstStrings.roleManager)),
+                      DropdownMenuItem(value: 2, child: Text(ConstStrings.roleEmployee)),
                     ],
                     onChanged: (v) => setDlgState(() => roleId = v),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
-                    decoration: const InputDecoration(labelText: 'Department ID'),
+                    decoration: const InputDecoration(labelText: ConstStrings.departmentIdLabel),
                     initialValue: deptId?.toString() ?? '',
                     keyboardType: TextInputType.number,
                     onChanged: (v) => deptId = v.isEmpty ? null : int.tryParse(v),
@@ -561,10 +563,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
                     value: companyId,
-                    decoration: const InputDecoration(labelText: 'Company'),
+                    decoration: const InputDecoration(labelText: ConstStrings.companyLabel),
                     items: const [
-                      DropdownMenuItem(value: 0, child: Text('UM Enterprises')),
-                      DropdownMenuItem(value: 1, child: Text('Matrix Pharma')),
+                      DropdownMenuItem(value: 0, child: Text(ConstStrings.umEnterprises)),
+                      DropdownMenuItem(value: 1, child: Text(ConstStrings.matrixPharma)),
                     ],
                     onChanged: (v) => setDlgState(() => companyId = v!),
                   ),
@@ -583,7 +585,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                     ('${u.name} ${u.email}'.toLowerCase().contains(searchCtl.text.toLowerCase())))
                                     .toList();
                             return AlertDialog(
-                              title: const Text('Select Reports To'),
+                              title: const Text(ConstStrings.selectReportsTo),
                               content: SizedBox(
                                 width: double.maxFinite,
                                 child: Column(
@@ -593,7 +595,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                       controller: searchCtl,
                                       autofocus: true,
                                       decoration: const InputDecoration(
-                                        hintText: 'Search by name or email...',
+                                        hintText: ConstStrings.searchByNameOrEmail,
                                         prefixIcon: Icon(Icons.search),
                                       ),
                                       onChanged: (_) => setSearchState(() {}),
@@ -634,7 +636,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     },
                     child: InputDecorator(
                       decoration: const InputDecoration(
-                        labelText: 'Reports To',
+                        labelText: ConstStrings.reportsToLabel,
                         suffixIcon: Icon(Icons.search),
                       ),
                       child: Text(
@@ -654,8 +656,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   CheckboxListTile(
                     value: seeAllCompanies,
                     onChanged: (v) => setDlgState(() => seeAllCompanies = v ?? false),
-                    title: const Text('See All Companies', style: TextStyle(fontSize: 14)),
-                    subtitle: const Text('Bypasses company-level ticket isolation', style: TextStyle(fontSize: 11, color: ThemeColors.unifiedTextMuted)),
+                    title: const Text('See All Companies', style: AppTextStyles.body),
+                    subtitle: const Text('Bypasses company-level ticket isolation', style: AppTextStyles.label),
                     contentPadding: EdgeInsets.zero,
                     dense: true,
                     controlAffinity: ListTileControlAffinity.leading,
@@ -665,7 +667,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(ConstStrings.cancel)),
             ElevatedButton(
               onPressed: () {
                 if (!formKey.currentState!.validate()) return;
@@ -688,7 +690,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   widget.bloc.add(UpdateUser(existing.id, body, context));
                 }
               },
-              child: Text(existing == null ? 'Create' : 'Save'),
+              child: Text(existing == null ? ConstStrings.create : ConstStrings.save),
             ),
           ],
         ),

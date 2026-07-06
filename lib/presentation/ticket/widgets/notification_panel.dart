@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/data/datasource/ticketdatasource/notification_remote_data_source.dart';
 import 'package:tasknest/injection.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
@@ -93,7 +95,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
                 const Icon(Icons.notifications_outlined, size: 20, color: ThemeColors.unifiedTextPrimary),
                 const SizedBox(width: 8),
                 Text(
-                  'Notifications',
+                  ConstStrings.navNotifications,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -104,7 +106,7 @@ class _NotificationPanelState extends State<NotificationPanel> {
                 if (_notifications != null && _notifications!.any((n) => !n.isRead))
                   TextButton(
                     onPressed: _markAllRead,
-                    child: const Text('Mark all read', style: TextStyle(fontSize: 13)),
+                    child: const Text(ConstStrings.markAllRead, style: TextStyle(fontSize: 13)),
                   ),
               ],
             ),
@@ -122,8 +124,8 @@ class _NotificationPanelState extends State<NotificationPanel> {
                               Icon(Icons.notifications_off_outlined,
                                   size: 40, color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.5)),
                               const SizedBox(height: 8),
-                              Text('No notifications yet',
-                                  style: TextStyle(fontSize: 14, color: ThemeColors.unifiedTextMuted)),
+                              Text(ConstStrings.noNotifications,
+                                  style: AppTextStyles.bodyMuted),
                             ],
                           ),
                         )

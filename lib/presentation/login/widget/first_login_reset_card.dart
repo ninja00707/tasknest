@@ -3,19 +3,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 import 'package:tasknest/presentation/login/bloc/login_state.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
+import 'package:tasknest/core/constant/validators.dart';
+import 'package:tasknest/presentation/login/bloc/auth_view_mode.dart';
 import 'package:tasknest/presentation/login/bloc/login_event.dart';
 import 'package:tasknest/core/theme/common_text_form_field.dart';
 
 class FirstLoginResetCard extends StatefulWidget {
   final int userId;
   final String email;
-  final VoidCallback? onNavigateToLogin;
 
   const FirstLoginResetCard({
     super.key,
     required this.userId,
     required this.email,
-    this.onNavigateToLogin,
   });
 
   @override
@@ -83,7 +84,7 @@ class _FirstLoginResetCardState extends State<FirstLoginResetCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Set your password',
+                        ConstStrings.setYourPassword,
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
@@ -92,7 +93,7 @@ class _FirstLoginResetCardState extends State<FirstLoginResetCard> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Welcome! Please set a new password for ${widget.email}.',
+                        '${ConstStrings.welcomeSetNewPassword}${widget.email}.',
                         style: const TextStyle(
                           fontSize: 14,
                           color: ThemeColors.unifiedTextMuted,
@@ -101,25 +102,22 @@ class _FirstLoginResetCardState extends State<FirstLoginResetCard> {
                       ),
                       const SizedBox(height: 24),
                       CommonTextFormField(
-                        hint: 'New password',
+                        hint: ConstStrings.newPassword,
                         controller: newPasswordController,
                         icon: Icons.lock_outline,
                         obscurePassword: true,
-                        validator: (v) {
-                          if (v == null || v.isEmpty) return 'Password is required';
-                          if (v.length < 6) return 'Password must be at least 6 characters';
-                          return null;
-                        },
+                        validator: AuthValidators.validatePassword,
                       ),
                       const SizedBox(height: 16),
                       CommonTextFormField(
-                        hint: 'Confirm new password',
+                        hint: ConstStrings.confirmNewPassword,
                         controller: confirmPasswordController,
                         icon: Icons.lock_outline,
                         obscurePassword: true,
                         validator: (v) {
-                          if (v == null || v.isEmpty) return 'Please confirm your password';
-                          if (v != newPasswordController.text) return 'Passwords do not match';
+                          if (v == null || v.isEmpty) return ConstStrings.pleaseConfirmPassword;
+                          if (v != newPasswordController.text) return ConstStrings.passwordsDoNotMatch;
+                          if (!AuthValidators.passwordRegex.hasMatch(v)) return AuthValidators.validatePassword(v);
                           return null;
                         },
                       ),
@@ -172,7 +170,7 @@ class _FirstLoginResetCardState extends State<FirstLoginResetCard> {
                                     ),
                                   )
                                 : const Text(
-                                    'Set Password & Login',
+                                    ConstStrings.setPasswordAndLogin,
                                     style: TextStyle(
                                       fontSize: 17,
                                       fontWeight: FontWeight.w700,
@@ -187,7 +185,9 @@ class _FirstLoginResetCardState extends State<FirstLoginResetCard> {
                         width: double.infinity,
                         height: 48,
                         child: OutlinedButton(
-                          onPressed: widget.onNavigateToLogin,
+                          onPressed: () => context.read<AuthBloc>().add(
+                            SwitchModeEvent(mode: AuthViewMode.login),
+                          ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: ThemeColors.unifiedPrimary,
                             side: const BorderSide(
@@ -199,7 +199,7 @@ class _FirstLoginResetCardState extends State<FirstLoginResetCard> {
                             ),
                           ),
                           child: const Text(
-                            'Back to Log In',
+                            ConstStrings.backToLogIn,
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,

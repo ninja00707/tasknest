@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/admin/data/models/admin_models.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_bloc.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_event.dart';
@@ -47,7 +49,7 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Manage Departments', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary)),
+                  const Text('Manage Departments', style: AppTextStyles.pageTitle),
                   IconButton(icon: const Icon(Icons.refresh), onPressed: () => widget.bloc.add(LoadDepartments())),
                 ],
               ),
@@ -55,10 +57,10 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('All departments in the organisation', style: TextStyle(fontSize: 14, color: ThemeColors.unifiedTextMuted)),
+                  const Text('All departments in the organisation', style: AppTextStyles.bodyMuted),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Add Department'),
+                    label: Text(ConstStrings.addDepartment),
                     onPressed: () => _showDeptDialog(context, null, _allDepts ?? []),
                   ),
                 ],
@@ -67,7 +69,7 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
               TextField(
                 controller: _searchCtl,
                 decoration: InputDecoration(
-                  hintText: 'Search by name or code...',
+                  hintText: ConstStrings.searchByNameOrCode,
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchCtl.clear(); setState(() { _searchQuery = ''; _page = 1; }); })
@@ -167,7 +169,7 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Department?'),
+        title: const Text(ConstStrings.deleteDepartment),
         content: Text('Delete "${d.name}" (${d.code})? This cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
@@ -177,7 +179,7 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
               Navigator.pop(ctx);
               widget.bloc.add(DeleteDepartment(d.id, context));
             },
-            child: const Text('Delete'),
+            child: const Text(ConstStrings.delete),
           ),
         ],
       ),
@@ -202,43 +204,43 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) => AlertDialog(
-          title: Text(existing == null ? 'Add Department' : 'Edit Department'),
+          title: Text(existing == null ? ConstStrings.addDepartment : 'Edit Department'),
           content: Form(
             key: formKey,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextFormField(controller: nameCtl, decoration: const InputDecoration(labelText: 'Name'), validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                  TextFormField(controller: nameCtl, decoration: const InputDecoration(labelText: ConstStrings.nameLabel), validator: (v) => v == null || v.isEmpty ? ConstStrings.required_ : null),
                   const SizedBox(height: 12),
-                  TextFormField(controller: codeCtl, decoration: const InputDecoration(labelText: 'Code'), validator: (v) => v == null || v.isEmpty ? 'Required' : null),
+                  TextFormField(controller: codeCtl, decoration: const InputDecoration(labelText: ConstStrings.codeLabel), validator: (v) => v == null || v.isEmpty ? ConstStrings.required_ : null),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
                     value: companyId,
-                    decoration: const InputDecoration(labelText: 'Company'),
+                    decoration: const InputDecoration(labelText: ConstStrings.companyLabel),
                     items: const [
-                      DropdownMenuItem(value: 0, child: Text('UM Enterprises')),
-                      DropdownMenuItem(value: 1, child: Text('Matrix Pharma')),
+                      DropdownMenuItem(value: 0, child: Text(ConstStrings.umEnterprises)),
+                      DropdownMenuItem(value: 1, child: Text(ConstStrings.matrixPharma)),
                     ],
                     onChanged: (v) => setDlgState(() => companyId = v!),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: tier,
-                    decoration: const InputDecoration(labelText: 'Tier'),
+                    decoration: const InputDecoration(labelText: ConstStrings.tierLabel),
                     items: const [
-                      DropdownMenuItem(value: 'upper', child: Text('Upper')),
-                      DropdownMenuItem(value: 'lower', child: Text('Lower')),
+                      DropdownMenuItem(value: 'upper', child: Text(ConstStrings.upper)),
+                      DropdownMenuItem(value: 'lower', child: Text(ConstStrings.lower)),
                     ],
                     onChanged: (v) => setDlgState(() => tier = v),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int?>(
                     value: parentId,
-                    decoration: const InputDecoration(labelText: 'Parent Department'),
+                    decoration: const InputDecoration(labelText: ConstStrings.parentDepartment),
                     isExpanded: true,
                     items: [
-                      const DropdownMenuItem<int?>(value: null, child: Text('None (top-level)')),
+                      const DropdownMenuItem<int?>(value: null, child: Text(ConstStrings.noneTopLevel)),
                       ...filteredDepts.map((d) => DropdownMenuItem<int?>(
                         value: d.id,
                         child: Text('${d.id} — ${d.name} (${d.code})'),
@@ -248,8 +250,8 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
                   ),
                   const SizedBox(height: 12),
                   SwitchListTile(
-                    title: const Text('Shared Department'),
-                    subtitle: const Text('Visible across all companies'),
+                    title: const Text(ConstStrings.sharedDepartment),
+                    subtitle: const Text(ConstStrings.visibleAcrossCompanies),
                     value: isShared,
                     activeColor: ThemeColors.unifiedSuccess,
                     contentPadding: EdgeInsets.zero,
@@ -260,7 +262,7 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text(ConstStrings.cancel)),
             ElevatedButton(
               onPressed: () {
                 if (!formKey.currentState!.validate()) return;
@@ -279,7 +281,7 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
                   widget.bloc.add(UpdateDepartment(existing.id, body, context));
                 }
               },
-              child: Text(existing == null ? 'Create' : 'Save'),
+              child: Text(existing == null ? ConstStrings.create : ConstStrings.save),
             ),
           ],
         ),

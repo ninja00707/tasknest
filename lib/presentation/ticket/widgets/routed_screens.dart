@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_list.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
@@ -11,7 +13,6 @@ import 'package:tasknest/presentation/dashboard/widgets/dashboard_view.dart';
 import 'package:tasknest/presentation/ticket/crud/create/create_ticket.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_Listview.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_type_section_screen.dart';
-import 'package:tasknest/presentation/login/models/auth_response_model.dart';
 
 DashboardLoaded? _tryResolve(DashboardState s) {
   if (s is DashboardLoaded) return s;
@@ -92,7 +93,7 @@ class SentSubTicketsContent extends StatelessWidget {
         final loaded = _tryResolve(state);
         if (loaded == null) return _loading();
         if (user.roleId == 0 || user.roleId == 3) {
-          return const Center(child: Text('Invalid Section'));
+          return const Center(child: Text(ConstStrings.invalidSection));
         }
         return TicketListWidget(
           tickets: loaded.sentTickets,

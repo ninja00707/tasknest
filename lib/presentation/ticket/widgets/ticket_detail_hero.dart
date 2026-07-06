@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_helpers.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
@@ -96,17 +97,17 @@ class HeroSection extends StatelessWidget {
                                     ? Icons.dashboard_rounded
                                     : Icons.task_alt_rounded,
                                 label: ticket.isMultiTaskTicket
-                                    ? 'Multi Task'
+                                    ? ConstStrings.multiTaskLabel
                                     : ticket.isSubTicket
-                                    ? 'Sub Ticket'
-                                    : 'Standard',
+                                    ? ConstStrings.subTicketLabel
+                                    : ConstStrings.standardLabel,
                                 color: ThemeColors.unifiedSecondary,
                               ),
                               PriorityBadge(priority: ticket.priority),
                               if (ticket.isOverdue)
                                 HeroBadge(
                                   icon: Icons.schedule_rounded,
-                                  label: 'OVERDUE',
+                                  label: ConstStrings.overdue,
                                   color: ThemeColors.unifiedDanger,
                                 ),
                             ],
@@ -139,7 +140,7 @@ class HeroSection extends StatelessWidget {
                         const SizedBox(width: 6),
                         Flexible(
                           child: Text(
-                            'Child of ${ticket.parentTicketNumber ?? '#${ticket.parentTicketId}'} ${ticket.parentTicketTitle ?? ""}',
+                            '${ConstStrings.childOf}${ticket.parentTicketNumber ?? '#${ticket.parentTicketId}'} ${ticket.parentTicketTitle ?? ""}',
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_section_headers.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
@@ -14,21 +15,21 @@ class DashboardStatsSection extends StatelessWidget {
       children: [
         CommaonSectionHeader(
           icon: Icons.bar_chart_rounded,
-          title: 'Overview',
+          title: ConstStrings.overview,
         ),
         const SizedBox(height: 12),
         StatsGrid(s: s, isWide: isWide),
         const SizedBox(height: 28),
         CommaonSectionHeader(
           icon: Icons.av_timer_rounded,
-          title: 'Resolution Metrics',
+          title: ConstStrings.resolutionMetrics,
         ),
         const SizedBox(height: 12),
         ResolutionMetricsRow(s: s, isWide: isWide),
         const SizedBox(height: 28),
         CommaonSectionHeader(
           icon: Icons.flag_outlined,
-          title: 'Priority Breakdown',
+          title: ConstStrings.priorityBreakdown,
         ),
         const SizedBox(height: 12),
         isWide
@@ -60,14 +61,14 @@ class StatsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      StatItem('Total', s.total, ThemeColors.unifiedPrimary, Icons.inbox_outlined),
-      StatItem('Open', s.open, ThemeColors.unifiedSecondary, Icons.radio_button_unchecked_rounded),
-      StatItem('In Progress', s.inProgress, ThemeColors.unifiedWarning, Icons.autorenew_rounded),
-      StatItem('Completed', s.completed, ThemeColors.unifiedAccent, Icons.check_circle_outline_rounded),
-      StatItem('Closed', s.closed, ThemeColors.unifiedTextMuted, Icons.lock_outline_rounded),
-      StatItem('Urgent', s.urgent, ThemeColors.unifiedDanger, Icons.warning_amber_rounded),
-      StatItem('High Pri.', s.highPriority, const Color(0xFFEA580C), Icons.priority_high_rounded),
-      StatItem('Overdue', s.overdue, ThemeColors.unifiedDanger, Icons.access_time_rounded),
+      StatItem(ConstStrings.statTotal, s.total, ThemeColors.unifiedPrimary, Icons.inbox_outlined),
+      StatItem(ConstStrings.statOpen, s.open, ThemeColors.unifiedSecondary, Icons.radio_button_unchecked_rounded),
+      StatItem(ConstStrings.statInProgress, s.inProgress, ThemeColors.unifiedWarning, Icons.autorenew_rounded),
+      StatItem(ConstStrings.statCompleted, s.completed, ThemeColors.unifiedAccent, Icons.check_circle_outline_rounded),
+      StatItem(ConstStrings.statClosed, s.closed, ThemeColors.unifiedTextMuted, Icons.lock_outline_rounded),
+      StatItem(ConstStrings.statUrgent, s.urgent, ThemeColors.unifiedDanger, Icons.warning_amber_rounded),
+      StatItem(ConstStrings.statHighPri, s.highPriority, const Color(0xFFEA580C), Icons.priority_high_rounded),
+      StatItem(ConstStrings.statOverdue, s.overdue, ThemeColors.unifiedDanger, Icons.access_time_rounded),
     ];
 
     return GridView.builder(
@@ -207,30 +208,30 @@ class ResolutionMetricsRow extends StatelessWidget {
     final tiles = [
       ResolItem(
         icon: Icons.av_timer_rounded,
-        label: 'Avg. Resolution Time',
+        label: ConstStrings.avgResolutionTime,
         value: _avgTime(),
-        sub: 'per ticket closed',
+        sub: ConstStrings.perTicketClosed,
         color: ThemeColors.unifiedSecondary,
       ),
       ResolItem(
         icon: Icons.check_circle_outline_rounded,
-        label: 'Completion Rate',
+        label: ConstStrings.completionRate,
         value: '$completionRate%',
         sub: '${s.completed} of ${s.total} tickets',
         color: ThemeColors.unifiedAccent,
       ),
       ResolItem(
         icon: Icons.access_time_rounded,
-        label: 'Overdue Rate',
+        label: ConstStrings.overdueRate,
         value: '$overdueRate%',
-        sub: '${s.overdue} overdue tickets',
+        sub: '${s.overdue} ${ConstStrings.overdueTickets}',
         color: ThemeColors.unifiedDanger,
       ),
       ResolItem(
         icon: Icons.warning_amber_rounded,
-        label: 'Critical Load',
+        label: ConstStrings.criticalLoad,
         value: '${s.urgent}',
-        sub: 'urgent tickets open',
+        sub: ConstStrings.urgentTicketsOpen,
         color: const Color(0xFFEA580C),
       ),
     ];
@@ -371,10 +372,10 @@ class PriorityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final total = s.total;
     final items = [
-      PriorityItem('Urgent', s.urgent, ThemeColors.unifiedDanger),
+      PriorityItem(ConstStrings.statUrgent, s.urgent, ThemeColors.unifiedDanger),
       PriorityItem('High', s.highPriority, const Color(0xFFEA580C)),
       PriorityItem(
-        'Medium & Low',
+        ConstStrings.priorityMediumLow,
         total - s.urgent - s.highPriority,
         ThemeColors.unifiedPrimary,
       ),
@@ -382,7 +383,7 @@ class PriorityCard extends StatelessWidget {
 
     return BaseCard(
       icon: Icons.flag_outlined,
-      title: 'Priority Distribution',
+      title: ConstStrings.priorityDistribution,
       child: Column(
         children: items
             .map(
@@ -473,15 +474,15 @@ class StatusSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final total = s.total;
     final rows = [
-      StatusItem('Open', s.open, total, ThemeColors.unifiedSecondary, ThemeColors.statusOpenBg, ThemeColors.statusOpenFg),
-      StatusItem('In Progress', s.inProgress, total, ThemeColors.unifiedWarning, ThemeColors.statusProgressBg, ThemeColors.statusProgressFg),
-      StatusItem('Completed', s.completed, total, ThemeColors.unifiedAccent, ThemeColors.statusDoneBg, ThemeColors.statusDoneFg),
-      StatusItem('Closed', s.closed, total, ThemeColors.unifiedTextMuted, ThemeColors.statusClosedBg, ThemeColors.statusClosedFg),
+      StatusItem(ConstStrings.statusOpen, s.open, total, ThemeColors.unifiedSecondary, ThemeColors.statusOpenBg, ThemeColors.statusOpenFg),
+      StatusItem(ConstStrings.statusInProgress, s.inProgress, total, ThemeColors.unifiedWarning, ThemeColors.statusProgressBg, ThemeColors.statusProgressFg),
+      StatusItem(ConstStrings.statusCompleted, s.completed, total, ThemeColors.unifiedAccent, ThemeColors.statusDoneBg, ThemeColors.statusDoneFg),
+      StatusItem(ConstStrings.statusClosed, s.closed, total, ThemeColors.unifiedTextMuted, ThemeColors.statusClosedBg, ThemeColors.statusClosedFg),
     ];
 
     return BaseCard(
       icon: Icons.donut_small_outlined,
-      title: 'Status Summary',
+      title: ConstStrings.statusSummary,
       child: Column(children: rows.map((e) => StatusRow(item: e)).toList()),
     );
   }

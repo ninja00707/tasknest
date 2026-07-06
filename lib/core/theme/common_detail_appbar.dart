@@ -2,7 +2,9 @@
 import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
@@ -81,12 +83,7 @@ class CommonDetailAppbar extends StatelessWidget
             Expanded(
               child: Text(
                 '${title ?? ticket?.title}',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: ThemeColors.unifiedTextPrimary,
-                  letterSpacing: -0.2,
-                ),
+                style: AppTextStyles.sectionHeader,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -104,7 +101,7 @@ class CommonDetailAppbar extends StatelessWidget
                   color: ThemeColors.unifiedTextPrimary,
                 ),
                 onPressed: () => _printTicket(context, ticket!, userName: userName),
-                tooltip: 'Print ticket',
+                tooltip: ConstStrings.printTicket,
               ),
             ),
           Padding(
@@ -196,32 +193,32 @@ String _buildPrintHtml(TicketModel t, {String? userName}) {
   </div>
   <div class="grid">
     <div class="field">
-      <div class="label">Status</div>
+      <div class="label">${ConstStrings.htmlStatus}</div>
       <div class="value"><span class="badge badge-${t.status}">${t.status.replaceAll('_', ' ').toUpperCase()}</span></div>
     </div>
     <div class="field">
-      <div class="label">Priority</div>
+      <div class="label">${ConstStrings.htmlPriority}</div>
       <div class="value"><span class="badge badge-${t.priority}">${t.priority.toUpperCase()}</span></div>
     </div>
     <div class="field">
-      <div class="label">Department</div>
+      <div class="label">${ConstStrings.htmlDepartment}</div>
       <div class="value">${_e(t.assignedDeptCode)}</div>
     </div>
     <div class="field">
-      <div class="label">Created By</div>
+      <div class="label">${ConstStrings.htmlCreatedBy}</div>
       <div class="value">${_e(t.createdByName)}</div>
     </div>
     <div class="field">
-      <div class="label">Assigned To</div>
+      <div class="label">${ConstStrings.htmlAssignedTo}</div>
       <div class="value">${_e(t.assignedToName ?? 'Unassigned')}</div>
     </div>
     <div class="field">
-      <div class="label">Created Date</div>
+      <div class="label">${ConstStrings.htmlCreatedDate}</div>
       <div class="value">$dateStr</div>
     </div>
   </div>
   <div class="section">
-    <h2>Description</h2>
+    <h2>${ConstStrings.htmlDescription}</h2>
     <div class="desc">${_e(t.description)}</div>
   </div>
   <div class="footer">Printed by ${_e(userName ?? 'Unknown')} · TaskNest · $nowStr</div>
@@ -273,7 +270,7 @@ class _PrintPreview extends StatelessWidget {
               children: [
                 const Icon(Icons.print_rounded, size: 18, color: Color(0xFF374151)),
                 const SizedBox(width: 8),
-                const Text('Print Preview',
+                const Text(ConstStrings.printPreview,
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF1F2937))),
                 const Spacer(),
                 GestureDetector(
@@ -307,23 +304,23 @@ class _PrintPreview extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   Row(children: [
-                    _pField('Status', ticket.status.replaceAll('_', ' ').toUpperCase()),
+                    _pField(ConstStrings.htmlStatus, ticket.status.replaceAll('_', ' ').toUpperCase()),
                     const SizedBox(width: 24),
-                    _pField('Priority', ticket.priority.toUpperCase()),
+                    _pField(ConstStrings.htmlPriority, ticket.priority.toUpperCase()),
                     const SizedBox(width: 24),
-                    _pField('Department', ticket.assignedDeptCode),
+                    _pField(ConstStrings.htmlDepartment, ticket.assignedDeptCode),
                   ]),
                   const SizedBox(height: 16),
                   Row(children: [
-                    _pField('Created By', ticket.createdByName),
+                    _pField(ConstStrings.htmlCreatedBy, ticket.createdByName),
                     const SizedBox(width: 24),
-                    _pField('Assigned To', ticket.assignedToName ?? 'Unassigned'),
+                    _pField(ConstStrings.htmlAssignedTo, ticket.assignedToName ?? ConstStrings.unassigned),
                   ]),
                   const SizedBox(height: 16),
-                  _pField('Created Date', dateStr),
+                  _pField(ConstStrings.htmlCreatedDate, dateStr),
                   const SizedBox(height: 24),
-                  const Text('DESCRIPTION',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9CA3AF), letterSpacing: 0.5)),
+                  Text(ConstStrings.htmlDescription,
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF9CA3AF), letterSpacing: 0.5)),
                   const SizedBox(height: 8),
                   Container(
                     width: double.infinity,
@@ -337,7 +334,7 @@ class _PrintPreview extends StatelessWidget {
                         style: const TextStyle(fontSize: 13, color: Color(0xFF4B5563), height: 1.6)),
                   ),
                   const SizedBox(height: 24),
-                  Center(child: Text('Printed from TaskNest · $nowStr',
+                  Center(child: Text('${ConstStrings.printedFrom} · $nowStr',
                       style: const TextStyle(fontSize: 10, color: Color(0xFFD1D5DB)))),
                 ],
               ),
@@ -362,8 +359,8 @@ class _PrintPreview extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Color(0xFFD1D5DB)),
                     ),
-                    child: const Text('Close',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
+                    child: Text(ConstStrings.close,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -387,7 +384,7 @@ class _PrintPreview extends StatelessWidget {
                       children: [
                         Icon(Icons.print_rounded, size: 16, color: Colors.white),
                         SizedBox(width: 6),
-                        Text('Print', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                        Text(ConstStrings.print, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
                       ],
                     ),
                   ),
