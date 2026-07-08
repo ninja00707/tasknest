@@ -72,28 +72,6 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
   bool _isSelected(int deptId) =>
       _selectedDepts.any((e) => e.department.id == deptId);
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(days: 7)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: ThemeColors.unifiedPrimary,
-            onPrimary: Colors.white,
-            surface: ThemeColors.unifiedSurface,
-          ),
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null) {
-      setState(() => _dueDate = picked.toIso8601String().split('T').first);
-    }
-  }
-
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_selectedDepts.length < 2) {
@@ -242,10 +220,10 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                   vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF7C3AED).withOpacity(0.12),
+                  color: const Color(0xFF7C3AED).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: const Color(0xFF7C3AED).withOpacity(0.3),
+                    color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
                   ),
                 ),
                 child: const Text(
@@ -268,7 +246,7 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
               border: Border.all(color: ThemeColors.unifiedBorder, width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 12,
                   offset: const Offset(0, 3),
                 ),
@@ -372,7 +350,7 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                               onSelected: (_) => _toggleDepartment(dept),
                               selectedColor: const Color(
                                 0xFF7C3AED,
-                              ).withOpacity(0.15),
+                              ).withValues(alpha: 0.15),
                               checkmarkColor: const Color(0xFF7C3AED),
                               side: BorderSide(
                                 color: selected
@@ -430,7 +408,7 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
                                         BoxShadow(
                                           color: const Color(
                                             0xFF7C3AED,
-                                          ).withOpacity(0.3),
+                                          ).withValues(alpha: 0.3),
                                           blurRadius: 12,
                                           offset: const Offset(0, 4),
                                         ),
@@ -492,7 +470,7 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
         color: ThemeColors.unifiedBackground,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFF7C3AED).withOpacity(0.25),
+          color: const Color(0xFF7C3AED).withValues(alpha: 0.25),
           width: 1.5,
         ),
       ),
@@ -504,7 +482,7 @@ class _CreateSubTicketViewState extends State<CreateSubTicketView> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF7C3AED).withOpacity(0.1),
+                  color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -625,7 +603,7 @@ class _PriorityRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
                 color: isSel
-                    ? ThemeColors.unifiedPrimary.withOpacity(0.12)
+                    ? ThemeColors.unifiedPrimary.withValues(alpha: 0.12)
                     : ThemeColors.unifiedInputBg,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
@@ -650,48 +628,6 @@ class _PriorityRow extends StatelessWidget {
           ),
         );
       }).toList(),
-    );
-  }
-}
-
-class _DateField extends StatelessWidget {
-  final String? dueDate;
-  final VoidCallback onTap;
-
-  const _DateField({this.dueDate, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        decoration: BoxDecoration(
-          color: ThemeColors.unifiedInputBg,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: ThemeColors.unifiedBorder, width: 1.5),
-        ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.calendar_today_outlined,
-              size: 16,
-              color: ThemeColors.unifiedTextMuted,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              dueDate ?? ConstStrings.pickDueDateOptional,
-              style: TextStyle(
-                fontSize: 14,
-                color: dueDate != null
-                    ? ThemeColors.unifiedTextPrimary
-                    : ThemeColors.unifiedTextMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

@@ -18,7 +18,7 @@ class TicketBody extends StatelessWidget {
   final DashboardLoaded state;
   final UserModel user;
 
-  const TicketBody({required this.state, required this.user});
+  const TicketBody({super.key, required this.state, required this.user});
 
   static const List<String> _statusFlow = [
     'open',
@@ -84,7 +84,7 @@ class TicketBody extends StatelessWidget {
         state.filterPriority != null ||
         state.searchQuery.isNotEmpty;
 
-    final allSorted = _sorted(state.filteredTickets);
+    final allSorted = _sorted(state.tickets);
 
     if (allSorted.isEmpty) {
       return EmptyState(
@@ -123,17 +123,20 @@ class TicketBody extends StatelessWidget {
             crossAxisCount;
 
         Widget buildGrid(List<TicketModel> tickets) {
-          return Wrap(
-            spacing: spacing,
-            runSpacing: spacing,
-            children: tickets
-                .map(
-                  (t) => SizedBox(
-                    width: cardWidth,
-                    child: TicketCard(ticket: t, user: user),
-                  ),
-                )
-                .toList(),
+          return GridView.builder(
+            itemCount: tickets.length,
+            shrinkWrap: true,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              crossAxisSpacing: spacing,
+              mainAxisSpacing: spacing,
+            ),
+            itemBuilder: (context, index) {
+              return SizedBox(
+                width: cardWidth,
+                child: TicketCard(ticket: tickets[index], user: user),
+              );
+            },
           );
         }
 
@@ -236,6 +239,7 @@ class StatusSectionHeader extends StatelessWidget {
   final String label;
   final int count;
   const StatusSectionHeader({
+    super.key,
     required this.status,
     required this.label,
     required this.count,
@@ -265,7 +269,7 @@ class StatusSectionHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
@@ -281,7 +285,7 @@ class StatusSectionHeader extends StatelessWidget {
         Expanded(
           child: Container(
             height: 1,
-            color: ThemeColors.unifiedBorder.withOpacity(0.6),
+            color: ThemeColors.unifiedBorder.withValues(alpha: 0.6),
           ),
         ),
       ],
@@ -293,15 +297,17 @@ class StatusSectionHeader extends StatelessWidget {
 class ResultSummary extends StatelessWidget {
   final DashboardLoaded state;
   final int count;
-  const ResultSummary({required this.state, this.count = 0});
+  const ResultSummary({super.key, required this.state, this.count = 0});
 
   @override
   Widget build(BuildContext context) {
     final parts = <String>[];
-    if (state.filterStatus != null)
+    if (state.filterStatus != null) {
       parts.add(state.filterStatus!.replaceAll('_', ' ').toUpperCase());
-    if (state.filterPriority != null)
-      parts.add(state.filterPriority!.toUpperCase() + ' PRIORITY');
+    }
+    if (state.filterPriority != null) {
+      parts.add('${state.filterPriority!.toUpperCase()} PRIORITY');
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

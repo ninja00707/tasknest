@@ -10,7 +10,7 @@ import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/admin/presentation/screens/admin_shell_screen.dart';
 import 'package:tasknest/presentation/dashboard/dashboard_screen.dart';
 import 'package:tasknest/presentation/ticket/widgets/routed_screens.dart';
-import 'package:tasknest/presentation/ticket/widgets/ticket_detail_screen.dart';
+import 'package:tasknest/presentation/ticket/widgets/card_detailing_widget/ticket_detail_screen.dart';
 import 'package:tasknest/presentation/login/signup_view.dart';
 
 final LocalStorageService storage = LocalStorageService();
@@ -23,7 +23,8 @@ final GoRouter appRouter = GoRouter(
 
     final loggedIn = token != null && token.isNotEmpty;
 
-    final isLoginRoute = state.matchedLocation == RouteNames.login ||
+    final isLoginRoute =
+        state.matchedLocation == RouteNames.login ||
         state.matchedLocation == RouteNames.loginForgotPassword ||
         state.matchedLocation == RouteNames.loginFirstReset;
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
+import 'package:tasknest/core/routes/routes_name.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
@@ -15,32 +16,33 @@ import 'package:tasknest/presentation/ticket/widgets/notification_toast.dart';
 class DashboardLayout extends StatelessWidget {
   final UserModel user;
   final Widget child;
-  const DashboardLayout({super.key, required this.user, required this.child});
+  final bool isWide;
+  const DashboardLayout({super.key, required this.user, required this.isWide, required this.child});
 
   static int selectedIndex(String path) {
-    if (path == '/dashboard') return 0;
-    if (path == '/departmentTickets') return 1;
-    if (path == '/newTicket') return 2;
-    if (path == '/sent_sub_tickets') return 3;
-    if (path == '/recent_activities') return 4;
-    if (path == '/ticket_types') return 5;
+    if (path == RouteNames.dashboard) return 0;
+    if (path == RouteNames.departmentTickets) return 1;
+    if (path == RouteNames.newTicket) return 2;
+    if (path == RouteNames.sentSubTickets) return 3;
+    if (path == RouteNames.recentActivities) return 4;
+    if (path == RouteNames.ticketTypes) return 5;
     return 0;
   }
 
   static void onNav(BuildContext context, int index) {
     switch (index) {
       case 0:
-        context.go('/dashboard');
+        context.go(RouteNames.dashboard);
       case 1:
-        context.go('/departmentTickets');
+        context.go(RouteNames.departmentTickets);
       case 2:
-        context.go('/newTicket');
+        context.go(RouteNames.newTicket);
       case 3:
-        context.go('/sent_sub_tickets');
+        context.go(RouteNames.sentSubTickets);
       case 4:
-        context.go('/recent_activities');
+        context.go(RouteNames.recentActivities);
       case 5:
-        context.go('/ticket_types');
+        context.go(RouteNames.ticketTypes);
     }
   }
 
@@ -52,11 +54,10 @@ class DashboardLayout extends StatelessWidget {
     return BlocBuilder<DashboardBloc, DashboardState>(
       buildWhen: (prev, curr) {
         if (curr is! DashboardLoaded || prev is! DashboardLoaded) return false;
-        return prev.sidebarOpen != curr.sidebarOpen || prev.isWide != curr.isWide;
+        return prev.sidebarOpen != curr.sidebarOpen;
       },
       builder: (context, state) {
         final loaded = state as DashboardLoaded;
-        final isWide = loaded.isWide;
         final isMobile = !isWide;
 
         return LiveNotificationShell(
@@ -87,7 +88,9 @@ class DashboardLayout extends StatelessWidget {
                             onNav: (i) => onNav(context, i),
                           ),
                         GestureDetector(
-                          onTap: () => context.read<DashboardBloc>().add(ToggleSidebar()),
+                          onTap: () => context.read<DashboardBloc>().add(
+                            ToggleSidebar(),
+                          ),
                           child: Container(
                             width: 20,
                             color: ThemeColors.unifiedBackground,
@@ -99,7 +102,9 @@ class DashboardLayout extends StatelessWidget {
                                   color: ThemeColors.unifiedSurface,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
+                                    color: ThemeColors.unifiedBorder.withValues(
+                                      alpha: 0.5,
+                                    ),
                                   ),
                                 ),
                                 child: Icon(
@@ -149,8 +154,9 @@ class DashboardTopBar extends StatelessWidget {
     return Container(
       height: 56,
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [ThemeColors.unifiedGradStart, ThemeColors.unifiedGradEnd],
+        color: ThemeColors.unifiedSurface,
+        border: Border(
+          bottom: BorderSide(color: ThemeColors.unifiedBorder, width: 1),
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -158,16 +164,21 @@ class DashboardTopBar extends StatelessWidget {
         children: [
           if (showMenu)
             IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white),
+              icon: const Icon(
+                Icons.menu_rounded,
+                color: ThemeColors.unifiedTextPrimary,
+                size: 22,
+              ),
               onPressed: onMenuTap,
             ),
           if (showMenu) const SizedBox(width: 4),
           Text(
             ConstStrings.taskify,
             style: const TextStyle(
-              color: Colors.white,
+              color: ThemeColors.unifiedTextPrimary,
               fontWeight: FontWeight.w800,
               fontSize: 18,
+              letterSpacing: -0.3,
             ),
           ),
           const Spacer(),
@@ -178,20 +189,33 @@ class DashboardTopBar extends StatelessWidget {
               icon: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  const Icon(Icons.notifications_outlined, color: Colors.white),
+                  const Icon(
+                    Icons.notifications_outlined,
+                    color: ThemeColors.unifiedTextMuted,
+                    size: 22,
+                  ),
                   Positioned(
                     right: -4,
                     top: -4,
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: count > 0 ? ThemeColors.unifiedDanger : Colors.grey,
+                        color: count > 0
+                            ? ThemeColors.unifiedDanger
+                            : Colors.grey,
                         shape: BoxShape.circle,
                       ),
-                      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                      constraints: const BoxConstraints(
+                        minWidth: 18,
+                        minHeight: 18,
+                      ),
                       child: Text(
                         count > 99 ? '99+' : '$count',
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     ),

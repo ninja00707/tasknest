@@ -251,9 +251,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                        : Container(
                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                            decoration: BoxDecoration(
-                             color: ThemeColors.unifiedDanger.withOpacity(0.15),
+                             color: ThemeColors.unifiedDanger.withValues(alpha: 0.15),
                              borderRadius: BorderRadius.circular(4),
-                             border: Border.all(color: ThemeColors.unifiedDanger.withOpacity(0.4)),
+                             border: Border.all(color: ThemeColors.unifiedDanger.withValues(alpha: 0.4)),
                            ),
                            child: const Text('EMPTY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedDanger)),
                          ),
@@ -268,18 +268,18 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     ? Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: ThemeColors.unifiedSecondary.withOpacity(0.15),
+                          color: ThemeColors.unifiedSecondary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: ThemeColors.unifiedSecondary.withOpacity(0.4)),
+                          border: Border.all(color: ThemeColors.unifiedSecondary.withValues(alpha: 0.4)),
                         ),
                         child: const Text('ALL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedSecondary)),
                       )
                     : Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: ThemeColors.unifiedTextMuted.withOpacity(0.15),
+                          color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: ThemeColors.unifiedTextMuted.withOpacity(0.3)),
+                          border: Border.all(color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.3)),
                         ),
                         child: const Text('OWN', style: AppTextStyles.label),
                       )),
@@ -358,9 +358,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                        : Container(
                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                            decoration: BoxDecoration(
-                             color: ThemeColors.unifiedDanger.withOpacity(0.15),
+                             color: ThemeColors.unifiedDanger.withValues(alpha: 0.15),
                              borderRadius: BorderRadius.circular(4),
-                             border: Border.all(color: ThemeColors.unifiedDanger.withOpacity(0.4)),
+                             border: Border.all(color: ThemeColors.unifiedDanger.withValues(alpha: 0.4)),
                            ),
                            child: const Text('EMPTY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedDanger)),
                          ),
@@ -375,18 +375,18 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     ? Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: ThemeColors.unifiedSecondary.withOpacity(0.15),
+                          color: ThemeColors.unifiedSecondary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: ThemeColors.unifiedSecondary.withOpacity(0.4)),
+                          border: Border.all(color: ThemeColors.unifiedSecondary.withValues(alpha: 0.4)),
                         ),
                         child: const Text('ALL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: ThemeColors.unifiedSecondary)),
                       )
                     : Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: ThemeColors.unifiedTextMuted.withOpacity(0.15),
+                          color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: ThemeColors.unifiedTextMuted.withOpacity(0.3)),
+                          border: Border.all(color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.3)),
                         ),
                         child: const Text('OWN', style: AppTextStyles.label),
                       )),
@@ -454,7 +454,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
       child: Text(role, style: TextStyle(fontSize: 12, color: c, fontWeight: FontWeight.w600)),
     );
   }
@@ -543,7 +543,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
-                    value: roleId,
+                    initialValue: roleId,
                     decoration: const InputDecoration(labelText: ConstStrings.roleLabel),
                     items: const [
                       DropdownMenuItem(value: 3, child: Text(ConstStrings.roleDeveloper)),
@@ -562,7 +562,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
-                    value: companyId,
+                    initialValue: companyId,
                     decoration: const InputDecoration(labelText: ConstStrings.companyLabel),
                     items: const [
                       DropdownMenuItem(value: 0, child: Text(ConstStrings.umEnterprises)),

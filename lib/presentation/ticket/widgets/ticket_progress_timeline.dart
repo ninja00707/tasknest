@@ -4,7 +4,7 @@ import 'package:tasknest/core/theme/color.dart';
 
 class ProgressTimeline extends StatelessWidget {
   final String status;
-  const ProgressTimeline({required this.status});
+  const ProgressTimeline({super.key, required this.status});
 
   bool _isPassed(int step) {
     final s = status.toLowerCase();
@@ -93,7 +93,7 @@ class TimelineItem extends StatelessWidget {
   final TimelineStep step;
   final bool isActive, isCurrent;
 
-  const TimelineItem({
+  const TimelineItem({super.key, 
     required this.step,
     required this.isActive,
     required this.isCurrent,
@@ -113,7 +113,7 @@ class TimelineItem extends StatelessWidget {
               height: 36,
               decoration: BoxDecoration(
                 color: isActive
-                    ? step.color.withOpacity(0.1)
+                    ? step.color.withValues(alpha: 0.1)
                     : ThemeColors.unifiedBackground,
                 shape: BoxShape.circle,
                 border: Border.all(
@@ -131,7 +131,7 @@ class TimelineItem extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(2),
                   color: isActive
-                      ? step.color.withOpacity(0.35)
+                      ? step.color.withValues(alpha: 0.35)
                       : ThemeColors.unifiedBorder,
                 ),
               ),
@@ -178,9 +178,9 @@ class TimelineItem extends StatelessWidget {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: step.color.withOpacity(0.1),
+                      color: step.color.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: step.color.withOpacity(0.3)),
+                      border: Border.all(color: step.color.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       ConstStrings.now,

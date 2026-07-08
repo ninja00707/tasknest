@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 class HeroActionButton extends StatelessWidget {
   final IconData icon;
@@ -26,10 +25,10 @@ class HeroActionButton extends StatelessWidget {
             vertical: 10,
           ),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.14),
+            color: Colors.white.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: Colors.white.withOpacity(0.22),
+              color: Colors.white.withValues(alpha: 0.22),
               width: 1.2,
             ),
           ),

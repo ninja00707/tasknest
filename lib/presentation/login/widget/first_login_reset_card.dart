@@ -49,12 +49,12 @@ class _FirstLoginResetCardState extends State<FirstLoginResetCard> {
               border: Border.all(color: ThemeColors.unifiedBorder),
               boxShadow: [
                 BoxShadow(
-                  color: ThemeColors.unifiedPrimary.withOpacity(0.06),
+                  color: ThemeColors.unifiedPrimary.withValues(alpha: 0.06),
                   blurRadius: 24,
                   offset: const Offset(0, 6),
                 ),
                 BoxShadow(
-                  color: ThemeColors.unifiedSecondary.withOpacity(0.06),
+                  color: ThemeColors.unifiedSecondary.withValues(alpha: 0.06),
                   blurRadius: 40,
                   offset: const Offset(0, 12),
                 ),

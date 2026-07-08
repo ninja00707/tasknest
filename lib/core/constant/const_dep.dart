@@ -58,3 +58,8 @@ final priorities = [
 ];
 
 final List<Departments> departments = [];
+
+const int roleCEO = 0;
+const int roleManager = 1;
+const int roleEmployee = 2;
+const int roleDeveloper = 3;

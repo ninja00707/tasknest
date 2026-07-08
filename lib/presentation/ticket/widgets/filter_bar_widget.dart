@@ -8,19 +8,11 @@ import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
-import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
-import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 
 // ── Filter bar ────────────────────────────────────────────────────────────────
 class FilterBarWidget extends StatelessWidget {
   final DashboardLoaded state;
-  final bool boardView;
-  final VoidCallback onToggleView;
-  const FilterBarWidget({
-    required this.state,
-    required this.boardView,
-    required this.onToggleView,
-  });
+  const FilterBarWidget({super.key, required this.state});
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +35,7 @@ class FilterBarWidget extends StatelessWidget {
                   width: 28,
                   height: 28,
                   decoration: BoxDecoration(
-                    color: ThemeColors.unifiedPrimary.withOpacity(0.08),
+                    color: ThemeColors.unifiedPrimary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(7),
                   ),
                   child: const Icon(
@@ -58,54 +50,6 @@ class FilterBarWidget extends StatelessWidget {
                   style: AppTextStyles.sectionHeader,
                 ),
                 const Spacer(),
-                // ── View toggle ──────────────────────────────
-                GestureDetector(
-                  onTap: onToggleView,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: boardView
-                          ? ThemeColors.unifiedPrimary.withOpacity(0.1)
-                          : ThemeColors.unifiedBackground,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: boardView
-                            ? ThemeColors.unifiedPrimary
-                            : ThemeColors.unifiedBorder,
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          boardView
-                              ? Icons.view_list_rounded
-                              : Icons.dashboard_rounded,
-                          size: 13,
-                          color: boardView
-                              ? ThemeColors.unifiedPrimary
-                              : ThemeColors.unifiedTextMuted,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          boardView ? ConstStrings.listView : ConstStrings.boardView,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: boardView
-                                ? ThemeColors.unifiedPrimary
-                                : ThemeColors.unifiedTextMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
                 // Active filter indicator
                 if (state.filterStatus != null || state.filterPriority != null)
                   GestureDetector(
@@ -118,10 +62,14 @@ class FilterBarWidget extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: ThemeColors.unifiedDanger.withOpacity(0.08),
+                        color: ThemeColors.unifiedDanger.withValues(
+                          alpha: 0.08,
+                        ),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: ThemeColors.unifiedDanger.withOpacity(0.2),
+                          color: ThemeColors.unifiedDanger.withValues(
+                            alpha: 0.2,
+                          ),
                           width: 1.5,
                         ),
                       ),
@@ -154,7 +102,7 @@ class FilterBarWidget extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: ThemeColors.unifiedPrimary.withOpacity(0.08),
+                    color: ThemeColors.unifiedPrimary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -178,7 +126,7 @@ class FilterBarWidget extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: statuses.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (context, i) {
                 final s = statuses[i];
                 final active =
@@ -235,7 +183,9 @@ class FilterBarWidget extends StatelessWidget {
                       boxShadow: state.filterTeam
                           ? [
                               BoxShadow(
-                                color: const Color(0xFF0EA5E9).withOpacity(0.3),
+                                color: const Color(
+                                  0xFF0EA5E9,
+                                ).withValues(alpha: 0.3),
                                 blurRadius: 8,
                                 offset: const Offset(0, 2),
                               ),
@@ -282,7 +232,9 @@ class FilterBarWidget extends StatelessWidget {
                     ConstStrings.ticketsFromYourTeam,
                     style: TextStyle(
                       fontSize: 11,
-                      color: ThemeColors.unifiedTextMuted.withOpacity(0.7),
+                      color: ThemeColors.unifiedTextMuted.withValues(
+                        alpha: 0.7,
+                      ),
                     ),
                   ),
                 ],
@@ -350,6 +302,7 @@ class PageBtn extends StatelessWidget {
   final VoidCallback onTap;
 
   const PageBtn({
+    super.key,
     required this.icon,
     required this.label,
     required this.disabled,
@@ -359,7 +312,7 @@ class PageBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = disabled
-        ? ThemeColors.unifiedTextMuted.withOpacity(0.3)
+        ? ThemeColors.unifiedTextMuted.withValues(alpha: 0.3)
         : ThemeColors.unifiedPrimary;
     return GestureDetector(
       onTap: disabled ? null : onTap,
@@ -372,8 +325,8 @@ class PageBtn extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: disabled
-                ? ThemeColors.unifiedBorder.withOpacity(0.5)
-                : ThemeColors.unifiedPrimary.withOpacity(0.3),
+                ? ThemeColors.unifiedBorder.withValues(alpha: 0.5)
+                : ThemeColors.unifiedPrimary.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -404,6 +357,7 @@ class FilterChip extends StatelessWidget {
   final VoidCallback onTap;
 
   const FilterChip({
+    super.key,
     required this.label,
     required this.active,
     required this.color,
@@ -420,7 +374,7 @@ class FilterChip extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: active
               ? LinearGradient(
-                  colors: [color, color.withOpacity(0.75)],
+                  colors: [color, color.withValues(alpha: 0.75)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
@@ -434,7 +388,7 @@ class FilterChip extends StatelessWidget {
           boxShadow: active
               ? [
                   BoxShadow(
-                    color: color.withOpacity(0.3),
+                    color: color.withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -463,6 +417,7 @@ class PriorityDot extends StatelessWidget {
   final VoidCallback onTap;
 
   const PriorityDot({
+    super.key,
     required this.label,
     required this.active,
     required this.color,
@@ -479,7 +434,7 @@ class PriorityDot extends StatelessWidget {
         decoration: BoxDecoration(
           // ← never use Colors.transparent — use a real color with opacity 0
           color: active
-              ? color.withOpacity(0.12)
+              ? color.withValues(alpha: 0.12)
               : ThemeColors.unifiedBackground,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
@@ -489,7 +444,7 @@ class PriorityDot extends StatelessWidget {
           boxShadow: active
               ? [
                   BoxShadow(
-                    color: color.withOpacity(0.2),
+                    color: color.withValues(alpha: 0.2),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),

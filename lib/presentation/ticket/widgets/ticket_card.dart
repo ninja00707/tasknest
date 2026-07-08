@@ -27,16 +27,16 @@ class TicketCard extends StatelessWidget {
     Color tileBg;
     switch (ticket.priority.toLowerCase()) {
       case 'urgent':
-        tileBg = ThemeColors.unifiedDanger.withOpacity(0.06);
+        tileBg = ThemeColors.unifiedDanger.withValues(alpha: 0.06);
         break;
       case 'high':
-        tileBg = const Color(0xFFEA580C).withOpacity(0.05);
+        tileBg = const Color(0xFFEA580C).withValues(alpha: 0.05);
         break;
       case 'medium':
-        tileBg = ThemeColors.unifiedWarning.withOpacity(0.06);
+        tileBg = ThemeColors.unifiedWarning.withValues(alpha: 0.06);
         break;
       default:
-        tileBg = ThemeColors.unifiedAccent.withOpacity(0.04);
+        tileBg = ThemeColors.unifiedAccent.withValues(alpha: 0.04);
     }
 
     return GestureDetector(
@@ -47,18 +47,18 @@ class TicketCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: ticket.isOverdue
-                ? ThemeColors.unifiedDanger.withOpacity(0.35)
-                : color.withOpacity(0.25),
+                ? ThemeColors.unifiedDanger.withValues(alpha: 0.35)
+                : color.withValues(alpha: 0.25),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               blurRadius: 16,
               offset: const Offset(0, 4),
             ),
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 6,
               offset: const Offset(0, 1),
             ),
@@ -76,7 +76,7 @@ class TicketCard extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [color, color.withOpacity(0.4)],
+                    colors: [color, color.withValues(alpha: 0.4)],
                   ),
                 ),
               ),
@@ -101,7 +101,7 @@ class TicketCard extends StatelessWidget {
                           if (ticket.isStandardTicket)
                             FlagChip(
                               label: 'STANDARD',
-                              bg: ThemeColors.unifiedPrimary.withOpacity(0.08),
+                              bg: ThemeColors.unifiedPrimary.withValues(alpha: 0.08),
                               fg: ThemeColors.unifiedPrimary,
                               icon: Icons.article_rounded,
                             )
@@ -147,7 +147,7 @@ class TicketCard extends StatelessWidget {
                                     Icons.subdirectory_arrow_right_rounded,
                                     size: 13,
                                     color: ThemeColors.unifiedTextMuted
-                                        .withOpacity(0.6),
+                                        .withValues(alpha: 0.6),
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
@@ -197,13 +197,13 @@ class TicketCard extends StatelessWidget {
                         const SizedBox(height: 12),
                         Container(
                           height: 1,
-                          color: ThemeColors.unifiedBorder.withOpacity(0.6),
+                          color: ThemeColors.unifiedBorder.withValues(alpha: 0.6),
                         ),
                         const SizedBox(height: 10),
                       ] else ...[
                         Container(
                           height: 1,
-                          color: ThemeColors.unifiedBorder.withOpacity(0.6),
+                          color: ThemeColors.unifiedBorder.withValues(alpha: 0.6),
                         ),
                         const SizedBox(height: 10),
                       ],

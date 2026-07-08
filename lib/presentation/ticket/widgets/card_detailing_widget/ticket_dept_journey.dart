@@ -3,16 +3,16 @@ import 'package:tasknest/core/theme/color.dart';
 
 class DeptJourneySection extends StatelessWidget {
   final List<dynamic> journey;
-  const DeptJourneySection({required this.journey});
+  const DeptJourneySection({super.key, required this.journey});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: ThemeColors.unifiedBackground.withOpacity(0.5),
+        color: ThemeColors.unifiedBackground.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ThemeColors.unifiedBorder.withOpacity(0.5)),
+        border: Border.all(color: ThemeColors.unifiedBorder.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -30,7 +30,7 @@ class DeptJourneySection extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w900,
-                  color: ThemeColors.unifiedTextMuted.withOpacity(0.8),
+                  color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.8),
                   letterSpacing: 1.2,
                 ),
               ),
@@ -75,19 +75,19 @@ class DeptJourneySection extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: isLast
-                                ? activeColor.withOpacity(0.12)
+                                ? activeColor.withValues(alpha: 0.12)
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: isLast
-                                  ? activeColor.withOpacity(0.4)
+                                  ? activeColor.withValues(alpha: 0.4)
                                   : ThemeColors.unifiedBorder,
                               width: isLast ? 1.5 : 1,
                             ),
                             boxShadow: isLast
                                 ? [
                                     BoxShadow(
-                                      color: activeColor.withOpacity(0.1),
+                                      color: activeColor.withValues(alpha: 0.1),
                                       blurRadius: 8,
                                       offset: const Offset(0, 2),
                                     ),
@@ -127,7 +127,7 @@ class DeptJourneySection extends StatelessWidget {
                         child: Icon(
                           Icons.arrow_forward_ios_rounded,
                           size: 10,
-                          color: ThemeColors.unifiedBorder.withOpacity(0.8),
+                          color: ThemeColors.unifiedBorder.withValues(alpha: 0.8),
                         ),
                       ),
                   ],

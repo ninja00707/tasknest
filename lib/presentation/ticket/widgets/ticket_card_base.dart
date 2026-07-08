@@ -16,7 +16,7 @@ import 'package:tasknest/presentation/ticket/widgets/ticket_action.dart';
 // ── #ID Chip ──────────────────────────────────────────────────────────────────
 class IdChip extends StatelessWidget {
   final String label;
-  const IdChip({required this.label});
+  const IdChip({super.key, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +46,7 @@ class FlagChip extends StatelessWidget {
   final Color bg, fg;
   final IconData icon;
 
-  const FlagChip({
+  const FlagChip({super.key, 
     required this.label,
     required this.bg,
     required this.fg,
@@ -87,7 +87,7 @@ class MetaChip extends StatelessWidget {
   final Color iconColor;
   final String label;
 
-  const MetaChip({
+  const MetaChip({super.key, 
     required this.icon,
     required this.iconColor,
     required this.label,
@@ -135,7 +135,7 @@ class MetaDivider extends StatelessWidget {
 class SubTicketProgressSection extends StatelessWidget {
   final TicketModel ticket;
   final UserModel user;
-  const SubTicketProgressSection({required this.ticket, required this.user});
+  const SubTicketProgressSection({super.key, required this.ticket, required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -200,7 +200,7 @@ class SubTicketProgressSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: dept.isCompleted
-                        ? const Color(0xFF16A34A).withOpacity(0.3)
+                        ? const Color(0xFF16A34A).withValues(alpha: 0.3)
                         : ThemeColors.unifiedBorder,
                   ),
                 ),
@@ -238,10 +238,10 @@ class SubTicketProgressSection extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF7C3AED).withOpacity(0.05),
+              color: const Color(0xFF7C3AED).withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: const Color(0xFF7C3AED).withOpacity(0.2),
+                color: const Color(0xFF7C3AED).withValues(alpha: 0.2),
               ),
             ),
             child: Row(
@@ -330,7 +330,7 @@ class SubTicketProgressSection extends StatelessWidget {
             return AlertDialog(
               title: const Text(ConstStrings.assignTicket),
               content: DropdownButtonFormField<int>(
-                value: selectedId,
+                initialValue: selectedId,
                 items: loadedState!.employees.map((e) {
                   return DropdownMenuItem(value: e.id, child: Text(e.name));
                 }).toList(),
@@ -366,7 +366,7 @@ class SubTicketProgressSection extends StatelessWidget {
 class SmallActionBtn extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  const SmallActionBtn({required this.icon, required this.onTap});
+  const SmallActionBtn({super.key, required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -390,15 +390,15 @@ class SmallActionBtn extends StatelessWidget {
 class ChildTicketsList extends StatelessWidget {
   final List<ChildTicketModel> children;
   final UserModel user;
-  const ChildTicketsList({required this.children, required this.user});
+  const ChildTicketsList({super.key, required this.children, required this.user});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: ThemeColors.unifiedBackground.withOpacity(0.3),
+        color: ThemeColors.unifiedBackground.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ThemeColors.unifiedBorder.withOpacity(0.5)),
+        border: Border.all(color: ThemeColors.unifiedBorder.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -447,7 +447,7 @@ class ChildTicketsList extends StatelessWidget {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: ThemeColors.unifiedPrimary.withOpacity(
+                              color: ThemeColors.unifiedPrimary.withValues(alpha: 
                                 0.1,
                               ),
                               borderRadius: BorderRadius.circular(4),
@@ -495,7 +495,7 @@ class ChildTicketsList extends StatelessWidget {
                     if (!isLast)
                       Divider(
                         height: 1,
-                        color: ThemeColors.unifiedBorder.withOpacity(0.3),
+                        color: ThemeColors.unifiedBorder.withValues(alpha: 0.3),
                         indent: 12,
                         endIndent: 12,
                       ),
@@ -513,16 +513,16 @@ class ChildTicketsList extends StatelessWidget {
 // ── Department Journey Section ──────────────────────────────────────────────
 class DeptJourneySection extends StatelessWidget {
   final List<dynamic> journey;
-  const DeptJourneySection({required this.journey});
+  const DeptJourneySection({super.key, required this.journey});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: ThemeColors.unifiedBackground.withOpacity(0.5),
+        color: ThemeColors.unifiedBackground.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ThemeColors.unifiedBorder.withOpacity(0.5)),
+        border: Border.all(color: ThemeColors.unifiedBorder.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,7 +540,7 @@ class DeptJourneySection extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 9,
                   fontWeight: FontWeight.w900,
-                  color: ThemeColors.unifiedTextMuted.withOpacity(0.8),
+                  color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.8),
                   letterSpacing: 1.2,
                 ),
               ),
@@ -585,19 +585,19 @@ class DeptJourneySection extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: isLast
-                                ? activeColor.withOpacity(0.12)
+                                ? activeColor.withValues(alpha: 0.12)
                                 : Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: isLast
-                                  ? activeColor.withOpacity(0.4)
+                                  ? activeColor.withValues(alpha: 0.4)
                                   : ThemeColors.unifiedBorder,
                               width: isLast ? 1.5 : 1,
                             ),
                             boxShadow: isLast
                                 ? [
                                     BoxShadow(
-                                      color: activeColor.withOpacity(0.1),
+                                      color: activeColor.withValues(alpha: 0.1),
                                       blurRadius: 8,
                                       offset: const Offset(0, 2),
                                     ),
@@ -637,7 +637,7 @@ class DeptJourneySection extends StatelessWidget {
                         child: Icon(
                           Icons.arrow_forward_ios_rounded,
                           size: 10,
-                          color: ThemeColors.unifiedBorder.withOpacity(0.8),
+                          color: ThemeColors.unifiedBorder.withValues(alpha: 0.8),
                         ),
                       ),
                   ],

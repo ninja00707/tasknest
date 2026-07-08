@@ -24,11 +24,13 @@ class DashboardView extends StatelessWidget {
               departmentName: state.departmentName,
               roleName: state.roleName,
               companyName: state.companyName,
+              greeting: state.greeting,
             ),
+            const SizedBox(height: 8),
             Padding(
               padding: EdgeInsets.fromLTRB(
                 state.isWide ? 28 : 16,
-                state.isWide ? 24 : 18,
+                state.isWide ? 20 : 14,
                 state.isWide ? 28 : 16,
                 24,
               ),

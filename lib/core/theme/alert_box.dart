@@ -18,7 +18,7 @@ class AppAlertDialog {
       barrierDismissible: true,
 
       builder: (_) {
-        return Container(
+        return SizedBox(
           height: 450,
           width: 450,
           child: Dialog(
@@ -34,13 +34,13 @@ class AppAlertDialog {
 
                 border: Border.all(
                   color: isError
-                      ? Colors.red.withOpacity(0.2)
-                      : Colors.green.withOpacity(0.2),
+                      ? Colors.red.withValues(alpha: 0.2)
+                      : Colors.green.withValues(alpha: 0.2),
                 ),
 
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
+                    color: Colors.black.withValues(alpha: 0.15),
 
                     blurRadius: 30,
                     offset: const Offset(0, 10),
@@ -60,8 +60,8 @@ class AppAlertDialog {
                       shape: BoxShape.circle,
 
                       color: isError
-                          ? Colors.red.withOpacity(0.12)
-                          : Colors.green.withOpacity(0.12),
+                          ? Colors.red.withValues(alpha: 0.12)
+                          : Colors.green.withValues(alpha: 0.12),
                     ),
 
                     child: Icon(

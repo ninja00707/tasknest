@@ -42,10 +42,11 @@ class ApiClient {
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
-          if (kDebugMode)
+          if (kDebugMode) {
             debugPrint(
               'ApiClient Interceptor: Request headers: ${options.headers}',
             );
+          }
           return handler.next(options);
         },
         onError: (DioException error, handler) async {

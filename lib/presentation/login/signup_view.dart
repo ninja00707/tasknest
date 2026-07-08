@@ -15,7 +15,7 @@ import 'package:tasknest/presentation/login/bloc/login_event.dart';
 import 'package:tasknest/presentation/login/bloc/login_state.dart';
 
 class SignupScreen extends StatelessWidget {
-  SignupScreen({super.key});
+  const SignupScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

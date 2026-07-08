@@ -10,7 +10,7 @@ class PageHeader extends StatelessWidget {
   final String? parentTitle;
   final bool isMulti;
 
-  const PageHeader({this.parentId, this.parentTitle, this.isMulti = false});
+  const PageHeader({super.key, this.parentId, this.parentTitle, this.isMulti = false});
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +103,7 @@ class FormField extends StatelessWidget {
   final IconData icon;
   final bool required;
 
-  const FormField({
+  const FormField({super.key, 
     required this.label,
     required this.icon,
     this.required = false,
@@ -141,7 +141,7 @@ class FormField extends StatelessWidget {
 
 class FormCard extends StatelessWidget {
   final Widget child;
-  const FormCard({required this.child});
+  const FormCard({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +152,7 @@ class FormCard extends StatelessWidget {
         border: Border.all(color: ThemeColors.unifiedBorder, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 3),
           ),
@@ -185,7 +185,7 @@ class StyledTextField extends StatelessWidget {
   final int maxLines;
   final String? Function(String?)? validator;
 
-  const StyledTextField({
+  const StyledTextField({super.key, 
     required this.controller,
     required this.hint,
     this.maxLines = 1,
@@ -264,7 +264,7 @@ class StyledDropdown<T> extends StatelessWidget {
   final ValueChanged<T> onChanged;
   final bool enabled;
 
-  const StyledDropdown({
+  const StyledDropdown({super.key, 
     required this.hint,
     required this.value,
     required this.items,
@@ -279,7 +279,7 @@ class StyledDropdown<T> extends StatelessWidget {
       decoration: BoxDecoration(
         color: enabled
             ? ThemeColors.unifiedInputBg
-            : ThemeColors.unifiedBorder.withOpacity(0.3),
+            : ThemeColors.unifiedBorder.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: ThemeColors.unifiedBorder, width: 1.5),
       ),
@@ -329,7 +329,7 @@ class PrioritySelector extends StatelessWidget {
   final Priorities selected;
   final ValueChanged<Priorities> onChanged;
 
-  const PrioritySelector({required this.selected, required this.onChanged});
+  const PrioritySelector({super.key, required this.selected, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -348,7 +348,7 @@ class PrioritySelector extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
                 color: isSel
-                    ? color.withOpacity(0.12)
+                    ? color.withValues(alpha: 0.12)
                     : ThemeColors.unifiedInputBg,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
@@ -391,7 +391,7 @@ class SubmitButton extends StatelessWidget {
   final bool wide;
   final VoidCallback onTap;
 
-  const SubmitButton({
+  const SubmitButton({super.key, 
     required this.submitting,
     required this.onTap,
     required this.wide,
@@ -421,7 +421,7 @@ class SubmitButton extends StatelessWidget {
               ? null
               : [
                   BoxShadow(
-                    color: ThemeColors.unifiedPrimary.withOpacity(0.3),
+                    color: ThemeColors.unifiedPrimary.withValues(alpha: 0.3),
                     blurRadius: 12,
                     offset: const Offset(0, 4),
                   ),
@@ -463,16 +463,16 @@ class DepartmentChip extends StatelessWidget {
   final Departments department;
   final VoidCallback onRemove;
 
-  const DepartmentChip({required this.department, required this.onRemove});
+  const DepartmentChip({super.key, required this.department, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.only(left: 10, right: 4, top: 4, bottom: 4),
       decoration: BoxDecoration(
-        color: ThemeColors.unifiedPrimary.withOpacity(0.08),
+        color: ThemeColors.unifiedPrimary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: ThemeColors.unifiedPrimary.withOpacity(0.25)),
+        border: Border.all(color: ThemeColors.unifiedPrimary.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -507,7 +507,7 @@ class MultiDeptSection extends StatelessWidget {
   final List<Departments> departments;
   final Map<int, DeptFormData> formData;
 
-  const MultiDeptSection({required this.departments, required this.formData});
+  const MultiDeptSection({super.key, required this.departments, required this.formData});
 
   static const _deptColors = [
     Color(0xFF4F46E5),
@@ -545,7 +545,7 @@ class MultiDeptSection extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: ThemeColors.unifiedPrimary.withOpacity(0.1),
+                color: ThemeColors.unifiedPrimary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -569,9 +569,9 @@ class MultiDeptSection extends StatelessWidget {
           return Container(
             margin: const EdgeInsets.only(bottom: 14),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.05),
+              color: color.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withOpacity(0.2), width: 1.5),
+              border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
             ),
             clipBehavior: Clip.hardEdge,
             child: Column(
@@ -583,10 +583,10 @@ class MultiDeptSection extends StatelessWidget {
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     border: Border(
                       bottom: BorderSide(
-                        color: color.withOpacity(0.15),
+                        color: color.withValues(alpha: 0.15),
                         width: 1,
                       ),
                     ),
@@ -617,7 +617,7 @@ class MultiDeptSection extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: color.withOpacity(0.6),
+                          color: color.withValues(alpha: 0.6),
                         ),
                       ),
                     ],

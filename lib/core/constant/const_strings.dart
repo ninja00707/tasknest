@@ -173,6 +173,13 @@ class ConstStrings {
   static const String priorityMediumLow = 'Medium & Low';
   static const String priorityDistribution = 'Priority Distribution';
   static const String statusSummary = 'Status Summary';
+  static const String highPriority = 'High';
+  static const String ticketsOfTotal = 'tickets';
+  static const String by = 'By';
+  static const String status = 'Status';
+  static const String system = 'System';
+  static const String returnedTo = 'Returned to';
+  static const String stateForFurtherWork = 'state for further work.';
 
   // ──────────────────────────────────────────────
   // Tickets — Status & Priority
@@ -317,6 +324,7 @@ class ConstStrings {
   // ──────────────────────────────────────────────
   // Tickets — History Timeline
   // ──────────────────────────────────────────────
+  static const String history = 'History';
   static const String noHistoryRecords =
       'No history records found for this ticket.';
   static const String historyInitiated = 'TICKET INITIATED';

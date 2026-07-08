@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
-import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
@@ -38,7 +37,7 @@ class CreateTicketViewState extends State<CreateTicketView> {
   bool _submitting = false;
   bool _selfAssign = false;
   List<Departments> _selectedDepartments = [];
-  Map<int, DeptFormData> _deptFormData = {};
+  final Map<int, DeptFormData> _deptFormData = {};
 
   bool get _isMulti => _selectedDepartments.length > 1;
 
@@ -72,12 +71,13 @@ class CreateTicketViewState extends State<CreateTicketView> {
 
     return BlocListener<TicketBloc, TicketState>(
       listener: (context, state) {
+        if (!mounted) return;
         if (state is TicketActionSuccess) {
-          _showSnack(state.message);
+          _showSnack(context, state.message);
           _resetForm();
         } else if (state is TicketActionError) {
-          _showSnack(state.message, isError: true);
-          setState(() => _submitting = false);
+          _showSnack(context, state.message, isError: true);
+          if (mounted) setState(() => _submitting = false);
         }
       },
       child: SingleChildScrollView(
@@ -161,9 +161,6 @@ class CreateTicketViewState extends State<CreateTicketView> {
       _deptFormData[dept.id] = DeptFormData();
       _selectedEmployee = null;
     });
-    if (_selectedDepartments.length == 1) {
-      context.read<DashboardBloc>().add(LoadEmployeesForDept(dept.id));
-    }
   }
 
   void _onRemoveDepartment(Departments dept) {
@@ -173,30 +170,6 @@ class CreateTicketViewState extends State<CreateTicketView> {
       _deptFormData.remove(dept.id);
       _selectedEmployee = null;
     });
-    if (_selectedDepartments.length == 1) {
-      context.read<DashboardBloc>().add(
-        LoadEmployeesForDept(_selectedDepartments.first.id),
-      );
-    }
-  }
-
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(days: 3)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: ThemeColors.unifiedPrimary,
-            onPrimary: Colors.white,
-            surface: ThemeColors.unifiedSurface,
-          ),
-        ),
-        child: child!,
-      ),
-    );
   }
 
   void _resetForm() {
@@ -211,14 +184,14 @@ class CreateTicketViewState extends State<CreateTicketView> {
     }
     _deptFormData.clear();
     _formKey.currentState?.reset();
-    setState(() => _submitting = false);
+    if (mounted) setState(() => _submitting = false);
   }
 
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     if (_selectedDepartments.isEmpty) {
-      _showSnack('Please select at least one department', isError: true);
+      _showSnack(context, 'Please select at least one department', isError: true);
       return;
     }
 
@@ -229,6 +202,7 @@ class CreateTicketViewState extends State<CreateTicketView> {
             fd.titleCtrl.text.trim().isEmpty ||
             fd.descCtrl.text.trim().isEmpty) {
           _showSnack(
+            context,
             'Please fill Title and Description for ${dept.name}',
             isError: true,
           );
@@ -269,7 +243,7 @@ class CreateTicketViewState extends State<CreateTicketView> {
     );
   }
 
-  void _showSnack(String msg, {bool isError = false}) {
+  void _showSnack(BuildContext context, String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
@@ -287,7 +261,7 @@ class DatePicker extends StatelessWidget {
   final String? dueDate;
   final VoidCallback onTap;
 
-  const DatePicker({this.dueDate, required this.onTap});
+  const DatePicker({super.key, this.dueDate, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -334,7 +308,7 @@ class DatePicker extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  color: ThemeColors.unifiedPrimary.withOpacity(0.1),
+                  color: ThemeColors.unifiedPrimary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(5),
                 ),
                 child: const Text(

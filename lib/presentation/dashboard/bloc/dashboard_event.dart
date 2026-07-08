@@ -12,11 +12,6 @@ class LoadDashboard extends DashboardEvent {
   List<Object?> get props => [page];
 }
 
-class LoadEmployeesForDept extends DashboardEvent {
-  final int deptId;
-  LoadEmployeesForDept(this.deptId);
-}
-
 class FilterTickets extends DashboardEvent {
   final String? status;
   final String? priority;

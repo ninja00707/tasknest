@@ -3,17 +3,17 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_date_format.dart';
+import 'package:tasknest/core/theme/common_section_container.dart';
 import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_event.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
-import 'package:tasknest/presentation/ticket/widgets/ticket_detail_info.dart';
 
 class CommentSection extends StatefulWidget {
   final TicketModel ticket;
   final UserModel user;
-  const CommentSection({required this.ticket, required this.user});
+  const CommentSection({super.key, required this.ticket, required this.user});
 
   @override
   State<CommentSection> createState() => _CommentSectionState();
@@ -34,15 +34,20 @@ class _CommentSectionState extends State<CommentSection> {
     final uid = widget.user.id;
     if (uid == widget.ticket.createdById) return true;
     if (widget.ticket.myAssignedToId != null &&
-        uid == widget.ticket.myAssignedToId)
+        uid == widget.ticket.myAssignedToId) {
       return true;
-    if (widget.ticket.assignedToId != null && uid == widget.ticket.assignedToId)
+    }
+    if (widget.ticket.assignedToId != null &&
+        uid == widget.ticket.assignedToId) {
       return true;
-    if (widget.ticket.subDepartments.any((sd) => sd.assignedToId == uid))
+    }
+    if (widget.ticket.subDepartments.any((sd) => sd.assignedToId == uid)) {
       return true;
+    }
     if (widget.ticket.assignedDeptId != null &&
-        widget.ticket.assignedDeptId == widget.user.departmentId)
+        widget.ticket.assignedDeptId == widget.user.departmentId) {
       return true;
+    }
     return false;
   }
 
@@ -57,7 +62,7 @@ class _CommentSectionState extends State<CommentSection> {
   Widget build(BuildContext context) {
     final comments = widget.ticket.comments;
 
-    return SectionCard(
+    return CommonSectionCardContainer(
       icon: Icons.chat_outlined,
       title: ConstStrings.commentsCount(comments.length),
       child: Column(
@@ -66,7 +71,7 @@ class _CommentSectionState extends State<CommentSection> {
             decoration: BoxDecoration(
               color: _canComment
                   ? ThemeColors.unifiedBackground
-                  : ThemeColors.unifiedBackground.withOpacity(0.5),
+                  : ThemeColors.unifiedBackground.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: ThemeColors.unifiedBorder),
             ),
@@ -120,10 +125,10 @@ class _CommentSectionState extends State<CommentSection> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: ThemeColors.unifiedInfo.withOpacity(0.06),
+                color: ThemeColors.unifiedInfo.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: ThemeColors.unifiedInfo.withOpacity(0.15),
+                  color: ThemeColors.unifiedInfo.withValues(alpha: 0.15),
                 ),
               ),
               child: Row(
@@ -166,7 +171,7 @@ class _CommentSectionState extends State<CommentSection> {
 
 class CommentTile extends StatelessWidget {
   final CommentModel comment;
-  const CommentTile({required this.comment});
+  const CommentTile({super.key, required this.comment});
 
   bool get _isStatusRemark =>
       comment.message.startsWith('[COMPLETED REMARK]') ||
@@ -231,12 +236,12 @@ class CommentTile extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: _isSpecial
-            ? _tintColor.withOpacity(0.04)
+            ? _tintColor.withValues(alpha: 0.04)
             : ThemeColors.unifiedBackground,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: _isSpecial
-              ? _tintColor.withOpacity(0.2)
+              ? _tintColor.withValues(alpha: 0.2)
               : ThemeColors.unifiedBorder,
         ),
       ),
@@ -245,7 +250,7 @@ class CommentTile extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 18,
-            backgroundColor: _tintColor.withOpacity(0.12),
+            backgroundColor: _tintColor.withValues(alpha: 0.12),
             child: Icon(_typeIcon, size: 16, color: _tintColor),
           ),
           const SizedBox(width: 12),
@@ -282,7 +287,7 @@ class CommentTile extends StatelessWidget {
                           vertical: 1,
                         ),
                         decoration: BoxDecoration(
-                          color: _tintColor.withOpacity(0.1),
+                          color: _tintColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -296,10 +301,10 @@ class CommentTile extends StatelessWidget {
                         ),
                       ),
                     const Spacer(),
-                      Text(
-                        CommonDateFormat.formatDateTime(comment.createdAt),
-                        style: AppTextStyles.micro,
-                      ),
+                    Text(
+                      CommonDateFormat.formatDateTime(comment.createdAt),
+                      style: AppTextStyles.micro,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -308,7 +313,7 @@ class CommentTile extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     color: _isSpecial
-                        ? _tintColor.withOpacity(0.85)
+                        ? _tintColor.withValues(alpha: 0.85)
                         : ThemeColors.unifiedTextPrimary,
                     height: 1.5,
                     fontWeight: _isSpecial ? FontWeight.w600 : FontWeight.w400,

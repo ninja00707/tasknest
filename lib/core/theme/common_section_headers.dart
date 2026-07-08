@@ -21,7 +21,7 @@ class CommaonSectionHeader extends StatelessWidget {
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: ThemeColors.unifiedPrimary.withOpacity(0.08),
+            color: ThemeColors.unifiedPrimary.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(7),
           ),
           child: Icon(icon, size: 15, color: ThemeColors.unifiedPrimary),

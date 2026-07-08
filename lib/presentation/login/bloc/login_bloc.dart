@@ -50,7 +50,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(const AuthAuthenticated());
       }
     } catch (e) {
-      print("==============================$e");
       emit(AuthError(e.toString(), obscurePassword: obscurePassword));
     }
   }

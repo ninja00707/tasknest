@@ -174,10 +174,10 @@ class _ActivityTicketCard extends StatelessWidget {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: _tint.withOpacity(0.12),
+                      color: _tint.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: _tint.withOpacity(0.4),
+                        color: _tint.withValues(alpha: 0.4),
                         width: 2,
                       ),
                     ),
@@ -186,7 +186,7 @@ class _ActivityTicketCard extends StatelessWidget {
                   Expanded(
                     child: Container(
                       width: 2,
-                      color: ThemeColors.unifiedBorder.withOpacity(0.5),
+                      color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
                     ),
                   ),
                 ],
@@ -202,7 +202,7 @@ class _ActivityTicketCard extends StatelessWidget {
                     color: ThemeColors.unifiedSurface,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: ThemeColors.unifiedBorder.withOpacity(0.7),
+                      color: ThemeColors.unifiedBorder.withValues(alpha: 0.7),
                     ),
                   ),
                   child: Column(
@@ -344,7 +344,7 @@ class _ActivityPagination extends StatelessWidget {
             color: ThemeColors.unifiedBackground,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: ThemeColors.unifiedBorder.withOpacity(0.5),
+              color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
             ),
           ),
           child: Text(
@@ -383,7 +383,7 @@ class _PageBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = disabled
-        ? ThemeColors.unifiedTextMuted.withOpacity(0.3)
+        ? ThemeColors.unifiedTextMuted.withValues(alpha: 0.3)
         : ThemeColors.unifiedPrimary;
     return GestureDetector(
       onTap: disabled ? null : onTap,
@@ -396,8 +396,8 @@ class _PageBtn extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: disabled
-                ? ThemeColors.unifiedBorder.withOpacity(0.5)
-                : ThemeColors.unifiedPrimary.withOpacity(0.3),
+                ? ThemeColors.unifiedBorder.withValues(alpha: 0.5)
+                : ThemeColors.unifiedPrimary.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -436,7 +436,7 @@ class _ActivityEmptyState extends StatelessWidget {
           Icon(
             Icons.history_toggle_off,
             size: 64,
-            color: ThemeColors.unifiedTextMuted.withOpacity(0.3),
+            color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 12),
           const Text(

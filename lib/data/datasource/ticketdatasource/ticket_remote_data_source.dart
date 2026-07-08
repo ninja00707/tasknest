@@ -18,9 +18,9 @@ class TicketRemoteDataSource {
     String? search,
   }) async {
     final query = <String, String>{
-      if (status != null) 'status': status,
-      if (priority != null) 'priority': priority,
-      if (scope != null) 'scope': scope,
+      'status': ?status,
+      'priority': ?priority,
+      'scope': ?scope,
       if (search != null && search.isNotEmpty) 'search': search,
       'page': page.toString(),
       'limit': '15',
@@ -177,8 +177,8 @@ class TicketRemoteDataSource {
         'description': description,
         'priority': priority,
         'departments': departments,
-        if (dueDate != null) 'dueDate': dueDate,
-        if (parentTicketId != null) 'parentTicketId': parentTicketId,
+        'dueDate': ?dueDate,
+        'parentTicketId': ?parentTicketId,
       },
     );
     return TicketModel.fromJson(res['data']);
@@ -193,7 +193,7 @@ class TicketRemoteDataSource {
     final res = await _api.patch(
       'tickets/$ticketId/sub-departments/$departmentId',
       body: {
-        if (status != null) 'status': status,
+        'status': ?status,
         if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
       },
     );

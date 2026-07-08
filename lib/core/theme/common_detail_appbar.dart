@@ -368,11 +368,9 @@ class _PrintPreview extends StatelessWidget {
                   onTap: () {
                     Navigator.of(context).pop();
                     final w = html.window.open('', '_blank');
-                    if (w != null) {
-                      (w as dynamic).document.write(_buildPrintHtml(ticket));
-                      (w as dynamic).document.close();
-                    }
-                  },
+                    (w as dynamic).document.write(_buildPrintHtml(ticket));
+                    (w as dynamic).document.close();
+                                    },
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                     decoration: BoxDecoration(

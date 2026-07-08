@@ -6,9 +6,6 @@ import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_list.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
-
-import 'package:tasknest/presentation/ticket/bloc/ticket_state.dart'
-    hide TicketDetailLoaded;
 import 'package:tasknest/presentation/dashboard/widgets/dashboard_view.dart';
 import 'package:tasknest/presentation/ticket/crud/create/create_ticket.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_Listview.dart';
@@ -21,8 +18,6 @@ DashboardLoaded? _tryResolve(DashboardState s) {
   if (s is TicketDetailLoaded) return s.previousState;
   return null;
 }
-
-bool _isTicketProcessing(TicketState s) => s is TicketActionInProgress;
 
 Widget _loading() => const Center(
   child: CircularProgressIndicator(color: ThemeColors.unifiedPrimary),

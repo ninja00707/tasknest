@@ -73,7 +73,7 @@ class TicketTypeSectionScreen extends StatelessWidget {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: ThemeColors.unifiedPrimary.withOpacity(0.08),
+                  color: ThemeColors.unifiedPrimary.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(7),
                 ),
                 child: const Icon(
@@ -252,12 +252,12 @@ class _VerticalCard extends StatelessWidget {
         border: Border.all(color: ThemeColors.unifiedBorder, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: data.accentColor.withOpacity(0.1),
+            color: data.accentColor.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -285,7 +285,7 @@ class _VerticalCard extends StatelessWidget {
                   child: Icon(
                     data.patternIcon,
                     size: 120,
-                    color: Colors.white.withOpacity(0.06),
+                    color: Colors.white.withValues(alpha: 0.06),
                   ),
                 ),
                 Positioned(
@@ -294,7 +294,7 @@ class _VerticalCard extends StatelessWidget {
                   child: Icon(
                     data.icon,
                     size: 90,
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                   ),
                 ),
                 // Count badge top-right
@@ -307,10 +307,10 @@ class _VerticalCard extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),
@@ -331,10 +331,10 @@ class _VerticalCard extends StatelessWidget {
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.18),
+                      color: Colors.white.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         width: 1.5,
                       ),
                     ),
@@ -366,7 +366,7 @@ class _VerticalCard extends StatelessWidget {
                     Icon(
                       Icons.arrow_forward_rounded,
                       size: 16,
-                      color: data.accentColor.withOpacity(0.6),
+                      color: data.accentColor.withValues(alpha: 0.6),
                     ),
                   ],
                 ),
@@ -406,7 +406,7 @@ class _HorizontalCard extends StatelessWidget {
         border: Border.all(color: ThemeColors.unifiedBorder, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: data.accentColor.withOpacity(0.08),
+            color: data.accentColor.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -433,16 +433,16 @@ class _HorizontalCard extends StatelessWidget {
                   Icon(
                     data.patternIcon,
                     size: 60,
-                    color: Colors.white.withOpacity(0.08),
+                    color: Colors.white.withValues(alpha: 0.08),
                   ),
                   Container(
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.18),
+                      color: Colors.white.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(13),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         width: 1.5,
                       ),
                     ),
@@ -497,10 +497,10 @@ class _HorizontalCard extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: data.accentColor.withOpacity(0.08),
+                        color: data.accentColor.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: data.accentColor.withOpacity(0.2),
+                          color: data.accentColor.withValues(alpha: 0.2),
                           width: 1.5,
                         ),
                       ),
@@ -523,7 +523,7 @@ class _HorizontalCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
-                              color: data.accentColor.withOpacity(0.7),
+                              color: data.accentColor.withValues(alpha: 0.7),
                             ),
                           ),
                         ],
@@ -532,7 +532,7 @@ class _HorizontalCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Icon(
                       Icons.chevron_right_rounded,
-                      color: data.accentColor.withOpacity(0.5),
+                      color: data.accentColor.withValues(alpha: 0.5),
                       size: 20,
                     ),
                   ],
@@ -563,7 +563,7 @@ class _CountBar extends StatelessWidget {
             child: LinearProgressIndicator(
               value: count > 0 ? (count / (count + 5)).clamp(0.1, 1.0) : 0.05,
               minHeight: 5,
-              backgroundColor: color.withOpacity(0.1),
+              backgroundColor: color.withValues(alpha: 0.1),
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
@@ -574,7 +574,7 @@ class _CountBar extends StatelessWidget {
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w700,
-            color: color.withOpacity(0.8),
+            color: color.withValues(alpha: 0.8),
           ),
         ),
       ],

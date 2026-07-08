@@ -5,7 +5,7 @@ class ActionBtn extends StatelessWidget {
   final String tooltip;
   final Color color;
   final VoidCallback onTap;
-  const ActionBtn({
+  const ActionBtn({super.key, 
     required this.icon,
     required this.tooltip,
     required this.color,
@@ -23,7 +23,7 @@ class ActionBtn extends StatelessWidget {
           width: 30,
           height: 30,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(6),
           ),
           alignment: Alignment.center,

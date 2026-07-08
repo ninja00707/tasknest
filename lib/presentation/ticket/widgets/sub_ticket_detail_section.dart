@@ -36,12 +36,12 @@ class SubTicketDetailSection extends StatelessWidget {
         color: ThemeColors.unifiedSurface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF7C3AED).withOpacity(0.25),
+          color: const Color(0xFF7C3AED).withValues(alpha: 0.25),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF7C3AED).withOpacity(0.06),
+            color: const Color(0xFF7C3AED).withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -322,7 +322,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF7C3AED).withOpacity(0.1),
+                  color: const Color(0xFF7C3AED).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -348,7 +348,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.12),
+                  color: statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -431,7 +431,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<int>(
-                        value: _selectedEmployeeId,
+                        initialValue: _selectedEmployeeId,
                         items: employees
                             .map(
                               (e) => DropdownMenuItem<int>(

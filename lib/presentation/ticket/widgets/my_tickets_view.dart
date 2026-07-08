@@ -184,9 +184,9 @@ class _MiniStat extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Column(
           children: [
@@ -204,7 +204,7 @@ class _MiniStat extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: color.withOpacity(0.8),
+                color: color.withValues(alpha: 0.8),
               ),
             ),
           ],
@@ -278,7 +278,7 @@ class _EmptyState extends StatelessWidget {
           Icon(
             Icons.inbox_rounded,
             size: 64,
-            color: ThemeColors.unifiedTextMuted.withOpacity(0.3),
+            color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 12),
           Text(

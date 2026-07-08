@@ -7,7 +7,7 @@ import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
 
 class TicketGridCard extends StatelessWidget {
   final TicketModel ticket;
-  const TicketGridCard({required this.ticket});
+  const TicketGridCard({super.key, required this.ticket});
 
   @override
   Widget build(BuildContext context) {
@@ -21,8 +21,8 @@ class TicketGridCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: ticket.isOverdue
-                ? ThemeColors.unifiedDanger.withOpacity(0.35)
-                : color.withOpacity(0.25),
+                ? ThemeColors.unifiedDanger.withValues(alpha: 0.35)
+                : color.withValues(alpha: 0.25),
             width: 1.5,
           ),
         ),
@@ -35,7 +35,7 @@ class TicketGridCard extends StatelessWidget {
               height: 4,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [color, color.withOpacity(0.3)],
+                  colors: [color, color.withValues(alpha: 0.3)],
                 ),
               ),
             ),
@@ -232,12 +232,12 @@ class _GridJourney extends StatelessWidget {
               if (index > 0)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: Icon(Icons.chevron_right, size: 12, color: ThemeColors.unifiedTextMuted.withOpacity(0.4)),
+                  child: Icon(Icons.chevron_right, size: 12, color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.4)),
                 ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: c.withOpacity(0.12),
+                  color: c.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(

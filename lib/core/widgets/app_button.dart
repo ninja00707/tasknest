@@ -90,7 +90,7 @@ class AppButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: ThemeColors.unifiedPrimary,
         foregroundColor: Colors.white,
-        disabledBackgroundColor: ThemeColors.unifiedPrimary.withOpacity(0.5),
+        disabledBackgroundColor: ThemeColors.unifiedPrimary.withValues(alpha: 0.5),
         disabledForegroundColor: Colors.white70,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -105,7 +105,7 @@ class AppButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: ThemeColors.unifiedSecondary,
         foregroundColor: Colors.white,
-        disabledBackgroundColor: ThemeColors.unifiedSecondary.withOpacity(0.5),
+        disabledBackgroundColor: ThemeColors.unifiedSecondary.withValues(alpha: 0.5),
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),

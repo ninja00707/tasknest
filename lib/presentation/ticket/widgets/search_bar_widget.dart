@@ -9,7 +9,7 @@ import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 // ── Search bar ────────────────────────────────────────────────────────────────
 class SearchBarWidget extends StatelessWidget {
   final DashboardLoaded state;
-  const SearchBarWidget({required this.state});
+  const SearchBarWidget({super.key, required this.state});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +25,7 @@ class SearchBarWidget extends StatelessWidget {
         decoration: InputDecoration(
           hintText: ConstStrings.searchHint,
           hintStyle: TextStyle(
-            color: ThemeColors.unifiedTextMuted.withOpacity(0.6),
+            color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.6),
             fontSize: 13,
           ),
           prefixIcon: Icon(
@@ -54,7 +54,7 @@ class SearchBarWidget extends StatelessWidget {
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide(
-              color: ThemeColors.unifiedBorder.withOpacity(0.5),
+              color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
             ),
           ),
           focusedBorder: OutlineInputBorder(

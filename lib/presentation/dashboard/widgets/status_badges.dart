@@ -4,7 +4,7 @@ import 'package:tasknest/core/theme/color.dart';
 
 class StatusBadge extends StatelessWidget {
   final String status;
-  const StatusBadge({required this.status});
+  const StatusBadge({super.key, required this.status});
 
   @override
   Widget build(BuildContext context) {

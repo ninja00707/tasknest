@@ -88,6 +88,18 @@ class ThemeColors {
   static const Color priorityUrgentBg = Color(0xFFFEE2E2);
   static const Color priorityUrgentFg = Color(0xFFDC2626);
 
+  // Reusable semantic color for high-priority elements
+  static const Color unifiedHighPriority = Color(0xFFEA580C);
+
+  // Timeline action colors
+  static const Color timelineCreated = Color(0xFF2196F3);
+  static const Color timelineAssigned = Color(0xFFFF9800);
+  static const Color timelineTransferred = Color(0xFF9C27B0);
+  static const Color timelineStatusChanged = Color(0xFF4CAF50);
+  static const Color timelineClosed = Color(0xFF616161);
+  static const Color timelineReopened = Color(0xFFF44336);
+  static const Color timelineComment = Color(0xFF009688);
+
   // ── FlutterMaterialTheme helper ───────────────────────────────────────────
   static ThemeData get lightTheme => ThemeData(
     useMaterial3: true,

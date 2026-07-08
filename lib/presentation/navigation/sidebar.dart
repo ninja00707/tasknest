@@ -37,24 +37,21 @@ class Sidebar extends StatelessWidget {
           items: deptList,
           idSelector: (e) => e.id,
           nameSelector: (e) => e.name,
-        ) ??
-        'No Department';
+        );
     final roleName =
         NameById.getNameById<Roles>(
           id: user.roleId,
           items: roles,
           idSelector: (e) => e.id,
           nameSelector: (e) => e.name,
-        ) ??
-        'No Role';
+        );
     final companyName =
         NameById.getNameById<Company>(
           id: user.companyId,
           items: CompanyNames,
           idSelector: (e) => e.id,
           nameSelector: (e) => e.name,
-        ) ??
-        'Unknown Company';
+        );
 
     return Container(
       width: 280,
@@ -64,27 +61,26 @@ class Sidebar extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Logo gradient bar
+          // Logo section — clean, minimal
           Container(
-            height: 60,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  ThemeColors.unifiedGradStart,
-                  ThemeColors.unifiedGradEnd,
-                ],
-              ),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            height: 64,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             alignment: Alignment.centerLeft,
             child: Row(
               children: [
                 Container(
-                  width: 32,
-                  height: 32,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
+                    gradient: const LinearGradient(
+                      colors: [
+                        ThemeColors.unifiedGradStart,
+                        ThemeColors.unifiedGradEnd,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   alignment: Alignment.center,
                   child: const Text(
@@ -92,23 +88,30 @@ class Sidebar extends StatelessWidget {
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
-                      fontSize: 12,
+                      fontSize: 13,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Text(
                   ConstStrings.taskify,
-                  style: TextStyle(
-                    color: Colors.white,
+                  style: const TextStyle(
+                    color: ThemeColors.unifiedTextPrimary,
                     fontWeight: FontWeight.w800,
-                    fontSize: 16,
+                    fontSize: 17,
+                    letterSpacing: -0.3,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          Container(
+            height: 1,
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: 12),
 
           // Nav items
           NavItem(
@@ -139,7 +142,6 @@ class Sidebar extends StatelessWidget {
             onTap: onNav,
           ),
 
-          // Add this inside your Sidebar widget's item list
           if (user.roleId != 0 && user.roleId != 3)
             NavItem(
               icon: Icons.hub_outlined,
@@ -164,7 +166,12 @@ class Sidebar extends StatelessWidget {
           ),
 
           // Admin Panel — only for Developer/CEO
-          if (user.roleId == 3 || user.email == 'qasim@um.com')
+          if (user.roleId == 3 || user.email == 'qasim@um.com') ...[
+            Container(
+              height: 1,
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+              color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
+            ),
             NavItem(
               icon: Icons.admin_panel_settings,
               label: ConstStrings.navAdminPanel,
@@ -172,6 +179,7 @@ class Sidebar extends StatelessWidget {
               selected: false,
               onTap: (i) => context.go('/admin'),
             ),
+          ],
 
           // Notification bell
           BlocSelector<DashboardBloc, DashboardState, int>(
@@ -181,11 +189,14 @@ class Sidebar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: InkWell(
                 onTap: () => NotificationPanel.show(context),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 11,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Row(
                     children: [
@@ -228,7 +239,7 @@ class Sidebar extends StatelessWidget {
                       const SizedBox(width: 12),
                       Text(
                         ConstStrings.navNotifications,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                           color: ThemeColors.unifiedTextMuted,
@@ -241,12 +252,14 @@ class Sidebar extends StatelessWidget {
             ),
           ),
           const Spacer(),
+
+          // User info section
           Container(
-            margin: const EdgeInsets.all(12),
+            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: ThemeColors.unifiedBackground,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: ThemeColors.unifiedBorder),
             ),
             child: Row(
@@ -263,7 +276,7 @@ class Sidebar extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,9 +288,11 @@ class Sidebar extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           color: ThemeColors.unifiedTextPrimary,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 1),
                       Text(
-                        '$companyName · ${roleName?.toLowerCase() == 'ceo'
+                        '$companyName · ${roleName.toLowerCase() == 'ceo'
                             ? 'CEO'
                             : user.designation.isNotEmpty
                             ? user.designation
@@ -286,6 +301,7 @@ class Sidebar extends StatelessWidget {
                           fontSize: 11,
                           color: ThemeColors.unifiedTextMuted,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),

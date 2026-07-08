@@ -13,16 +13,15 @@ import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   final TicketRepository _dataSource;
   StreamSubscription<SocketEvent>? _socketSub;
+  bool _socketInitialized = false;
 
   DashboardBloc(this._dataSource) : super(DashboardInitial()) {
     on<LoadDashboard>(_onLoad);
-    on<LoadEmployeesForDept>(_onLoadEmployeesForDept);
     on<FilterTickets>(_onFilter);
     on<SearchTickets>(_onSearch);
     on<UpdateNotificationCount>(_onUpdateNotificationCount);
     on<LoadTicketDetail>(_onLoadTicketDetail);
     on<ClearTicketDetail>(_onClearTicketDetail);
-    on<SearchTickets>(_onSearch);
     on<ToggleTeamFilter>(_onToggleTeamFilter);
     on<LoadManagerAnalytics>(_onLoadManagerAnalytics);
     on<LoadCeoAnalytics>(_onLoadCeoAnalytics);
@@ -66,35 +65,39 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   Timer? _socketDebounce;
 
   Future<void> _initSocket() async {
-    _socketSub?.cancel();
+    if (_socketInitialized && SocketService().isConnected) return;
 
     final token = await LocalStorageService().getToken();
     final user = await LocalStorageService().getUser();
 
-    _socketSub = SocketService().events.listen((event) {
-      if (isClosed) return;
-      if (event.type == 'SOCKET_CONNECTED') {
-        final loaded = _getLoadedStateOrNull();
-        add(LoadDashboard(page: loaded?.currentPage ?? 1));
-        return;
-      }
-      if (event.type == 'NOTIFICATION_COUNT') {
-        final count = event.data['count'] as int?;
-        if (count != null) add(UpdateNotificationCount(count));
-        return;
-      }
-      _socketDebounce?.cancel();
-      _socketDebounce = Timer(const Duration(milliseconds: 2000), () {
-        if (!isClosed) {
+    if (!_socketInitialized) {
+      _socketSub?.cancel();
+      _socketSub = SocketService().events.listen((event) {
+        if (isClosed) return;
+        if (event.type == 'SOCKET_CONNECTED') {
           final loaded = _getLoadedStateOrNull();
           add(LoadDashboard(page: loaded?.currentPage ?? 1));
-          final s = state;
-          if (s is TicketDetailLoaded) {
-            add(LoadTicketDetail(s.ticket.id));
-          }
+          return;
         }
+        if (event.type == 'NOTIFICATION_COUNT') {
+          final count = event.data['count'] as int?;
+          if (count != null) add(UpdateNotificationCount(count));
+          return;
+        }
+        _socketDebounce?.cancel();
+        _socketDebounce = Timer(const Duration(milliseconds: 2000), () {
+          if (!isClosed) {
+            final loaded = _getLoadedStateOrNull();
+            add(LoadDashboard(page: loaded?.currentPage ?? 1));
+            final s = state;
+            if (s is TicketDetailLoaded) {
+              add(LoadTicketDetail(s.ticket.id));
+            }
+          }
+        });
       });
-    });
+      _socketInitialized = true;
+    }
 
     if (token != null && user != null) {
       SocketService().connect(
@@ -148,7 +151,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       final prevFilterPriority = prev?.filterPriority;
 
       final stats = await _dataSource.getStats();
-      final effectivePage = (prev?.searchQuery?.isNotEmpty ?? false) ? 1 : event.page;
+      final effectivePage = (prev?.searchQuery.isNotEmpty ?? false) ? 1 : event.page;
       final ticketResult = await _dataSource.getTickets(
         status: prevFilterStatus,
         priority: prevFilterPriority,
@@ -186,19 +189,26 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         items: deptLookup,
         idSelector: (e) => e.id,
         nameSelector: (e) => e.name,
-      ) ?? '';
+      );
       final roleName = NameById.getNameById<Roles>(
         id: user.roleId,
         items: roles,
         idSelector: (e) => e.id,
         nameSelector: (e) => e.name,
-      ) ?? '';
+      );
       final companyName = NameById.getNameById<Company>(
         id: user.companyId,
         items: CompanyNames,
         idSelector: (e) => e.id,
         nameSelector: (e) => e.name,
-      ) ?? '';
+      );
+
+      final hour = DateTime.now().hour;
+      final greeting = hour < 12
+          ? 'Good morning'
+          : hour < 17
+          ? 'Good afternoon'
+          : 'Good evening';
 
       emit(
         DashboardLoaded(
@@ -218,6 +228,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           departmentName: departmentName,
           roleName: roleName,
           companyName: companyName,
+          isWide: prev?.isWide ?? false,
+          greeting: greeting,
         ),
       );
     } catch (e) {
@@ -281,23 +293,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       );
     } catch (e) {
       emit(DashboardError(_getFriendlyErrorMessage(e)));
-    }
-  }
-
-  Future<void> _onLoadEmployeesForDept(
-    LoadEmployeesForDept event,
-    Emitter<DashboardState> emit,
-  ) async {
-    final currentState = state;
-    if (currentState is DashboardLoaded) {
-      try {
-        final employees = await _dataSource.getEmployees(
-          departmentId: event.deptId,
-        );
-        emit(currentState.copyWith(employees: employees));
-      } catch (e) {
-        // Silent fail
-      }
     }
   }
 
@@ -377,6 +372,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     _socketDebounce?.cancel();
     _socketSub = null;
     _socketDebounce = null;
+    _socketInitialized = false;
     SocketService().disconnect();
     emit(DashboardInitial());
   }

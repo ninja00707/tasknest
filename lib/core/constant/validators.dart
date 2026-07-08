@@ -4,9 +4,9 @@ class AuthValidators {
     r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$',
   );
 
-  // STRONG PASSWORD REGEX
+  // PASSWORD REGEX — min 7 chars, uppercase, number, special char
   static final RegExp passwordRegex = RegExp(
-    r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{7,}$',
+    r'^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{7,}$',
   );
 
   // EMAIL VALIDATOR
@@ -33,9 +33,8 @@ class AuthValidators {
 Password must contain:
 • at least 7 characters
 • uppercase letter
-• lowercase letter
 • number
-• special character
+• special character (@\$!%*?&)
 ''';
     }
 

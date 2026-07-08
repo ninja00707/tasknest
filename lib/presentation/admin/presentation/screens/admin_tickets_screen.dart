@@ -59,7 +59,7 @@ class _AdminTicketsScreenState extends State<AdminTicketsScreen> {
                         child: TextField(
                           decoration: InputDecoration(
                             hintText: ConstStrings.searchTickets,
-                            hintStyle: TextStyle(color: ThemeColors.unifiedTextMuted.withOpacity(0.6), fontSize: 13),
+                            hintStyle: TextStyle(color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.6), fontSize: 13),
                             prefixIcon: Icon(Icons.search_rounded, size: 18, color: ThemeColors.unifiedTextMuted),
                             suffixIcon: _searchQuery.isNotEmpty
                                 ? IconButton(
@@ -71,7 +71,7 @@ class _AdminTicketsScreenState extends State<AdminTicketsScreen> {
                             fillColor: ThemeColors.unifiedBackground,
                             contentPadding: const EdgeInsets.symmetric(vertical: 8),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: ThemeColors.unifiedBorder)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: ThemeColors.unifiedBorder.withOpacity(0.5))),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: ThemeColors.unifiedBorder.withValues(alpha: 0.5))),
                             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: ThemeColors.unifiedPrimary, width: 1.5)),
                           ),
                           onChanged: (v) => setState(() => _searchQuery = v),

@@ -19,7 +19,7 @@ class WideFormLayout extends StatelessWidget {
   final ValueChanged<bool> onSelfAssignChanged;
   final VoidCallback onSubmit;
 
-  const WideFormLayout({
+  const WideFormLayout({super.key, 
     required this.titleCtrl,
     required this.descCtrl,
     required this.priority,
@@ -191,7 +191,7 @@ class NarrowFormLayout extends StatelessWidget {
   final ValueChanged<bool> onSelfAssignChanged;
   final VoidCallback onSubmit;
 
-  const NarrowFormLayout({
+  const NarrowFormLayout({super.key, 
     required this.titleCtrl,
     required this.descCtrl,
     required this.priority,

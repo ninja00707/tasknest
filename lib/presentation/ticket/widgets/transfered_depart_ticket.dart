@@ -194,9 +194,9 @@ class _MiniStat extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Column(
           children: [
@@ -214,7 +214,7 @@ class _MiniStat extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: color.withOpacity(0.8),
+                color: color.withValues(alpha: 0.8),
               ),
             ),
           ],
@@ -252,7 +252,7 @@ class _SentPagination extends StatelessWidget {
             color: ThemeColors.unifiedBackground,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: ThemeColors.unifiedBorder.withOpacity(0.5),
+              color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
             ),
           ),
           child: Text(
@@ -291,7 +291,7 @@ class _PageBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = disabled
-        ? ThemeColors.unifiedTextMuted.withOpacity(0.3)
+        ? ThemeColors.unifiedTextMuted.withValues(alpha: 0.3)
         : ThemeColors.unifiedPrimary;
     return GestureDetector(
       onTap: disabled ? null : onTap,
@@ -304,8 +304,8 @@ class _PageBtn extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: disabled
-                ? ThemeColors.unifiedBorder.withOpacity(0.5)
-                : ThemeColors.unifiedPrimary.withOpacity(0.3),
+                ? ThemeColors.unifiedBorder.withValues(alpha: 0.5)
+                : ThemeColors.unifiedPrimary.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -344,7 +344,7 @@ class _SentEmptyState extends StatelessWidget {
           Icon(
             Icons.share_outlined,
             size: 64,
-            color: ThemeColors.unifiedTextMuted.withOpacity(0.3),
+            color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 12),
           const Text(

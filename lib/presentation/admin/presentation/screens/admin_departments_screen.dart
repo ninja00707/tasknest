@@ -216,7 +216,7 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
                   TextFormField(controller: codeCtl, decoration: const InputDecoration(labelText: ConstStrings.codeLabel), validator: (v) => v == null || v.isEmpty ? ConstStrings.required_ : null),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
-                    value: companyId,
+                    initialValue: companyId,
                     decoration: const InputDecoration(labelText: ConstStrings.companyLabel),
                     items: const [
                       DropdownMenuItem(value: 0, child: Text(ConstStrings.umEnterprises)),
@@ -226,7 +226,7 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: tier,
+                    initialValue: tier,
                     decoration: const InputDecoration(labelText: ConstStrings.tierLabel),
                     items: const [
                       DropdownMenuItem(value: 'upper', child: Text(ConstStrings.upper)),
@@ -236,7 +236,7 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int?>(
-                    value: parentId,
+                    initialValue: parentId,
                     decoration: const InputDecoration(labelText: ConstStrings.parentDepartment),
                     isExpanded: true,
                     items: [
@@ -253,7 +253,7 @@ class _AdminDepartmentsScreenState extends State<AdminDepartmentsScreen> {
                     title: const Text(ConstStrings.sharedDepartment),
                     subtitle: const Text(ConstStrings.visibleAcrossCompanies),
                     value: isShared,
-                    activeColor: ThemeColors.unifiedSuccess,
+                    activeThumbColor: ThemeColors.unifiedSuccess,
                     contentPadding: EdgeInsets.zero,
                     onChanged: (v) => setDlgState(() => isShared = v),
                   ),

@@ -193,7 +193,7 @@ class TicketRepository {
     const effectiveLimit = search ? 1000 : Number(limit);
     const offset = (Number(page) - 1) * effectiveLimit;
     const params = [];
-    let whereClause = 'WHERE t.parent_ticket_id IS NULL'; // Only show top-level tickets
+    let whereClause = 'WHERE t.parent_ticket_id IS NULL';
 
     if (scope === 'team') {
       // "My Team" — tickets where creator or assignee is a DIRECT report
@@ -840,8 +840,8 @@ class TicketRepository {
 
   // ── Create ticket ─────────────────────────────────────────────────────────
   async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId, parentTicketId = null, ticketType = 'standard' }) {
-    // Strict check for assignedToId to set correct status
-    const status = (assignedToId != null) ? 'in_progress' : 'open';
+    // All tickets start as open regardless of assignment
+    const status = 'open';
     const isSubTicket = parentTicketId != null;
 
     // Generate ticket number

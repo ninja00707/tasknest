@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
@@ -22,6 +24,7 @@ class DashboardScreen extends StatelessWidget {
       listener: (context, authState) {
         if (authState is AuthUnauthenticated) {
           context.read<DashboardBloc>().add(ResetDashboardEvent());
+          context.go('/login');
         }
       },
       child: BlocListener<DashboardBloc, DashboardState>(
@@ -36,7 +39,20 @@ class DashboardScreen extends StatelessWidget {
             return false;
           },
           builder: (context, state) {
-            if (state is DashboardInitial || state is DashboardLoading) {
+            if (state is DashboardInitial) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (context.mounted) {
+                  context.read<DashboardBloc>().add(LoadDashboard());
+                }
+              });
+              return const Scaffold(
+                backgroundColor: ThemeColors.unifiedBackground,
+                body: Center(
+                  child: CircularProgressIndicator(color: ThemeColors.unifiedPrimary),
+                ),
+              );
+            }
+            if (state is DashboardLoading) {
               return const Scaffold(
                 backgroundColor: ThemeColors.unifiedBackground,
                 body: Center(
@@ -50,16 +66,7 @@ class DashboardScreen extends StatelessWidget {
                 body: Center(child: Text(state.message)),
               );
             }
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 768;
-                context.read<DashboardBloc>().add(UpdateScreenSize(isWide));
-                return DashboardLayout(
-                  user: user,
-                  child: child ?? const SizedBox.shrink(),
-                );
-              },
-            );
+            return _ResponsiveDashboard(user: user, child: child);
           },
         ),
       ),
@@ -103,5 +110,43 @@ class DashboardScreen extends StatelessWidget {
       context.read<DashboardBloc>().add(MarkVersionSeen());
       showUpdateDialog(context);
     }
+  }
+}
+
+class _ResponsiveDashboard extends StatelessWidget {
+  final UserModel user;
+  final Widget? child;
+  const _ResponsiveDashboard({required this.user, this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWide = constraints.maxWidth > 768;
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            final bloc = context.read<DashboardBloc>();
+            final currentState = bloc.state;
+            final loaded = currentState is DashboardLoaded
+                ? currentState
+                : currentState is DashboardActionError
+                    ? currentState.previousState
+                    : currentState is DashboardActionSuccess
+                        ? currentState.previousState
+                        : currentState is TicketDetailLoaded
+                            ? currentState.previousState
+                            : null;
+            if (loaded != null && loaded.isWide != isWide) {
+              bloc.add(UpdateScreenSize(isWide));
+            }
+          }
+        });
+        return DashboardLayout(
+          user: user,
+          isWide: isWide,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+    );
   }
 }

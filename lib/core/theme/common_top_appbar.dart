@@ -166,7 +166,7 @@ class _AppTopBar extends StatelessWidget implements PreferredSizeWidget {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: ThemeColors.unifiedPrimary.withOpacity(0.1),
+                color: ThemeColors.unifiedPrimary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               alignment: Alignment.center,
@@ -188,7 +188,6 @@ class _AppTopBar extends StatelessWidget implements PreferredSizeWidget {
             color: ThemeColors.unifiedDanger,
             onTap: () {
               context.read<AuthBloc>().add(LogoutEvent());
-              context.go('/login');
             },
             tooltip: ConstStrings.logout,
           ),
@@ -208,10 +207,10 @@ class _UserPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: ThemeColors.unifiedPrimary.withOpacity(0.06),
+        color: ThemeColors.unifiedPrimary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: ThemeColors.unifiedPrimary.withOpacity(0.15),
+          color: ThemeColors.unifiedPrimary.withValues(alpha: 0.15),
           width: 1.2,
         ),
       ),
@@ -223,7 +222,7 @@ class _UserPill extends StatelessWidget {
             width: 22,
             height: 22,
             decoration: BoxDecoration(
-              color: ThemeColors.unifiedPrimary.withOpacity(0.15),
+              color: ThemeColors.unifiedPrimary.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(6),
             ),
             alignment: Alignment.center,
@@ -273,9 +272,9 @@ class _TopBarIconButton extends StatelessWidget {
         width: 34,
         height: 34,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.07),
+          color: color.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.18), width: 1.2),
+          border: Border.all(color: color.withValues(alpha: 0.18), width: 1.2),
         ),
         child: Icon(icon, size: 16, color: color),
       ),

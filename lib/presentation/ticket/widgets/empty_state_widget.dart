@@ -8,7 +8,7 @@ class EmptyState extends StatelessWidget {
   final bool filterActive;
   final VoidCallback onClear;
 
-  const EmptyState({required this.filterActive, required this.onClear});
+  const EmptyState({super.key, required this.filterActive, required this.onClear});
 
   @override
   Widget build(BuildContext context) {
@@ -22,10 +22,10 @@ class EmptyState extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: ThemeColors.unifiedPrimary.withOpacity(0.06),
+                color: ThemeColors.unifiedPrimary.withValues(alpha: 0.06),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: ThemeColors.unifiedPrimary.withOpacity(0.15),
+                  color: ThemeColors.unifiedPrimary.withValues(alpha: 0.15),
                   width: 1.5,
                 ),
               ),
@@ -34,7 +34,7 @@ class EmptyState extends StatelessWidget {
                     ? Icons.filter_alt_off_rounded
                     : Icons.inbox_rounded,
                 size: 34,
-                color: ThemeColors.unifiedPrimary.withOpacity(0.5),
+                color: ThemeColors.unifiedPrimary.withValues(alpha: 0.5),
               ),
             ),
             const SizedBox(height: 20),
@@ -73,7 +73,7 @@ class EmptyState extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: [
                       BoxShadow(
-                        color: ThemeColors.unifiedPrimary.withOpacity(0.25),
+                        color: ThemeColors.unifiedPrimary.withValues(alpha: 0.25),
                         blurRadius: 10,
                         offset: const Offset(0, 3),
                       ),

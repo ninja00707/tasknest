@@ -188,8 +188,8 @@ class AuthError extends AuthState {
 
 class PasswordVisibilityState extends AuthState {
   const PasswordVisibilityState({
-    required bool obscurePassword,
-    required bool isLoading,
+    required super.obscurePassword,
+    required super.isLoading,
     super.currentMode,
     super.signupName,
     super.signupEmail,
@@ -197,7 +197,7 @@ class PasswordVisibilityState extends AuthState {
     super.signupRoleId,
     super.signupCompanyId,
     super.signupDeptId,
-  }) : super(obscurePassword: obscurePassword, isLoading: isLoading);
+  });
 
   @override
   AuthState copyWithSignup({

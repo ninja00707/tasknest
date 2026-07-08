@@ -4,7 +4,7 @@ import 'package:tasknest/core/theme/color.dart';
 
 class PriorityBadge extends StatelessWidget {
   final String priority;
-  const PriorityBadge({required this.priority});
+  const PriorityBadge({super.key, required this.priority});
 
   @override
   Widget build(BuildContext context) {

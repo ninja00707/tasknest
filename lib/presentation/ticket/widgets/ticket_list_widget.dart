@@ -418,7 +418,7 @@ class _TicketListWidgetState extends State<TicketListWidget> {
             decoration: BoxDecoration(
               color: ThemeColors.unifiedBackground,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: ThemeColors.unifiedBorder.withOpacity(0.5)),
+              border: Border.all(color: ThemeColors.unifiedBorder.withValues(alpha: 0.5)),
             ),
             child: Text(
               'Page $_page of $total',
@@ -527,15 +527,15 @@ class _MiniStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
           Text('$count', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: color)),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color.withOpacity(0.8))),
+          Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color.withValues(alpha: 0.8))),
         ],
       ),
     );
@@ -613,7 +613,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 64, color: ThemeColors.unifiedTextMuted.withOpacity(0.3)),
+            Icon(icon, size: 64, color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.3)),
             const SizedBox(height: 12),
             Text(
               title,
@@ -653,7 +653,7 @@ class _PageBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = disabled
-        ? ThemeColors.unifiedTextMuted.withOpacity(0.3)
+        ? ThemeColors.unifiedTextMuted.withValues(alpha: 0.3)
         : ThemeColors.unifiedPrimary;
     return GestureDetector(
       onTap: disabled ? null : onTap,
@@ -664,8 +664,8 @@ class _PageBtn extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: disabled
-                ? ThemeColors.unifiedBorder.withOpacity(0.5)
-                : ThemeColors.unifiedPrimary.withOpacity(0.3),
+                ? ThemeColors.unifiedBorder.withValues(alpha: 0.5)
+                : ThemeColors.unifiedPrimary.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -728,16 +728,16 @@ class _TimelineCard extends StatelessWidget {
                   Container(
                     width: 28, height: 28,
                     decoration: BoxDecoration(
-                      color: _tint.withOpacity(0.12),
+                      color: _tint.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
-                      border: Border.all(color: _tint.withOpacity(0.4), width: 2),
+                      border: Border.all(color: _tint.withValues(alpha: 0.4), width: 2),
                     ),
                     child: Icon(_icon, size: 13, color: _tint),
                   ),
                   Expanded(
                     child: Container(
                       width: 2,
-                      color: ThemeColors.unifiedBorder.withOpacity(0.5),
+                      color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
                     ),
                   ),
                 ],
@@ -752,7 +752,7 @@ class _TimelineCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: ThemeColors.unifiedSurface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: ThemeColors.unifiedBorder.withOpacity(0.7)),
+                    border: Border.all(color: ThemeColors.unifiedBorder.withValues(alpha: 0.7)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -851,9 +851,9 @@ class _KanbanColumn extends StatelessWidget {
       width: 300,
       margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.04),
+        color: color.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withOpacity(0.15)),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
       ),
       child: Column(
         children: [
@@ -861,7 +861,7 @@ class _KanbanColumn extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
             ),
             child: Row(
@@ -874,7 +874,7 @@ class _KanbanColumn extends StatelessWidget {
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                  decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
                   child: Text('${tickets.length}',
                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color)),
                 ),
@@ -885,7 +885,7 @@ class _KanbanColumn extends StatelessWidget {
             child: tickets.isEmpty
                 ? Center(
                     child: Text(ConstStrings.noTickets,
-                      style: TextStyle(fontSize: 12, color: color.withOpacity(0.4), fontWeight: FontWeight.w600)),
+                      style: TextStyle(fontSize: 12, color: color.withValues(alpha: 0.4), fontWeight: FontWeight.w600)),
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
@@ -920,7 +920,7 @@ class _KanbanCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           border: Border(left: BorderSide(color: pColor, width: 3)),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2)),
           ],
         ),
         child: Column(
@@ -947,11 +947,11 @@ class _KanbanCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.person_outline_rounded, size: 11, color: ThemeColors.unifiedTextMuted.withOpacity(0.6)),
+                Icon(Icons.person_outline_rounded, size: 11, color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.6)),
                 const SizedBox(width: 3),
                 Expanded(
                   child: Text(ticket.assignedToName ?? 'Unassigned',
-                    style: TextStyle(fontSize: 10, color: ThemeColors.unifiedTextMuted.withOpacity(0.7), fontWeight: FontWeight.w500),
+                    style: TextStyle(fontSize: 10, color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.7), fontWeight: FontWeight.w500),
                     overflow: TextOverflow.ellipsis),
                 ),
               ],
@@ -986,11 +986,11 @@ class _StatusHeader extends StatelessWidget {
         const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
           child: Text('$count', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color)),
         ),
         const SizedBox(width: 10),
-        Expanded(child: Container(height: 1, color: ThemeColors.unifiedBorder.withOpacity(0.6))),
+        Expanded(child: Container(height: 1, color: ThemeColors.unifiedBorder.withValues(alpha: 0.6))),
       ],
     );
   }
