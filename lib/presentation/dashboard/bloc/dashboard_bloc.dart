@@ -14,15 +14,15 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   final TicketRepository _dataSource;
   StreamSubscription<SocketEvent>? _socketSub;
   bool _socketInitialized = false;
+  bool _isLoadingMore = false;
 
   DashboardBloc(this._dataSource) : super(DashboardInitial()) {
     on<LoadDashboard>(_onLoad);
     on<FilterTickets>(_onFilter);
-    on<SearchTickets>(_onSearch);
+    on<LoadMoreTickets>(_onLoadMore);
     on<UpdateNotificationCount>(_onUpdateNotificationCount);
     on<LoadTicketDetail>(_onLoadTicketDetail);
     on<ClearTicketDetail>(_onClearTicketDetail);
-    on<ToggleTeamFilter>(_onToggleTeamFilter);
     on<LoadManagerAnalytics>(_onLoadManagerAnalytics);
     on<LoadCeoAnalytics>(_onLoadCeoAnalytics);
     on<ResetDashboardEvent>(_onReset);
@@ -146,18 +146,9 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       _initSocket();
 
       final prev = _getLoadedStateOrNull();
-      final prevFilterTeam = prev?.filterTeam ?? false;
-      final prevFilterStatus = prev?.filterStatus;
-      final prevFilterPriority = prev?.filterPriority;
-
       final stats = await _dataSource.getStats();
-      final effectivePage = (prev?.searchQuery.isNotEmpty ?? false) ? 1 : event.page;
       final ticketResult = await _dataSource.getTickets(
-        status: prevFilterStatus,
-        priority: prevFilterPriority,
-        page: effectivePage,
-        scope: prevFilterTeam ? 'team' : null,
-        search: prev?.searchQuery,
+        page: event.page,
       );
       final tickets = ticketResult.tickets;
       final currentPage = ticketResult.page;
@@ -169,7 +160,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       final needsEmployees = user.roleId == 1 || user.roleId == 0 || user.roleId == 3;
       final currentEmployees = prev?.employees ?? <EmployeeModel>[];
       final employees = needsEmployees && currentEmployees.isEmpty
-          ? await _dataSource.getEmployees(departmentId: user.departmentId)
+          ? await _dataSource.getEmployees()
           : currentEmployees;
       final currentSent = prev?.sentTickets ?? <TicketModel>[];
       final sentTickets = currentSent.isEmpty
@@ -217,9 +208,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           departments: departments,
           employees: employees,
           sentTickets: sentTickets,
-          filterStatus: prevFilterStatus,
-          filterPriority: prevFilterPriority,
-          filterTeam: prevFilterTeam,
           selectedIndex: 0,
           currentPage: currentPage,
           totalPages: totalPages,
@@ -243,57 +231,52 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     Emitter<DashboardState> emit,
   ) async {
     final prev = _getLoadedState();
-    emit(prev.copyWith(
-      filterStatus: event.status,
-      filterPriority: event.priority,
-    ));
     try {
-      final ticketResult = await _dataSource.getTickets(
+      final result = await _dataSource.filterTickets(
         status: event.status,
         priority: event.priority,
-        page: 1,
-        scope: prev.filterTeam ? 'team' : null,
-        search: prev.searchQuery.isNotEmpty ? prev.searchQuery : null,
+        search: event.search,
+        teamOnly: event.teamOnly,
+        page: event.page,
       );
-      emit(
-        prev.copyWith(
-          tickets: ticketResult.tickets,
-          filterStatus: event.status,
-          filterPriority: event.priority,
-          currentPage: ticketResult.page,
-          totalPages: ticketResult.totalPages,
-        ),
-      );
+      emit(prev.copyWith(
+        tickets: result.tickets,
+        currentPage: result.page,
+        totalPages: result.totalPages,
+        filterStatus: event.status ?? prev.filterStatus,
+        filterPriority: event.priority ?? prev.filterPriority,
+        filterTeam: event.teamOnly ?? prev.filterTeam,
+      ));
     } catch (e) {
       emit(DashboardError(_getFriendlyErrorMessage(e)));
     }
   }
 
-  // ── Toggle Team Filter ───────────────────────────────────────
-  Future<void> _onToggleTeamFilter(
-    ToggleTeamFilter event,
+  // ── Load More (infinite scroll) ──────────────────────────────
+  Future<void> _onLoadMore(
+    LoadMoreTickets event,
     Emitter<DashboardState> emit,
   ) async {
-    final prev = _getLoadedState();
+    if (_isLoadingMore) return;
+    final prev = _getLoadedStateOrNull();
+    if (prev == null || prev.currentPage >= prev.totalPages) return;
+    _isLoadingMore = true;
     try {
-      final ticketResult = await _dataSource.getTickets(
+      final result = await _dataSource.filterTickets(
         status: prev.filterStatus,
         priority: prev.filterPriority,
-        page: 1,
-        scope: event.active ? 'team' : null,
-        search: prev.searchQuery.isNotEmpty ? prev.searchQuery : null,
+        teamOnly: prev.filterTeam,
+        page: prev.currentPage + 1,
       );
-      emit(
-        prev.copyWith(
-          tickets: ticketResult.tickets,
-          filterTeam: event.active,
-          currentPage: ticketResult.page,
-          totalPages: ticketResult.totalPages,
-        ),
-      );
+      emit(prev.copyWith(
+        tickets: [...prev.tickets, ...result.tickets],
+        currentPage: result.page,
+        totalPages: result.totalPages,
+      ));
     } catch (e) {
-      emit(DashboardError(_getFriendlyErrorMessage(e)));
+      _isLoadingMore = false;
     }
+    _isLoadingMore = false;
   }
 
   // ── Ticket Detail ────────────────────────────────────────────
@@ -317,19 +300,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     final s = state;
     if (s is TicketDetailLoaded) {
       emit(s.previousState);
-    }
-  }
-
-  // ── Search ────────────────────────────────────────────────────
-  Future<void> _onSearch(
-    SearchTickets event,
-    Emitter<DashboardState> emit,
-  ) async {
-    final loaded = _getLoadedStateOrNull();
-    if (loaded == null) return;
-    emit(loaded.copyWith(searchQuery: event.query));
-    if (event.query.isEmpty) {
-      add(LoadDashboard(page: 1));
     }
   }
 
@@ -373,6 +343,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     _socketSub = null;
     _socketDebounce = null;
     _socketInitialized = false;
+    _isLoadingMore = false;
     SocketService().disconnect();
     emit(DashboardInitial());
   }

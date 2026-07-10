@@ -48,7 +48,8 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     emit(TicketActionInProgress());
     try {
       await _dataSource.selfAssign(event.ticketId);
-      emit(TicketActionSuccess('Ticket self-assigned!'));
+      final updated = await _dataSource.getTicket(event.ticketId);
+      emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
     }
@@ -65,7 +66,8 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
         event.status,
         remark: event.remark,
       );
-      emit(TicketActionSuccess('Status updated to ${event.status}'));
+      final updated = await _dataSource.getTicket(event.ticketId);
+      emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
     }
@@ -78,7 +80,8 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     emit(TicketActionInProgress());
     try {
       await _dataSource.assignToEmployee(event.ticketId, event.employeeId);
-      emit(TicketActionSuccess('Ticket assigned successfully'));
+      final updated = await _dataSource.getTicket(event.ticketId);
+      emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
     }
@@ -96,7 +99,8 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
         title: event.title,
         description: event.description,
       );
-      emit(TicketActionSuccess('Ticket transferred!'));
+      final updated = await _dataSource.getTicket(event.ticketId);
+      emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
     }
@@ -109,7 +113,8 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     emit(TicketActionInProgress());
     try {
       await _dataSource.reopenTicket(event.ticketId);
-      emit(TicketActionSuccess('Ticket reopened!'));
+      final updated = await _dataSource.getTicket(event.ticketId);
+      emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
     }

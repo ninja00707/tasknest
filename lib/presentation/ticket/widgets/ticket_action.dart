@@ -85,22 +85,7 @@ class TicketActions extends StatelessWidget {
                 onTap: () => _showAssignDialog(context, loadedState!),
               ),
 
-            // 3. Start Working — resolver moves open assigned ticket to in_progress
-            if (ticket.isOpen &&
-                !ticket.isManagementDisabled &&
-                !isUnassigned &&
-                isResolver &&
-                !hasUnfinalizedSubs)
-              ActionBtn(
-                icon: Icons.play_arrow_rounded,
-                tooltip: 'Start',
-                color: ThemeColors.unifiedPrimary,
-                onTap: () => context
-                    .read<TicketBloc>()
-                    .add(UpdateTicketStatus(ticket.id, 'in_progress')),
-              ),
-
-            // 4. Mark Completed (Done) — only the assigned resolver
+            // 3. Mark Completed (Done) — only the assigned resolver
             if (ticket.isInProgress && !hasUnfinalizedSubs && isResolver)
               ActionBtn(
                 icon: Icons.check_circle_outline,

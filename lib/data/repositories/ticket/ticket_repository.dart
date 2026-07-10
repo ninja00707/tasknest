@@ -1,4 +1,4 @@
-import 'package:tasknest/data/datasource/ticketdatasource/notification_remote_data_source.dart';
+import 'package:tasknest/presentation/notification/models/notification_model.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
 abstract class TicketRepository {
@@ -10,6 +10,14 @@ abstract class TicketRepository {
     int page = 1,
     String? scope,
     String? search,
+  });
+
+  Future<({List<TicketModel> tickets, int total, int page, int totalPages})> filterTickets({
+    String? status,
+    String? priority,
+    String? search,
+    bool? teamOnly,
+    int page = 1,
   });
 
   Future<TicketModel> getTicket(int id);

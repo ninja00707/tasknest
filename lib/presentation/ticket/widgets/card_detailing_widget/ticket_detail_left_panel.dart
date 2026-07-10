@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/common_listview_builder.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/common_section_container.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_history_timeline.dart';
@@ -24,11 +25,13 @@ class LeftColumn extends StatelessWidget {
           const SizedBox(height: 16),
           CommonSectionCardContainer(
             icon: Icons.account_tree_outlined,
-            title: 'Sub Tickets (${ticket.children.length})',
-            child: Column(
-              children: ticket.children
-                  .map((child) => ChildDetailCard(child: child))
-                  .toList(),
+            title: '$ConstStrings.subTickets (${ticket.children.length})',
+            child: CommonListViewBuilder(
+              shrinkWrap: true,
+              itemBuilder: (context, child) {
+                return ChildDetailCard(child: child);
+              },
+              items: ticket.children,
             ),
           ),
         ],

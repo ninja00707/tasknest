@@ -6,7 +6,6 @@ import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 
-// ── Search bar ────────────────────────────────────────────────────────────────
 class SearchBarWidget extends StatelessWidget {
   final DashboardLoaded state;
   const SearchBarWidget({super.key, required this.state});
@@ -33,17 +32,6 @@ class SearchBarWidget extends StatelessWidget {
             size: 20,
             color: ThemeColors.unifiedTextMuted,
           ),
-          suffixIcon: state.searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: Icon(
-                    Icons.clear_rounded,
-                    size: 18,
-                    color: ThemeColors.unifiedTextMuted,
-                  ),
-                  onPressed: () =>
-                      context.read<DashboardBloc>().add(SearchTickets('')),
-                )
-              : null,
           filled: true,
           fillColor: ThemeColors.unifiedBackground,
           contentPadding: const EdgeInsets.symmetric(vertical: 10),
@@ -65,9 +53,14 @@ class SearchBarWidget extends StatelessWidget {
             ),
           ),
         ),
-        onChanged: (v) => context.read<DashboardBloc>().add(SearchTickets(v)),
-        onSubmitted: (v) =>
-            context.read<DashboardBloc>().add(LoadDashboard(page: 1)),
+        onChanged: (v) => context.read<DashboardBloc>().add(
+          FilterTickets(
+            search: v,
+            status: state.filterStatus,
+            priority: state.filterPriority,
+            teamOnly: state.filterTeam,
+          ),
+        ),
       ),
     );
   }

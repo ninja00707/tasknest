@@ -1,4 +1,5 @@
-import 'package:tasknest/data/datasource/ticketdatasource/notification_remote_data_source.dart';
+import 'package:tasknest/data/datasource/notification/notification_remote_data_source.dart';
+import 'package:tasknest/presentation/notification/models/notification_model.dart';
 import 'package:tasknest/data/datasource/ticketdatasource/ticket_remote_data_source.dart';
 import 'package:tasknest/data/repositories/ticket/ticket_repository.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
@@ -26,6 +27,22 @@ class TicketRepositoryImpl implements TicketRepository {
         page: page,
         scope: scope,
         search: search,
+      );
+
+  @override
+  Future<({List<TicketModel> tickets, int total, int page, int totalPages})> filterTickets({
+    String? status,
+    String? priority,
+    String? search,
+    bool? teamOnly,
+    int page = 1,
+  }) =>
+      _ticketDs.filterTickets(
+        status: status,
+        priority: priority,
+        search: search,
+        teamOnly: teamOnly,
+        page: page,
       );
 
   @override

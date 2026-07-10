@@ -2,7 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tasknest/core/constant/api_client.dart';
 import 'package:tasknest/data/datasource/authdatasource/auth_data_source.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
-import 'package:tasknest/data/datasource/ticketdatasource/notification_remote_data_source.dart';
+import 'package:tasknest/data/datasource/notification/notification_remote_data_source.dart';
 import 'package:tasknest/data/datasource/ticketdatasource/ticket_remote_data_source.dart';
 import 'package:tasknest/domain/repositories_impl/auth_impl/auth_impl.dart';
 import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
@@ -10,6 +10,7 @@ import 'package:tasknest/presentation/admin/data/datasource/admin_remote_data_so
 import 'package:tasknest/presentation/admin/domain/repositories_impl/admin_repository_impl.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
+import 'package:tasknest/presentation/notification/bloc/notification_bloc.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 
@@ -56,4 +57,5 @@ Future<void> initDependencies() async {
   );
   sl.registerFactory<AdminBloc>(() => AdminBloc(sl<AdminRepositoryImpl>()));
   sl.registerFactory<TicketBloc>(() => TicketBloc(sl<TicketRepositoryImpl>()));
+  sl.registerFactory<NotificationBloc>(() => NotificationBloc(sl<TicketRepositoryImpl>()));
 }

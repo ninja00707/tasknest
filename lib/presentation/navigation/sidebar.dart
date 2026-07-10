@@ -9,7 +9,7 @@ import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/navigation/nav_item.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
-import 'package:tasknest/presentation/ticket/widgets/notification_panel.dart';
+import 'package:tasknest/presentation/notification/widgets/notification_panel.dart';
 
 class Sidebar extends StatelessWidget {
   final int selectedIndex;

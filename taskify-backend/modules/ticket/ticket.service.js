@@ -51,6 +51,36 @@ class TicketService {
     }
   }
 
+  // ── Recursively propagate in_progress up the parent chain ────────────
+  // For completed/closed: just collect parent chain for notification
+  async _propagateUpward(childTicket, newStatus, user) {
+    const updatedParents = [];
+
+    if (newStatus === 'in_progress') {
+      let currentTicketId = childTicket.parent_ticket_id;
+      while (currentTicketId) {
+        const result = await ticketRepo.updateParentTicketStatus(currentTicketId, 'in_progress');
+        if (result) {
+          updatedParents.push({ parentId: currentTicketId, newStatus });
+          const parentRow = await ticketRepo.getParentId(currentTicketId);
+          currentTicketId = parentRow?.parent_ticket_id || null;
+        } else {
+          break;
+        }
+      }
+    } else if (newStatus === 'completed' || newStatus === 'closed') {
+      // Don't auto-update parents; just collect chain for notification
+      let currentTicketId = childTicket.parent_ticket_id;
+      while (currentTicketId) {
+        updatedParents.push({ parentId: currentTicketId, newStatus });
+        const parentRow = await ticketRepo.getParentId(currentTicketId);
+        currentTicketId = parentRow?.parent_ticket_id || null;
+      }
+    }
+
+    return updatedParents;
+  }
+
   async getDashboardStats(user) {
     if (!user) throw { statusCode: 401, message: 'Unauthorized' };
     return await ticketRepo.getDashboardStats(user);
@@ -698,22 +728,8 @@ class TicketService {
       `Status updated to ${newStatus} by ${user.name}${isSystemUpdate ? ' (System Action)' : ''}${remark ? `. Remark: ${remark}` : ''}`
     );
 
-    // Log parent notification when child completes (no auto-complete)
-    if (newStatus === 'completed' && ticket.parent_ticket_id) {
-      const chain = await ticketRepo.getParentChain(ticketId);
-      const allParents = [ticket.parent_ticket_id, ...chain];
-      for (const parentId of allParents) {
-        const allDone = await ticketRepo.allChildrenCompleted(parentId);
-        if (allDone) {
-          await ticketRepo.logAction(
-            parentId, user.id, 'all_children_completed', null, null,
-            `All sub-tickets completed via #${ticketId}`
-          );
-        } else {
-          break;
-        }
-      }
-    }
+    // ── Recursively propagate status up the parent chain ──────────────
+    const updatedParents = await this._propagateUpward(ticket, newStatus, user);
 
     // Transparency: Add the closing/completion remark as a formal comment so it is visible in the thread
     if ((newStatus === 'completed' || newStatus === 'closed') && remark) {
@@ -729,6 +745,17 @@ class TicketService {
     // Real-time update for directly involved users
     const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
     await this._dispatch(ticketId, involved, `Ticket #${ticketId} status changed to ${newStatus}`, 'TICKET_STATUS_UPDATED', { ticket: updated }, [user.id]);
+
+    // Dispatch for every parent whose status was propagated up the chain
+    for (const p of updatedParents) {
+      const parentTicket = await ticketRepo.getTicketById(p.parentId, user, true);
+      const parentInvolved = await ticketRepo.getTicketInvolvedUsers(p.parentId);
+      await this._dispatch(
+        p.parentId, parentInvolved,
+        `Ticket #${p.parentId} status changed to ${p.newStatus}`,
+        'TICKET_STATUS_UPDATED', { ticket: parentTicket }, [user.id]
+      );
+    }
 
     return updated;
   }
@@ -768,6 +795,20 @@ class TicketService {
       `Ticket #${ticketId} self-assigned by ${user.name}`,
       'TICKET_ASSIGNED', { ticket: updated }, [user.id]
     );
+
+    // Propagate to parent chain if sub-ticket
+    if (ticketBeforeUpdate.parent_ticket_id) {
+      const updatedParents = await this._propagateUpward(ticketBeforeUpdate, 'in_progress', user);
+      for (const p of updatedParents) {
+        const parentTicket = await ticketRepo.getTicketById(p.parentId, user, true);
+        const parentInvolved = await ticketRepo.getTicketInvolvedUsers(p.parentId);
+        await this._dispatch(
+          p.parentId, parentInvolved,
+          `Ticket #${p.parentId} status changed to in_progress`,
+          'TICKET_STATUS_UPDATED', { ticket: parentTicket }, [user.id]
+        );
+      }
+    }
 
     return updated;
   }
@@ -815,6 +856,20 @@ class TicketService {
         updated.status,
         'Status changed due to assignment'
       );
+    }
+
+    // Propagate to parent chain if sub-ticket goes in_progress
+    if (ticketBeforeUpdate.parent_ticket_id && (ticketBeforeUpdate.status === 'open' || updated.status === 'in_progress')) {
+      const updatedParents = await this._propagateUpward(ticketBeforeUpdate, 'in_progress', user);
+      for (const p of updatedParents) {
+        const parentTicket = await ticketRepo.getTicketById(p.parentId, user, true);
+        const parentInvolved = await ticketRepo.getTicketInvolvedUsers(p.parentId);
+        await this._dispatch(
+          p.parentId, parentInvolved,
+          `Ticket #${p.parentId} status changed to in_progress`,
+          'TICKET_STATUS_UPDATED', { ticket: parentTicket }, [user.id]
+        );
+      }
     }
 
     return updated;
@@ -969,11 +1024,10 @@ class TicketService {
   }
 
   async getEmployees(user, departmentId) {
-    const deptId = departmentId ? Number(departmentId) : Number(user.department_id);
-    if (deptId === undefined || isNaN(deptId)) {
-      throw { statusCode: 400, message: 'Department ID is required' };
+    if (departmentId) {
+      return await ticketRepo.getEmployeesByDepartment(Number(departmentId));
     }
-    return await ticketRepo.getEmployeesByDepartment(deptId);
+    return await ticketRepo.getEmployeesByCompany(user.company_id);
   }
 
   async getMyTickets(user, filters) {

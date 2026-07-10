@@ -1,5 +1,5 @@
 import 'package:tasknest/core/constant/api_client.dart';
-import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
+import 'package:tasknest/presentation/notification/models/notification_model.dart';
 
 class NotificationRemoteDataSource {
   final ApiClient _api;
@@ -18,20 +18,5 @@ class NotificationRemoteDataSource {
   Future<int> markAsRead({List<int>? ids}) async {
     final res = await _api.patch('notifications/read', body: ids != null ? {'ids': ids} : {});
     return res['data']['unreadCount'] as int;
-  }
-}
-
-class NotificationListResponse {
-  final List<NotificationModel> notifications;
-  final int unreadCount;
-  NotificationListResponse({required this.notifications, required this.unreadCount});
-
-  factory NotificationListResponse.fromJson(Map<String, dynamic> j) {
-    return NotificationListResponse(
-      notifications: (j['notifications'] as List)
-          .map((e) => NotificationModel.fromJson(e))
-          .toList(),
-      unreadCount: j['unreadCount'] as int,
-    );
   }
 }

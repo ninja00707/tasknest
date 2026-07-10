@@ -81,8 +81,7 @@ class TicketBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasFilters =
         state.filterStatus != null ||
-        state.filterPriority != null ||
-        state.searchQuery.isNotEmpty;
+        state.filterPriority != null;
 
     final allSorted = _sorted(state.tickets);
 
@@ -91,9 +90,8 @@ class TicketBody extends StatelessWidget {
         filterActive: hasFilters,
         onClear: () {
           context.read<DashboardBloc>().add(
-            FilterTickets(status: null, priority: null),
+            FilterTickets(status: null, priority: null, teamOnly: state.filterTeam),
           );
-          context.read<DashboardBloc>().add(SearchTickets(''));
         },
       );
     }
@@ -170,8 +168,7 @@ class TicketBody extends StatelessWidget {
                       ),
                     ),
 
-              // ── Pagination (hidden when searching — all results on page 1) ──
-              if (state.totalPages > 1 && state.searchQuery.isEmpty)
+              if (state.totalPages > 1)
                 Padding(
                   padding: const EdgeInsets.only(top: 8, bottom: 8),
                   child: Row(
@@ -327,8 +324,7 @@ class ResultSummary extends StatelessWidget {
           Expanded(
             child: Text(
               'Showing $count result${count == 1 ? '' : 's'}'
-              ' · ${parts.join(' · ')}'
-              '${state.searchQuery.isNotEmpty ? ' · "${state.searchQuery}"' : ''}',
+              ' · ${parts.join(' · ')}',
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,

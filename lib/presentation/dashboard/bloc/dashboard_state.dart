@@ -2,6 +2,7 @@
 //  STATES
 // ══════════════════════════════════════════════════════════════
 import 'package:equatable/equatable.dart';
+import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
 // Sentinel for copyWith to distinguish "set to null" from "keep existing"
@@ -28,7 +29,6 @@ class DashboardLoaded extends DashboardState {
   final String? filterStatus;
   final String? filterPriority;
   final bool filterTeam;
-  final String searchQuery;
   final int selectedIndex;
   final int unreadNotificationCount;
   final int currentPage;
@@ -41,6 +41,8 @@ class DashboardLoaded extends DashboardState {
   final bool isWide;
   final String greeting;
 
+  late final Map<String, List<TicketModel>> groupedTickets;
+
   DashboardLoaded({
     required this.stats,
     required this.tickets,
@@ -50,7 +52,6 @@ class DashboardLoaded extends DashboardState {
     this.filterStatus,
     this.filterPriority,
     this.filterTeam = false,
-    this.searchQuery = '',
     this.selectedIndex = 0,
     this.unreadNotificationCount = 0,
     this.currentPage = 1,
@@ -62,7 +63,17 @@ class DashboardLoaded extends DashboardState {
     this.companyName = '',
     this.isWide = false,
     this.greeting = '',
-  });
+  }) {
+    groupedTickets = {};
+    for (final s in CommonStatus.statuses) {
+      groupedTickets[s] = tickets.where((t) => t.status == s).toList()
+        ..sort(
+          (a, b) => CommonStatus.priorityWeight(
+            a.priority,
+          ).compareTo(CommonStatus.priorityWeight(b.priority)),
+        );
+    }
+  }
 
   static const _sentinel = _Sentinel();
 
@@ -75,7 +86,6 @@ class DashboardLoaded extends DashboardState {
     Object? filterStatus = _sentinel,
     Object? filterPriority = _sentinel,
     bool? filterTeam,
-    String? searchQuery,
     int? selectedIndex,
     int? unreadNotificationCount,
     int? currentPage,
@@ -94,16 +104,21 @@ class DashboardLoaded extends DashboardState {
       departments: departments ?? this.departments,
       employees: employees ?? this.employees,
       sentTickets: sentTickets ?? this.sentTickets,
-      filterStatus: identical(filterStatus, _sentinel) ? this.filterStatus : filterStatus as String?,
-      filterPriority: identical(filterPriority, _sentinel) ? this.filterPriority : filterPriority as String?,
+      filterStatus: identical(filterStatus, _sentinel)
+          ? this.filterStatus
+          : filterStatus as String?,
+      filterPriority: identical(filterPriority, _sentinel)
+          ? this.filterPriority
+          : filterPriority as String?,
       filterTeam: filterTeam ?? this.filterTeam,
-      searchQuery: searchQuery ?? this.searchQuery,
       selectedIndex: selectedIndex ?? this.selectedIndex,
-      unreadNotificationCount: unreadNotificationCount ?? this.unreadNotificationCount,
+      unreadNotificationCount:
+          unreadNotificationCount ?? this.unreadNotificationCount,
       currentPage: currentPage ?? this.currentPage,
       totalPages: totalPages ?? this.totalPages,
       sidebarOpen: sidebarOpen ?? this.sidebarOpen,
-      shouldShowUpdateDialog: shouldShowUpdateDialog ?? this.shouldShowUpdateDialog,
+      shouldShowUpdateDialog:
+          shouldShowUpdateDialog ?? this.shouldShowUpdateDialog,
       departmentName: departmentName ?? this.departmentName,
       roleName: roleName ?? this.roleName,
       companyName: companyName ?? this.companyName,
@@ -122,7 +137,6 @@ class DashboardLoaded extends DashboardState {
     filterStatus,
     filterPriority,
     filterTeam,
-    searchQuery,
     selectedIndex,
     unreadNotificationCount,
     currentPage,
@@ -194,4 +208,3 @@ class AnalyticsError extends DashboardState {
   @override
   List<Object?> get props => [message];
 }
-

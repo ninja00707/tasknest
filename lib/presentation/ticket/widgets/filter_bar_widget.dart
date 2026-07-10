@@ -54,7 +54,11 @@ class FilterBarWidget extends StatelessWidget {
                 if (state.filterStatus != null || state.filterPriority != null)
                   GestureDetector(
                     onTap: () => context.read<DashboardBloc>().add(
-                      FilterTickets(status: null, priority: null),
+                      FilterTickets(
+                        status: null,
+                        priority: null,
+                        teamOnly: state.filterTeam,
+                      ),
                     ),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -140,6 +144,7 @@ class FilterBarWidget extends StatelessWidget {
                     FilterTickets(
                       status: s.name == 'All' ? null : s.name,
                       priority: state.filterPriority,
+                      teamOnly: state.filterTeam,
                     ),
                   ),
                 );
@@ -154,7 +159,11 @@ class FilterBarWidget extends StatelessWidget {
               children: [
                 GestureDetector(
                   onTap: () => context.read<DashboardBloc>().add(
-                    ToggleTeamFilter(!state.filterTeam),
+                    FilterTickets(
+                      status: state.filterStatus,
+                      priority: state.filterPriority,
+                      teamOnly: !state.filterTeam,
+                    ),
                   ),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
@@ -263,6 +272,7 @@ class FilterBarWidget extends StatelessWidget {
                         FilterTickets(
                           status: state.filterStatus,
                           priority: null,
+                          teamOnly: state.filterTeam,
                         ),
                       ),
                     ),
@@ -280,6 +290,7 @@ class FilterBarWidget extends StatelessWidget {
                       FilterTickets(
                         status: state.filterStatus,
                         priority: p.name,
+                        teamOnly: state.filterTeam,
                       ),
                     ),
                   ),

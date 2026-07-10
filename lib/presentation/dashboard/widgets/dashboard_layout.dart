@@ -4,14 +4,17 @@ import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/routes/routes_name.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
+import 'package:tasknest/injection.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/navigation/bottom_nav_bar.dart';
 import 'package:tasknest/presentation/navigation/sidebar.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
-import 'package:tasknest/presentation/ticket/widgets/notification_panel.dart';
-import 'package:tasknest/presentation/ticket/widgets/notification_toast.dart';
+import 'package:tasknest/presentation/notification/bloc/notification_bloc.dart';
+import 'package:tasknest/presentation/notification/widgets/notification_panel.dart';
+import 'package:tasknest/presentation/notification/widgets/notification_toast.dart';
 
 class DashboardLayout extends StatelessWidget {
   final UserModel user;
@@ -60,8 +63,10 @@ class DashboardLayout extends StatelessWidget {
         final loaded = state as DashboardLoaded;
         final isMobile = !isWide;
 
-        return LiveNotificationShell(
-          child: Scaffold(
+        return BlocProvider<NotificationBloc>(
+          create: (_) => NotificationBloc(sl<TicketRepositoryImpl>()),
+          child: LiveNotificationShell(
+            child: Scaffold(
             backgroundColor: ThemeColors.unifiedBackground,
             drawer: isWide
                 ? null
@@ -137,7 +142,8 @@ class DashboardLayout extends StatelessWidget {
                     ),
             ),
           ),
-        );
+        ),
+      );
       },
     );
   }

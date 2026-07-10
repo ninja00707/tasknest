@@ -23,7 +23,31 @@ class TicketRemoteDataSource {
       'scope': ?scope,
       if (search != null && search.isNotEmpty) 'search': search,
       'page': page.toString(),
-      'limit': '15',
+      'limit': '10',
+    };
+    final res = await _api.get('tickets', queryParams: query);
+    final data = (res['data'] as List).map((e) => TicketModel.fromJson(e)).toList();
+    final pagination = res['pagination'] as Map<String, dynamic>?;
+    final total = pagination?['total'] as int? ?? data.length;
+    final totalPages = pagination?['totalPages'] as int? ?? 1;
+    final currentPage = pagination?['page'] as int? ?? page;
+    return (tickets: data, total: total, page: currentPage, totalPages: totalPages);
+  }
+
+  Future<({List<TicketModel> tickets, int total, int page, int totalPages})> filterTickets({
+    String? status,
+    String? priority,
+    String? search,
+    bool? teamOnly,
+    int page = 1,
+  }) async {
+    final query = <String, String>{
+      'status': ?status,
+      'priority': ?priority,
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (teamOnly == true) 'scope': 'team',
+      'page': page.toString(),
+      'limit': '10',
     };
     final res = await _api.get('tickets', queryParams: query);
     final data = (res['data'] as List).map((e) => TicketModel.fromJson(e)).toList();

@@ -56,9 +56,12 @@ class CreateTicketViewState extends State<CreateTicketView> {
   Widget build(BuildContext context) {
     final isWide = MediaQuery.sizeOf(context).width > 700;
     final blocState = context.watch<DashboardBloc>().state;
-    final employeeList = blocState is DashboardLoaded
+    final allEmployees = blocState is DashboardLoaded
         ? blocState.employees
         : <EmployeeModel>[];
+    final employeeList = _selectedDepartments.length == 1
+        ? allEmployees.where((e) => e.departmentId == _selectedDepartments.first.id && e.isActive).toList()
+        : allEmployees.where((e) => e.isActive).toList();
     final canAssignEmployee =
         widget.user.roleId == 0 ||
         widget.user.roleId == 1 ||

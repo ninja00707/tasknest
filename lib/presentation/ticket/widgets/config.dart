@@ -108,7 +108,8 @@ class TicketListConfig {
   // ── Pre-built configs matching existing views ──
 
   /// "My Tickets" view.
-  factory TicketListConfig.myTickets({required dynamic user}) => TicketListConfig(
+  factory TicketListConfig.myTickets({required dynamic user}) =>
+      TicketListConfig(
         viewType: TicketViewType.grid,
         cardStyle: TicketCardStyle.compact,
         headerStyle: TicketHeaderStyle.myTickets,
@@ -124,15 +125,15 @@ class TicketListConfig {
 
   /// "Recent Activity" view.
   factory TicketListConfig.recentActivity() => TicketListConfig(
-        viewType: TicketViewType.timeline,
-        cardStyle: TicketCardStyle.timelineCard,
-        headerStyle: TicketHeaderStyle.recentActivity,
-        enablePagination: true,
-        pageSize: 15,
-        emptyIcon: Icons.history_toggle_off,
-        emptyTitle: ConstStrings.noRecentActivity,
-        emptySubtitle: 'Ticket activity will appear here as updates come in',
-      );
+    viewType: TicketViewType.timeline,
+    cardStyle: TicketCardStyle.timelineCard,
+    headerStyle: TicketHeaderStyle.recentActivity,
+    enablePagination: true,
+    pageSize: 15,
+    emptyIcon: Icons.history_toggle_off,
+    emptyTitle: ConstStrings.noRecentActivity,
+    emptySubtitle: 'Ticket activity will appear here as updates come in',
+  );
 
   /// "Sent Sub-Tickets" view.
   factory TicketListConfig.sentSubTickets({required dynamic user}) =>

@@ -198,6 +198,7 @@ class ChildTicketModel {
   final int id;
   final String ticketNumber;
   final String title;
+  final String description;
   final String status;
   final int? assignedDeptId;
   final String deptCode;
@@ -217,6 +218,7 @@ class ChildTicketModel {
     required this.id,
     this.ticketNumber = '',
     required this.title,
+    this.description = '',
     required this.status,
     this.assignedDeptId,
     required this.deptCode,
@@ -237,6 +239,7 @@ class ChildTicketModel {
     id: j['id'],
     ticketNumber: j['ticket_number'] ?? '',
     title: j['title'] ?? '',
+    description: j['description'] ?? '',
     status: j['status'] ?? 'open',
     assignedDeptId: (j['assigned_dept_id'] is num) ? (j['assigned_dept_id'] as num).toInt() : int.tryParse(j['assigned_dept_id']?.toString() ?? ''),
     deptCode: j['dept_code'] ?? '',
@@ -465,32 +468,4 @@ class EmployeeModel {
     reportsTo: j['reports_to'],
     reportsToName: j['reports_to_name'],
   );
-}
-
-class NotificationModel {
-  final int id;
-  final int? ticketId;
-  final String message;
-  final bool isRead;
-  final DateTime createdAt;
-  final String? ticketNumber;
-
-  const NotificationModel({
-    required this.id,
-    this.ticketId,
-    required this.message,
-    required this.isRead,
-    required this.createdAt,
-    this.ticketNumber,
-  });
-
-  factory NotificationModel.fromJson(Map<String, dynamic> j) =>
-      NotificationModel(
-        id: j['id'],
-        ticketId: j['ticket_id'],
-        message: j['message'] ?? '',
-        isRead: j['is_read'] ?? false,
-        createdAt: DateTime.parse(j['created_at']),
-        ticketNumber: j['ticket_number'],
-      );
 }

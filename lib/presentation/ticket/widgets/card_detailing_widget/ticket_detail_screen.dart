@@ -150,7 +150,6 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                               ),
                             ),
                           ),
-
                           if (ticket.isSubTicket) ...[
                             const SizedBox(height: 24),
                             SubTicketDetailSection(

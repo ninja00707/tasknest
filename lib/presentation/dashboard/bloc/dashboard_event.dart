@@ -15,24 +15,15 @@ class LoadDashboard extends DashboardEvent {
 class FilterTickets extends DashboardEvent {
   final String? status;
   final String? priority;
-  FilterTickets({this.status, this.priority});
+  final String? search;
+  final bool? teamOnly;
+  final int page;
+  FilterTickets({this.status, this.priority, this.search, this.teamOnly, this.page = 1});
   @override
-  List<Object?> get props => [status, priority];
+  List<Object?> get props => [status, priority, search, teamOnly, page];
 }
 
-class ToggleTeamFilter extends DashboardEvent {
-  final bool active;
-  ToggleTeamFilter(this.active);
-  @override
-  List<Object?> get props => [active];
-}
-
-class SearchTickets extends DashboardEvent {
-  final String query;
-  SearchTickets(this.query);
-  @override
-  List<Object?> get props => [query];
-}
+class LoadMoreTickets extends DashboardEvent {}
 
 class UpdateNotificationCount extends DashboardEvent {
   final int count;

@@ -3,7 +3,7 @@ import 'package:tasknest/core/theme/color.dart';
 
 class CommonStatusColor {
   String status;
-  CommonStatusColor({required this.status});
+  CommonStatusColor(this.status);
 
   static Color statusColor(String status) {
     switch (status) {

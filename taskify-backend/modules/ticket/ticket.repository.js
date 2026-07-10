@@ -125,7 +125,7 @@ class TicketRepository {
           SELECT t.id FROM tickets t
           JOIN descendants d ON t.parent_ticket_id = d.id
         )
-        SELECT t.id, t.title, t.status, t.assigned_dept_id, t.assigned_to_id, t.created_by_id,
+        SELECT t.id, t.title, t.description, t.status, t.assigned_dept_id, t.assigned_to_id, t.created_by_id,
                t.ticket_number, t.created_at, t.created_by_dept, t.priority,
                d.code as dept_code, d.name as dept_name, u.name as assignee_name,
                creator.name as created_by_name, cd.code as created_by_dept_code, cd.name as created_by_dept_name
@@ -428,7 +428,7 @@ class TicketRepository {
         FROM tickets t
         JOIN descendants d ON t.parent_ticket_id = d.id
       )
-      SELECT t.id, t.parent_ticket_id, t.title, t.status, t.assigned_dept_id, t.assigned_to_id, t.created_by_id,
+      SELECT t.id, t.parent_ticket_id, t.title, t.description, t.status, t.assigned_dept_id, t.assigned_to_id, t.created_by_id,
              d_info.code as dept_code, u.name as assignee_name,
              (SELECT COUNT(*) FROM tickets WHERE parent_ticket_id = t.id) as immediate_child_count,
              EXISTS (
@@ -1092,6 +1092,33 @@ class TicketRepository {
     return result.rows;
   }
 
+  // ── Get all employees in a company ────────────────────────────────────────
+  async getEmployeesByCompany(companyId) {
+    const result = await pool.query(`
+      SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.department_id,
+        u.company_id,
+        u.is_active,
+        r.name AS role,
+        d.code AS dept_code,
+        d.name AS dept_name,
+        u.reports_to,
+        reporter.name AS reports_to_name
+      FROM users u
+      JOIN roles r ON r.id = u.role_id
+      JOIN departments d ON d.id = u.department_id
+      LEFT JOIN users reporter ON reporter.id = u.reports_to
+      WHERE u.company_id = $1
+        AND u.is_active = TRUE
+      ORDER BY u.name ASC
+    `, [companyId]);
+
+    return result.rows;
+  }
+
   // ── Tickets created by this department and transferred out ───────────────
   async getSentTicketsByDepartment(departmentId) {
     const result = await pool.query(`
@@ -1417,6 +1444,24 @@ class TicketRepository {
       WHERE id = $3 AND is_sub_ticket = TRUE
     `, [avg_progress, newStatus, ticketId]);
 
+    if (newStatus === 'in_progress') {
+      let currentId = ticketId;
+      while (true) {
+        const parent = await client.query(`
+          SELECT parent_ticket_id, status FROM tickets WHERE id = $1
+        `, [currentId]);
+        const parentId = parent.rows[0]?.parent_ticket_id;
+        if (!parentId) break;
+
+        await client.query(`
+          UPDATE tickets SET status = 'in_progress'
+          WHERE id = $1 AND status = 'open'
+        `, [parentId]);
+        currentId = parentId;
+      }
+    }
+    // For completed: parent is NOT auto-updated — manual chain
+
     return { avg_progress, newStatus, approved_count };
   }
 
@@ -1695,6 +1740,38 @@ class TicketRepository {
       SELECT id FROM ancestors WHERE id != $1 AND parent_ticket_id IS NULL
     `, [ticketId]);
     return result.rows.map(r => r.id);
+  }
+
+  // ── Update a parent ticket's status (used for propagation) ──────────────
+  async updateParentTicketStatus(ticketId, newStatus) {
+    const result = await pool.query(`
+      UPDATE tickets SET status = $1, updated_at = NOW()
+      WHERE id = $2 AND status != $1
+      RETURNING id, ticket_number, title, status
+    `, [newStatus, ticketId]);
+    if (result.rowCount > 0) {
+      console.log(`[TicketRepo] Propagated status '${newStatus}' to parent ticket #${ticketId}`);
+    }
+    return result.rows[0] || null;
+  }
+
+  // ── Check if all direct children are closed ─────────────────────────────
+  async allChildrenClosed(ticketId) {
+    const result = await pool.query(`
+      SELECT COUNT(*)::int AS total,
+             COUNT(*) FILTER (WHERE status = 'closed')::int AS done
+      FROM tickets WHERE parent_ticket_id = $1
+    `, [ticketId]);
+    const row = result.rows[0];
+    return row.total > 0 && row.total === row.done;
+  }
+
+  // ── Get the parent_ticket_id for a given ticket ─────────────────────────
+  async getParentId(ticketId) {
+    const result = await pool.query(`
+      SELECT parent_ticket_id FROM tickets WHERE id = $1
+    `, [ticketId]);
+    return result.rows[0] || null;
   }
 }
 
