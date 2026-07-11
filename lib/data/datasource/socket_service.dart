@@ -23,11 +23,8 @@ class SocketService {
   bool get isConnected => _isConnected;
 
   void connect(String token, {int? userId, int? departmentId}) {
-    // Already connected with the same credentials — nothing to do
     if (_isConnected && _socket != null && _token == token && _userId == userId) return;
-    // Already connecting with the same credentials — let it finish
     if (_connecting && _token == token && _userId == userId) return;
-    // Different credentials mid-flight — tear down, will reconnect
     if (_connecting) {
       disconnect();
     } else if (_isConnected && (_token != token || _userId != userId)) {
@@ -61,6 +58,9 @@ class SocketService {
           .setTransports(['polling', 'websocket'])
           .disableAutoConnect()
           .enableReconnection()
+          .setReconnectionAttempts(10)
+          .setReconnectionDelay(1000)
+          .setReconnectionDelayMax(30000)
           .setAuth({
             'token': _token,
             'userId': _userId,
@@ -93,6 +93,7 @@ class SocketService {
     _socket!.onReconnect((_) {
       _isConnected = true;
       _connecting = false;
+      _eventController.add(SocketEvent('SOCKET_CONNECTED', {}));
     });
 
     _socket!.on('TICKET_CREATED', (data) {

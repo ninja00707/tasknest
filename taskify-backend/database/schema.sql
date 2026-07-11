@@ -172,6 +172,7 @@ CREATE INDEX idx_tickets_sub     ON tickets(is_sub_ticket);
 CREATE INDEX idx_sub_ticket_dept ON sub_ticket_departments(ticket_id);
 CREATE INDEX idx_sub_ticket_dept_id ON sub_ticket_departments(department_id);
 CREATE INDEX idx_notifications   ON notifications(user_id, is_read);
+CREATE INDEX idx_tickets_parent  ON tickets(parent_ticket_id);
 
 
 -- ── Auto-update updated_at ───────────────────────────────────

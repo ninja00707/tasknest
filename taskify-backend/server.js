@@ -1,16 +1,14 @@
 #!/usr/bin/env node
 
 const http = require('http');
+require('./core/env'); // Load environment-specific .env
 const { setupSocketIO } = require('./socket');
-require('dotenv').config();
 
-// ── Global error handlers to prevent crash ─────────────────────────────
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 process.on('uncaughtException', (err) => {
-  console.error('❌ Uncaught Exception:', err);
-  // Don't exit — let PM2 keep serving while logging the error
+  console.error('Uncaught Exception:', err);
 });
 
 function startServer(app) {
@@ -57,7 +55,7 @@ function onError(error, port) {
 function onListening(server) {
   const addr = server.address();
   const bind = typeof addr === 'string' ? 'pipe ' + addr : 'port ' + addr.port;
-  console.log(`Worker ${process.pid} listening on ${bind}`);
+  console.log(`Worker ${process.pid} listening on ${bind} [${process.env.NODE_ENV || 'development'}]`);
 }
 
 module.exports = { startServer, normalizePort, onError };

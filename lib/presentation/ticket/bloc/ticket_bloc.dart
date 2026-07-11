@@ -47,8 +47,7 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
   ) async {
     emit(TicketActionInProgress());
     try {
-      await _dataSource.selfAssign(event.ticketId);
-      final updated = await _dataSource.getTicket(event.ticketId);
+      final updated = await _dataSource.selfAssign(event.ticketId);
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
@@ -61,12 +60,11 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
   ) async {
     emit(TicketActionInProgress());
     try {
-      await _dataSource.updateStatus(
+      final updated = await _dataSource.updateStatus(
         event.ticketId,
         event.status,
         remark: event.remark,
       );
-      final updated = await _dataSource.getTicket(event.ticketId);
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
@@ -79,8 +77,7 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
   ) async {
     emit(TicketActionInProgress());
     try {
-      await _dataSource.assignToEmployee(event.ticketId, event.employeeId);
-      final updated = await _dataSource.getTicket(event.ticketId);
+      final updated = await _dataSource.assignToEmployee(event.ticketId, event.employeeId);
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
@@ -93,13 +90,12 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
   ) async {
     emit(TicketActionInProgress());
     try {
-      await _dataSource.transferTicket(
+      final updated = await _dataSource.transferTicket(
         event.ticketId,
         event.targetDeptId,
         title: event.title,
         description: event.description,
       );
-      final updated = await _dataSource.getTicket(event.ticketId);
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
@@ -112,8 +108,7 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
   ) async {
     emit(TicketActionInProgress());
     try {
-      await _dataSource.reopenTicket(event.ticketId);
-      final updated = await _dataSource.getTicket(event.ticketId);
+      final updated = await _dataSource.reopenTicket(event.ticketId);
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));

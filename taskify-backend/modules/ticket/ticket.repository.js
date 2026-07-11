@@ -1233,6 +1233,20 @@ class TicketRepository {
     return parseInt(result.rows[0].count, 10);
   }
 
+  // Batched version: returns { [userId]: count } for all given users in one query
+  async getUnreadCounts(userIds) {
+    if (!userIds.length) return {};
+    const result = await pool.query(`
+      SELECT user_id, COUNT(*) AS count FROM notifications
+      WHERE user_id = ANY($1) AND is_read = FALSE
+      GROUP BY user_id
+    `, [userIds]);
+    const counts = {};
+    for (const row of result.rows) counts[row.user_id] = parseInt(row.count, 10);
+    for (const id of userIds) if (counts[id] === undefined) counts[id] = 0;
+    return counts;
+  }
+
   // ── Find Users to Notify ─────────────────────────────────────────────────
   async getManagersByDepartment(departmentId) {
     const result = await pool.query(`
