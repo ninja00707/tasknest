@@ -132,7 +132,7 @@ class KanbanColumn extends StatelessWidget {
                     padding: const EdgeInsets.all(10),
                     child: CommonListViewBuilder<TicketModel>(
                       items: tickets,
-                      itemBuilder: (context, ticket) => Padding(
+                      itemBuilder: (context, ticket, index) => Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: TicketCard(ticket: ticket, user: user),
                       ),

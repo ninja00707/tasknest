@@ -39,7 +39,8 @@ class TicketCard extends StatelessWidget {
         tileBg = ThemeColors.unifiedAccent.withValues(alpha: 0.04);
     }
 
-    return GestureDetector(
+    return RepaintBoundary(
+      child: GestureDetector(
       onTap: onTap ?? () => context.push('/ticket/${ticket.id}'),
       child: Container(
         decoration: BoxDecoration(
@@ -65,12 +66,161 @@ class TicketCard extends StatelessWidget {
           ],
         ),
         clipBehavior: Clip.hardEdge,
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // ── Left priority stripe ──────────────────────────────────
-              Container(
+        child: Stack(
+          children: [
+            // ── Card body (offset right 4px for stripe) ────────────────
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            IdChip(
+                              label: ticket.ticketNumber.isNotEmpty
+                                  ? ticket.ticketNumber
+                                  : '#${ticket.id}',
+                            ),
+                            const SizedBox(width: 8),
+                            if (ticket.isStandardTicket)
+                              FlagChip(
+                                label: 'STANDARD',
+                                bg: ThemeColors.unifiedPrimary.withValues(alpha: 0.08),
+                                fg: ThemeColors.unifiedPrimary,
+                                icon: Icons.article_rounded,
+                              )
+                            else if (ticket.isMultiTaskTicket)
+                              FlagChip(
+                                label: 'MULTI TASK',
+                                bg: const Color(0xFFEDE9FE),
+                                fg: const Color(0xFF7C3AED),
+                                icon: Icons.hub_rounded,
+                              ),
+                            if (ticket.children.isNotEmpty)
+                              FlagChip(
+                                label: 'SUB',
+                                bg: const Color(0xFFFEF3C7),
+                                fg: const Color(0xFFD97706),
+                                icon: Icons.account_tree_rounded,
+                              ),
+                            const Spacer(),
+                            PriorityBadge(priority: ticket.priority),
+                            const SizedBox(width: 6),
+                            StatusBadge(status: ticket.status),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        if (ticket.deptJourney.isNotEmpty) ...[
+                          DeptJourneySection(journey: ticket.deptJourney),
+                          const SizedBox(height: 16),
+                        ],
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (ticket.hasParent)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.subdirectory_arrow_right_rounded,
+                                      size: 13,
+                                      color: ThemeColors.unifiedTextMuted
+                                          .withValues(alpha: 0.6),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'CHILD OF ${ticket.parentTicketNumber ?? "#${ticket.parentTicketId}"} ${ticket.parentTicketTitle ?? ""}',
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: ThemeColors.unifiedTextMuted,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            Text(
+                              ticket.title,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: ThemeColors.unifiedTextPrimary,
+                                letterSpacing: -0.3,
+                                height: 1.3,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              ticket.description,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: ThemeColors.unifiedTextMuted,
+                                height: 1.45,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        if (ticket.isSubTicket) ...[
+                          SubTicketProgressSection(ticket: ticket, user: user),
+                          const SizedBox(height: 12),
+                          Container(height: 1, color: ThemeColors.unifiedBorder.withValues(alpha: 0.6)),
+                          const SizedBox(height: 10),
+                        ] else ...[
+                          Container(height: 1, color: ThemeColors.unifiedBorder.withValues(alpha: 0.6)),
+                          const SizedBox(height: 10),
+                        ],
+                        if (ticket.children.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          ChildTicketsList(children: ticket.children, user: user),
+                        ],
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            if (!ticket.isSubTicket) ...[
+                              MetaDivider(),
+                              MetaChip(
+                                icon: Icons.arrow_forward_rounded,
+                                iconColor: ThemeColors.unifiedSecondary,
+                                label: ticket.assignedDeptCode,
+                              ),
+                              if (ticket.assignedToName != null) ...[
+                                MetaDivider(),
+                                MetaChip(
+                                  icon: Icons.person_outline_rounded,
+                                  iconColor: ThemeColors.unifiedTextMuted,
+                                  label: ticket.assignedToName!,
+                                ),
+                              ],
+                            ],
+                            const Spacer(),
+                            TicketActions(ticket: ticket, user: user),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // ── Left priority stripe ──────────────────────────────────
+            Positioned(
+              left: 0, top: 0, bottom: 0,
+              child: Container(
                 width: 4,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -80,196 +230,10 @@ class TicketCard extends StatelessWidget {
                   ),
                 ),
               ),
-
-              // ── Card body ─────────────────────────────────────────────
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // ── Row 1: ID + flags + badges ───────────────────
-                      Row(
-                        children: [
-                          IdChip(
-                            label: ticket.ticketNumber.isNotEmpty
-                                ? ticket.ticketNumber
-                                : '#${ticket.id}',
-                          ),
-                          const SizedBox(width: 8),
-                          if (ticket.isStandardTicket)
-                            FlagChip(
-                              label: 'STANDARD',
-                              bg: ThemeColors.unifiedPrimary.withValues(alpha: 0.08),
-                              fg: ThemeColors.unifiedPrimary,
-                              icon: Icons.article_rounded,
-                            )
-                          else if (ticket.isMultiTaskTicket)
-                            FlagChip(
-                              label: 'MULTI TASK',
-                              bg: const Color(0xFFEDE9FE),
-                              fg: const Color(0xFF7C3AED),
-                              icon: Icons.hub_rounded,
-                            ),
-                          if (ticket.children.isNotEmpty)
-                            FlagChip(
-                              label: 'SUB',
-                              bg: const Color(0xFFFEF3C7),
-                              fg: const Color(0xFFD97706),
-                              icon: Icons.account_tree_rounded,
-                            ),
-                          const Spacer(),
-                          PriorityBadge(priority: ticket.priority),
-                          const SizedBox(width: 6),
-                          StatusBadge(status: ticket.status),
-                        ],
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // ── Row: Department Journey (Futuristic Path) ──────
-                      if (ticket.deptJourney.isNotEmpty) ...[
-                        DeptJourneySection(journey: ticket.deptJourney),
-                        const SizedBox(height: 16),
-                      ],
-
-                      // ── Row 2: Title & Lineage ─────────────────────────
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (ticket.hasParent)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.subdirectory_arrow_right_rounded,
-                                    size: 13,
-                                    color: ThemeColors.unifiedTextMuted
-                                        .withValues(alpha: 0.6),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'CHILD OF ${ticket.parentTicketNumber ?? "#${ticket.parentTicketId}"} ${ticket.parentTicketTitle ?? ""}',
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      color: ThemeColors.unifiedTextMuted,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          Text(
-                            ticket.title,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: ThemeColors.unifiedTextPrimary,
-                              letterSpacing: -0.3,
-                              height: 1.3,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            ticket.description,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: ThemeColors.unifiedTextMuted,
-                              height: 1.45,
-                              fontWeight: FontWeight.w400,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      // ── Row 4: Timeline / Stats ──────────────────────
-                      if (ticket.isSubTicket) ...[
-                        SubTicketProgressSection(ticket: ticket, user: user),
-                        const SizedBox(height: 12),
-                        Container(
-                          height: 1,
-                          color: ThemeColors.unifiedBorder.withValues(alpha: 0.6),
-                        ),
-                        const SizedBox(height: 10),
-                      ] else ...[
-                        Container(
-                          height: 1,
-                          color: ThemeColors.unifiedBorder.withValues(alpha: 0.6),
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-
-                      // ── Row 5: Nested Child Tickets (One Card View) ──
-                      if (ticket.children.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        ChildTicketsList(children: ticket.children, user: user),
-                      ],
-
-                      const SizedBox(height: 16),
-
-                      // ── Row 6: Meta Info ─────────────────────────────
-                      Row(
-                        children: [
-                          // MetaChip(
-                          //   icon: Icons.arrow_upward_rounded,
-                          //   iconColor: ThemeColors.unifiedPrimary,
-                          //   label: ticket.createdByDeptCode,
-                          // ),
-                          if (!ticket.isSubTicket) ...[
-                            MetaDivider(),
-                            MetaChip(
-                              icon: Icons.arrow_forward_rounded,
-                              iconColor: ThemeColors.unifiedSecondary,
-                              label: ticket.assignedDeptCode,
-                            ),
-                            if (ticket.assignedToName != null) ...[
-                              MetaDivider(),
-                              MetaChip(
-                                icon: Icons.person_outline_rounded,
-                                iconColor: ThemeColors.unifiedTextMuted,
-                                label: ticket.assignedToName!,
-                              ),
-                              if (ticket.assignedToReportsToName != null) ...[
-                                const SizedBox(width: 4),
-                                // Text(
-                                //   '→ ${ticket.assignedToReportsToName}',
-                                //   style: const TextStyle(
-                                //     fontSize: 10,
-                                //     fontWeight: FontWeight.w500,
-                                //     color: ThemeColors.unifiedTextMuted,
-                                //   ),
-                                // ),
-                              ],
-                            ],
-                          ] else ...[
-                            // MetaDivider(),
-                            // MetaChip(
-                            //   icon: Icons.groups_outlined,
-                            //   iconColor: const Color(0xFF7C3AED),
-                            //   label:
-                            //       '${ticket.departmentCount} dept${ticket.departmentCount == 1 ? '' : 's'}',
-                            // ),
-                          ],
-                          const Spacer(),
-                          TicketActions(ticket: ticket, user: user),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
       ),
     );
   }

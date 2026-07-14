@@ -41,6 +41,13 @@ class _ForgotPasswordCardState extends State<ForgotPasswordCard> {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<AuthBloc, AuthState>(
+      listenWhen: (prev, curr) =>
+          curr is AuthForgotPasswordSent ||
+          curr is AuthResetPasswordSuccess ||
+          curr is AuthForgotPasswordError ||
+          curr is AuthResetPasswordError,
+      buildWhen: (prev, curr) =>
+          prev.runtimeType != curr.runtimeType,
       listener: (context, state) {
         if (state is AuthForgotPasswordSent) {
           _email = state.email;

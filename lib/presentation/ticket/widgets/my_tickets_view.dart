@@ -32,9 +32,16 @@ class _MyTicketsViewState extends State<MyTicketsView> {
   @override
   Widget build(BuildContext context) {
     final all = _myTickets;
-    final open = all.where((t) => t.status == 'open').length;
-    final inProgress = all.where((t) => t.status == 'in_progress').length;
-    final completed = all.where((t) => t.status == 'completed').length;
+    int open = 0, inProgress = 0, completed = 0;
+    for (final t in all) {
+      if (t.status == 'open') {
+        open++;
+      } else if (t.status == 'in_progress') {
+        inProgress++;
+      } else if (t.status == 'completed') {
+        completed++;
+      }
+    }
     final filtered = _filtered;
     final isWide = MediaQuery.of(context).size.width > 900;
 
@@ -55,29 +62,61 @@ class _MyTicketsViewState extends State<MyTicketsView> {
             const SizedBox(height: 20),
             _FilterTabs(
               filter: _filter,
-              onChanged: (v) => setState(() => _filter = v),
+              onChanged: (v) => setState(() {
+                _filter = v;
+              }),
             ),
             const SizedBox(height: 16),
             Expanded(
               child: filtered.isEmpty
                   ? _EmptyState(filter: _filter)
-                  : SingleChildScrollView(
-                      child: Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: filtered
-                            .map(
-                              (t) => SizedBox(
-                                width: isWide
-                                    ? (MediaQuery.of(context).size.width - 80) /
-                                          3
-                                    : (MediaQuery.of(context).size.width - 56) /
-                                          2,
-                                child: TicketGridCard(ticket: t),
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        final crossAxisCount = isWide ? 3 : 2;
+                        const spacing = 12.0;
+                        final cardWidth =
+                            (constraints.maxWidth -
+                                spacing * (crossAxisCount - 1)) /
+                            crossAxisCount;
+                        final rowCount =
+                            ((filtered.length + crossAxisCount - 1) /
+                                    crossAxisCount)
+                                .floor();
+
+                        return ListView.builder(
+                          itemCount: rowCount,
+                          itemBuilder: (context, rowIndex) {
+                            final start = rowIndex * crossAxisCount;
+                            final end = (start + crossAxisCount).clamp(
+                              0,
+                              filtered.length,
+                            );
+
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                bottom: rowIndex < rowCount - 1 ? spacing : 0,
                               ),
-                            )
-                            .toList(),
-                      ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  for (int i = start; i < end; i++)
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                        right: i < end - 1 ? spacing : 0,
+                                      ),
+                                      child: SizedBox(
+                                        width: cardWidth,
+                                        child: TicketGridCard(
+                                          ticket: filtered[i],
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
                     ),
             ),
           ],

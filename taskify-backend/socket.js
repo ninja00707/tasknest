@@ -1,10 +1,11 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const socketHelper = require('./core/socketHelper');
+const notificationWorker = require('./workers/notificationWorker');
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
-function setupSocketIO(server, isWorker = false) {
+async function setupSocketIO(server, isWorker = false) {
   const io = new Server(server, {
     cors: {
       origin: '*',
@@ -13,6 +14,35 @@ function setupSocketIO(server, isWorker = false) {
     pingInterval: 25000,
     pingTimeout: 20000,
   });
+
+  // ── Redis Adapter (cross-process socket.io) ─────────────────────────
+  if (process.env.REDIS_URL || (process.env.REDIS_HOST && process.env.REDIS_PORT)) {
+    const Redis = require('ioredis');
+    const test = new Redis({
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT) || 6379,
+      retryStrategy: () => null,
+      lazyConnect: true,
+      enableReadyCheck: false,
+    });
+    test.on('error', () => {});
+    const available = await test.connect().then(() => { test.quit(); return true; }).catch(() => false);
+    if (available) {
+      try {
+        const { createAdapter } = require('@socket.io/redis-adapter');
+        const pub = new Redis({ host: process.env.REDIS_HOST || 'localhost', port: parseInt(process.env.REDIS_PORT) || 6379, retryStrategy: () => null, enableReadyCheck: false });
+        const sub = new Redis({ host: process.env.REDIS_HOST || 'localhost', port: parseInt(process.env.REDIS_PORT) || 6379, retryStrategy: () => null, enableReadyCheck: false });
+        pub.on('error', () => {});
+        sub.on('error', () => {});
+        io.adapter(createAdapter(pub, sub));
+        console.log('[Socket] Redis adapter enabled');
+      } catch (err) {
+        console.warn('[Socket] Redis adapter unavailable, using in-process:', err.message);
+      }
+    } else {
+      console.log('[Socket] Redis not available, skipping adapter');
+    }
+  }
 
   if (isWorker) {
     const { createAdapter } = require('@socket.io/cluster-adapter');
@@ -61,6 +91,9 @@ function setupSocketIO(server, isWorker = false) {
   });
 
   socketHelper.init(io);
+
+  // Register background notification worker with io reference
+  await notificationWorker.init(io);
 
   return io;
 }

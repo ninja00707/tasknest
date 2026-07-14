@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/constant/common_listview_builder.dart';
+import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_helpers.dart';
@@ -34,28 +36,12 @@ class _TicketListWidgetState extends State<TicketListWidget> {
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
-  int _statusWeight(String? s) {
-    const flow = ['open', 'in_progress', 'completed', 'closed'];
-    final idx = flow.indexOf(s ?? '');
-    return idx == -1 ? flow.length : idx;
-  }
-
-  int _priorityWeight(String? p) {
-    switch ((p ?? '').toLowerCase()) {
-      case 'urgent':  return 0;
-      case 'high':    return 1;
-      case 'medium':  return 2;
-      case 'low':     return 3;
-      default:        return 4;
-    }
-  }
-
   List<TicketModel> get _sorted {
     final list = List<TicketModel>.from(widget.tickets);
     list.sort((a, b) {
-      final p = _priorityWeight(a.priority).compareTo(_priorityWeight(b.priority));
+      final p = CommonStatus.priorityWeight(a.priority).compareTo(CommonStatus.priorityWeight(b.priority));
       if (p != 0) return p;
-      return _statusWeight(a.status).compareTo(_statusWeight(b.status));
+      return CommonStatus.statusWeight(a.status).compareTo(CommonStatus.statusWeight(b.status));
     });
     return list;
   }
@@ -102,16 +88,6 @@ class _TicketListWidgetState extends State<TicketListWidget> {
     if (oldWidget.tickets != widget.tickets) {
       final total = _totalPages;
       if (_page > total) _page = total;
-    }
-  }
-
-  String _statusLabel(String s) {
-    switch (s) {
-      case 'open':         return 'Open';
-      case 'in_progress':  return 'In Progress';
-      case 'completed':    return 'Completed';
-      case 'closed':       return 'Closed';
-      default:             return s.replaceAll('_', ' ');
     }
   }
 
@@ -176,9 +152,12 @@ class _TicketListWidgetState extends State<TicketListWidget> {
 
     switch (widget.config.headerStyle) {
       case TicketHeaderStyle.myTickets:
-        final open = all.where((t) => t.status == 'open').length;
-        final inProgress = all.where((t) => t.status == 'in_progress').length;
-        final completed = all.where((t) => t.status == 'completed').length;
+        int open = 0, inProgress = 0, completed = 0;
+        for (final t in all) {
+          if (t.status == 'open') { open++; }
+          else if (t.status == 'in_progress') { inProgress++; }
+          else if (t.status == 'completed') { completed++; }
+        }
         return _GradientHeader(
           icon: Icons.assignment_ind_rounded,
           gradientColors: const [Color(0xFF0EA5E9), Color(0xFF06B6D4)],
@@ -263,18 +242,33 @@ class _TicketListWidgetState extends State<TicketListWidget> {
                     : 1;
                 const spacing = 12.0;
                 final cardWidth = (constraints.maxWidth - spacing * (crossAxisCount - 1)) / crossAxisCount;
+                final rowCount = ((tickets.length + crossAxisCount - 1) / crossAxisCount).floor();
 
-                return SingleChildScrollView(
-                  child: Wrap(
-                    spacing: spacing,
-                    runSpacing: spacing,
-                    children: tickets.map((t) {
-                      final card = widget.config.cardStyle == TicketCardStyle.compact
-                          ? SizedBox(width: cardWidth, child: TicketGridCard(ticket: t))
-                          : SizedBox(width: cardWidth, child: TicketCard(ticket: t, user: widget.config.user));
-                      return card;
-                    }).toList(),
-                  ),
+                return ListView.builder(
+                  itemCount: rowCount,
+                  itemBuilder: (context, rowIndex) {
+                    final start = rowIndex * crossAxisCount;
+                    final end = (start + crossAxisCount).clamp(0, tickets.length);
+
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: rowIndex < rowCount - 1 ? spacing : 0),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (int i = start; i < end; i++)
+                            Padding(
+                              padding: EdgeInsets.only(right: i < end - 1 ? spacing : 0),
+                              child: SizedBox(
+                                width: cardWidth,
+                                child: widget.config.cardStyle == TicketCardStyle.compact
+                                    ? TicketGridCard(ticket: tickets[i])
+                                    : TicketCard(ticket: tickets[i], user: widget.config.user),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
                 );
               },
             ),
@@ -288,23 +282,22 @@ class _TicketListWidgetState extends State<TicketListWidget> {
   // ── Timeline ───────────────────────────────────────────────────────────
 
   Widget _buildTimeline(List<TicketModel> tickets) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: tickets.map((t) => _TimelineCard(
-                  ticket: t,
-                  onTap: () => _onTap(t),
-                )).toList(),
-              ),
+    return Column(
+      children: [
+        Expanded(
+          child: CommonListViewBuilder(
+            items: tickets,
+            shrinkWrap: false,
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            itemBuilder: (context, t, index) => _TimelineCard(
+              ticket: t,
+              onTap: () => _onTap(t),
             ),
           ),
-          _buildPagination(),
-        ],
-      ),
+        ),
+        _buildPagination(),
+      ],
     );
   }
 
@@ -317,7 +310,7 @@ class _TicketListWidgetState extends State<TicketListWidget> {
     final grouped = <String, List<TicketModel>>{};
     for (final s in statuses) {
       final list = all.where((t) => t.status == s).toList()
-        ..sort((a, b) => _priorityWeight(a.priority).compareTo(_priorityWeight(b.priority)));
+        ..sort((a, b) => CommonStatus.priorityWeight(a.priority).compareTo(CommonStatus.priorityWeight(b.priority)));
       grouped[s] = list;
     }
 
@@ -330,7 +323,7 @@ class _TicketListWidgetState extends State<TicketListWidget> {
           final tickets = grouped[status]!;
           return _KanbanColumn(
             status: status,
-            label: _statusLabel(status),
+            label: CommonStatus.statusLabel(status),
             tickets: tickets,
             onTap: (t) => _onTap(t),
           );
@@ -502,9 +495,9 @@ class _GradientHeader extends StatelessWidget {
           if (stats != null) ...[
             const SizedBox(height: 18),
             Row(
-              children: stats!.map((s) => Padding(
-                padding: const EdgeInsets.only(right: 10),
-                child: Expanded(
+              children: stats!.map((s) => Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 10),
                   child: _MiniStat(label: s.label, count: s.count, color: s.color),
                 ),
               )).toList(),
@@ -695,15 +688,7 @@ class _TimelineCard extends StatelessWidget {
 
   const _TimelineCard({required this.ticket, required this.onTap});
 
-  Color get _tint {
-    switch (ticket.status) {
-      case 'open':         return ThemeColors.unifiedSecondary;
-      case 'in_progress':  return ThemeColors.unifiedWarning;
-      case 'completed':    return ThemeColors.unifiedAccent;
-      case 'closed':       return ThemeColors.unifiedTextMuted;
-      default:             return ThemeColors.unifiedPrimary;
-    }
-  }
+  Color get _tint => ticketStatusColor(ticket.status);
 
   IconData get _icon {
     if (ticket.isMultiTaskTicket) return Icons.hub_rounded;
@@ -716,10 +701,9 @@ class _TimelineCard extends StatelessWidget {
     final dateStr = ticket.createdAt.toString().substring(0, 10);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
             // Timeline dot + line
             SizedBox(
               width: 32,
@@ -813,23 +797,12 @@ class _TimelineCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
       ),
     );
   }
 }
 
 // ── Kanban column ──────────────────────────────────────────────────────────────
-
-Color _columnColor(String status) {
-  switch (status) {
-    case 'open':         return const Color(0xFF22C55E);
-    case 'in_progress':  return const Color(0xFF3B82F6);
-    case 'completed':    return const Color(0xFF10B981);
-    case 'closed':       return const Color(0xFF6B7280);
-    default:             return Colors.grey;
-  }
-}
 
 class _KanbanColumn extends StatelessWidget {
   final String status;
@@ -846,7 +819,7 @@ class _KanbanColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _columnColor(status);
+    final color = CommonStatus.columnColor(status);
     return Container(
       width: 300,
       margin: const EdgeInsets.only(right: 12),
@@ -887,10 +860,10 @@ class _KanbanColumn extends StatelessWidget {
                     child: Text(ConstStrings.noTickets,
                       style: TextStyle(fontSize: 12, color: color.withValues(alpha: 0.4), fontWeight: FontWeight.w600)),
                   )
-                : ListView.builder(
+                : CommonListViewBuilder(
                     padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                    itemCount: tickets.length,
-                    itemBuilder: (context, i) => _KanbanCard(ticket: tickets[i], onTap: () => onTap(tickets[i])),
+                    items: tickets,
+                    itemBuilder: (context, ticket, index) => _KanbanCard(ticket: ticket, onTap: () => onTap(ticket)),
                   ),
           ),
         ],
@@ -979,8 +952,8 @@ class _StatusHeader extends StatelessWidget {
         Container(width: 10, height: 10,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 8),
-        Text(
-          _label(status),
+          Text(
+            CommonStatus.statusLabel(status),
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary, letterSpacing: -0.1),
         ),
         const SizedBox(width: 8),
@@ -993,15 +966,5 @@ class _StatusHeader extends StatelessWidget {
         Expanded(child: Container(height: 1, color: ThemeColors.unifiedBorder.withValues(alpha: 0.6))),
       ],
     );
-  }
-
-  String _label(String s) {
-    switch (s) {
-      case 'open':         return 'Open';
-      case 'in_progress':  return 'In Progress';
-      case 'completed':    return 'Completed';
-      case 'closed':       return 'Closed';
-      default:             return s.replaceAll('_', ' ');
-    }
   }
 }

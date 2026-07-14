@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/common_listview_builder.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
@@ -27,15 +28,13 @@ class PriorityCard extends StatelessWidget {
     return BaseCard(
       icon: Icons.flag_outlined,
       title: ConstStrings.priorityDistribution,
-      child: Column(
-        children: items
-            .map(
-              (e) => Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: PriorityBar(item: e, total: total),
-              ),
-            )
-            .toList(),
+      child: CommonListViewBuilder(
+        physics: const NeverScrollableScrollPhysics(),
+        items: items,
+        itemBuilder: (context, e, index) => Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: PriorityBar(item: e, total: total),
+        ),
       ),
     );
   }
@@ -154,7 +153,11 @@ class StatusSummaryCard extends StatelessWidget {
     return BaseCard(
       icon: Icons.donut_small_outlined,
       title: ConstStrings.statusSummary,
-      child: Column(children: rows.map((e) => StatusRow(item: e)).toList()),
+      child: CommonListViewBuilder(
+        physics: const NeverScrollableScrollPhysics(),
+        items: rows,
+        itemBuilder: (context, e, index) => StatusRow(item: e),
+      ),
     );
   }
 }

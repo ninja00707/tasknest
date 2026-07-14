@@ -1,13 +1,15 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:tasknest/data/repositories/auth/auth_repository.dart';
+import 'package:tasknest/domain/repositories_impl/auth_impl/auth_impl.dart';
 import 'package:tasknest/presentation/login/bloc/auth_view_mode.dart';
 
 import 'login_event.dart';
 import 'login_state.dart';
+import 'package:injectable/injectable.dart';
 
+@injectable
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  final AuthRepository _authRepository;
+  final AuthRepositoryImpl _authRepository;
   bool obscurePassword = true;
 
   AuthBloc(this._authRepository) : super(const AuthInitial()) {

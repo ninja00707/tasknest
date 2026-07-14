@@ -1,6 +1,8 @@
 import 'package:tasknest/core/constant/api_client.dart';
 import 'package:tasknest/presentation/admin/data/models/admin_models.dart';
+import 'package:injectable/injectable.dart';
 
+@lazySingleton
 class AdminRemoteDataSource {
   final ApiClient _api;
   AdminRemoteDataSource(this._api);

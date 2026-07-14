@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/common_listview_builder.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_date_format.dart';
@@ -56,6 +57,13 @@ class _CommentSectionState extends State<CommentSection> {
     if (msg.isEmpty) return;
     context.read<TicketBloc>().add(AddTicketComment(widget.ticket.id, msg));
     _commentController.clear();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Comment added!'),
+        backgroundColor: ThemeColors.unifiedPrimary,
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -162,7 +170,18 @@ class _CommentSectionState extends State<CommentSection> {
               ),
             )
           else
-            ...comments.map((c) => CommentTile(comment: c)),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.55,
+              ),
+              child: CommonListViewBuilder(
+                shrinkWrap: false,
+                physics: const AlwaysScrollableScrollPhysics(),
+                items: comments,
+                padding: EdgeInsets.zero,
+                itemBuilder: (_, comment, index) => CommentTile(comment: comment),
+              ),
+            ),
         ],
       ),
     );

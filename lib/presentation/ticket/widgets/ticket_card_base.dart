@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/constant/common_listview_builder.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_text_styles.dart';
@@ -425,85 +426,88 @@ class ChildTicketsList extends StatelessWidget {
               ],
             ),
           ),
-          Column(
-            children: List.generate(children.length, (index) {
-              final child = children[index];
-              final isLast = index == children.length - 1;
+          CommonListViewBuilder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            items: children,
+            padding: EdgeInsets.zero,
+            itemBuilder: (_, child, index) {
+                final isLast = index == children.length - 1;
 
-              return GestureDetector(
-                onTap: () => context.push('/ticket/${child.id}'),
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: ThemeColors.unifiedPrimary.withValues(alpha: 
-                                0.1,
+                return GestureDetector(
+                  onTap: () => context.push('/ticket/${child.id}'),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
                               ),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              child.ticketNumber.isNotEmpty
-                                  ? child.ticketNumber
-                                  : '#${child.id}',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: ThemeColors.unifiedPrimary,
+                              decoration: BoxDecoration(
+                                color: ThemeColors.unifiedPrimary.withValues(
+                                  alpha: 0.1,
+                                ),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                child.ticketNumber.isNotEmpty
+                                    ? child.ticketNumber
+                                    : '#${child.id}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: ThemeColors.unifiedPrimary,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  child.title,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: ThemeColors.unifiedTextPrimary,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    child.title,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: ThemeColors.unifiedTextPrimary,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  'Dept: ${child.deptCode} • ${child.assigneeName ?? "Unassigned"}',
-                                  style: AppTextStyles.micro,
-                                ),
-                              ],
+                                  Text(
+                                    'Dept: ${child.deptCode} • ${child.assigneeName ?? "Unassigned"}',
+                                    style: AppTextStyles.micro,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          TicketActions(ticket: child, user: user),
-                          const SizedBox(width: 8),
-                          StatusBadge(status: child.status),
-                        ],
+                            const SizedBox(width: 8),
+                            TicketActions(ticket: child, user: user),
+                            const SizedBox(width: 8),
+                            StatusBadge(status: child.status),
+                          ],
+                        ),
                       ),
-                    ),
-                    if (!isLast)
-                      Divider(
-                        height: 1,
-                        color: ThemeColors.unifiedBorder.withValues(alpha: 0.3),
-                        indent: 12,
-                        endIndent: 12,
-                      ),
-                  ],
-                ),
-              );
-            }),
-          ),
+                      if (!isLast)
+                        Divider(
+                          height: 1,
+                          color: ThemeColors.unifiedBorder.withValues(alpha: 0.3),
+                          indent: 12,
+                          endIndent: 12,
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
         ],
       ),
     );

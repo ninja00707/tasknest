@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/constant/common_listview_builder.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/routes/routes_name.dart';
 import 'package:tasknest/core/routes/ticket_type_grid_args.dart';
@@ -122,19 +123,17 @@ class TicketTypeSectionScreen extends StatelessWidget {
                       )
                       .toList(),
                 )
-              : Column(
-                  children: types
-                      .map(
-                        (t) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _TypeCard(
-                            data: t,
-                            user: user,
-                            horizontal: true,
-                          ),
-                        ),
-                      )
-                      .toList(),
+              : CommonListViewBuilder(
+                  physics: const NeverScrollableScrollPhysics(),
+                  items: types,
+                  itemBuilder: (context, t, index) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _TypeCard(
+                      data: t,
+                      user: user,
+                      horizontal: true,
+                    ),
+                  ),
                 ),
         ),
       ],
@@ -413,10 +412,9 @@ class _HorizontalCard extends StatelessWidget {
         ],
       ),
       clipBehavior: Clip.hardEdge,
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
             // ── Left gradient strip ─────────────────────────────
             Container(
               width: 80,
@@ -539,9 +537,8 @@ class _HorizontalCard extends StatelessWidget {
                 ),
               ),
             ),
-          ],
-        ),
-      ),
+            ],
+          ),
     );
   }
 }

@@ -1,40 +1,35 @@
 const ticketRepo = require('./ticket.repository');
 const socketHelper = require('../../core/socketHelper');
+const cache = require('../../core/cache');
 
 class TicketService {
   // ── Recursively propagate in_progress up the parent chain ────────────
   // For completed/closed: just collect parent chain for notification
   async _propagateUpward(childTicket, newStatus, user) {
-    const updatedParents = [];
+    if (!childTicket.parent_ticket_id) return [];
 
     if (newStatus === 'in_progress') {
-      let currentTicketId = childTicket.parent_ticket_id;
-      while (currentTicketId) {
-        const result = await ticketRepo.updateParentTicketStatus(currentTicketId, 'in_progress');
-        if (result) {
-          updatedParents.push({ parentId: currentTicketId, newStatus });
-          const parentRow = await ticketRepo.getParentId(currentTicketId);
-          currentTicketId = parentRow?.parent_ticket_id || null;
-        } else {
-          break;
-        }
-      }
-    } else if (newStatus === 'completed' || newStatus === 'closed') {
-      // Don't auto-update parents; just collect chain for notification
-      let currentTicketId = childTicket.parent_ticket_id;
-      while (currentTicketId) {
-        updatedParents.push({ parentId: currentTicketId, newStatus });
-        const parentRow = await ticketRepo.getParentId(currentTicketId);
-        currentTicketId = parentRow?.parent_ticket_id || null;
-      }
+      return await ticketRepo.updateParentChain(childTicket.parent_ticket_id, 'in_progress');
     }
 
-    return updatedParents;
+    if (newStatus === 'completed' || newStatus === 'closed') {
+      return await ticketRepo.getParentChain(childTicket.parent_ticket_id);
+    }
+
+    return [];
+  }
+
+  _invalidateStats(...userIds) {
+    for (const id of userIds) {
+      if (id) cache.del(`dash:stats:${id}`);
+    }
   }
 
   async getDashboardStats(user) {
     if (!user) throw { statusCode: 401, message: 'Unauthorized' };
-    return await ticketRepo.getDashboardStats(user);
+    const cacheKey = `dash:stats:${user.id}`;
+    const ttl = parseInt(process.env.CACHE_STATS_TTL) || 120;
+    return await cache.remember(cacheKey, ttl, () => ticketRepo.getDashboardStats(user));
   }
 
   async getTickets(user, filters) {
@@ -188,6 +183,7 @@ class TicketService {
       parentTicketId: parentTicketId ? Number(parentTicketId) : null,
       ticketType: 'standard'
     });
+    this._invalidateStats(user.id, assignedToId);
 
     const logNote = `Created by ${user.name}${assignedToId ? ` and assigned to ${ticket.assigned_to_name}` : ''}${parentTicketId ? ` as a sub-ticket of #${parentTicketId}` : ''}`;
     await ticketRepo.logAction(ticket.id, user.id, 'created', null, ticket.status, logNote);
@@ -259,6 +255,7 @@ class TicketService {
       })),
       parentTicketId: parentTicketId ? Number(parentTicketId) : null,
     });
+    this._invalidateStats(user.id);
 
     const deptNames = ticket.sub_departments.map(d => d.department_name).join(', ');
     await ticketRepo.logAction(
@@ -349,6 +346,7 @@ class TicketService {
       Number(departmentId),
       { status }
     );
+    this._invalidateStats(user.id);
 
     const deptName = deptRow.department_name || `Dept ${departmentId}`;
 
@@ -657,7 +655,7 @@ class TicketService {
     const isCeo = user.role === 'ceo';
 
     if (!isSystemUpdate) {
-      console.log(`[TicketService] Status update: ${ticket.status} -> ${newStatus} by ${user.name} (ID: ${user.id})`);
+
     }
 
     // Only the assigned resolver can mark a ticket as completed
@@ -698,8 +696,8 @@ class TicketService {
     }
 
     const oldStatus = ticket.status;
-    console.log(`[TicketService] Calling ticketRepo.updateStatus with ticketId: ${ticketId}, newStatus: ${newStatus}, userId: ${user.id}`);
     const updated = await ticketRepo.updateStatus(ticketId, newStatus, user);
+    this._invalidateStats(user.id);
     await ticketRepo.logAction(
       ticketId,
       user.id,
@@ -755,6 +753,7 @@ class TicketService {
 
     const updated = await ticketRepo.selfAssign(ticketId, user.id);
     if (!updated) throw { statusCode: 400, message: 'Ticket already assigned' };
+    this._invalidateStats(user.id);
 
     // Log the assignment
     await ticketRepo.logAction(
@@ -810,6 +809,7 @@ class TicketService {
 
     const updated = await ticketRepo.assignToEmployee(ticketId, employeeId, user.id);
     if (!updated) throw { statusCode: 400, message: 'Unable to assign ticket' };
+    this._invalidateStats(user.id, employeeId);
 
     const assignedEmployee = await ticketRepo.getUserById(employeeId);
     const assignedEmployeeName = assignedEmployee ? assignedEmployee.name : `Unknown Employee (ID: ${employeeId})`;
@@ -946,6 +946,7 @@ class TicketService {
 
     const updated = await ticketRepo.reopenTicket(ticketId, user.id);
     if (!updated) throw { statusCode: 400, message: 'Unable to reopen ticket' };
+    this._invalidateStats(user.id);
 
     await ticketRepo.logAction(ticketId, user.id, 'reopened', oldStatus, 'in_progress', `Ticket reopened by creator (${user.name}) and returned to "In Progress" status.`);
 
@@ -974,6 +975,7 @@ class TicketService {
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
     const comment = await ticketRepo.addComment(ticketId, user.id, message);
+    this._invalidateStats(user.id);
 
     await ticketRepo.logAction(
       ticketId,
@@ -1005,6 +1007,7 @@ class TicketService {
 
     const updated = await ticketRepo.updateTicketField(ticketId, user.id, fields);
     if (!updated) throw { statusCode: 400, message: 'No valid fields to update' };
+    this._invalidateStats(user.id);
 
     setImmediate(async () => {
       try {

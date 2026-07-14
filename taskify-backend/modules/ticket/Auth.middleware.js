@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 const pool = require('../../database/db');
 
+const userCache = new Map();
+
 // ── Verify JWT ────────────────────────────────────────────────────────────────
 const authenticate = async (req, res, next) => {
     try {
@@ -13,8 +15,12 @@ const authenticate = async (req, res, next) => {
         const token = authHeader.split(' ')[1];
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // Attach full user from DB (so we always have fresh role/dept)
-        // Use LEFT JOIN for departments to handle cases where department_id is NULL
+        const cached = userCache.get(decoded.id);
+        if (cached && cached.expires > Date.now()) {
+            req.user = cached.data;
+            return next();
+        }
+
         const result = await pool.query(
             `SELECT u.id, u.name, u.email, u.department_id, u.company_id, u.designation, u.see_all_companies,
               r.name AS role, COALESCE(d.code, '') AS dept_code, COALESCE(d.tier, '0') AS dept_tier,
@@ -30,6 +36,7 @@ const authenticate = async (req, res, next) => {
             return res.status(401).json({ success: false, message: 'User not found or inactive' });
         }
 
+        userCache.set(decoded.id, { data: result.rows[0], expires: Date.now() + 15000 });
         req.user = result.rows[0];
         next();
     } catch (err) {
@@ -37,6 +44,10 @@ const authenticate = async (req, res, next) => {
         return res.status(401).json({ success: false, message: 'Invalid or expired token' });
     }
 };
+
+// Cache invalidation (called after user role/dept changes)
+authenticate.invalidate = (userId) => userCache.delete(userId);
+authenticate.invalidateAll = () => userCache.clear();
 
 // ── Role Guards ───────────────────────────────────────────────────────────────
 const isCeo = (req, res, next) => {

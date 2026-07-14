@@ -21,122 +21,107 @@ class TicketActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<DashboardBloc, DashboardState>(
-      builder: (context, state) {
-        DashboardLoaded? loadedState;
-        if (state is DashboardLoaded) {
-          loadedState = state;
-        } else if (state is DashboardActionSuccess) {
-          loadedState = state.previousState;
-        } else if (state is DashboardActionError) {
-          loadedState = state.previousState;
-        }
+    final bool isManager = user.roleId == 1;
+    final bool isCeo = user.roleId == 0 || user.roleId == 3;
+    final bool isResolver =
+        ticket.assignedToId == user.id && ticket.assignedToId != null;
+    final bool isCreator = ticket.createdById == user.id;
+    final bool isCreatingDeptManager =
+        user.roleId == 1 &&
+        ticket is TicketModel &&
+        ticket.createdByDeptId == user.departmentId;
 
-        if (loadedState == null) {
-          return const SizedBox.shrink();
-        }
+    final bool isAssignedToMyDept =
+        ticket.assignedDeptId == user.departmentId;
 
-        final bool isManager = user.roleId == 1;
-        final bool isCeo = user.roleId == 0 || user.roleId == 3;
-        final bool isResolver =
-            ticket.assignedToId == user.id && ticket.assignedToId != null;
-        final bool isCreator = ticket.createdById == user.id;
-        final bool isCreatingDeptManager =
-            user.roleId == 1 &&
-            ticket is TicketModel &&
-            ticket.createdByDeptId == user.departmentId;
+    // Once ticket is created user can't do anything until the ticket is assigned
+    final bool isUnassigned = ticket.assignedToId == null;
 
-        final bool isAssignedToMyDept =
-            ticket.assignedDeptId == user.departmentId;
+    // Cannot mark done or finalize if any child is still not finalized (Closed)
+    final bool hasUnfinalizedSubs = ticket.hasActiveChildren;
 
-        // 1. Once ticket is created user can't not do anything until the ticket is assigned
-        final bool isUnassigned = ticket.assignedToId == null;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 1. Self Assign: Only if unassigned and in my dept
+        if (ticket.isOpen &&
+            !ticket.isManagementDisabled &&
+            isUnassigned &&
+            isAssignedToMyDept &&
+            !hasUnfinalizedSubs)
+          ActionBtn(
+            icon: Icons.person_add_outlined,
+            tooltip: ConstStrings.selfAssign,
+            color: ThemeColors.unifiedSecondary,
+            onTap: () =>
+                context.read<TicketBloc>().add(SelfAssignTicket(ticket.id)),
+          ),
 
-        // RULE: Cannot mark done or finalize if any child (recursive) is still not finalized (Closed)
-        final bool hasUnfinalizedSubs = ticket.hasActiveChildren;
+        // 2. Managerial Assign: Only for Managers of the assigned department if unassigned
+        if (isManager &&
+            !ticket.isManagementDisabled &&
+            isUnassigned &&
+            isAssignedToMyDept &&
+            !hasUnfinalizedSubs)
+          ActionBtn(
+            icon: Icons.manage_accounts_outlined,
+            tooltip: ConstStrings.assignToEmployee,
+            color: ThemeColors.unifiedAccent,
+            onTap: () => _showAssignDialog(context),
+          ),
 
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 1. Self Assign: Only if unassigned and in my dept
-            if (ticket.isOpen &&
-                !ticket.isManagementDisabled &&
-                isUnassigned &&
-                isAssignedToMyDept &&
-                !hasUnfinalizedSubs)
-              ActionBtn(
-                icon: Icons.person_add_outlined,
-                tooltip: ConstStrings.selfAssign,
-                color: ThemeColors.unifiedSecondary,
-                onTap: () =>
-                    context.read<TicketBloc>().add(SelfAssignTicket(ticket.id)),
-              ),
+        // 3. Mark Completed (Done) — only the assigned resolver
+        if (ticket.isInProgress && !hasUnfinalizedSubs && isResolver)
+          ActionBtn(
+            icon: Icons.check_circle_outline,
+            tooltip: ConstStrings.markDone,
+            color: ThemeColors.unifiedPrimary,
+            onTap: () => _showStatusRemarkDialog(context, 'completed'),
+          ),
 
-            // 2. Managerial Assign: Only for Managers of the assigned department if unassigned
-            if (isManager &&
-                !ticket.isManagementDisabled &&
-                isUnassigned &&
-                isAssignedToMyDept &&
-                !hasUnfinalizedSubs)
-              ActionBtn(
-                icon: Icons.manage_accounts_outlined,
-                tooltip: ConstStrings.assignToEmployee,
-                color: ThemeColors.unifiedAccent,
-                onTap: () => _showAssignDialog(context, loadedState!),
-              ),
+        // 4. Finalize & Close: resolver only (for sub-tickets) or creator/CEO (for main)
+        if (ticket.isCompleted &&
+            !hasUnfinalizedSubs &&
+            (ticket is ChildTicketModel
+                ? isResolver
+                : (isCreator || isCeo || isCreatingDeptManager)))
+          ActionBtn(
+            icon: Icons.lock_outline,
+            tooltip: ConstStrings.finalizeAndClose,
+            color: ThemeColors.unifiedPrimary,
+            onTap: () => _showStatusRemarkDialog(context, 'closed'),
+          ),
 
-            // 3. Mark Completed (Done) — only the assigned resolver
-            if (ticket.isInProgress && !hasUnfinalizedSubs && isResolver)
-              ActionBtn(
-                icon: Icons.check_circle_outline,
-                tooltip: ConstStrings.markDone,
-                color: ThemeColors.unifiedPrimary,
-                onTap: () => _showStatusRemarkDialog(context, 'completed'),
-              ),
+        // 5. Create Sub Ticket: Only the assigned resolver can create
+        if (!ticket.isManagementDisabled &&
+            !isCeo &&
+            !isUnassigned &&
+            isResolver &&
+            ticket.immediateChildCount == 0)
+          ActionBtn(
+            icon: Icons.add_link_rounded,
+            tooltip: ConstStrings.createSubTicket,
+            color: ThemeColors.unifiedWarning,
+            onTap: () => _showSubTicketDialog(context, ticket),
+          ),
 
-            // 4. Finalize & Close: resolver only (for sub-tickets) or creator/CEO (for main)
-            if (ticket.isCompleted &&
-                !hasUnfinalizedSubs &&
-                (ticket is ChildTicketModel
-                    ? isResolver
-                    : (isCreator || isCeo || isCreatingDeptManager)))
-              ActionBtn(
-                icon: Icons.lock_outline,
-                tooltip: ConstStrings.finalizeAndClose,
-                color: ThemeColors.unifiedPrimary,
-                onTap: () => _showStatusRemarkDialog(context, 'closed'),
-              ),
-
-            // 5. Create Sub Ticket: Only the assigned resolver can create
-            if (!ticket.isManagementDisabled &&
-                !isCeo &&
-                !isUnassigned &&
-                isResolver &&
-                ticket.immediateChildCount == 0)
-              ActionBtn(
-                icon: Icons.add_link_rounded,
-                tooltip: ConstStrings.createSubTicket,
-                color: ThemeColors.unifiedWarning,
-                onTap: () => _showSubTicketDialog(context, ticket),
-              ),
-
-            // 6. Reopen: Restricted to Creator/CEO based on model rules
-            if ((isCreator || isCeo) && ticket.canReopenBy(user.id))
-              ActionBtn(
-                icon: Icons.replay_rounded,
-                tooltip: ConstStrings.reopen,
-                color: ThemeColors.unifiedAccent,
-                onTap: () =>
-                    context.read<TicketBloc>().add(ReopenTicket(ticket.id)),
-              ),
-          ],
-        );
-      },
+        // 6. Reopen: Restricted to Creator/CEO based on model rules
+        if ((isCreator || isCeo) && ticket.canReopenBy(user.id))
+          ActionBtn(
+            icon: Icons.replay_rounded,
+            tooltip: ConstStrings.reopen,
+            color: ThemeColors.unifiedAccent,
+            onTap: () =>
+                context.read<TicketBloc>().add(ReopenTicket(ticket.id)),
+          ),
+      ],
     );
   }
 
-  void _showAssignDialog(BuildContext context, DashboardLoaded state) {
+  void _showAssignDialog(BuildContext context) {
     final bloc = context.read<TicketBloc>();
+    final state = context.read<DashboardBloc>().state;
+    if (state is! DashboardLoaded) return;
     if (state.employees.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

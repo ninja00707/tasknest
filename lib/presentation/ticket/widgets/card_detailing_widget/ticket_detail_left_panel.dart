@@ -28,7 +28,7 @@ class LeftColumn extends StatelessWidget {
             title: '$ConstStrings.subTickets (${ticket.children.length})',
             child: CommonListViewBuilder(
               shrinkWrap: true,
-              itemBuilder: (context, child) {
+              itemBuilder: (context, child, index) {
                 return ChildDetailCard(child: child);
               },
               items: ticket.children,

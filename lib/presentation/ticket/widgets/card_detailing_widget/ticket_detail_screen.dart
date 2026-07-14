@@ -50,6 +50,8 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocListener<TicketBloc, TicketState>(
+      listenWhen: (prev, curr) =>
+          curr is TicketActionSuccess || curr is TicketActionError,
       listener: (context, state) {
         if (state is TicketActionSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -126,7 +128,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                             ]
                           : [],
                     ),
-                    clipBehavior: isWide ? Clip.antiAlias : Clip.none,
+                    clipBehavior: isWide ? Clip.hardEdge : Clip.none,
                     child: Padding(
                       padding: EdgeInsets.symmetric(
                         horizontal: isWide ? 32 : 16,

@@ -2,7 +2,9 @@ import 'package:tasknest/data/datasource/authdatasource/auth_data_source.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/data/repositories/auth/auth_repository.dart';
 import 'package:tasknest/presentation/login/models/auth_response_model.dart';
+import 'package:injectable/injectable.dart';
 
+@lazySingleton
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource remoteDataSource;
   final LocalStorageService localStorageService;

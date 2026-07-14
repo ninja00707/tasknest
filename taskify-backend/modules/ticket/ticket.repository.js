@@ -189,11 +189,15 @@ class TicketRepository {
 
   // ── Get tickets visible to this user based on role ────────────────────────
   async getVisibleTickets(user, filters = {}) {
-    const { status, priority, page = 1, limit = 15, scope, search } = filters;
-    const effectiveLimit = search ? 1000 : Number(limit);
+    const { status, priority, page = 1, limit = 15, scope, search, cursor, cursorId } = filters;
+    const effectiveLimit = search ? 100 : Number(limit);
     const offset = (Number(page) - 1) * effectiveLimit;
+    const useCursor = cursor && cursorId;
     const params = [];
     let whereClause = 'WHERE t.parent_ticket_id IS NULL';
+
+    // ── Role/scope visibility + company isolation (pre-materialized CTEs) ──
+    let extraCTEs = [];
 
     if (scope === 'team') {
       // "My Team" — tickets where creator or assignee is a DIRECT report
@@ -204,73 +208,60 @@ class TicketRepository {
         OR t.assigned_to_id IN (SELECT id FROM users WHERE reports_to = ${userIdParam})
       )`;
     } else if (user.role === 'ceo') {
-      // CEO sees everything top-level
+      // CEO sees all top-level — only company isolation applies (added below)
     } else {
+      // Non-CEO: pre-compute visible roots via single walk-up instead of correlated CTE per row
       params.push(user.department_id);
       const deptParam = `$${params.length}`;
-      whereClause += ` AND (
-        t.assigned_dept_id = ${deptParam}
-        OR t.created_by_dept = ${deptParam}
-        OR EXISTS (
-          WITH RECURSIVE child_search AS (
-            SELECT id, parent_ticket_id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = t.id
-            UNION ALL
-            SELECT child.id, child.parent_ticket_id, child.assigned_dept_id, child.created_by_dept FROM tickets child
-            JOIN child_search cs ON child.parent_ticket_id = cs.id
-          )
-          SELECT 1 FROM child_search 
+      extraCTEs.push(`user_visible_roots AS (
+        WITH RECURSIVE walk_up AS (
+          SELECT id, parent_ticket_id FROM tickets
           WHERE assigned_dept_id = ${deptParam} OR created_by_dept = ${deptParam}
+          UNION ALL
+          SELECT t.id, t.parent_ticket_id FROM tickets t
+          JOIN walk_up wu ON t.id = wu.parent_ticket_id
         )
-      )`;
+        SELECT id FROM walk_up WHERE parent_ticket_id IS NULL
+      )`);
+      whereClause += ` AND t.id IN (SELECT id FROM user_visible_roots)`;
     }
 
-    // Company-level isolation (role-dependent: CEO is stricter, normal users see all shared)
+    // ── Company-level isolation ──────────────────────────────────────────────
     params.push(user.see_all_companies || false);
     params.push(user.company_id);
     const seeAllIdx = `$${params.length - 1}`;
     const companyParam = `$${params.length}`;
     if (user.role === 'ceo') {
-      // CEO: only own company tickets OR shared-dept tickets created by own employees
-      whereClause += ` AND (${seeAllIdx} OR EXISTS (
-        SELECT 1 FROM departments d
-        WHERE d.id IN (t.assigned_dept_id, t.created_by_dept)
-        AND (
-          d.company_id = ${companyParam}
-          OR (d.is_shared = TRUE AND EXISTS (
-            SELECT 1 FROM users u WHERE u.id = t.created_by_id AND u.company_id = ${companyParam}
-          ))
-        )
-      ) OR EXISTS (
-        WITH RECURSIVE sub_dept_search AS (
-          SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = t.id
+      // CEO: only own-company departments OR shared-dept tickets created by own employees
+      extraCTEs.push(`ceo_company_roots AS (
+        WITH RECURSIVE walk_up AS (
+          SELECT t.id, t.parent_ticket_id FROM tickets t
+          JOIN departments d ON d.id IN (t.assigned_dept_id, t.created_by_dept)
+          WHERE d.company_id = ${companyParam}
+             OR (d.is_shared = TRUE AND EXISTS (
+               SELECT 1 FROM users u WHERE u.id = t.created_by_id AND u.company_id = ${companyParam}
+             ))
           UNION ALL
-          SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
-          JOIN sub_dept_search sds ON child.parent_ticket_id = sds.id
+          SELECT t.id, t.parent_ticket_id FROM tickets t
+          JOIN walk_up wu ON t.id = wu.parent_ticket_id
         )
-        SELECT 1 FROM sub_dept_search sds
-        JOIN departments d ON d.id IN (sds.assigned_dept_id, sds.created_by_dept)
-        WHERE d.company_id = ${companyParam}
-          OR (d.is_shared = TRUE AND EXISTS (
-            SELECT 1 FROM users u WHERE u.id = t.created_by_id AND u.company_id = ${companyParam}
-          ))
-      ))`;
+        SELECT id FROM walk_up WHERE parent_ticket_id IS NULL
+      )`);
+      whereClause += ` AND (${seeAllIdx} OR t.id IN (SELECT id FROM ceo_company_roots))`;
     } else {
       // Non-CEO: own-company departments OR any shared department
-      whereClause += ` AND (${seeAllIdx} OR EXISTS (
-        SELECT 1 FROM departments d
-        WHERE d.id IN (t.assigned_dept_id, t.created_by_dept)
-        AND (d.company_id = ${companyParam} OR d.is_shared = TRUE)
-      ) OR EXISTS (
-        WITH RECURSIVE sub_dept_search AS (
-          SELECT id, assigned_dept_id, created_by_dept FROM tickets WHERE parent_ticket_id = t.id
+      extraCTEs.push(`company_visible_roots AS (
+        WITH RECURSIVE walk_up AS (
+          SELECT t.id, t.parent_ticket_id FROM tickets t
+          JOIN departments d ON d.id IN (t.assigned_dept_id, t.created_by_dept)
+          WHERE d.company_id = ${companyParam} OR d.is_shared = TRUE
           UNION ALL
-          SELECT child.id, child.assigned_dept_id, child.created_by_dept FROM tickets child
-          JOIN sub_dept_search sds ON child.parent_ticket_id = sds.id
+          SELECT t.id, t.parent_ticket_id FROM tickets t
+          JOIN walk_up wu ON t.id = wu.parent_ticket_id
         )
-        SELECT 1 FROM sub_dept_search sds
-        JOIN departments d ON d.id IN (sds.assigned_dept_id, sds.created_by_dept)
-        WHERE d.company_id = ${companyParam} OR d.is_shared = TRUE
-      ))`;
+        SELECT id FROM walk_up WHERE parent_ticket_id IS NULL
+      )`);
+      whereClause += ` AND (${seeAllIdx} OR t.id IN (SELECT id FROM company_visible_roots))`;
     }
 
     if (status) {
@@ -287,10 +278,18 @@ class TicketRepository {
       whereClause += ` AND (t.ticket_number::text ILIKE ${searchParam} OR t.title ILIKE ${searchParam})`;
     }
 
+    if (useCursor) {
+      params.push(cursor, cursorId);
+      const cursorIdx = params.length;
+      whereClause += ` AND (ll.created_at, t.id) < ($${cursorIdx - 1}::timestamptz, $${cursorIdx})`;
+    }
+
     params.push(effectiveLimit, offset);
 
+    const extraCTESQL = extraCTEs.length ? extraCTEs.join(',\n        ') + ',\n        ' : '';
     const query = `
-      WITH RECURSIVE root_finder AS (
+      WITH RECURSIVE
+      ${extraCTESQL}root_finder AS (
         -- For each ticket in the list, find its absolute root
         SELECT id as leaf_id, id, parent_ticket_id FROM tickets t
         UNION ALL
@@ -326,6 +325,7 @@ class TicketRepository {
         GROUP BY leaf_id
       )
       SELECT
+        COUNT(*) OVER() AS total_count,
         t.id, t.title, t.description, t.status, t.priority,
         t.ticket_number,
         t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
@@ -397,14 +397,8 @@ class TicketRepository {
       LIMIT $${params.length - 1} OFFSET $${params.length}
     `;
 
-    const countResult = await pool.query(`
-      SELECT COUNT(*)::int AS total FROM tickets t
-      ${whereClause}
-    `, params.slice(0, params.length - 2));
-
-    const total = countResult.rows[0].total;
-
     const result = await pool.query(query, params);
+    const total = result.rows.length > 0 ? Number(result.rows[0].total_count) : 0;
     const tickets = await this.enrichTicketsWithChildData(result.rows);
     return { tickets, total };
   }
@@ -817,20 +811,23 @@ class TicketRepository {
         );
         if (reportsToMe.rows.length > 0) return ticket;
       }
-      // For sub-tickets, also walk up the parent chain
+      // For sub-tickets, walk up the parent chain via single recursive CTE
       if (ticket.parent_ticket_id) {
-        let parentId = ticket.parent_ticket_id;
-        while (parentId) {
-          const parent = await this.getTicketDetails(parentId);
-          if (!parent) break;
-          const hasParentAccess =
-            Number(parent.created_by_dept) === Number(user.department_id) ||
-            Number(parent.assigned_dept_id) === Number(user.department_id) ||
-            Number(parent.transferred_from) === Number(user.department_id) ||
-            parent.assigned_to_id === user.id;
-          if (hasParentAccess) return ticket;
-          parentId = parent.parent_ticket_id;
-        }
+        const chainResult = await pool.query(`
+          WITH RECURSIVE parent_chain AS (
+            SELECT id, parent_ticket_id, created_by_dept, assigned_dept_id, transferred_from, assigned_to_id
+            FROM tickets WHERE id = $1
+            UNION ALL
+            SELECT t.id, t.parent_ticket_id, t.created_by_dept, t.assigned_dept_id, t.transferred_from, t.assigned_to_id
+            FROM tickets t
+            JOIN parent_chain pc ON t.id = pc.parent_ticket_id
+          )
+          SELECT 1 FROM parent_chain
+          WHERE id != $1
+            AND (created_by_dept = $2 OR assigned_dept_id = $2 OR transferred_from = $2 OR assigned_to_id = $3)
+          LIMIT 1
+        `, [ticket.id, user.department_id, user.id]);
+        if (chainResult.rows.length > 0) return ticket;
       }
       return { forbidden: true };
     }
@@ -875,7 +872,6 @@ class TicketRepository {
 
   // ── Update ticket status ─────────────────────────────────────────────────
   async updateStatus(ticketId, status, user) {
-    console.log(`[TicketRepository] Executing updateStatus for ticketId: ${ticketId}, status: ${status}, userId: ${user.id}`);
     await pool.query(`
       UPDATE tickets SET status = $1::VARCHAR,
         closed_by_id = CASE WHEN $1::VARCHAR IN ('closed', 'completed') THEN $2 ELSE closed_by_id END,
@@ -883,7 +879,8 @@ class TicketRepository {
       WHERE id = $3
     `, [status, user.id, ticketId]);
 
-    return await this.getTicketDetails(ticketId);
+    const row = await pool.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
+    return row.rows[0] || null;
   }
 
   // ── Update generic ticket fields ──────────────────────────────────────────
@@ -910,7 +907,8 @@ class TicketRepository {
       WHERE id = $${idx}
     `, params);
 
-    return await this.getTicketDetails(ticketId);
+    const row = await pool.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
+    return row.rows[0] || null;
   }
 
   // ── Self-assign open ticket (employee only) ───────────────────────────────
@@ -924,7 +922,8 @@ class TicketRepository {
 
     if (result.rows.length === 0) return null;
 
-    return await this.getTicketDetails(ticketId);
+    const row = await pool.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
+    return row.rows[0] || null;
   }
 
   // ── Manager assigns ticket to employee ───────────────────────────────────
@@ -950,7 +949,8 @@ class TicketRepository {
 
     if (result.rows.length === 0) return null;
 
-    return await this.getTicketDetails(ticketId);
+    const row = await pool.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
+    return row.rows[0] || null;
   }
 
   // ── Transfer ticket to another department ─────────────────────────────────
@@ -968,7 +968,8 @@ class TicketRepository {
 
     if (result.rows.length === 0) return null;
 
-    return await this.getTicketDetails(ticketId);
+    const row = await pool.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
+    return row.rows[0] || null;
   }
 
   // ── Reopen ticket (creator, within 48h, once only) ────────────────────────
@@ -1013,7 +1014,8 @@ class TicketRepository {
       `, [ticketId]);
 
       await client.query('COMMIT');
-      return await this.getTicketDetails(ticketId);
+      const row = await client.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
+      return row.rows[0] || null;
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -1189,6 +1191,7 @@ class TicketRepository {
       WHERE (t.created_by_dept = $1 OR t.transferred_from = $1)
         AND t.assigned_dept_id <> $1
       ORDER BY t.transferred_at DESC, t.created_at DESC
+      LIMIT 100
     `, [departmentId]);
 
     return result.rows;
@@ -1364,6 +1367,7 @@ class TicketRepository {
       LEFT JOIN departments d ON d.id = u.department_id
       WHERE tl.ticket_id = $1
       ORDER BY tl.created_at ASC
+      LIMIT 200
     `, [ticketId]);
 
     return result.rows;
@@ -1459,22 +1463,18 @@ class TicketRepository {
     `, [avg_progress, newStatus, ticketId]);
 
     if (newStatus === 'in_progress') {
-      let currentId = ticketId;
-      while (true) {
-        const parent = await client.query(`
-          SELECT parent_ticket_id, status FROM tickets WHERE id = $1
-        `, [currentId]);
-        const parentId = parent.rows[0]?.parent_ticket_id;
-        if (!parentId) break;
-
-        await client.query(`
-          UPDATE tickets SET status = 'in_progress'
-          WHERE id = $1 AND status = 'open'
-        `, [parentId]);
-        currentId = parentId;
-      }
+      await client.query(`
+        WITH RECURSIVE ancestors AS (
+          SELECT parent_ticket_id FROM tickets WHERE id = $1 AND parent_ticket_id IS NOT NULL
+          UNION ALL
+          SELECT t.parent_ticket_id FROM tickets t
+          JOIN ancestors a ON t.id = a.parent_ticket_id
+          WHERE t.parent_ticket_id IS NOT NULL
+        )
+        UPDATE tickets SET status = 'in_progress', updated_at = NOW()
+        WHERE id IN (SELECT parent_ticket_id FROM ancestors) AND status = 'open'
+      `, [ticketId]);
     }
-    // For completed: parent is NOT auto-updated — manual chain
 
     return { avg_progress, newStatus, approved_count };
   }
@@ -1763,10 +1763,43 @@ class TicketRepository {
       WHERE id = $2 AND status != $1
       RETURNING id, ticket_number, title, status
     `, [newStatus, ticketId]);
-    if (result.rowCount > 0) {
-      console.log(`[TicketRepo] Propagated status '${newStatus}' to parent ticket #${ticketId}`);
-    }
     return result.rows[0] || null;
+  }
+
+  // ── Update all ancestors to in_progress in one recursive CTE ──────────
+  async updateParentChain(ticketId, newStatus) {
+    const result = await pool.query(`
+      WITH RECURSIVE ancestors AS (
+        SELECT parent_ticket_id FROM tickets WHERE id = $1 AND parent_ticket_id IS NOT NULL
+        UNION ALL
+        SELECT t.parent_ticket_id FROM tickets t
+        JOIN ancestors a ON t.id = a.parent_ticket_id
+        WHERE t.parent_ticket_id IS NOT NULL
+      ),
+      updated AS (
+        UPDATE tickets SET status = $2, updated_at = NOW()
+        WHERE id IN (SELECT parent_ticket_id FROM ancestors)
+          AND status != $2
+        RETURNING id, ticket_number, title, status
+      )
+      SELECT id, ticket_number, title, status FROM updated
+    `, [ticketId, newStatus]);
+    return result.rows.map(r => ({ parentId: r.id, ticket_number: r.ticket_number, title: r.title, newStatus }));
+  }
+
+  // ── Get all ancestor IDs in one recursive query ──────────────────────
+  async getParentChain(ticketId) {
+    const result = await pool.query(`
+      WITH RECURSIVE ancestors AS (
+        SELECT parent_ticket_id FROM tickets WHERE id = $1 AND parent_ticket_id IS NOT NULL
+        UNION ALL
+        SELECT t.parent_ticket_id FROM tickets t
+        JOIN ancestors a ON t.id = a.parent_ticket_id
+        WHERE t.parent_ticket_id IS NOT NULL
+      )
+      SELECT parent_ticket_id AS id FROM ancestors
+    `, [ticketId]);
+    return result.rows.map(r => ({ parentId: r.id }));
   }
 
   // ── Check if all direct children are closed ─────────────────────────────

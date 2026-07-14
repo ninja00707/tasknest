@@ -1,7 +1,9 @@
 import 'package:tasknest/presentation/admin/data/datasource/admin_remote_data_source.dart';
 import 'package:tasknest/presentation/admin/data/models/admin_models.dart';
 import 'package:tasknest/presentation/admin/domain/repositories/admin_repository.dart';
+import 'package:injectable/injectable.dart';
 
+@lazySingleton
 class AdminRepositoryImpl implements AdminRepository {
   final AdminRemoteDataSource _ds;
   AdminRepositoryImpl(this._ds);

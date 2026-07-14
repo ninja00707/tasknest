@@ -1,6 +1,8 @@
 import 'package:tasknest/core/constant/api_client.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
+import 'package:injectable/injectable.dart';
 
+@lazySingleton
 class TicketRemoteDataSource {
   final ApiClient _api;
   TicketRemoteDataSource(this._api);
@@ -28,9 +30,9 @@ class TicketRemoteDataSource {
     final res = await _api.get('tickets', queryParams: query);
     final data = (res['data'] as List).map((e) => TicketModel.fromJson(e)).toList();
     final pagination = res['pagination'] as Map<String, dynamic>?;
-    final total = pagination?['total'] as int? ?? data.length;
-    final totalPages = pagination?['totalPages'] as int? ?? 1;
-    final currentPage = pagination?['page'] as int? ?? page;
+    final total = int.tryParse(pagination?['total']?.toString() ?? '') ?? data.length;
+    final totalPages = int.tryParse(pagination?['totalPages']?.toString() ?? '') ?? 1;
+    final currentPage = int.tryParse(pagination?['page']?.toString() ?? '') ?? page;
     return (tickets: data, total: total, page: currentPage, totalPages: totalPages);
   }
 
@@ -52,9 +54,9 @@ class TicketRemoteDataSource {
     final res = await _api.get('tickets', queryParams: query);
     final data = (res['data'] as List).map((e) => TicketModel.fromJson(e)).toList();
     final pagination = res['pagination'] as Map<String, dynamic>?;
-    final total = pagination?['total'] as int? ?? data.length;
-    final totalPages = pagination?['totalPages'] as int? ?? 1;
-    final currentPage = pagination?['page'] as int? ?? page;
+    final total = int.tryParse(pagination?['total']?.toString() ?? '') ?? data.length;
+    final totalPages = int.tryParse(pagination?['totalPages']?.toString() ?? '') ?? 1;
+    final currentPage = int.tryParse(pagination?['page']?.toString() ?? '') ?? page;
     return (tickets: data, total: total, page: currentPage, totalPages: totalPages);
   }
 

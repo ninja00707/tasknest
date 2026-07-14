@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
-import 'package:tasknest/presentation/admin/domain/repositories/admin_repository.dart';
+import 'package:tasknest/presentation/admin/domain/repositories_impl/admin_repository_impl.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_event.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_state.dart';
+import 'package:injectable/injectable.dart';
 
+@injectable
 class AdminBloc extends Bloc<AdminEvent, AdminState> {
-  final AdminRepository _repo;
+  final AdminRepositoryImpl _repo;
   AdminBloc(this._repo) : super(AdminInitial()) {
     on<LoadAdminDashboard>(_onLoadDashboard);
     on<LoadUsers>(_onLoadUsers);

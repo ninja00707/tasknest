@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:tasknest/data/repositories/ticket/ticket_repository.dart';
+import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_event.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_state.dart';
+import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
+import 'package:injectable/injectable.dart';
 
+@injectable
 class TicketBloc extends Bloc<TicketEvent, TicketState> {
-  final TicketRepository _dataSource;
+  final TicketRepositoryImpl _dataSource;
+  TicketModel? _lastLoadedTicket;
 
   TicketBloc(this._dataSource) : super(TicketInitial()) {
     on<SelfAssignTicket>(_onSelfAssign);
@@ -37,6 +41,8 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
       }
     } else if (error is Exception) {
       errorMessage = error.toString();
+    } else if (error is Error) {
+      errorMessage = error.toString();
     }
     return errorMessage;
   }
@@ -48,9 +54,11 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     emit(TicketActionInProgress());
     try {
       final updated = await _dataSource.selfAssign(event.ticketId);
+      _lastLoadedTicket = updated;
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (_lastLoadedTicket != null) emit(TicketDetailLoaded(_lastLoadedTicket!));
     }
   }
 
@@ -65,9 +73,11 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
         event.status,
         remark: event.remark,
       );
+      _lastLoadedTicket = updated;
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (_lastLoadedTicket != null) emit(TicketDetailLoaded(_lastLoadedTicket!));
     }
   }
 
@@ -78,9 +88,11 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     emit(TicketActionInProgress());
     try {
       final updated = await _dataSource.assignToEmployee(event.ticketId, event.employeeId);
+      _lastLoadedTicket = updated;
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (_lastLoadedTicket != null) emit(TicketDetailLoaded(_lastLoadedTicket!));
     }
   }
 
@@ -96,9 +108,11 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
         title: event.title,
         description: event.description,
       );
+      _lastLoadedTicket = updated;
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (_lastLoadedTicket != null) emit(TicketDetailLoaded(_lastLoadedTicket!));
     }
   }
 
@@ -109,9 +123,11 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     emit(TicketActionInProgress());
     try {
       final updated = await _dataSource.reopenTicket(event.ticketId);
+      _lastLoadedTicket = updated;
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (_lastLoadedTicket != null) emit(TicketDetailLoaded(_lastLoadedTicket!));
     }
   }
 
@@ -243,9 +259,12 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     emit(TicketActionInProgress());
     try {
       await _dataSource.addComment(event.ticketId, event.message);
-      emit(TicketActionSuccess('Comment added!'));
+      final updated = await _dataSource.getTicket(event.ticketId);
+      _lastLoadedTicket = updated;
+      emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (_lastLoadedTicket != null) emit(TicketDetailLoaded(_lastLoadedTicket!));
     }
   }
 
@@ -256,9 +275,13 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     emit(TicketActionInProgress());
     try {
       final ticket = await _dataSource.getTicket(event.ticketId);
+      _lastLoadedTicket = ticket;
       emit(TicketDetailLoaded(ticket));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (_lastLoadedTicket != null) {
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
+      }
     }
   }
 
@@ -266,6 +289,7 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     ClearTicketDetail event,
     Emitter<TicketState> emit,
   ) async {
+    _lastLoadedTicket = null;
     emit(TicketInitial());
   }
 }

@@ -35,12 +35,11 @@ class _TransferedDepartTicketState extends State<TransferedDepartTicket> {
     final pageTickets = all.sublist(start, end > all.length ? all.length : end);
     final isWide = MediaQuery.of(context).size.width > 900;
 
-    final pending = all
-        .where((t) => t.status == 'open' || t.status == 'in_progress')
-        .length;
-    final completed = all
-        .where((t) => t.status == 'completed' || t.status == 'closed')
-        .length;
+    int pending = 0, completed = 0;
+    for (final t in all) {
+      if (t.status == 'open' || t.status == 'in_progress') { pending++; }
+      else if (t.status == 'completed' || t.status == 'closed') { completed++; }
+    }
 
     return Padding(
       padding: EdgeInsets.fromLTRB(isWide ? 28 : 16, 0, isWide ? 28 : 16, 16),

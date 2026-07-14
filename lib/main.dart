@@ -9,10 +9,10 @@ import 'package:url_strategy/url_strategy.dart';
 import 'package:tasknest/core/routes/app_router.dart';
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart' show AuthBloc;
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
   setPathUrlStrategy();
-  await initDependencies();
+  initDependencies();
 
   runApp(const MyApp());
 }

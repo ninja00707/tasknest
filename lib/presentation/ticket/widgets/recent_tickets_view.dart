@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/constant/common_pagination_listview.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/core/theme/common_helpers.dart';
 import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
@@ -9,9 +11,7 @@ import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
 
-const int _pageSize = 15;
-
-class RecentTicketsView extends StatefulWidget {
+class RecentTicketsView extends StatelessWidget {
   final DashboardLoaded state;
   final UserModel? userModel;
 
@@ -22,22 +22,9 @@ class RecentTicketsView extends StatefulWidget {
   });
 
   @override
-  State<RecentTicketsView> createState() => _RecentTicketsViewState();
-}
-
-class _RecentTicketsViewState extends State<RecentTicketsView> {
-  int _page = 1;
-
-  @override
   Widget build(BuildContext context) {
-    final all = [...widget.state.tickets];
+    final all = [...state.tickets];
     all.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    final totalPages = (all.length / _pageSize).ceil().clamp(1, 9999);
-    if (_page > totalPages) _page = totalPages;
-
-    final start = (_page - 1) * _pageSize;
-    final end = start + _pageSize;
-    final pageTickets = all.sublist(start, end > all.length ? all.length : end);
     final isWide = MediaQuery.of(context).size.width > 900;
 
     return SizedBox(
@@ -53,27 +40,13 @@ class _RecentTicketsViewState extends State<RecentTicketsView> {
             Expanded(
               child: all.isEmpty
                   ? _ActivityEmptyState()
-                  : SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          ...pageTickets.map(
-                            (t) => _ActivityTicketCard(ticket: t),
-                          ),
-                          if (totalPages > 1) ...[
-                            const SizedBox(height: 16),
-                            _ActivityPagination(
-                              page: _page,
-                              totalPages: totalPages,
-                              onPrev: _page > 1
-                                  ? () => setState(() => _page--)
-                                  : null,
-                              onNext: _page < totalPages
-                                  ? () => setState(() => _page++)
-                                  : null,
-                            ),
-                          ],
-                        ],
-                      ),
+                  : CommonPaginationListView(
+                      items: all,
+                      pageSize: 10,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.only(top: 4),
+                      itemBuilder: (context, t, index) =>
+                          _ActivityTicketCard(ticket: t),
                     ),
             ),
           ],
@@ -135,20 +108,7 @@ class _ActivityTicketCard extends StatelessWidget {
   final TicketModel ticket;
   const _ActivityTicketCard({required this.ticket});
 
-  Color get _tint {
-    switch (ticket.status) {
-      case 'open':
-        return ThemeColors.unifiedSecondary;
-      case 'in_progress':
-        return ThemeColors.unifiedWarning;
-      case 'completed':
-        return ThemeColors.unifiedAccent;
-      case 'closed':
-        return ThemeColors.unifiedTextMuted;
-      default:
-        return ThemeColors.unifiedPrimary;
-    }
-  }
+  Color get _tint => ticketStatusColor(ticket.status);
 
   IconData get _icon {
     if (ticket.isMultiTaskTicket) return Icons.hub_rounded;
@@ -161,10 +121,9 @@ class _ActivityTicketCard extends StatelessWidget {
     final dateStr = ticket.createdAt.toString().substring(0, 10);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
             // Timeline line + dot
             SizedBox(
               width: 32,
@@ -311,117 +270,6 @@ class _ActivityTicketCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _ActivityPagination extends StatelessWidget {
-  final int page, totalPages;
-  final VoidCallback? onPrev, onNext;
-  const _ActivityPagination({
-    required this.page,
-    required this.totalPages,
-    this.onPrev,
-    this.onNext,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _PageBtn(
-          icon: Icons.chevron_left,
-            label: ConstStrings.previous,
-          disabled: onPrev == null,
-          onTap: onPrev ?? () {},
-        ),
-        const SizedBox(width: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: ThemeColors.unifiedBackground,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
-            ),
-          ),
-          child: Text(
-            'Page $page of $totalPages',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: ThemeColors.unifiedTextMuted,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        _PageBtn(
-          icon: Icons.chevron_right,
-            label: ConstStrings.next,
-          disabled: onNext == null,
-          onTap: onNext ?? () {},
-        ),
-      ],
-    );
-  }
-}
-
-class _PageBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool disabled;
-  final VoidCallback onTap;
-  const _PageBtn({
-    required this.icon,
-    required this.label,
-    required this.disabled,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = disabled
-        ? ThemeColors.unifiedTextMuted.withValues(alpha: 0.3)
-        : ThemeColors.unifiedPrimary;
-    return GestureDetector(
-      onTap: disabled ? null : onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: disabled
-              ? ThemeColors.unifiedBackground
-              : ThemeColors.unifiedSurface,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: disabled
-                ? ThemeColors.unifiedBorder.withValues(alpha: 0.5)
-                : ThemeColors.unifiedPrimary.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon == Icons.chevron_left) ...[
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 4),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-            if (icon == Icons.chevron_right) ...[
-              const SizedBox(width: 4),
-              Icon(icon, size: 16, color: color),
-            ],
-          ],
-        ),
-      ),
     );
   }
 }

@@ -32,10 +32,13 @@ class DashboardScreen extends StatelessWidget {
         listener: _onStateChanged,
         child: BlocBuilder<DashboardBloc, DashboardState>(
           buildWhen: (prev, curr) {
+            if (curr is DashboardError) return true;
             if (prev is DashboardInitial && curr is DashboardLoading) return true;
             if (prev is DashboardLoading && curr is DashboardLoaded) return true;
-            if (curr is DashboardError) return true;
             if (curr is DashboardLoaded && prev is! DashboardLoaded) return true;
+            if (curr is DashboardLoaded && prev is DashboardLoaded) {
+              return !identical(prev.tickets, curr.tickets);
+            }
             return false;
           },
           builder: (context, state) {

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/common_listview_builder.dart';
+import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
@@ -126,8 +128,10 @@ class SubTicketDetailSection extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                ...ticket.subDepartments.map(
-                  (dept) =>
+                CommonListViewBuilder(
+                  items: ticket.subDepartments,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemBuilder: (context, dept, index) =>
                       _DeptProgressCard(ticket: ticket, dept: dept, user: user),
                 ),
                 // ── Creator "Complete Ticket" Button ────────────
@@ -286,25 +290,19 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
   @override
   Widget build(BuildContext context) {
     final dept = widget.dept;
-    final statusColor = dept.isCompleted
-        ? const Color(0xFF16A34A)
-        : dept.isApproved
-        ? const Color(0xFF2563EB)
-        : dept.isPendingApproval
-        ? const Color(0xFFF59E0B)
-        : dept.isInProgress
-        ? const Color(0xFF7C3AED)
-        : ThemeColors.unifiedTextMuted;
+    final statusColor = CommonStatus.subDeptStatusColor(
+      isCompleted: dept.isCompleted,
+      isApproved: dept.isApproved,
+      isPendingApproval: dept.isPendingApproval,
+      isInProgress: dept.isInProgress,
+    );
 
-    final statusLabel = dept.isCompleted
-        ? 'COMPLETED'
-        : dept.isApproved
-        ? 'APPROVED'
-        : dept.isPendingApproval
-        ? 'PENDING APPROVAL'
-        : dept.isInProgress
-        ? 'IN PROGRESS'
-        : 'OPEN';
+    final statusLabel = CommonStatus.subDeptStatusLabel(
+      isCompleted: dept.isCompleted,
+      isApproved: dept.isApproved,
+      isPendingApproval: dept.isPendingApproval,
+      isInProgress: dept.isInProgress,
+    );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),

@@ -23,6 +23,10 @@ class SignupScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: ThemeColors.unifiedBackground,
       body: BlocConsumer<AuthBloc, AuthState>(
+        listenWhen: (prev, curr) =>
+            curr is AuthAuthenticated ||
+            curr is AuthRegistrationPending ||
+            curr is AuthError,
         listener: (context, state) {
           if (state is AuthAuthenticated) {
             AppAlertDialog.show(

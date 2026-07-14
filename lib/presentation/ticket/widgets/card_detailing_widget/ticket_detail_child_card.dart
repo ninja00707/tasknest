@@ -16,7 +16,7 @@ class ChildDetailCard extends StatelessWidget {
       builder: (ctx) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-        clipBehavior: Clip.antiAlias,
+        clipBehavior: Clip.hardEdge,
         child: Container(
           width: 480,
           decoration: BoxDecoration(

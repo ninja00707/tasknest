@@ -4,21 +4,16 @@ import 'package:flutter/foundation.dart';
 import 'package:tasknest/core/routes/routes_name.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/core/routes/app_router.dart';
+import 'package:injectable/injectable.dart';
 
+@lazySingleton
 class ApiClient {
   late Dio dio;
-
-  // Singleton instance
-  static final ApiClient _instance = ApiClient._internal();
 
   // To prevent multiple redirects if many requests fail at once
   bool _isRedirecting = false;
 
-  factory ApiClient() {
-    return _instance;
-  }
-
-  ApiClient._internal() {
+  ApiClient() {
     dio = Dio(
       BaseOptions(
         baseUrl: ApiConstants.baseUrl,

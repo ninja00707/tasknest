@@ -1,6 +1,8 @@
 import 'package:tasknest/core/constant/api_client.dart';
 import 'package:tasknest/presentation/notification/models/notification_model.dart';
+import 'package:injectable/injectable.dart';
 
+@lazySingleton
 class NotificationRemoteDataSource {
   final ApiClient _api;
   NotificationRemoteDataSource(this._api);

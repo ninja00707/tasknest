@@ -73,6 +73,8 @@ class CreateTicketViewState extends State<CreateTicketView> {
         : <Departments>[];
 
     return BlocListener<TicketBloc, TicketState>(
+      listenWhen: (prev, curr) =>
+          curr is TicketActionSuccess || curr is TicketActionError,
       listener: (context, state) {
         if (!mounted) return;
         if (state is TicketActionSuccess) {

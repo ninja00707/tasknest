@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/common_listview_builder.dart';
+import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_date_format.dart';
@@ -23,12 +25,11 @@ class TicketHistoryTimeline extends StatelessWidget {
       );
     }
 
-    return ListView.builder(
+    return CommonListViewBuilder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: history.length,
-      itemBuilder: (context, index) {
-        final log = history[index];
+      items: history,
+      itemBuilder: (context, log, index) {
         final isLast = index == history.length - 1;
 
         // Extracting fields from the history array returned by the backend
@@ -40,149 +41,70 @@ class TicketHistoryTimeline extends StatelessWidget {
         final String? dept = log['dept_name'];
         final DateTime date = DateTime.parse(log['created_at']).toLocal();
 
-        return IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 4),
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: _getActionColor(action),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+                Column(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: CommonStatus.actionColor(action),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
                     ),
-                  ),
-                  if (!isLast)
-                    Expanded(
-                      child: Container(
+                    if (!isLast)
+                      Container(
                         width: 2,
+                        height: 40,
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         color: ThemeColors.unifiedBorder,
                       ),
+                  ],
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Format the action title based on the type of movement
+                        Text(
+                          CommonStatus.actionTitle(action),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            letterSpacing: 0.5,
+                            color: ThemeColors.unifiedTextPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          CommonStatus.actionNote(action, oldValue, newValue, note, dept),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: ThemeColors.unifiedTextPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          "By $actor ${dept != null ? '($dept)' : ''} • ${CommonDateFormat.formatShortDateTime(date)}",
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: ThemeColors.unifiedTextMuted,
+                          ),
+                        ),
+                      ],
                     ),
-                ],
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Format the action title based on the type of movement
-                      Text(
-                        _getDisplayTitle(action, oldValue, newValue, dept),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                          letterSpacing: 0.5,
-                          color: ThemeColors.unifiedTextPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _getDisplayNote(action, oldValue, newValue, note, dept),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: ThemeColors.unifiedTextPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        "By $actor ${dept != null ? '($dept)' : ''} • ${CommonDateFormat.formatShortDateTime(date)}",
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: ThemeColors.unifiedTextMuted,
-                        ),
-                      ),
-                    ],
                   ),
                 ),
-              ),
-            ],
-          ),
-        );
+              ],
+            );
       },
     );
-  }
-
-  String _getDisplayTitle(
-    String action,
-    String? oldV,
-    String? newV,
-    String? dept,
-  ) {
-    switch (action) {
-      case 'created':
-        return ConstStrings.historyInitiated;
-      case 'assigned':
-        return ConstStrings.historyAssigned;
-      case 'transferred':
-        return ConstStrings.historyTransferred;
-      case 'sub_ticket_created':
-        return ConstStrings.historySubTicket;
-      case 'status_changed':
-        return ConstStrings.historyUpdated;
-      case 'comment_added':
-        return ConstStrings.historyComment;
-      case 'reopened':
-        return ConstStrings.historyReopened;
-      default:
-        return action.toUpperCase().replaceAll('_', ' ');
-    }
-  }
-
-  String _getDisplayNote(
-    String action,
-    String? oldV,
-    String? newV,
-    String note,
-    String? currentDept,
-  ) {
-    switch (action) {
-      case 'transferred':
-        // Shows: "HR ➔ Transferred to IT"
-        return "${oldV ?? ConstStrings.historyOrigin} ➔ ${ConstStrings.historyTransferredTo} ${newV ?? ConstStrings.historyTarget}";
-      case 'assigned':
-        // Shows: "IT: Assigned to Alice (Previously: Unassigned)"
-        final prev = (oldV == null || oldV == ConstStrings.historyUnassigned)
-            ? ConstStrings.historyUnassigned
-            : oldV;
-        return "${currentDept ?? ''}: ${ConstStrings.historyAssignedTo} ${newV ?? ConstStrings.historyPersonnel} (${ConstStrings.historyPrev} $prev)";
-      case 'status_changed':
-        // Shows: "Status: OPEN ➔ IN PROGRESS"
-        return "Status: ${oldV?.toUpperCase()} ➔ ${newV?.toUpperCase()}";
-      case 'created':
-        return "${ConstStrings.historyBornIn} ${currentDept ?? ConstStrings.historyDepartment}";
-      case 'reopened':
-        return "Returned to ${newV?.toUpperCase()} state for further work."; // dynamic - cannot use ConstStrings.historyReturned
-      default:
-        return note;
-    }
-  }
-
-  Color _getActionColor(String action) {
-    switch (action) {
-      case 'created':
-        return Colors.blue;
-      case 'assigned':
-        return Colors.orange;
-      case 'transferred':
-        return Colors.purple;
-      case 'status_changed':
-        return Colors.green;
-      case 'closed':
-        return Colors.black54;
-      case 'reopened':
-        return Colors.red;
-      case 'comment_added':
-        return Colors.teal;
-      default:
-        return Colors.grey;
-    }
   }
 }

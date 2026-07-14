@@ -174,6 +174,17 @@ CREATE INDEX idx_sub_ticket_dept_id ON sub_ticket_departments(department_id);
 CREATE INDEX idx_notifications   ON notifications(user_id, is_read);
 CREATE INDEX idx_tickets_parent  ON tickets(parent_ticket_id);
 
+-- ── Compound / Performance Indexes ────────────────────────────
+CREATE INDEX idx_tickets_status_assignee ON tickets(status, assigned_to_id, created_at DESC);
+CREATE INDEX idx_tickets_creator_status  ON tickets(created_by_id, status, created_at DESC);
+CREATE INDEX idx_tickets_dept_status     ON tickets(assigned_dept_id, status, created_at DESC);
+CREATE INDEX idx_tickets_created_at      ON tickets(created_at DESC);
+CREATE INDEX idx_ticket_logs_lookup      ON ticket_logs(ticket_id, created_at DESC);
+CREATE INDEX idx_ticket_comments_lookup   ON ticket_comments(ticket_id, created_at DESC);
+CREATE INDEX idx_users_reports_to        ON users(reports_to);
+CREATE INDEX idx_users_company_id        ON users(company_id);
+CREATE INDEX idx_tickets_created_by_dept ON tickets(created_by_dept);
+
 
 -- ── Auto-update updated_at ───────────────────────────────────
 CREATE OR REPLACE FUNCTION update_updated_at()

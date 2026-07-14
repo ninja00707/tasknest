@@ -2,8 +2,9 @@ import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/data/datasource/socket_service.dart';
-import 'package:tasknest/data/repositories/ticket/ticket_repository.dart';
+import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
 import 'package:tasknest/presentation/notification/models/notification_model.dart';
+import 'package:injectable/injectable.dart';
 
 // ── Events ────────────────────────────────────────────────────────────────
 abstract class NotificationEvent extends Equatable {
@@ -82,8 +83,9 @@ class NotificationError extends NotificationState {
 }
 
 // ── BLoC ──────────────────────────────────────────────────────────────────
+@injectable
 class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
-  final TicketRepository _repo;
+  final TicketRepositoryImpl _repo;
   StreamSubscription<SocketEvent>? _socketSub;
   bool _socketInitialized = false;
   int _toastIdSeq = 0;

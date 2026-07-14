@@ -2,7 +2,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart'; // For debugPrint
 import 'dart:convert'; // For jsonEncode and jsonDecode
 import 'package:tasknest/presentation/login/models/user_model.dart'; // For UserModel
+import 'package:injectable/injectable.dart';
 
+@lazySingleton
 class LocalStorageService {
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';

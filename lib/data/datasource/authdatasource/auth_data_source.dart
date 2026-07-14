@@ -1,10 +1,13 @@
 import 'package:tasknest/core/constant/api_client.dart';
 import 'package:tasknest/core/constant/api_constant.dart';
 import 'package:tasknest/presentation/login/models/auth_response_model.dart';
+import 'package:injectable/injectable.dart';
 
-// AuthRemoteDataSource uses the singleton ApiClient instance.
+@lazySingleton
 class AuthRemoteDataSource {
-  final ApiClient apiClient = ApiClient();
+  final ApiClient apiClient;
+
+  AuthRemoteDataSource(this.apiClient);
 
   Future<Map<String, dynamic>> login({
     required String code,

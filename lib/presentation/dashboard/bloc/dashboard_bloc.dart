@@ -1,17 +1,20 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/constant/changelog.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/constant/name_by_id.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/data/datasource/socket_service.dart';
-import 'package:tasknest/data/repositories/ticket/ticket_repository.dart';
+import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
+import 'package:injectable/injectable.dart';
 
+@injectable
 class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
-  final TicketRepository _dataSource;
+  final TicketRepositoryImpl _dataSource;
   StreamSubscription<SocketEvent>? _socketSub;
   bool _socketInitialized = false;
   bool _isLoadingMore = false;
@@ -84,17 +87,39 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           if (count != null) add(UpdateNotificationCount(count));
           return;
         }
-        _socketDebounce?.cancel();
-        _socketDebounce = Timer(const Duration(milliseconds: 2000), () {
-          if (!isClosed) {
-            final loaded = _getLoadedStateOrNull();
-            add(LoadDashboard(page: loaded?.currentPage ?? 1));
-            final s = state;
-            if (s is TicketDetailLoaded) {
-              add(LoadTicketDetail(s.ticket.id));
+        final isTicketEvent = event.type == 'TICKET_CREATED' ||
+            event.type == 'TICKET_ASSIGNED' ||
+            event.type == 'TICKET_STATUS_UPDATED' ||
+            event.type == 'TICKET_REOPENED' ||
+            event.type == 'TICKET_UPDATED' ||
+            event.type == 'SUB_TICKET_CREATED' ||
+            event.type == 'SUB_TICKET_ASSIGNED' ||
+            event.type == 'SUB_TICKET_PROGRESS' ||
+            event.type == 'SUB_TICKET_COMPLETED' ||
+            event.type == 'SUB_TICKET_REOPENED';
+        if (isTicketEvent) {
+          _socketDebounce?.cancel();
+          _socketDebounce = Timer(const Duration(milliseconds: 2000), () {
+            if (!isClosed) {
+              final loaded = _getLoadedStateOrNull();
+              add(LoadDashboard(page: loaded?.currentPage ?? 1));
+              final s = state;
+              if (s is TicketDetailLoaded) {
+                add(LoadTicketDetail(s.ticket.id));
+              }
             }
-          }
-        });
+          });
+        } else {
+          _socketDebounce?.cancel();
+          _socketDebounce = Timer(const Duration(milliseconds: 2000), () {
+            if (!isClosed) {
+              final s = state;
+              if (s is TicketDetailLoaded) {
+                add(LoadTicketDetail(s.ticket.id));
+              }
+            }
+          });
+        }
       });
       _socketInitialized = true;
     }
@@ -117,6 +142,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
   String _getFriendlyErrorMessage(dynamic error) {
     String errorMessage = 'An unexpected error occurred.';
+    debugPrint('DashboardBloc error (${error.runtimeType}): $error');
     if (error is String) {
       final regex = RegExp(r"message: '([^']+)'");
       final match = regex.firstMatch(error);
@@ -146,28 +172,40 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       _initSocket();
 
       final prev = _getLoadedStateOrNull();
-      final stats = await _dataSource.getStats();
-      final ticketResult = await _dataSource.getTickets(
-        page: event.page,
-      );
+
+      // Fire all independent API calls in parallel
+      final statsF = _dataSource.getStats();
+      final ticketsF = _dataSource.getTickets(page: event.page);
+      final notifF = _dataSource.getUnreadCount();
+
+      final currentDepts = prev?.departments ?? <DepartmentModel>[];
+      final deptF = currentDepts.isEmpty ? _dataSource.getDepartments() : null;
+
+      final needsEmployees = user.roleId == 1 || user.roleId == 0 || user.roleId == 3;
+      final currentEmployees = prev?.employees ?? <EmployeeModel>[];
+      final empF = needsEmployees && currentEmployees.isEmpty ? _dataSource.getEmployees() : null;
+
+      final currentSent = prev?.sentTickets ?? <TicketModel>[];
+      final sentF = currentSent.isEmpty ? _dataSource.getSentTickets() : null;
+
+      await Future.wait([
+        statsF,
+        ticketsF,
+        notifF,
+        ?deptF,
+        ?empF,
+        ?sentF,
+      ]);
+
+      final stats = await statsF;
+      final ticketResult = await ticketsF;
       final tickets = ticketResult.tickets;
       final currentPage = ticketResult.page;
       final totalPages = ticketResult.totalPages;
-      final currentDepts = prev?.departments ?? <DepartmentModel>[];
-      final departments = currentDepts.isEmpty
-          ? await _dataSource.getDepartments()
-          : currentDepts;
-      final needsEmployees = user.roleId == 1 || user.roleId == 0 || user.roleId == 3;
-      final currentEmployees = prev?.employees ?? <EmployeeModel>[];
-      final employees = needsEmployees && currentEmployees.isEmpty
-          ? await _dataSource.getEmployees()
-          : currentEmployees;
-      final currentSent = prev?.sentTickets ?? <TicketModel>[];
-      final sentTickets = currentSent.isEmpty
-          ? await _dataSource.getSentTickets()
-          : currentSent;
-
-      final notifCount = await _dataSource.getUnreadCount();
+      final notifCount = await notifF;
+      final departments = deptF != null ? await deptF : currentDepts;
+      final employees = empF != null ? await empF : currentEmployees;
+      final sentTickets = sentF != null ? await sentF : currentSent;
 
       final lastSeenVersion = await LocalStorageService().getLastSeenVersion();
       final shouldShowUpdate = lastSeenVersion != currentVersion;

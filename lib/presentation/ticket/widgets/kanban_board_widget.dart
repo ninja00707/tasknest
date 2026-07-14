@@ -43,9 +43,10 @@ class _KanbanBoardState extends State<KanbanBoard> {
           scrollbarOrientation: ScrollbarOrientation.bottom,
           child: CommonListViewBuilder<String>(
             controller: _scrollController,
+            shrinkWrap: false,
             scrollDirection: Axis.horizontal,
             items: CommonStatus.statuses,
-            itemBuilder: (context, status) {
+            itemBuilder: (context, status, index) {
               return KanbanColumn(
                 status: status,
                 label: CommonStatus.statusLabel(status),

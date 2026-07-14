@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/common_listview_builder.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 
@@ -58,16 +59,14 @@ class ProgressTimeline extends StatelessWidget {
       ),
     ];
 
-    return Column(
-      children: steps
-          .map(
-            (s) => TimelineItem(
-              step: s,
-              isActive: _isPassed(s.step),
-              isCurrent: _isCurrentStep(s.step),
-            ),
-          )
-          .toList(),
+    return CommonListViewBuilder(
+      physics: const NeverScrollableScrollPhysics(),
+      items: steps,
+      itemBuilder: (context, s, index) => TimelineItem(
+        step: s,
+        isActive: _isPassed(s.step),
+        isCurrent: _isCurrentStep(s.step),
+      ),
     );
   }
 }

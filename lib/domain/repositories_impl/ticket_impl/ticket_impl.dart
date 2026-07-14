@@ -3,7 +3,9 @@ import 'package:tasknest/presentation/notification/models/notification_model.dar
 import 'package:tasknest/data/datasource/ticketdatasource/ticket_remote_data_source.dart';
 import 'package:tasknest/data/repositories/ticket/ticket_repository.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
+import 'package:injectable/injectable.dart';
 
+@lazySingleton
 class TicketRepositoryImpl implements TicketRepository {
   final TicketRemoteDataSource _ticketDs;
   final NotificationRemoteDataSource _notificationDs;
