@@ -30,9 +30,11 @@ class TicketRemoteDataSource {
     final res = await _api.get('tickets', queryParams: query);
     final data = (res['data'] as List).map((e) => TicketModel.fromJson(e)).toList();
     final pagination = res['pagination'] as Map<String, dynamic>?;
-    final total = int.tryParse(pagination?['total']?.toString() ?? '') ?? data.length;
-    final totalPages = int.tryParse(pagination?['totalPages']?.toString() ?? '') ?? 1;
+    final total = int.tryParse(pagination?['total']?.toString() ?? '') ?? 0;
     final currentPage = int.tryParse(pagination?['page']?.toString() ?? '') ?? page;
+    final totalPages = total > 0
+        ? (total / 10).ceil()
+        : (data.length >= 10 ? page + 1 : page);
     return (tickets: data, total: total, page: currentPage, totalPages: totalPages);
   }
 
@@ -54,9 +56,11 @@ class TicketRemoteDataSource {
     final res = await _api.get('tickets', queryParams: query);
     final data = (res['data'] as List).map((e) => TicketModel.fromJson(e)).toList();
     final pagination = res['pagination'] as Map<String, dynamic>?;
-    final total = int.tryParse(pagination?['total']?.toString() ?? '') ?? data.length;
-    final totalPages = int.tryParse(pagination?['totalPages']?.toString() ?? '') ?? 1;
+    final total = int.tryParse(pagination?['total']?.toString() ?? '') ?? 0;
     final currentPage = int.tryParse(pagination?['page']?.toString() ?? '') ?? page;
+    final totalPages = total > 0
+        ? (total / 10).ceil()
+        : (data.length >= 10 ? page + 1 : page);
     return (tickets: data, total: total, page: currentPage, totalPages: totalPages);
   }
 

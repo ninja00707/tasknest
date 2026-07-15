@@ -32,32 +32,39 @@ class _KanbanBoardState extends State<KanbanBoard> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: MediaQuery.of(context).size.height,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 64, 0),
-        child: Scrollbar(
-          controller: _scrollController,
-          thumbVisibility: true,
-          trackVisibility: true,
-          scrollbarOrientation: ScrollbarOrientation.bottom,
-          child: CommonListViewBuilder<String>(
-            controller: _scrollController,
-            shrinkWrap: false,
-            scrollDirection: Axis.horizontal,
-            items: CommonStatus.statuses,
-            itemBuilder: (context, status, index) {
-              return KanbanColumn(
-                status: status,
-                label: CommonStatus.statusLabel(status),
-                color: CommonStatusColor.statusColor(status),
-                tickets: widget.state.groupedTickets[status] ?? [],
-                user: widget.user,
-              );
-            },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final boardHeight = constraints.maxHeight.isFinite
+            ? constraints.maxHeight
+            : MediaQuery.of(context).size.height * 0.75;
+        return SizedBox(
+          height: boardHeight,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 64, 0),
+            child: Scrollbar(
+              controller: _scrollController,
+              thumbVisibility: true,
+              trackVisibility: true,
+              scrollbarOrientation: ScrollbarOrientation.bottom,
+              child: CommonListViewBuilder<String>(
+                controller: _scrollController,
+                shrinkWrap: false,
+                scrollDirection: Axis.horizontal,
+                items: CommonStatus.statuses,
+                itemBuilder: (context, status, index) {
+                  return KanbanColumn(
+                    status: status,
+                    label: CommonStatus.statusLabel(status),
+                    color: CommonStatusColor.statusColor(status),
+                    tickets: widget.state.groupedTickets[status] ?? [],
+                    user: widget.user,
+                  );
+                },
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

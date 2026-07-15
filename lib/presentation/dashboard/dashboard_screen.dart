@@ -37,7 +37,8 @@ class DashboardScreen extends StatelessWidget {
             if (prev is DashboardLoading && curr is DashboardLoaded) return true;
             if (curr is DashboardLoaded && prev is! DashboardLoaded) return true;
             if (curr is DashboardLoaded && prev is DashboardLoaded) {
-              return !identical(prev.tickets, curr.tickets);
+              return !identical(prev.tickets, curr.tickets) ||
+                  prev.isLoadingMore != curr.isLoadingMore;
             }
             return false;
           },

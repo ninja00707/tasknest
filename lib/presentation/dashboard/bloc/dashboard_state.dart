@@ -33,6 +33,7 @@ class DashboardLoaded extends DashboardState {
   final int unreadNotificationCount;
   final int currentPage;
   final int totalPages;
+  final bool isLoadingMore;
   final bool sidebarOpen;
   final bool shouldShowUpdateDialog;
   final String departmentName;
@@ -56,6 +57,7 @@ class DashboardLoaded extends DashboardState {
     this.unreadNotificationCount = 0,
     this.currentPage = 1,
     this.totalPages = 1,
+    this.isLoadingMore = false,
     this.sidebarOpen = true,
     this.shouldShowUpdateDialog = false,
     this.departmentName = '',
@@ -90,6 +92,7 @@ class DashboardLoaded extends DashboardState {
     int? unreadNotificationCount,
     int? currentPage,
     int? totalPages,
+    bool? isLoadingMore,
     bool? sidebarOpen,
     bool? shouldShowUpdateDialog,
     String? departmentName,
@@ -116,6 +119,7 @@ class DashboardLoaded extends DashboardState {
           unreadNotificationCount ?? this.unreadNotificationCount,
       currentPage: currentPage ?? this.currentPage,
       totalPages: totalPages ?? this.totalPages,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       sidebarOpen: sidebarOpen ?? this.sidebarOpen,
       shouldShowUpdateDialog:
           shouldShowUpdateDialog ?? this.shouldShowUpdateDialog,
@@ -141,6 +145,7 @@ class DashboardLoaded extends DashboardState {
     unreadNotificationCount,
     currentPage,
     totalPages,
+    isLoadingMore,
     sidebarOpen,
     shouldShowUpdateDialog,
     departmentName,

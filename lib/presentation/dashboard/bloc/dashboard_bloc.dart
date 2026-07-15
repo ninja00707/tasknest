@@ -17,7 +17,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   final TicketRepositoryImpl _dataSource;
   StreamSubscription<SocketEvent>? _socketSub;
   bool _socketInitialized = false;
-  bool _isLoadingMore = false;
 
   DashboardBloc(this._dataSource) : super(DashboardInitial()) {
     on<LoadDashboard>(_onLoad);
@@ -87,7 +86,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           if (count != null) add(UpdateNotificationCount(count));
           return;
         }
-        final isTicketEvent = event.type == 'TICKET_CREATED' ||
+        final isTicketEvent =
+            event.type == 'TICKET_CREATED' ||
             event.type == 'TICKET_ASSIGNED' ||
             event.type == 'TICKET_STATUS_UPDATED' ||
             event.type == 'TICKET_REOPENED' ||
@@ -181,21 +181,17 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       final currentDepts = prev?.departments ?? <DepartmentModel>[];
       final deptF = currentDepts.isEmpty ? _dataSource.getDepartments() : null;
 
-      final needsEmployees = user.roleId == 1 || user.roleId == 0 || user.roleId == 3;
+      final needsEmployees =
+          user.roleId == 1 || user.roleId == 0 || user.roleId == 3;
       final currentEmployees = prev?.employees ?? <EmployeeModel>[];
-      final empF = needsEmployees && currentEmployees.isEmpty ? _dataSource.getEmployees() : null;
+      final empF = needsEmployees && currentEmployees.isEmpty
+          ? _dataSource.getEmployees()
+          : null;
 
       final currentSent = prev?.sentTickets ?? <TicketModel>[];
       final sentF = currentSent.isEmpty ? _dataSource.getSentTickets() : null;
 
-      await Future.wait([
-        statsF,
-        ticketsF,
-        notifF,
-        ?deptF,
-        ?empF,
-        ?sentF,
-      ]);
+      await Future.wait([statsF, ticketsF, notifF, ?deptF, ?empF, ?sentF]);
 
       final stats = await statsF;
       final ticketResult = await ticketsF;
@@ -277,14 +273,16 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         teamOnly: event.teamOnly,
         page: event.page,
       );
-      emit(prev.copyWith(
-        tickets: result.tickets,
-        currentPage: result.page,
-        totalPages: result.totalPages,
-        filterStatus: event.status ?? prev.filterStatus,
-        filterPriority: event.priority ?? prev.filterPriority,
-        filterTeam: event.teamOnly ?? prev.filterTeam,
-      ));
+      emit(
+        prev.copyWith(
+          tickets: result.tickets,
+          currentPage: result.page,
+          totalPages: result.totalPages,
+          filterStatus: event.status ?? prev.filterStatus,
+          filterPriority: event.priority ?? prev.filterPriority,
+          filterTeam: event.teamOnly ?? prev.filterTeam,
+        ),
+      );
     } catch (e) {
       emit(DashboardError(_getFriendlyErrorMessage(e)));
     }
@@ -295,10 +293,12 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     LoadMoreTickets event,
     Emitter<DashboardState> emit,
   ) async {
-    if (_isLoadingMore) return;
     final prev = _getLoadedStateOrNull();
-    if (prev == null || prev.currentPage >= prev.totalPages) return;
-    _isLoadingMore = true;
+    if (prev == null ||
+        prev.isLoadingMore ||
+        prev.currentPage >= prev.totalPages)
+      return;
+    emit(prev.copyWith(isLoadingMore: true));
     try {
       final result = await _dataSource.filterTickets(
         status: prev.filterStatus,
@@ -306,15 +306,17 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         teamOnly: prev.filterTeam,
         page: prev.currentPage + 1,
       );
-      emit(prev.copyWith(
-        tickets: [...prev.tickets, ...result.tickets],
-        currentPage: result.page,
-        totalPages: result.totalPages,
-      ));
+      emit(
+        prev.copyWith(
+          tickets: [...prev.tickets, ...result.tickets],
+          currentPage: result.page,
+          totalPages: result.totalPages,
+          isLoadingMore: false,
+        ),
+      );
     } catch (e) {
-      _isLoadingMore = false;
+      emit(prev.copyWith(isLoadingMore: false));
     }
-    _isLoadingMore = false;
   }
 
   // ── Ticket Detail ────────────────────────────────────────────
@@ -381,15 +383,11 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     _socketSub = null;
     _socketDebounce = null;
     _socketInitialized = false;
-    _isLoadingMore = false;
     SocketService().disconnect();
     emit(DashboardInitial());
   }
 
-  void _onToggleSidebar(
-    ToggleSidebar event,
-    Emitter<DashboardState> emit,
-  ) {
+  void _onToggleSidebar(ToggleSidebar event, Emitter<DashboardState> emit) {
     final loaded = _getLoadedStateOrNull();
     if (loaded != null) {
       emit(loaded.copyWith(sidebarOpen: !loaded.sidebarOpen));

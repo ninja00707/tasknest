@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
+import 'package:tasknest/core/constant/scroll_to_load_more.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_list.dart';
@@ -50,9 +51,11 @@ class DepartmentTicketsContent extends StatelessWidget {
         final loaded = _tryResolve(state);
         if (loaded == null) return _loading();
         if (user.roleId == 0 || user.roleId == 1 || user.roleId == 3) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 24),
-            child: TicketListView(state: loaded, user: user),
+          return ScrollToLoadMore(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: TicketListView(state: loaded, user: user),
+            ),
           );
         }
         final myTickets = loaded.tickets
