@@ -42,5 +42,16 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('sw.js').then(function(reg) {
+          console.log('Service Worker registered successfully:', reg.scope);
+        }).catch(function(err) {
+          console.error('Service Worker registration failed:', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>

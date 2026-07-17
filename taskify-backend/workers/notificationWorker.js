@@ -4,6 +4,7 @@
 
 const queueManager = require('../core/queue');
 const ticketRepo = require('../modules/ticket/ticket.repository');
+const pushNotifier = require('../core/pushNotifier');
 
 async function init(io) {
   const queue = queueManager.get('notifications');
@@ -22,25 +23,39 @@ async function init(io) {
       }
     }
 
+    // Send Chrome Push Notifications in parallel
+    for (const userId of notifTarget) {
+      pushNotifier.sendPush(userId, {
+        title: message,
+        body: `Ticket #${payload.ticketNumber || payload.ticket?.ticketNumber || ticketId} update.`,
+        ticketId
+      }).catch(err => {
+        console.error(`[NotificationWorker] Push error for user ${userId}:`, err.message);
+      });
+    }
+
     if (!io) return;
 
     const notifMap = {};
     for (const n of notifications) notifMap[n.user_id] = n;
 
+    // Send socket update WITH notificationId so client can display notification toast
     for (const userId of userIds) {
       const notif = notifMap[userId];
-      io.to(`user_${userId}`).emit(eventType, {
-        ticketId,
-        ticketNumber: payload.ticketNumber || payload.ticket?.ticketNumber || null,
-        newStatus: payload.newStatus || payload.ticket?.status || null,
-        oldStatus: payload.oldStatus || null,
-        assignedTo: payload.assignedTo || payload.ticket?.assigned_to_name || null,
-        assignedDept: payload.assignedDept || payload.ticket?.assigned_dept_code || null,
-        message,
-        notificationId: notif?.id || null,
-        createdAt: notif?.created_at || new Date().toISOString(),
-        event: eventType,
-      });
+      if (notif) {
+        io.to(`user_${userId}`).emit(eventType, {
+          ticketId,
+          ticketNumber: payload.ticketNumber || payload.ticket?.ticketNumber || null,
+          newStatus: payload.newStatus || payload.ticket?.status || null,
+          oldStatus: payload.oldStatus || null,
+          assignedTo: payload.assignedTo || payload.ticket?.assigned_to_name || null,
+          assignedDept: payload.assignedDept || payload.ticket?.assigned_dept_code || null,
+          message,
+          notificationId: notif.id,
+          createdAt: notif.created_at,
+          event: eventType,
+        });
+      }
     }
 
     if (notifTarget.length > 0) {

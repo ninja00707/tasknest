@@ -28,7 +28,7 @@ class TicketCardBloc extends Bloc<TicketCardEvent, TicketCardState> {
       },
     );
     _cleanupTimer = Timer.periodic(
-      const Duration(minutes: 1),
+      const Duration(seconds: 5),
       (_) {
         if (!isClosed) add(const CleanupStaleTickets());
       },
@@ -64,7 +64,7 @@ class TicketCardBloc extends Bloc<TicketCardEvent, TicketCardState> {
     final now = DateTime.now();
     for (final ticket in event.tickets) {
       final updated = ticket.lastUpdatedAt ?? ticket.createdAt;
-      if (now.difference(updated).inMinutes < 15) {
+      if (now.difference(updated).inSeconds < 10) {
         _updateTimestamps[ticket.id] = updated;
       }
     }
@@ -93,7 +93,7 @@ class TicketCardBloc extends Bloc<TicketCardEvent, TicketCardState> {
   ) {
     final now = DateTime.now();
     _updateTimestamps.removeWhere(
-      (_, time) => now.difference(time).inMinutes >= 15,
+      (_, time) => now.difference(time).inSeconds >= 10,
     );
     emit(state.copyWith(
       recentlyUpdatedIds: _updateTimestamps.keys.toSet(),

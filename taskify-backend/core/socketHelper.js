@@ -1,4 +1,4 @@
-const ticketRepo = require('../modules/ticket/ticket.repository');
+const queueManager = require('./queue');
 
 class SocketHelper {
   constructor() {
@@ -12,21 +12,8 @@ class SocketHelper {
   async emit(eventType, ticketId, userIds, message, payload = {}, skipUserIds = []) {
     if (!this.io) return;
 
-    const notifTarget = userIds.filter(id => !skipUserIds.includes(id));
-    let notifications = [];
-    if (notifTarget.length > 0) {
-      try {
-        notifications = await ticketRepo.createNotifications(notifTarget, ticketId, message);
-      } catch (err) {
-        console.error(`[SocketHelper] Failed to create notifications for ticket ${ticketId}:`, err.message);
-      }
-    }
-
-    const notifMap = {};
-    for (const n of notifications) notifMap[n.user_id] = n;
-
+    // 1. Emit live update event immediately with notificationId: null so client can update UI instantly.
     for (const userId of userIds) {
-      const notif = notifMap[userId];
       this.io.to(`user_${userId}`).emit(eventType, {
         ticketId,
         ticketNumber: payload.ticketNumber || payload.ticket?.ticketNumber || null,
@@ -35,22 +22,51 @@ class SocketHelper {
         assignedTo: payload.assignedTo || payload.ticket?.assigned_to_name || null,
         assignedDept: payload.assignedDept || payload.ticket?.assigned_dept_code || null,
         message,
-        notificationId: notif?.id || null,
-        createdAt: notif?.created_at || new Date().toISOString(),
+        notificationId: null,
+        createdAt: new Date().toISOString(),
         event: eventType,
       });
     }
 
-    if (notifTarget.length > 0) {
-      const uniqueUsers = [...new Set(notifTarget)];
-      try {
-        const counts = await ticketRepo.getUnreadCounts(uniqueUsers);
-        for (const userId of uniqueUsers) {
-          this.io.to(`user_${userId}`).emit('NOTIFICATION_COUNT', { count: counts[userId] ?? 0 });
-        }
-      } catch (err) {
-        console.error(`[SocketHelper] Failed to get unread counts:`, err.message);
+    // 1b. Also broadcast immediately to department rooms for real-time UI updates across the departments.
+    const deptIds = new Set();
+    if (payload.ticket?.assigned_dept_id) deptIds.add(payload.ticket.assigned_dept_id);
+    if (payload.ticket?.created_by_dept) deptIds.add(payload.ticket.created_by_dept);
+    if (payload.assignedDept) deptIds.add(payload.assignedDept);
+    if (payload.ticket?.sub_departments && Array.isArray(payload.ticket.sub_departments)) {
+      for (const sd of payload.ticket.sub_departments) {
+        if (sd.department_id) deptIds.add(sd.department_id);
       }
+    }
+    for (const deptId of deptIds) {
+      this.io.to(`dept_${deptId}`).emit(eventType, {
+        ticketId,
+        ticketNumber: payload.ticketNumber || payload.ticket?.ticketNumber || null,
+        newStatus: payload.newStatus || payload.ticket?.status || null,
+        oldStatus: payload.oldStatus || null,
+        assignedTo: payload.assignedTo || payload.ticket?.assigned_to_name || null,
+        assignedDept: payload.assignedDept || payload.ticket?.assigned_dept_code || null,
+        message,
+        notificationId: null,
+        createdAt: new Date().toISOString(),
+        event: eventType,
+      });
+    }
+
+    // 2. Offload DB creation & push notifications to queue.
+    const notifTarget = userIds.filter(id => !skipUserIds.includes(id));
+    if (notifTarget.length > 0) {
+      const q = queueManager.get('notifications');
+      q.add('dispatch', {
+        ticketId,
+        userIds,
+        message,
+        eventType,
+        payload,
+        skipUserIds
+      }).catch(err => {
+        console.error(`[SocketHelper] Failed to enqueue notification job:`, err.message);
+      });
     }
   }
 

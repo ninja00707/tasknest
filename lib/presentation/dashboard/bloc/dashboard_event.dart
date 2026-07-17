@@ -63,3 +63,11 @@ class UpdateScreenSize extends DashboardEvent {
   @override
   List<Object?> get props => [isWide, screenWidth];
 }
+
+class SocketTicketEventReceived extends DashboardEvent {
+  final String type;
+  final Map<String, dynamic> data;
+  SocketTicketEventReceived(this.type, this.data);
+  @override
+  List<Object?> get props => [type, data];
+}

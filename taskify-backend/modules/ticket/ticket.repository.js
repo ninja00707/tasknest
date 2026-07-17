@@ -1337,6 +1337,18 @@ class TicketRepository {
         SELECT std.assigned_to_id FROM all_tree_tickets att
         JOIN sub_ticket_departments std ON std.ticket_id = att.id
         WHERE std.assigned_to_id IS NOT NULL
+        UNION
+        -- Managers of the departments involved
+        SELECT u.id FROM users u
+        JOIN roles r ON r.id = u.role_id
+        WHERE u.department_id IN (
+          SELECT DISTINCT created_by_dept FROM all_tree_tickets
+          UNION
+          SELECT DISTINCT assigned_dept_id FROM all_tree_tickets
+          UNION
+          SELECT DISTINCT department_id FROM sub_ticket_departments WHERE ticket_id IN (SELECT id FROM all_tree_tickets)
+        )
+        AND r.name = 'manager'
       ) sub
     `, [ticketId]);
     return result.rows.map(r => r.user_id);

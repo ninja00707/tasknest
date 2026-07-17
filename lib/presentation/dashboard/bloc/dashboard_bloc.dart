@@ -31,6 +31,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<ToggleSidebar>(_onToggleSidebar);
     on<MarkVersionSeen>(_onMarkVersionSeen);
     on<UpdateScreenSize>(_onUpdateScreenSize);
+    on<SocketTicketEventReceived>(_onSocketTicketEvent);
 
     _initSocket();
   }
@@ -100,27 +101,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
             event.type == 'SUB_TICKET_COMPLETED' ||
             event.type == 'SUB_TICKET_REOPENED';
         if (isTicketEvent) {
-          _socketDebounce?.cancel();
-          _socketDebounce = Timer(const Duration(milliseconds: 2000), () {
-            if (!isClosed) {
-              final loaded = _getLoadedStateOrNull();
-              add(LoadDashboard(page: loaded?.currentPage ?? 1));
-              final s = state;
-              if (s is TicketDetailLoaded) {
-                add(LoadTicketDetail(s.ticket.id));
-              }
-            }
-          });
-        } else {
-          _socketDebounce?.cancel();
-          _socketDebounce = Timer(const Duration(milliseconds: 2000), () {
-            if (!isClosed) {
-              final s = state;
-              if (s is TicketDetailLoaded) {
-                add(LoadTicketDetail(s.ticket.id));
-              }
-            }
-          });
+          final data = event.data is Map ? Map<String, dynamic>.from(event.data as Map) : <String, dynamic>{};
+          add(SocketTicketEventReceived(event.type, data));
         }
       });
       _socketInitialized = true;
@@ -414,6 +396,115 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     final loaded = _getLoadedStateOrNull();
     if (loaded != null) {
       emit(loaded.copyWith(isWide: event.isWide, screenWidth: event.screenWidth));
+    }
+  }
+
+  Future<void> _onSocketTicketEvent(
+    SocketTicketEventReceived event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final loaded = _getLoadedStateOrNull();
+    if (loaded == null) return;
+
+    final ticketId = event.data['ticketId'] as int?;
+    if (ticketId == null) return;
+
+    // For new ticket creation, we immediately trigger soft background reloads.
+    if (event.type == 'TICKET_CREATED' || event.type == 'SUB_TICKET_CREATED') {
+      add(LoadDashboard(page: loaded.currentPage));
+      final s = state;
+      if (s is TicketDetailLoaded && s.ticket.id == ticketId) {
+        add(LoadTicketDetail(ticketId));
+      }
+      return;
+    }
+
+    // For update events, we update the status and assignee in-memory instantly to keep the UI responsive!
+    final updatedTickets = loaded.tickets.map((t) {
+      if (t.id == ticketId) {
+        String newStatus = t.status;
+        String? newAssignee = t.assignedToName;
+        int? newAssigneeId = t.assignedToId;
+
+        if (event.data['newStatus'] != null) {
+          newStatus = event.data['newStatus'] as String;
+        }
+        if (event.data['assignedTo'] != null) {
+          newAssignee = event.data['assignedTo'] as String;
+        }
+        if (event.data['assignedToId'] != null) {
+          newAssigneeId = event.data['assignedToId'] as int;
+        }
+
+        return t.copyWith(
+          status: newStatus,
+          assignedToName: newAssignee,
+          assignedToId: newAssigneeId,
+          lastAction: event.type,
+          lastActedByName: event.data['actedByName'] as String?,
+          lastUpdatedAt: DateTime.now(),
+        );
+      }
+      return t;
+    }).toList();
+
+    final updatedSentTickets = loaded.sentTickets.map((t) {
+      if (t.id == ticketId) {
+        String newStatus = t.status;
+        String? newAssignee = t.assignedToName;
+        int? newAssigneeId = t.assignedToId;
+
+        if (event.data['newStatus'] != null) {
+          newStatus = event.data['newStatus'] as String;
+        }
+        if (event.data['assignedTo'] != null) {
+          newAssignee = event.data['assignedTo'] as String;
+        }
+        if (event.data['assignedToId'] != null) {
+          newAssigneeId = event.data['assignedToId'] as int;
+        }
+
+        return t.copyWith(
+          status: newStatus,
+          assignedToName: newAssignee,
+          assignedToId: newAssigneeId,
+          lastAction: event.type,
+          lastActedByName: event.data['actedByName'] as String?,
+          lastUpdatedAt: DateTime.now(),
+        );
+      }
+      return t;
+    }).toList();
+
+    emit(loaded.copyWith(
+      tickets: updatedTickets,
+      sentTickets: updatedSentTickets,
+    ));
+
+    // If the user is currently viewing the details page of this specific ticket, update the detail state as well!
+    final s = state;
+    if (s is TicketDetailLoaded && s.ticket.id == ticketId) {
+      final updatedDetailTicket = s.ticket.copyWith(
+        status: event.data['newStatus'] as String? ?? s.ticket.status,
+        assignedToName: event.data['assignedTo'] as String? ?? s.ticket.assignedToName,
+        assignedToId: event.data['assignedToId'] as int? ?? s.ticket.assignedToId,
+        lastAction: event.type,
+        lastActedByName: event.data['actedByName'] as String?,
+        lastUpdatedAt: DateTime.now(),
+      );
+      emit(TicketDetailLoaded(updatedDetailTicket, loaded.copyWith(
+        tickets: updatedTickets,
+        sentTickets: updatedSentTickets,
+      )));
+    }
+
+    // Trigger soft background reloads to fetch full sync details (history, comments, child progress, stats)
+    add(LoadDashboard(page: loaded.currentPage));
+    if (state is TicketDetailLoaded) {
+      final detailState = state as TicketDetailLoaded;
+      if (detailState.ticket.id == ticketId) {
+        add(LoadTicketDetail(ticketId));
+      }
     }
   }
 }
