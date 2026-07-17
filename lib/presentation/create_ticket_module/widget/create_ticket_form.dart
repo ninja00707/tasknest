@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart' hide FormField;
+import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/core/theme/common_helpers.dart';
 import 'package:tasknest/core/theme/common_text_styles.dart';
 
 class PageHeader extends StatelessWidget {
@@ -10,7 +10,12 @@ class PageHeader extends StatelessWidget {
   final String? parentTitle;
   final bool isMulti;
 
-  const PageHeader({super.key, this.parentId, this.parentTitle, this.isMulti = false});
+  const PageHeader({
+    super.key,
+    this.parentId,
+    this.parentTitle,
+    this.isMulti = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +81,9 @@ class PageHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isMulti ? ConstStrings.createMultiTicket : ConstStrings.createStandardTicket,
+                  isMulti
+                      ? ConstStrings.createMultiTicket
+                      : ConstStrings.createStandardTicket,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -103,7 +110,8 @@ class FormField extends StatelessWidget {
   final IconData icon;
   final bool required;
 
-  const FormField({super.key, 
+  const FormField({
+    super.key,
     required this.label,
     required this.icon,
     this.required = false,
@@ -185,7 +193,8 @@ class StyledTextField extends StatelessWidget {
   final int maxLines;
   final String? Function(String?)? validator;
 
-  const StyledTextField({super.key, 
+  const StyledTextField({
+    super.key,
     required this.controller,
     required this.hint,
     this.maxLines = 1,
@@ -264,7 +273,8 @@ class StyledDropdown<T> extends StatelessWidget {
   final ValueChanged<T> onChanged;
   final bool enabled;
 
-  const StyledDropdown({super.key, 
+  const StyledDropdown({
+    super.key,
     required this.hint,
     required this.value,
     required this.items,
@@ -329,14 +339,18 @@ class PrioritySelector extends StatelessWidget {
   final Priorities selected;
   final ValueChanged<Priorities> onChanged;
 
-  const PrioritySelector({super.key, required this.selected, required this.onChanged});
+  const PrioritySelector({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: priorities.map((p) {
         final isSel = p.id == selected.id;
-        final color = ticketPriorityColor(p.name);
+        final color = CommonStatus.ticketStatusColor(p.name);
 
         return Expanded(
           child: GestureDetector(
@@ -391,7 +405,8 @@ class SubmitButton extends StatelessWidget {
   final bool wide;
   final VoidCallback onTap;
 
-  const SubmitButton({super.key, 
+  const SubmitButton({
+    super.key,
     required this.submitting,
     required this.onTap,
     required this.wide,
@@ -463,7 +478,11 @@ class DepartmentChip extends StatelessWidget {
   final Departments department;
   final VoidCallback onRemove;
 
-  const DepartmentChip({super.key, required this.department, required this.onRemove});
+  const DepartmentChip({
+    super.key,
+    required this.department,
+    required this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -472,7 +491,9 @@ class DepartmentChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: ThemeColors.unifiedPrimary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: ThemeColors.unifiedPrimary.withValues(alpha: 0.25)),
+        border: Border.all(
+          color: ThemeColors.unifiedPrimary.withValues(alpha: 0.25),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -507,7 +528,11 @@ class MultiDeptSection extends StatelessWidget {
   final List<Departments> departments;
   final Map<int, DeptFormData> formData;
 
-  const MultiDeptSection({super.key, required this.departments, required this.formData});
+  const MultiDeptSection({
+    super.key,
+    required this.departments,
+    required this.formData,
+  });
 
   static const _deptColors = [
     Color(0xFF4F46E5),
@@ -571,7 +596,10 @@ class MultiDeptSection extends StatelessWidget {
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
+              border: Border.all(
+                color: color.withValues(alpha: 0.2),
+                width: 1.5,
+              ),
             ),
             clipBehavior: Clip.hardEdge,
             child: Column(

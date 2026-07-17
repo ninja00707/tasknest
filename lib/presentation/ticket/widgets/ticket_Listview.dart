@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
-import 'search_bar_widget.dart';
-import 'filter_bar_widget.dart';
-import 'kanban_board_widget.dart';
+import 'package:tasknest/presentation/ticket/widgets/filter_bar_widget.dart';
+import 'package:tasknest/presentation/ticket/widgets/kanban_board_widget.dart';
+import 'package:tasknest/presentation/ticket/widgets/search_bar_widget.dart';
 
 class TicketListView extends StatelessWidget {
   final DashboardLoaded state;

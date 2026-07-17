@@ -6,7 +6,8 @@ import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 class StatsGrid extends StatelessWidget {
   final DashboardStats s;
   final bool isWide;
-  const StatsGrid({super.key, required this.s, required this.isWide});
+  final double screenWidth;
+  const StatsGrid({super.key, required this.s, required this.isWide, required this.screenWidth});
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +29,7 @@ class StatsGrid extends StatelessWidget {
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: isWide
             ? 4
-            : (MediaQuery.sizeOf(context).width > 480 ? 2 : 1),
+            : (screenWidth > 480 ? 2 : 1),
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
         childAspectRatio: isWide ? 3.0 : 2.1,

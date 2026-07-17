@@ -62,11 +62,23 @@ class TicketGridCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 6),
                             if (ticket.isStandardTicket)
-                              _GridFlag(label: 'STANDARD', fg: ThemeColors.unifiedPrimary, icon: Icons.article_rounded)
+                              _GridFlag(
+                                label: 'STANDARD',
+                                fg: ThemeColors.unifiedPrimary,
+                                icon: Icons.article_rounded,
+                              )
                             else if (ticket.isMultiTaskTicket)
-                              _GridFlag(label: 'MULTI TASK', fg: const Color(0xFF7C3AED), icon: Icons.hub_rounded),
+                              _GridFlag(
+                                label: 'MULTI TASK',
+                                fg: const Color(0xFF7C3AED),
+                                icon: Icons.hub_rounded,
+                              ),
                             if (ticket.children.isNotEmpty)
-                              _GridFlag(label: 'SUB', fg: const Color(0xFFD97706), icon: Icons.account_tree_rounded),
+                              _GridFlag(
+                                label: 'SUB',
+                                fg: const Color(0xFFD97706),
+                                icon: Icons.account_tree_rounded,
+                              ),
                           ],
                         ),
                       ),
@@ -124,7 +136,9 @@ class TicketGridCard extends StatelessWidget {
                               value: ticket.overallProgress / 100,
                               minHeight: 4,
                               backgroundColor: const Color(0xFFEDE9FE),
-                              valueColor: const AlwaysStoppedAnimation(Color(0xFF7C3AED)),
+                              valueColor: const AlwaysStoppedAnimation(
+                                Color(0xFF7C3AED),
+                              ),
                             ),
                           ),
                         ),
@@ -136,23 +150,52 @@ class TicketGridCard extends StatelessWidget {
                   ],
                   Row(
                     children: [
-                      Icon(Icons.arrow_upward_rounded, size: 11, color: ThemeColors.unifiedPrimary),
+                      Icon(
+                        Icons.arrow_upward_rounded,
+                        size: 11,
+                        color: ThemeColors.unifiedPrimary,
+                      ),
                       const SizedBox(width: 3),
-                      Text(ticket.createdByDeptCode,
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted)),
+                      Text(
+                        ticket.createdByDeptCode,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: ThemeColors.unifiedTextMuted,
+                        ),
+                      ),
                       const SizedBox(width: 6),
-                      Icon(Icons.arrow_forward_rounded, size: 11, color: ThemeColors.unifiedSecondary),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        size: 11,
+                        color: ThemeColors.unifiedSecondary,
+                      ),
                       const SizedBox(width: 3),
-                      Text(ticket.assignedDeptCode,
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted)),
+                      Text(
+                        ticket.assignedDeptCode,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: ThemeColors.unifiedTextMuted,
+                        ),
+                      ),
                       if (ticket.assignedToName != null) ...[
                         const SizedBox(width: 6),
-                        Icon(Icons.person_outline_rounded, size: 11, color: ThemeColors.unifiedTextMuted),
+                        Icon(
+                          Icons.person_outline_rounded,
+                          size: 11,
+                          color: ThemeColors.unifiedTextMuted,
+                        ),
                         const SizedBox(width: 3),
                         Flexible(
-                          child: Text(ticket.assignedToName!,
-                            style: const TextStyle(fontSize: 10, color: ThemeColors.unifiedTextMuted),
-                            overflow: TextOverflow.ellipsis),
+                          child: Text(
+                            ticket.assignedToName!,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: ThemeColors.unifiedTextMuted,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ],
@@ -209,10 +252,14 @@ class _GridJourney extends StatelessWidget {
 
   Color _roleColor(String role) {
     switch (role) {
-      case 'ORIGIN': return ThemeColors.unifiedPrimary;
-      case 'CURRENT': return ThemeColors.unifiedSecondary;
-      case 'TRANSFER': return ThemeColors.unifiedWarning;
-      default: return ThemeColors.unifiedTextMuted;
+      case 'ORIGIN':
+        return ThemeColors.unifiedPrimary;
+      case 'CURRENT':
+        return ThemeColors.unifiedSecondary;
+      case 'TRANSFER':
+        return ThemeColors.unifiedWarning;
+      default:
+        return ThemeColors.unifiedTextMuted;
     }
   }
 
@@ -232,7 +279,11 @@ class _GridJourney extends StatelessWidget {
               if (index > 0)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: Icon(Icons.chevron_right, size: 12, color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.4)),
+                  child: Icon(
+                    Icons.chevron_right,
+                    size: 12,
+                    color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.4),
+                  ),
                 ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -242,7 +293,12 @@ class _GridJourney extends StatelessWidget {
                 ),
                 child: Text(
                   role,
-                  style: TextStyle(fontSize: 8, fontWeight: FontWeight.w800, color: c, letterSpacing: 0.5),
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w800,
+                    color: c,
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],

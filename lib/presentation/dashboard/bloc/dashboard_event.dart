@@ -58,7 +58,8 @@ class MarkVersionSeen extends DashboardEvent {}
 
 class UpdateScreenSize extends DashboardEvent {
   final bool isWide;
-  UpdateScreenSize(this.isWide);
+  final double screenWidth;
+  UpdateScreenSize(this.isWide, this.screenWidth);
   @override
-  List<Object?> get props => [isWide];
+  List<Object?> get props => [isWide, screenWidth];
 }

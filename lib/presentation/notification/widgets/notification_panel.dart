@@ -59,6 +59,7 @@ class NotificationPanel extends StatelessWidget {
                 ),
                 const Spacer(),
                 BlocBuilder<NotificationBloc, NotificationState>(
+                  buildWhen: (prev, curr) => prev != curr,
                   builder: (context, state) {
                     if (state is NotificationLoaded && state.notifications.any((n) => !n.isRead)) {
                       return TextButton(
@@ -76,6 +77,7 @@ class NotificationPanel extends StatelessWidget {
             const SizedBox(height: 8),
             Expanded(
               child: BlocBuilder<NotificationBloc, NotificationState>(
+                buildWhen: (prev, curr) => prev != curr,
                 builder: (context, state) {
                   if (state is NotificationLoading) {
                     return const Center(child: CircularProgressIndicator(strokeWidth: 2));

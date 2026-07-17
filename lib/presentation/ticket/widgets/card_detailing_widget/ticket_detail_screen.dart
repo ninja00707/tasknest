@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/core/theme/common_helpers.dart';
 import 'package:tasknest/core/theme/common_loader.dart';
 import 'package:tasknest/core/theme/common_section_container.dart';
 import 'package:tasknest/core/theme/common_text.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart' hide TicketDetailLoaded;
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_event.dart';
@@ -70,6 +72,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
         }
       },
       child: BlocBuilder<TicketBloc, TicketState>(
+        buildWhen: (prev, curr) => prev != curr,
         builder: (context, state) {
           if (state is TicketDetailLoaded) {
             return _buildScaffold(state.ticket);
@@ -81,15 +84,16 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   }
 
   Widget _buildScaffold(TicketModel ticket) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isWide = screenWidth > 1000;
-    final priorityColor = ticketPriorityColor(ticket.priority);
+    final bloc = context.watch<DashboardBloc>();
+    final loaded = bloc.state is DashboardLoaded ? bloc.state as DashboardLoaded : null;
+    final screenWidth = loaded?.screenWidth ?? 1200.0;
+    final isWide = loaded?.isWide ?? true;
 
     return Scaffold(
       backgroundColor: ThemeColors.unifiedBackground,
       body: Container(
-        height: MediaQuery.sizeOf(context).height,
-        width: MediaQuery.sizeOf(context).width,
+        height: 800.0,
+        width: screenWidth,
         color: ThemeColors.unifiedBackground,
         child: SingleChildScrollView(
           child: Column(
@@ -116,7 +120,11 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                       boxShadow: isWide
                           ? [
                               BoxShadow(
-                                color: priorityColor.withValues(alpha: 0.06),
+                                color: CommonStatus.ticketPriorityColor(
+                                  ticket.status,
+                                ).withValues(alpha: 0.06),
+                                // CommonStatus.ticketStatusColor(ticket.status,),
+                                //  priorityColor.withValues(alpha: 0.06),
                                 blurRadius: 40,
                                 offset: const Offset(0, 8),
                               ),

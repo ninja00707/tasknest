@@ -18,45 +18,185 @@ class AdminDashboardLoaded extends AdminState {
   List<Object?> get props => [stats];
 }
 
-class UsersLoaded extends AdminState {
-  final List<AdminUserModel> users;
-  UsersLoaded(this.users);
+class UsersScreenState extends AdminState {
+  final List<AdminUserModel> allUsers;
+  final List<AdminUserModel> pendingUsers;
+  final int selectedTab;
+  final String searchQuery;
+  final bool showMissingCodeOnly;
+  final int page;
+
+  static const int pageSize = 30;
+
+  UsersScreenState({
+    this.allUsers = const [],
+    this.pendingUsers = const [],
+    this.selectedTab = 0,
+    this.searchQuery = '',
+    this.showMissingCodeOnly = false,
+    this.page = 0,
+  });
+
+  List<AdminUserModel> get currentUsers =>
+      selectedTab == 0 ? allUsers : pendingUsers;
+
+  List<AdminUserModel> get filteredUsers {
+    var result = currentUsers;
+    if (showMissingCodeOnly) {
+      result = result.where((u) => u.code == null || u.code!.isEmpty).toList();
+    }
+    if (searchQuery.isNotEmpty) {
+      final q = searchQuery.toLowerCase();
+      result = result
+          .where((u) =>
+              u.name.toLowerCase().contains(q) ||
+              u.email.toLowerCase().contains(q) ||
+              (u.code?.toLowerCase().contains(q) ?? false) ||
+              (u.designation?.toLowerCase().contains(q) ?? false) ||
+              (u.departmentName?.toLowerCase().contains(q) ?? false) ||
+              (u.roleName?.toLowerCase().contains(q) ?? false))
+          .toList();
+    }
+    return result;
+  }
+
+  int get totalPages =>
+      filteredUsers.isEmpty ? 1 : (filteredUsers.length / pageSize).ceil();
+
+  int get clampedPage {
+    final pages = totalPages;
+    if (page >= pages) return (pages - 1).clamp(0, pages);
+    return page;
+  }
+
+  List<AdminUserModel> get pageItems {
+    final start = clampedPage * pageSize;
+    if (start >= filteredUsers.length) return [];
+    return filteredUsers
+        .sublist(start, (start + pageSize).clamp(0, filteredUsers.length));
+  }
 
   @override
-  List<Object?> get props => [users];
+  List<Object?> get props => [
+        allUsers,
+        pendingUsers,
+        selectedTab,
+        searchQuery,
+        showMissingCodeOnly,
+        page,
+      ];
 }
 
 class DepartmentsLoaded extends AdminState {
   final List<AdminDeptModel> departments;
-  DepartmentsLoaded(this.departments);
+  final String searchQuery;
+  final int page;
+
+  static const int pageSize = 15;
+
+  DepartmentsLoaded(this.departments, {this.searchQuery = '', this.page = 1});
+
+  List<AdminDeptModel> get filtered {
+    if (searchQuery.isEmpty) return departments;
+    final q = searchQuery.toLowerCase();
+    return departments
+        .where((d) =>
+            d.name.toLowerCase().contains(q) ||
+            d.code.toLowerCase().contains(q))
+        .toList();
+  }
+
+  int get totalPages =>
+      filtered.isEmpty ? 1 : (filtered.length / pageSize).ceil();
+
+  int get clampedPage => page.clamp(1, totalPages);
+
+  List<AdminDeptModel> get displayed =>
+      filtered.skip((clampedPage - 1) * pageSize).take(pageSize).toList();
 
   @override
-  List<Object?> get props => [departments];
+  List<Object?> get props => [departments, searchQuery, page];
 }
 
 class TicketsLoaded extends AdminState {
   final List<AdminTicketModel> tickets;
   final String? filterStatus;
-  TicketsLoaded(this.tickets, {this.filterStatus});
+  final String searchQuery;
+
+  TicketsLoaded(this.tickets, {this.filterStatus, this.searchQuery = ''});
+
+  List<AdminTicketModel> get filteredTickets {
+    if (searchQuery.isEmpty) return tickets;
+    final q = searchQuery.toLowerCase();
+    return tickets
+        .where((t) =>
+            (t.ticketNumber?.toLowerCase().contains(q) ?? false) ||
+            t.title.toLowerCase().contains(q) ||
+            (t.assignedToName?.toLowerCase().contains(q) ?? false) ||
+            (t.createdByName?.toLowerCase().contains(q) ?? false) ||
+            (t.assignedDeptName?.toLowerCase().contains(q) ?? false))
+        .toList();
+  }
 
   @override
-  List<Object?> get props => [tickets, filterStatus];
-}
-
-class PendingUsersLoaded extends AdminState {
-  final List<AdminUserModel> users;
-  PendingUsersLoaded(this.users);
-
-  @override
-  List<Object?> get props => [users];
+  List<Object?> get props => [tickets, filterStatus, searchQuery];
 }
 
 class UserActivityLoaded extends AdminState {
   final List<AdminUserModel> users;
-  UserActivityLoaded(this.users);
+  final String filter;
+  final String searchQuery;
+  final int page;
+
+  static const int pageSize = 30;
+
+  UserActivityLoaded(this.users,
+      {this.filter = 'all', this.searchQuery = '', this.page = 0});
+
+  List<AdminUserModel> get filteredUsers {
+    var result = users;
+    if (searchQuery.isNotEmpty) {
+      final q = searchQuery.toLowerCase();
+      result = result
+          .where((u) =>
+              u.name.toLowerCase().contains(q) ||
+              u.email.toLowerCase().contains(q) ||
+              (u.code?.toLowerCase().contains(q) ?? false) ||
+              (u.designation?.toLowerCase().contains(q) ?? false) ||
+              (u.departmentName?.toLowerCase().contains(q) ?? false) ||
+              (u.companyName?.toLowerCase().contains(q) ?? false))
+          .toList();
+    }
+    switch (filter) {
+      case 'online':
+        return result.where((u) => u.isOnline).toList();
+      case 'loggedin':
+        return result.where((u) => u.lastActive != null && !u.isOnline).toList();
+      case 'never':
+        return result.where((u) => u.lastActive == null).toList();
+      default:
+        return result;
+    }
+  }
+
+  int get totalPages =>
+      filteredUsers.isEmpty ? 1 : (filteredUsers.length / pageSize).ceil();
+
+  int get clampedPage {
+    final pages = totalPages;
+    if (page >= pages) return (pages - 1).clamp(0, pages);
+    return page;
+  }
+
+  List<AdminUserModel> get pageItems {
+    final start = clampedPage * pageSize;
+    if (start >= filteredUsers.length) return [];
+    return filteredUsers
+        .sublist(start, (start + pageSize).clamp(0, filteredUsers.length));
+  }
 
   @override
-  List<Object?> get props => [users];
+  List<Object?> get props => [users, filter, searchQuery, page];
 }
 
 class AdminError extends AdminState {

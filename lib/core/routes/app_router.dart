@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/routes/routes_name.dart';
 import 'package:tasknest/core/routes/ticket_type_grid_args.dart';
@@ -6,12 +7,15 @@ import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/login/widget/welcome_screen.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_list.dart';
+import 'package:tasknest/presentation/ticket/widgets/bloc/ticket_list_bloc.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/presentation/admin/presentation/screens/admin_shell_screen.dart';
 import 'package:tasknest/presentation/dashboard/dashboard_screen.dart';
 import 'package:tasknest/presentation/ticket/widgets/routed_screens.dart';
 import 'package:tasknest/presentation/ticket/widgets/card_detailing_widget/ticket_detail_screen.dart';
 import 'package:tasknest/presentation/login/signup_view.dart';
+import 'package:tasknest/presentation/recent_activities/bloc/recent_activities_bloc.dart';
+import 'package:tasknest/presentation/recent_activities/widget/recent_activities_content.dart';
 
 final LocalStorageService storage = LocalStorageService();
 UserModel? _user;
@@ -73,7 +77,10 @@ final GoRouter appRouter = GoRouter(
         ),
         GoRoute(
           path: RouteNames.recentActivities,
-          builder: (context, state) => RecentActivitiesContent(user: _user!),
+          builder: (context, state) => BlocProvider(
+            create: (_) => RecentActivitiesBloc(),
+            child: const RecentActivitiesContent(),
+          ),
         ),
         GoRoute(
           path: RouteNames.ticketTypes,
@@ -102,13 +109,23 @@ final GoRouter appRouter = GoRouter(
             backgroundColor: ThemeColors.unifiedSurface,
             surfaceTintColor: ThemeColors.unifiedSurface,
           ),
-          body: TicketListWidget(
-            tickets: args.tickets,
-            config: TicketListConfig(
-              viewType: TicketViewType.grid,
-              cardStyle: TicketCardStyle.full,
-              emptyTitle: 'No tickets found.',
-              user: args.user,
+          body: BlocProvider(
+            create: (_) => TicketListBloc(
+              tickets: args.tickets,
+              config: TicketListConfig(
+                viewType: TicketViewType.grid,
+                cardStyle: TicketCardStyle.full,
+                emptyTitle: 'No tickets found.',
+                user: args.user,
+              ),
+            ),
+            child: TicketListBody(
+              config: TicketListConfig(
+                viewType: TicketViewType.grid,
+                cardStyle: TicketCardStyle.full,
+                emptyTitle: 'No tickets found.',
+                user: args.user,
+              ),
             ),
           ),
         );

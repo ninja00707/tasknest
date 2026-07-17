@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/core/theme/common_helpers.dart';
 import 'package:tasknest/core/theme/common_section_container.dart';
-import 'package:tasknest/core/theme/common_status_color.dart';
 import 'package:tasknest/core/theme/common_text.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/ticket/widgets/card_detailing_widget/common_baged.dart';
@@ -15,19 +14,19 @@ class TicketDetailHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final priorityColor = ticketPriorityColor(ticket.priority);
-    final statusColor = ticketStatusColor(ticket.status);
+    // final priorityColor = ticketPriorityColor(ticket.priority);
+    // final statusColor = ticketStatusColor(ticket.status);
 
     return Container(
       decoration: BoxDecoration(
-        color: CommonStatusColor.statusColor(
+        color: CommonStatus.ticketStatusColor(
           ticket.status,
         ).withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: ThemeColors.unifiedBorder, width: 1),
         boxShadow: [
           BoxShadow(
-            color: CommonStatusColor.statusColor(
+            color: CommonStatus.ticketStatusColor(
               ticket.status,
             ).withValues(alpha: 0.04),
             blurRadius: 8,
@@ -42,7 +41,7 @@ class TicketDetailHeader extends StatelessWidget {
           Container(
             width: 4,
             decoration: BoxDecoration(
-              color: priorityColor,
+              color: CommonStatus.ticketPriorityColor(ticket.priority),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(12),
                 bottomLeft: Radius.circular(12),
@@ -96,8 +95,11 @@ class TicketDetailHeader extends StatelessWidget {
                         color: ThemeColors.unifiedPrimary,
                       ),
                       //Ticket Status Badge
-                      CommonBadge(label: ticket.status, color: statusColor),
+                      CommonBadge(
+                        label: ticket.status,
 
+                        color: CommonStatus.ticketStatusColor(ticket.status),
+                      ),
                       // if (ticket.isOverdue) const _OverdueBadge(),
                     ],
                   ),

@@ -172,7 +172,7 @@ class _CommentSectionState extends State<CommentSection> {
           else
             ConstrainedBox(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.55,
+                maxHeight: 600.0,
               ),
               child: CommonListViewBuilder(
                 shrinkWrap: false,

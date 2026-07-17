@@ -5,7 +5,7 @@ import 'package:tasknest/core/constant/changelog.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/constant/name_by_id.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
-import 'package:tasknest/data/datasource/socket_service.dart';
+import 'package:tasknest/data/datasource/socket_helper.dart';
 import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
@@ -67,14 +67,14 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   Timer? _socketDebounce;
 
   Future<void> _initSocket() async {
-    if (_socketInitialized && SocketService().isConnected) return;
+    if (_socketInitialized && SocketHelper().isConnected) return;
 
     final token = await LocalStorageService().getToken();
     final user = await LocalStorageService().getUser();
 
     if (!_socketInitialized) {
       _socketSub?.cancel();
-      _socketSub = SocketService().events.listen((event) {
+      _socketSub = SocketHelper().events.listen((event) {
         if (isClosed) return;
         if (event.type == 'SOCKET_CONNECTED') {
           final loaded = _getLoadedStateOrNull();
@@ -92,6 +92,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
             event.type == 'TICKET_STATUS_UPDATED' ||
             event.type == 'TICKET_REOPENED' ||
             event.type == 'TICKET_UPDATED' ||
+            event.type == 'TICKET_CLOSED' ||
+            event.type == 'COMMENT_ADDED' ||
             event.type == 'SUB_TICKET_CREATED' ||
             event.type == 'SUB_TICKET_ASSIGNED' ||
             event.type == 'SUB_TICKET_PROGRESS' ||
@@ -125,7 +127,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     }
 
     if (token != null && user != null) {
-      SocketService().connect(
+      SocketHelper().connect(
         token,
         userId: user.id,
         departmentId: user.departmentId,
@@ -383,7 +385,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     _socketSub = null;
     _socketDebounce = null;
     _socketInitialized = false;
-    SocketService().disconnect();
+    SocketHelper().disconnect();
     emit(DashboardInitial());
   }
 
@@ -410,8 +412,8 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     Emitter<DashboardState> emit,
   ) {
     final loaded = _getLoadedStateOrNull();
-    if (loaded != null && loaded.isWide != event.isWide) {
-      emit(loaded.copyWith(isWide: event.isWide));
+    if (loaded != null) {
+      emit(loaded.copyWith(isWide: event.isWide, screenWidth: event.screenWidth));
     }
   }
 }

@@ -31,6 +31,7 @@ class _LoginCardState extends State<LoginCard> {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
+      buildWhen: (prev, curr) => prev != curr,
       builder: (context, state) {
         return Form(
           key: _formKey,

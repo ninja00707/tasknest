@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/core/theme/common_helpers.dart';
 import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
@@ -139,7 +139,7 @@ class FilterBarWidget extends StatelessWidget {
                 return FilterChip(
                   label: s.name == 'All' ? 'All' : s.name.replaceAll('_', ' '),
                   active: active,
-                  color: ticketStatusColor(s.name),
+                  color: CommonStatus.ticketStatusColor(s.name),
                   onTap: () => context.read<DashboardBloc>().add(
                     FilterTickets(
                       status: s.name == 'All' ? null : s.name,
@@ -285,7 +285,7 @@ class FilterBarWidget extends StatelessWidget {
                   child: PriorityDot(
                     label: p.name[0].toUpperCase() + p.name.substring(1),
                     active: active,
-                    color: ticketPriorityColor(p.name),
+                    color: CommonStatus.ticketPriorityColor(p.name),
                     onTap: () => context.read<DashboardBloc>().add(
                       FilterTickets(
                         status: state.filterStatus,

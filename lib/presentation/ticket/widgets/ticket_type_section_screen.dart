@@ -22,7 +22,7 @@ class TicketTypeSectionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.sizeOf(context).width > 600;
+    final isWide = state.isWide;
 
     final types = [
       _TypeData(

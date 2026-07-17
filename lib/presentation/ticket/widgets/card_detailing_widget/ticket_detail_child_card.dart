@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/core/theme/common_status_color.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
 class ChildDetailCard extends StatelessWidget {
@@ -8,7 +8,7 @@ class ChildDetailCard extends StatelessWidget {
   const ChildDetailCard({super.key, required this.child});
 
   void _showDetailDialog(BuildContext context) {
-    final statusColor = CommonStatusColor.statusColor(child.status);
+    final statusColor = CommonStatus.ticketStatusColor(child.status);
     final statusBg = statusColor.withValues(alpha: 0.12);
 
     showDialog(
@@ -149,7 +149,7 @@ class ChildDetailCard extends StatelessWidget {
                             Icons.flag_outlined,
                             'Priority',
                             child.priority.toUpperCase(),
-                            valueColor: CommonStatusColor.statusColor(
+                            valueColor: CommonStatus.ticketPriorityColor(
                               child.priority,
                             ),
                           ),
@@ -332,7 +332,7 @@ class ChildDetailCard extends StatelessWidget {
                   width: 10,
                   height: 10,
                   decoration: BoxDecoration(
-                    color: CommonStatusColor.statusColor(child.status),
+                    color: CommonStatus.ticketStatusColor(child.status),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -355,7 +355,7 @@ class ChildDetailCard extends StatelessWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: CommonStatusColor.statusColor(
+                    color: CommonStatus.ticketStatusColor(
                       child.status,
                     ).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(6),
@@ -365,7 +365,7 @@ class ChildDetailCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w800,
-                      color: CommonStatusColor.statusColor(child.status),
+                      color: CommonStatus.ticketStatusColor(child.status),
                       letterSpacing: 0.3,
                     ),
                   ),

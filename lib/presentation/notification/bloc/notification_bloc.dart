@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:tasknest/data/datasource/socket_service.dart';
+import 'package:tasknest/data/datasource/socket_helper.dart';
 import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
 import 'package:tasknest/presentation/notification/models/notification_model.dart';
 import 'package:injectable/injectable.dart';
@@ -102,9 +102,9 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   }
 
   Future<void> _initSocket() async {
-    if (_socketInitialized && SocketService().isConnected) return;
+    if (_socketInitialized && SocketHelper().isConnected) return;
     _socketSub?.cancel();
-    _socketSub = SocketService().events.listen((event) {
+    _socketSub = SocketHelper().events.listen((event) {
       if (isClosed) return;
       if (event.type == 'SOCKET_CONNECTED') return;
       if (event.type == 'NOTIFICATION_COUNT') {

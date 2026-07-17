@@ -11,6 +11,8 @@ import 'package:tasknest/presentation/login/bloc/login_bloc.dart';
 import 'package:tasknest/presentation/login/bloc/login_state.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/crud/update/update_dialog.dart';
+import 'package:tasknest/presentation/ticket_card_module/bloc/ticket_card_bloc.dart';
+import 'package:tasknest/presentation/ticket_card_module/bloc/ticket_card_event.dart';
 
 class DashboardScreen extends StatelessWidget {
   final UserModel user;
@@ -110,9 +112,12 @@ class DashboardScreen extends StatelessWidget {
         ),
       );
     }
-    if (state is DashboardLoaded && state.shouldShowUpdateDialog) {
-      context.read<DashboardBloc>().add(MarkVersionSeen());
-      showUpdateDialog(context);
+    if (state is DashboardLoaded) {
+      context.read<TicketCardBloc>().add(InitializeTicketTracking(state.tickets));
+      if (state.shouldShowUpdateDialog) {
+        context.read<DashboardBloc>().add(MarkVersionSeen());
+        showUpdateDialog(context);
+      }
     }
   }
 }
@@ -140,8 +145,8 @@ class _ResponsiveDashboard extends StatelessWidget {
                         : currentState is TicketDetailLoaded
                             ? currentState.previousState
                             : null;
-            if (loaded != null && loaded.isWide != isWide) {
-              bloc.add(UpdateScreenSize(isWide));
+            if (loaded != null && (loaded.isWide != isWide || loaded.screenWidth != constraints.maxWidth)) {
+              bloc.add(UpdateScreenSize(isWide, constraints.maxWidth));
             }
           }
         });

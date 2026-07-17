@@ -5,10 +5,11 @@ import 'package:tasknest/core/constant/scroll_to_load_more.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_list.dart';
+import 'package:tasknest/presentation/ticket/widgets/bloc/ticket_list_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/dashboard/widgets/dashboard_view.dart';
-import 'package:tasknest/presentation/ticket/crud/create/create_ticket.dart';
+import 'package:tasknest/presentation/create_ticket_module/create_ticket_module.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_Listview.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_type_section_screen.dart';
 
@@ -31,6 +32,7 @@ class DashboardViewContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<DashboardBloc, DashboardState>(
+      buildWhen: (prev, curr) => prev != curr,
       builder: (context, state) {
         final loaded = _tryResolve(state);
         if (loaded == null) return _loading();
@@ -47,6 +49,7 @@ class DepartmentTicketsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<DashboardBloc, DashboardState>(
+      buildWhen: (prev, curr) => prev != curr,
       builder: (context, state) {
         final loaded = _tryResolve(state);
         if (loaded == null) return _loading();
@@ -61,9 +64,14 @@ class DepartmentTicketsContent extends StatelessWidget {
         final myTickets = loaded.tickets
             .where((t) => t.assignedToId == user.id)
             .toList();
-        return TicketListWidget(
-          tickets: myTickets,
-          config: TicketListConfig.myTickets(user: user),
+        return BlocProvider(
+          create: (_) => TicketListBloc(
+            tickets: myTickets,
+            config: TicketListConfig.myTickets(user: user),
+            isWide: loaded.isWide,
+            screenWidth: loaded.screenWidth,
+          ),
+          child: TicketListBody(config: TicketListConfig.myTickets(user: user)),
         );
       },
     );
@@ -87,36 +95,21 @@ class SentSubTicketsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<DashboardBloc, DashboardState>(
+      buildWhen: (prev, curr) => prev != curr,
       builder: (context, state) {
         final loaded = _tryResolve(state);
         if (loaded == null) return _loading();
         if (user.roleId == 0 || user.roleId == 3) {
           return const Center(child: Text(ConstStrings.invalidSection));
         }
-        return TicketListWidget(
-          tickets: loaded.sentTickets,
-          config: TicketListConfig.sentSubTickets(user: user),
-        );
-      },
-    );
-  }
-}
-
-class RecentActivitiesContent extends StatelessWidget {
-  final UserModel user;
-  const RecentActivitiesContent({super.key, required this.user});
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<DashboardBloc, DashboardState>(
-      builder: (context, state) {
-        final loaded = _tryResolve(state);
-        if (loaded == null) return _loading();
-        final recent = [...loaded.tickets]
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        return TicketListWidget(
-          tickets: recent,
-          config: TicketListConfig.recentActivity(),
+        return BlocProvider(
+          create: (_) => TicketListBloc(
+            tickets: loaded.sentTickets,
+            config: TicketListConfig.sentSubTickets(user: user),
+            isWide: loaded.isWide,
+            screenWidth: loaded.screenWidth,
+          ),
+          child: TicketListBody(config: TicketListConfig.sentSubTickets(user: user)),
         );
       },
     );
@@ -130,6 +123,7 @@ class TicketTypesContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<DashboardBloc, DashboardState>(
+      buildWhen: (prev, curr) => prev != curr,
       builder: (context, state) {
         final loaded = _tryResolve(state);
         if (loaded == null) return _loading();

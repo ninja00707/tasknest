@@ -1,172 +1,85 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/constant/common_listview_builder.dart';
 import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/core/theme/common_helpers.dart';
 import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
-import 'package:tasknest/presentation/ticket/widgets/ticket_card.dart';
+import 'package:tasknest/presentation/ticket_card_module/widget/ticket_card.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_grid_card.dart';
+import 'package:tasknest/presentation/ticket/widgets/bloc/ticket_list_bloc.dart';
+import 'package:tasknest/presentation/ticket/widgets/bloc/ticket_list_event.dart';
+import 'package:tasknest/presentation/ticket/widgets/bloc/ticket_list_state.dart';
 import 'config.dart';
 
-// ══════════════════════════════════════════════════════════════════════════════
-// UNIVERSAL TICKET LIST WIDGET
-// ══════════════════════════════════════════════════════════════════════════════
-class TicketListWidget extends StatefulWidget {
-  final List<TicketModel> tickets;
-  final TicketListConfig config;
+class TicketListWidget extends StatelessWidget {
+  final String configKey;
+  final Widget child;
 
   const TicketListWidget({
     super.key,
-    required this.tickets,
-    required this.config,
+    required this.configKey,
+    required this.child,
   });
 
   @override
-  State<TicketListWidget> createState() => _TicketListWidgetState();
+  Widget build(BuildContext context) => child;
 }
 
-class _TicketListWidgetState extends State<TicketListWidget> {
-  String _filter = 'All';
-  int _page = 1;
+class TicketListBody extends StatelessWidget {
+  final TicketListConfig config;
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
-
-  List<TicketModel> get _sorted {
-    final list = List<TicketModel>.from(widget.tickets);
-    list.sort((a, b) {
-      final p = CommonStatus.priorityWeight(a.priority).compareTo(CommonStatus.priorityWeight(b.priority));
-      if (p != 0) return p;
-      return CommonStatus.statusWeight(a.status).compareTo(CommonStatus.statusWeight(b.status));
-    });
-    return list;
-  }
-
-  String _filterToStatus(String filter) {
-    switch (filter) {
-      case 'All':          return '';
-      case 'Open':         return 'open';
-      case 'In Progress':  return 'in_progress';
-      case 'Completed':    return 'completed';
-      case 'Closed':       return 'closed';
-      default:             return filter.toLowerCase().replaceAll(' ', '_');
-    }
-  }
-
-  List<TicketModel> get _filtered {
-    final s = _filterToStatus(_filter);
-    if (s.isEmpty) return _sorted;
-    return _sorted.where((t) => t.status == s).toList();
-  }
-
-  int get _totalPages {
-    if (!widget.config.enablePagination) return 1;
-    final count = _filtered.length;
-    if (count == 0) return 1;
-    return (count / widget.config.pageSize).ceil().clamp(1, 9999);
-  }
-
-  List<TicketModel> get _paged {
-    final all = _filtered;
-    if (!widget.config.enablePagination) return all;
-    final total = _totalPages;
-    if (_page > total) _page = total;
-    final start = (_page - 1) * widget.config.pageSize;
-    final end = start + widget.config.pageSize;
-    return all.sublist(start, end > all.length ? all.length : end);
-  }
-
-  List<TicketModel> get _pageTickets => _paged;
-
-  @override
-  void didUpdateWidget(TicketListWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.tickets != widget.tickets) {
-      final total = _totalPages;
-      if (_page > total) _page = total;
-    }
-  }
-
-  // ── Tap handler ─────────────────────────────────────────────────────────
-
-  void _onTap(TicketModel t) {
-    if (widget.config.onTap != null) {
-      widget.config.onTap!(t);
-    } else {
-      context.push('/ticket/${t.id}');
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // BUILD
-  // ═══════════════════════════════════════════════════════════════════════
+  const TicketListBody({super.key, required this.config});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ── Header ──────────────────────────────────────────────────
-        if (widget.config.headerStyle != TicketHeaderStyle.none ||
-            widget.config.customHeader != null)
-          _buildHeader(),
+    return BlocBuilder<TicketListBloc, TicketListState>(
+      buildWhen: (prev, curr) => prev != curr,
+      builder: (context, state) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (config.headerStyle != TicketHeaderStyle.none ||
+                config.customHeader != null)
+              _buildHeader(context, state),
 
-        // ── Filter tabs ─────────────────────────────────────────────
-        if (widget.config.enableFilters &&
-            widget.config.statusTabs != null &&
-            widget.config.viewType != TicketViewType.kanban)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-            child: _FilterTabs(
-              tabs: widget.config.statusTabs!,
-              active: _filter,
-              onChanged: (v) => setState(() {
-                _filter = v;
-                _page = 1;
-              }),
-            ),
-          ),
+            if (config.enableFilters &&
+                config.statusTabs != null &&
+                config.viewType != TicketViewType.kanban)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                child: _FilterTabs(
+                  tabs: config.statusTabs!,
+                  active: state.currentFilter,
+                  onChanged: (v) => context.read<TicketListBloc>().add(FilterChanged(v)),
+                ),
+              ),
 
-        // ── Body ────────────────────────────────────────────────────
-        Expanded(
-          child: _buildBody(),
-        ),
-      ],
+            Expanded(child: _buildBody(context, state)),
+          ],
+        );
+      },
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // HEADER
-  // ═══════════════════════════════════════════════════════════════════════
+  Widget _buildHeader(BuildContext context, TicketListState state) {
+    if (config.customHeader != null) return config.customHeader!;
 
-  Widget _buildHeader() {
-    if (widget.config.customHeader != null) {
-      return widget.config.customHeader!;
-    }
-
-    final all = widget.tickets;
-
-    switch (widget.config.headerStyle) {
+    switch (config.headerStyle) {
       case TicketHeaderStyle.myTickets:
-        int open = 0, inProgress = 0, completed = 0;
-        for (final t in all) {
-          if (t.status == 'open') { open++; }
-          else if (t.status == 'in_progress') { inProgress++; }
-          else if (t.status == 'completed') { completed++; }
-        }
         return _GradientHeader(
           icon: Icons.assignment_ind_rounded,
           gradientColors: const [Color(0xFF0EA5E9), Color(0xFF06B6D4)],
           title: ConstStrings.navMyTickets,
-          subtitle: '${all.length} assigned tickets',
+          subtitle: '${state.allTickets.length} assigned tickets',
           stats: [
-            _StatData(label: 'Open',       count: open,       color: ThemeColors.unifiedSecondary),
-            _StatData(label: 'In Progress', count: inProgress,  color: ThemeColors.unifiedWarning),
-            _StatData(label: 'Completed',  count: completed,   color: ThemeColors.unifiedAccent),
+            _StatData(label: 'Open', count: state.openCount, color: ThemeColors.unifiedSecondary),
+            _StatData(label: 'In Progress', count: state.inProgressCount, color: ThemeColors.unifiedWarning),
+            _StatData(label: 'Completed', count: state.completedCount, color: ThemeColors.unifiedAccent),
           ],
         );
 
@@ -175,21 +88,19 @@ class _TicketListWidgetState extends State<TicketListWidget> {
           icon: Icons.history_rounded,
           gradientColors: const [Color(0xFF10B981), Color(0xFF34D399)],
           title: ConstStrings.navRecentActivities,
-          subtitle: '$all tickets · sorted by newest first',
+          subtitle: '${state.allTickets.length} tickets · sorted by newest first',
         );
 
       case TicketHeaderStyle.sentSubTickets:
-        final pending = all.where((t) => t.status == 'open' || t.status == 'in_progress').length;
-        final completed = all.where((t) => t.status == 'completed' || t.status == 'closed').length;
         return _GradientHeader(
           icon: Icons.hub_outlined,
           gradientColors: const [Color(0xFF7C3AED), Color(0xFFA855F7)],
           title: ConstStrings.navSentSubTickets,
-          subtitle: '$all tickets forwarded to other departments',
+          subtitle: '${state.allTickets.length} tickets forwarded to other departments',
           stats: [
-            _StatData(label: 'Total Sent', count: all.length,    color: const Color(0xFF7C3AED)),
-            _StatData(label: 'Active',     count: pending,       color: ThemeColors.unifiedWarning),
-            _StatData(label: 'Completed',  count: completed,     color: ThemeColors.unifiedAccent),
+            _StatData(label: 'Total Sent', count: state.allTickets.length, color: const Color(0xFF7C3AED)),
+            _StatData(label: 'Active', count: state.pendingCount, color: ThemeColors.unifiedWarning),
+            _StatData(label: 'Completed', count: state.sentCompletedCount, color: ThemeColors.unifiedAccent),
           ],
         );
 
@@ -198,36 +109,30 @@ class _TicketListWidgetState extends State<TicketListWidget> {
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // BODY
-  // ═══════════════════════════════════════════════════════════════════════
-
-  Widget _buildBody() {
-    final all = _pageTickets;
+  Widget _buildBody(BuildContext context, TicketListState state) {
+    final all = state.pagedTickets;
 
     if (all.isEmpty) {
       return _EmptyState(
-        icon: widget.config.emptyIcon,
-        title: widget.config.emptyTitle,
-        subtitle: widget.config.emptySubtitle,
+        icon: config.emptyIcon,
+        title: config.emptyTitle,
+        subtitle: config.emptySubtitle,
       );
     }
 
-    switch (widget.config.viewType) {
+    switch (config.viewType) {
       case TicketViewType.grid:
-        return _buildGrid(all);
+        return _buildGrid(context, all, state);
       case TicketViewType.timeline:
-        return _buildTimeline(all);
+        return _buildTimeline(context, all);
       case TicketViewType.kanban:
-        return _buildKanban();
+        return _buildKanban(context, state);
       case TicketViewType.list:
-        return _buildList();
+        return _buildList(context, state);
     }
   }
 
-  // ── Grid ──────────────────────────────────────────────────────────────
-
-  Widget _buildGrid(List<TicketModel> tickets) {
+  Widget _buildGrid(BuildContext context, List<TicketModel> tickets, TicketListState state) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Column(
@@ -249,7 +154,6 @@ class _TicketListWidgetState extends State<TicketListWidget> {
                   itemBuilder: (context, rowIndex) {
                     final start = rowIndex * crossAxisCount;
                     final end = (start + crossAxisCount).clamp(0, tickets.length);
-
                     return Padding(
                       padding: EdgeInsets.only(bottom: rowIndex < rowCount - 1 ? spacing : 0),
                       child: Row(
@@ -260,9 +164,9 @@ class _TicketListWidgetState extends State<TicketListWidget> {
                               padding: EdgeInsets.only(right: i < end - 1 ? spacing : 0),
                               child: SizedBox(
                                 width: cardWidth,
-                                child: widget.config.cardStyle == TicketCardStyle.compact
+                                child: config.cardStyle == TicketCardStyle.compact
                                     ? TicketGridCard(ticket: tickets[i])
-                                    : TicketCard(ticket: tickets[i], user: widget.config.user),
+                                    : TicketCard(ticket: tickets[i], user: config.user),
                               ),
                             ),
                         ],
@@ -273,15 +177,13 @@ class _TicketListWidgetState extends State<TicketListWidget> {
               },
             ),
           ),
-          _buildPagination(),
+          _buildPagination(context, state),
         ],
       ),
     );
   }
 
-  // ── Timeline ───────────────────────────────────────────────────────────
-
-  Widget _buildTimeline(List<TicketModel> tickets) {
+  Widget _buildTimeline(BuildContext context, List<TicketModel> tickets) {
     return Column(
       children: [
         Expanded(
@@ -290,32 +192,25 @@ class _TicketListWidgetState extends State<TicketListWidget> {
             shrinkWrap: false,
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            itemBuilder: (context, t, index) => _TimelineCard(
-              ticket: t,
-              onTap: () => _onTap(t),
-            ),
+            itemBuilder: (context, t, index) =>
+                _TimelineCard(ticket: t, onTap: () => _onTap(context, t)),
           ),
         ),
-        _buildPagination(),
+        _buildPagination(context, context.read<TicketListBloc>().state),
       ],
     );
   }
 
-  // ── Kanban ─────────────────────────────────────────────────────────────
-
-  Widget _buildKanban() {
-    final all = widget.tickets;
+  Widget _buildKanban(BuildContext context, TicketListState state) {
     const statuses = ['open', 'in_progress', 'completed', 'closed'];
-
     final grouped = <String, List<TicketModel>>{};
     for (final s in statuses) {
-      final list = all.where((t) => t.status == s).toList()
+      grouped[s] = state.allTickets.where((t) => t.status == s).toList()
         ..sort((a, b) => CommonStatus.priorityWeight(a.priority).compareTo(CommonStatus.priorityWeight(b.priority)));
-      grouped[s] = list;
     }
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.65,
+      height: state.screenWidth * 0.65,
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       child: ListView(
         scrollDirection: Axis.horizontal,
@@ -325,19 +220,16 @@ class _TicketListWidgetState extends State<TicketListWidget> {
             status: status,
             label: CommonStatus.statusLabel(status),
             tickets: tickets,
-            onTap: (t) => _onTap(t),
+            onTap: (t) => _onTap(context, t),
           );
         }).toList(),
       ),
     );
   }
 
-  // ── List (grouped by status) ─────────────────────────────────────────
-
-  Widget _buildList() {
-    final all = widget.tickets;
+  Widget _buildList(BuildContext context, TicketListState state) {
     const statusFlow = ['open', 'in_progress', 'completed', 'closed'];
-    final visible = all.where((t) => statusFlow.contains(t.status));
+    final visible = state.allTickets.where((t) => statusFlow.contains(t.status));
     final grouped = <String, List<TicketModel>>{};
     for (final t in visible) {
       grouped.putIfAbsent(t.status, () => []).add(t);
@@ -347,8 +239,7 @@ class _TicketListWidgetState extends State<TicketListWidget> {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final crossAxisCount = constraints.maxWidth > 1200 ? 3
-              : constraints.maxWidth > 700 ? 2 : 1;
+          final crossAxisCount = constraints.maxWidth > 1200 ? 3 : constraints.maxWidth > 700 ? 2 : 1;
           const spacing = 12.0;
           final cardWidth = (constraints.maxWidth - spacing * (crossAxisCount - 1)) / crossAxisCount;
 
@@ -368,15 +259,17 @@ class _TicketListWidgetState extends State<TicketListWidget> {
                           Wrap(
                             spacing: spacing,
                             runSpacing: spacing,
-                            children: grouped[status]!.map((t) => SizedBox(
-                              width: cardWidth,
-                              child: TicketCard(ticket: t, user: widget.config.user),
-                            )).toList(),
+                            children: grouped[status]!
+                                .map((t) => SizedBox(
+                                      width: cardWidth,
+                                      child: TicketCard(ticket: t, user: config.user),
+                                    ))
+                                .toList(),
                           ),
                         ],
                       ),
                     ),
-                _buildPagination(),
+                _buildPagination(context, state),
               ],
             ),
           );
@@ -385,14 +278,10 @@ class _TicketListWidgetState extends State<TicketListWidget> {
     );
   }
 
-  // ── Pagination ─────────────────────────────────────────────────────────
-
-  Widget _buildPagination() {
-    if (!widget.config.enablePagination) return const SizedBox.shrink();
-    final total = _totalPages;
+  Widget _buildPagination(BuildContext context, TicketListState state) {
+    if (!config.enablePagination) return const SizedBox.shrink();
+    final total = state.totalPages;
     if (total <= 1) return const SizedBox.shrink();
-    final tickets = widget.config.enableFilters ? _filtered : _sorted;
-    if (tickets.length <= widget.config.pageSize) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -402,8 +291,8 @@ class _TicketListWidgetState extends State<TicketListWidget> {
           _PageBtn(
             icon: Icons.chevron_left,
             label: ConstStrings.previous,
-            disabled: _page <= 1,
-            onTap: () => setState(() => _page--),
+            disabled: state.currentPage <= 1,
+            onTap: () => context.read<TicketListBloc>().add(PageChanged(state.currentPage - 1)),
           ),
           const SizedBox(width: 12),
           Container(
@@ -414,28 +303,34 @@ class _TicketListWidgetState extends State<TicketListWidget> {
               border: Border.all(color: ThemeColors.unifiedBorder.withValues(alpha: 0.5)),
             ),
             child: Text(
-              'Page $_page of $total',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: ThemeColors.unifiedTextMuted),
+              'Page ${state.currentPage} of $total',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: ThemeColors.unifiedTextMuted,
+              ),
             ),
           ),
           const SizedBox(width: 12),
           _PageBtn(
             icon: Icons.chevron_right,
             label: ConstStrings.next,
-            disabled: _page >= total,
-            onTap: () => setState(() => _page++),
+            disabled: state.currentPage >= total,
+            onTap: () => context.read<TicketListBloc>().add(PageChanged(state.currentPage + 1)),
           ),
         ],
       ),
     );
   }
+
+  void _onTap(BuildContext context, TicketModel t) {
+    if (config.onTap != null) {
+      config.onTap!(t);
+    } else {
+      context.push('/ticket/${t.id}');
+    }
+  }
 }
-
-// ══════════════════════════════════════════════════════════════════════════════
-// INTERNAL WIDGETS
-// ══════════════════════════════════════════════════════════════════════════════
-
-// ── Gradient header ───────────────────────────────────────────────────────────
 
 class _StatData {
   final String label;
@@ -461,7 +356,7 @@ class _GradientHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width > 900;
+    final isWide = context.select<TicketListBloc, bool>((b) => b.state.isWide);
     return Padding(
       padding: EdgeInsets.fromLTRB(isWide ? 28 : 16, isWide ? 28 : 16, isWide ? 28 : 16, 0),
       child: Column(
@@ -482,11 +377,9 @@ class _GradientHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary)),
+                    Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary)),
                     const SizedBox(height: 2),
-                    Text(subtitle,
-                      style: AppTextStyles.bodySmallMuted),
+                    Text(subtitle, style: AppTextStyles.bodySmallMuted),
                   ],
                 ),
               ),
@@ -495,12 +388,9 @@ class _GradientHeader extends StatelessWidget {
           if (stats != null) ...[
             const SizedBox(height: 18),
             Row(
-              children: stats!.map((s) => Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 10),
-                  child: _MiniStat(label: s.label, count: s.count, color: s.color),
-                ),
-              )).toList(),
+              children: stats!
+                  .map((s) => Expanded(child: Padding(padding: const EdgeInsets.only(right: 10), child: _MiniStat(label: s.label, count: s.count, color: s.color))))
+                  .toList(),
             ),
           ],
         ],
@@ -535,18 +425,12 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-// ── Filter tabs ────────────────────────────────────────────────────────────────
-
 class _FilterTabs extends StatelessWidget {
   final List<String> tabs;
   final String active;
   final ValueChanged<String> onChanged;
 
-  const _FilterTabs({
-    required this.tabs,
-    required this.active,
-    required this.onChanged,
-  });
+  const _FilterTabs({required this.tabs, required this.active, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -564,18 +448,9 @@ class _FilterTabs extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isActive ? ThemeColors.unifiedPrimary : ThemeColors.unifiedSurface,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isActive ? ThemeColors.unifiedPrimary : ThemeColors.unifiedBorder,
-                  ),
+                  border: Border.all(color: isActive ? ThemeColors.unifiedPrimary : ThemeColors.unifiedBorder),
                 ),
-                child: Text(
-                  t,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: isActive ? Colors.white : ThemeColors.unifiedTextMuted,
-                  ),
-                ),
+                child: Text(t, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isActive ? Colors.white : ThemeColors.unifiedTextMuted)),
               ),
             ),
           );
@@ -585,18 +460,12 @@ class _FilterTabs extends StatelessWidget {
   }
 }
 
-// ── Empty state ────────────────────────────────────────────────────────────────
-
 class _EmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? subtitle;
 
-  const _EmptyState({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-  });
+  const _EmptyState({required this.icon, required this.title, this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -608,18 +477,10 @@ class _EmptyState extends StatelessWidget {
           children: [
             Icon(icon, size: 64, color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.3)),
             const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted),
-              textAlign: TextAlign.center,
-            ),
+            Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted), textAlign: TextAlign.center),
             if (subtitle != null) ...[
               const SizedBox(height: 4),
-              Text(
-                subtitle!,
-                style: AppTextStyles.caption,
-                textAlign: TextAlign.center,
-              ),
+              Text(subtitle!, style: AppTextStyles.caption, textAlign: TextAlign.center),
             ],
           ],
         ),
@@ -627,8 +488,6 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
-
-// ── Pagination button ──────────────────────────────────────────────────────────
 
 class _PageBtn extends StatelessWidget {
   final IconData icon;
@@ -636,18 +495,11 @@ class _PageBtn extends StatelessWidget {
   final bool disabled;
   final VoidCallback onTap;
 
-  const _PageBtn({
-    required this.icon,
-    required this.label,
-    required this.disabled,
-    required this.onTap,
-  });
+  const _PageBtn({required this.icon, required this.label, required this.disabled, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final color = disabled
-        ? ThemeColors.unifiedTextMuted.withValues(alpha: 0.3)
-        : ThemeColors.unifiedPrimary;
+    final color = disabled ? ThemeColors.unifiedTextMuted.withValues(alpha: 0.3) : ThemeColors.unifiedPrimary;
     return GestureDetector(
       onTap: disabled ? null : onTap,
       child: Container(
@@ -655,24 +507,14 @@ class _PageBtn extends StatelessWidget {
         decoration: BoxDecoration(
           color: disabled ? ThemeColors.unifiedBackground : ThemeColors.unifiedSurface,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: disabled
-                ? ThemeColors.unifiedBorder.withValues(alpha: 0.5)
-                : ThemeColors.unifiedPrimary.withValues(alpha: 0.3),
-          ),
+          border: Border.all(color: disabled ? ThemeColors.unifiedBorder.withValues(alpha: 0.5) : ThemeColors.unifiedPrimary.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (icon == Icons.chevron_left) ...[
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 4),
-            ],
+            if (icon == Icons.chevron_left) ...[Icon(icon, size: 16, color: color), const SizedBox(width: 4)],
             Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
-            if (icon == Icons.chevron_right) ...[
-              const SizedBox(width: 4),
-              Icon(icon, size: 16, color: color),
-            ],
+            if (icon == Icons.chevron_right) ...[const SizedBox(width: 4), Icon(icon, size: 16, color: color)],
           ],
         ),
       ),
@@ -680,15 +522,12 @@ class _PageBtn extends StatelessWidget {
   }
 }
 
-// ── Timeline card (internal, no go_router dependency needed) ──────────────────
-
 class _TimelineCard extends StatelessWidget {
   final TicketModel ticket;
   final VoidCallback onTap;
-
   const _TimelineCard({required this.ticket, required this.onTap});
 
-  Color get _tint => ticketStatusColor(ticket.status);
+  Color get _tint => CommonStatus.ticketStatusColor(ticket.status);
 
   IconData get _icon {
     if (ticket.isMultiTaskTicket) return Icons.hub_rounded;
@@ -704,105 +543,78 @@ class _TimelineCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-            // Timeline dot + line
-            SizedBox(
-              width: 32,
-              child: Column(
-                children: [
-                  Container(
-                    width: 28, height: 28,
-                    decoration: BoxDecoration(
-                      color: _tint.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: _tint.withValues(alpha: 0.4), width: 2),
-                    ),
-                    child: Icon(_icon, size: 13, color: _tint),
-                  ),
-                  Expanded(
-                    child: Container(
-                      width: 2,
-                      color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
-                    ),
-                  ),
-                ],
-              ),
+          SizedBox(
+            width: 32,
+            child: Column(
+              children: [
+                Container(
+                  width: 28, height: 28,
+                  decoration: BoxDecoration(color: _tint.withValues(alpha: 0.12), shape: BoxShape.circle, border: Border.all(color: _tint.withValues(alpha: 0.4), width: 2)),
+                  child: Icon(_icon, size: 13, color: _tint),
+                ),
+                Expanded(child: Container(width: 2, color: ThemeColors.unifiedBorder.withValues(alpha: 0.5))),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: GestureDetector(
-                onTap: onTap,
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: ThemeColors.unifiedSurface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: ThemeColors.unifiedBorder.withValues(alpha: 0.7)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            ticket.ticketNumber.isNotEmpty ? ticket.ticketNumber : '#${ticket.id}',
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: ThemeColors.unifiedTextMuted),
-                          ),
-                          const SizedBox(width: 6),
-                          PriorityBadge(priority: ticket.priority),
-                          const SizedBox(width: 4),
-                          StatusBadge(status: ticket.status),
-                          const Spacer(),
-                          Text(dateStr, style: AppTextStyles.micro),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        ticket.title,
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ThemeColors.unifiedTextPrimary),
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                      ),
-                      if (ticket.description.isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Text(ticket.description,
-                          style: const TextStyle(fontSize: 11, color: ThemeColors.unifiedTextMuted),
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: GestureDetector(
+              onTap: onTap,
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: ThemeColors.unifiedSurface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: ThemeColors.unifiedBorder.withValues(alpha: 0.7)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(ticket.ticketNumber.isNotEmpty ? ticket.ticketNumber : '#${ticket.id}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: ThemeColors.unifiedTextMuted)),
+                        const SizedBox(width: 6),
+                        PriorityBadge(priority: ticket.priority),
+                        const SizedBox(width: 4),
+                        StatusBadge(status: ticket.status),
+                        const Spacer(),
+                        Text(dateStr, style: AppTextStyles.micro),
                       ],
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(Icons.arrow_upward_rounded, size: 11, color: ThemeColors.unifiedPrimary),
-                          const SizedBox(width: 3),
-                          Text(ticket.createdByDeptCode,
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted)),
-                          const SizedBox(width: 6),
-                          Icon(Icons.arrow_forward_rounded, size: 11, color: ThemeColors.unifiedSecondary),
-                          const SizedBox(width: 3),
-                          Text(ticket.assignedDeptCode,
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted)),
-                          if (ticket.assignedToName != null) ...[
-                            const SizedBox(width: 6),
-                            Icon(Icons.person_outline_rounded, size: 11, color: ThemeColors.unifiedTextMuted),
-                            const SizedBox(width: 3),
-                            Flexible(
-                              child: Text(ticket.assignedToName!,
-                                style: AppTextStyles.micro,
-                                overflow: TextOverflow.ellipsis),
-                            ),
-                          ],
-                        ],
-                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(ticket.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: ThemeColors.unifiedTextPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    if (ticket.description.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(ticket.description, style: const TextStyle(fontSize: 11, color: ThemeColors.unifiedTextMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
-                  ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.arrow_upward_rounded, size: 11, color: ThemeColors.unifiedPrimary),
+                        const SizedBox(width: 3),
+                        Text(ticket.createdByDeptCode, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted)),
+                        const SizedBox(width: 6),
+                        Icon(Icons.arrow_forward_rounded, size: 11, color: ThemeColors.unifiedSecondary),
+                        const SizedBox(width: 3),
+                        Text(ticket.assignedDeptCode, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: ThemeColors.unifiedTextMuted)),
+                        if (ticket.assignedToName != null) ...[
+                          const SizedBox(width: 6),
+                          Icon(Icons.person_outline_rounded, size: 11, color: ThemeColors.unifiedTextMuted),
+                          const SizedBox(width: 3),
+                          Flexible(child: Text(ticket.assignedToName!, style: AppTextStyles.micro, overflow: TextOverflow.ellipsis)),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
+          ),
+        ],
       ),
     );
   }
 }
-
-// ── Kanban column ──────────────────────────────────────────────────────────────
 
 class _KanbanColumn extends StatelessWidget {
   final String status;
@@ -810,12 +622,7 @@ class _KanbanColumn extends StatelessWidget {
   final List<TicketModel> tickets;
   final void Function(TicketModel) onTap;
 
-  const _KanbanColumn({
-    required this.status,
-    required this.label,
-    required this.tickets,
-    required this.onTap,
-  });
+  const _KanbanColumn({required this.status, required this.label, required this.tickets, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -823,43 +630,30 @@ class _KanbanColumn extends StatelessWidget {
     return Container(
       width: 300,
       margin: const EdgeInsets.only(right: 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.15)),
-      ),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.04), borderRadius: BorderRadius.circular(14), border: Border.all(color: color.withValues(alpha: 0.15))),
       child: Column(
         children: [
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(13)),
-            ),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: const BorderRadius.vertical(top: Radius.circular(13))),
             child: Row(
               children: [
-                Container(width: 10, height: 10,
-                  decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
                 const SizedBox(width: 8),
-                Text(label,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color, letterSpacing: 0.3)),
+                Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color, letterSpacing: 0.3)),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(10)),
-                  child: Text('${tickets.length}',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color)),
+                  child: Text('${tickets.length}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color)),
                 ),
               ],
             ),
           ),
           Expanded(
             child: tickets.isEmpty
-                ? Center(
-                    child: Text(ConstStrings.noTickets,
-                      style: TextStyle(fontSize: 12, color: color.withValues(alpha: 0.4), fontWeight: FontWeight.w600)),
-                  )
+                ? Center(child: Text(ConstStrings.noTickets, style: TextStyle(fontSize: 12, color: color.withValues(alpha: 0.4), fontWeight: FontWeight.w600)))
                 : CommonListViewBuilder(
                     padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                     items: tickets,
@@ -872,17 +666,13 @@ class _KanbanColumn extends StatelessWidget {
   }
 }
 
-// ── Kanban card (internal) ──────────────────────────────────────────────────────
-
 class _KanbanCard extends StatelessWidget {
   final TicketModel ticket;
   final VoidCallback onTap;
-
   const _KanbanCard({required this.ticket, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final pColor = ticketPriorityColor(ticket.priority);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -891,41 +681,28 @@ class _KanbanCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(10),
-          border: Border(left: BorderSide(color: pColor, width: 3)),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2)),
-          ],
+          border: Border(left: BorderSide(color: CommonStatus.ticketPriorityColor(ticket.priority), width: 3)),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6, offset: const Offset(0, 2))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Flexible(
-                  child: Text(
-                    ticket.ticketNumber.isNotEmpty ? ticket.ticketNumber : '#${ticket.id}',
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF9CA3AF), letterSpacing: 0.5),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
+                Flexible(child: Text(ticket.ticketNumber.isNotEmpty ? ticket.ticketNumber : '#${ticket.id}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF9CA3AF), letterSpacing: 0.5), overflow: TextOverflow.ellipsis)),
                 const Spacer(),
-                Container(width: 8, height: 8,
-                  decoration: BoxDecoration(color: pColor, shape: BoxShape.circle)),
+                Container(width: 8, height: 8, decoration: BoxDecoration(color: CommonStatus.ticketPriorityColor(ticket.priority), shape: BoxShape.circle)),
               ],
             ),
             const SizedBox(height: 6),
-            Text(ticket.title,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1F2937), height: 1.3),
-              maxLines: 2, overflow: TextOverflow.ellipsis),
+            Text(ticket.title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1F2937), height: 1.3), maxLines: 2, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 8),
             Row(
               children: [
                 Icon(Icons.person_outline_rounded, size: 11, color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.6)),
                 const SizedBox(width: 3),
                 Expanded(
-                  child: Text(ticket.assignedToName ?? 'Unassigned',
-                    style: TextStyle(fontSize: 10, color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.7), fontWeight: FontWeight.w500),
-                    overflow: TextOverflow.ellipsis),
+                  child: Text(ticket.assignedToName ?? 'Unassigned', style: TextStyle(fontSize: 10, color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.7), fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
                 ),
               ],
             ),
@@ -936,31 +713,23 @@ class _KanbanCard extends StatelessWidget {
   }
 }
 
-// ── Status header (for list view grouping) ─────────────────────────────────────
-
 class _StatusHeader extends StatelessWidget {
   final String status;
   final int count;
-
   const _StatusHeader({required this.status, required this.count});
 
   @override
   Widget build(BuildContext context) {
-    final color = ticketStatusColor(status);
     return Row(
       children: [
-        Container(width: 10, height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(width: 10, height: 10, decoration: BoxDecoration(color: CommonStatus.ticketStatusColor(status), shape: BoxShape.circle)),
         const SizedBox(width: 8),
-          Text(
-            CommonStatus.statusLabel(status),
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary, letterSpacing: -0.1),
-        ),
+        Text(CommonStatus.statusLabel(status), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: ThemeColors.unifiedTextPrimary, letterSpacing: -0.1)),
         const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-          child: Text('$count', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: color)),
+          decoration: BoxDecoration(color: CommonStatus.ticketStatusColor(status).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+          child: Text('$count', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: CommonStatus.ticketStatusColor(status))),
         ),
         const SizedBox(width: 10),
         Expanded(child: Container(height: 1, color: ThemeColors.unifiedBorder.withValues(alpha: 0.6))),

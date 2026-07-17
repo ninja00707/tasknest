@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/core/theme/common_helpers.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
-import 'package:tasknest/presentation/ticket/widgets/ticket_card.dart';
+import 'package:tasknest/presentation/ticket_card_module/widget/ticket_card.dart';
 import 'filter_bar_widget.dart';
 import 'empty_state_widget.dart';
 
@@ -80,8 +80,7 @@ class TicketBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasFilters =
-        state.filterStatus != null ||
-        state.filterPriority != null;
+        state.filterStatus != null || state.filterPriority != null;
 
     final allSorted = _sorted(state.tickets);
 
@@ -90,7 +89,11 @@ class TicketBody extends StatelessWidget {
         filterActive: hasFilters,
         onClear: () {
           context.read<DashboardBloc>().add(
-            FilterTickets(status: null, priority: null, teamOnly: state.filterTeam),
+            FilterTickets(
+              status: null,
+              priority: null,
+              teamOnly: state.filterTeam,
+            ),
           );
         },
       );
@@ -244,13 +247,16 @@ class StatusSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = ticketStatusColor(status);
+    // final color = ticketStatusColor(status);
     return Row(
       children: [
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          decoration: BoxDecoration(
+            color: CommonStatus.ticketStatusColor(status),
+            shape: BoxShape.circle,
+          ),
         ),
         const SizedBox(width: 8),
         Text(
@@ -266,7 +272,9 @@ class StatusSectionHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
+            color: CommonStatus.ticketStatusColor(
+              status,
+            ).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
@@ -274,7 +282,7 @@ class StatusSectionHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w800,
-              color: color,
+              color: CommonStatus.ticketStatusColor(status),
             ),
           ),
         ),

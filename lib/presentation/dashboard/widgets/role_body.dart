@@ -16,7 +16,7 @@ class RoleBody extends StatelessWidget {
       case roleCEO:
       case roleManager:
       case roleDeveloper:
-        return DashboardStatsSection(s: state.stats, isWide: state.isWide);
+        return DashboardStatsSection(s: state.stats, isWide: state.isWide, screenWidth: state.screenWidth);
       default:
         return EmployeeDashboardBody(state: state, user: user);
     }

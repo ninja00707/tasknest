@@ -419,6 +419,7 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
           if (_canAssignEmployee) ...[
             const SizedBox(height: 10),
             BlocBuilder<DashboardBloc, DashboardState>(
+              buildWhen: (prev, curr) => prev != curr,
               builder: (context, state) {
                 final employees = state is DashboardLoaded
                     ? state.employees

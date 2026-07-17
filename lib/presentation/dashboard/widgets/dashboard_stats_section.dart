@@ -9,7 +9,8 @@ import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 class DashboardStatsSection extends StatelessWidget {
   final DashboardStats s;
   final bool isWide;
-  const DashboardStatsSection({super.key, required this.s, required this.isWide});
+  final double screenWidth;
+  const DashboardStatsSection({super.key, required this.s, required this.isWide, required this.screenWidth});
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +21,7 @@ class DashboardStatsSection extends StatelessWidget {
           title: ConstStrings.overview,
         ),
         const SizedBox(height: 12),
-        StatsGrid(s: s, isWide: isWide),
+        StatsGrid(s: s, isWide: isWide, screenWidth: screenWidth),
         const SizedBox(height: 28),
         CommaonSectionHeader(
           icon: Icons.av_timer_rounded,

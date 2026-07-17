@@ -25,6 +25,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AdminBloc, AdminState>(
+      buildWhen: (prev, curr) => prev != curr,
       builder: (context, state) {
         return Padding(
           padding: const EdgeInsets.all(24),

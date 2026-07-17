@@ -30,6 +30,8 @@ import 'package:tasknest/presentation/admin/domain/repositories_impl/admin_repos
     as _i470;
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_bloc.dart'
     as _i718;
+import 'package:tasknest/presentation/create_ticket_module/bloc/create_ticket_bloc.dart'
+    as _i958;
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart'
     as _i720;
 import 'package:tasknest/presentation/login/bloc/login_bloc.dart' as _i406;
@@ -65,6 +67,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i407.TicketRemoteDataSource>(),
         gh<_i346.NotificationRemoteDataSource>(),
       ),
+    );
+    gh.factory<_i958.CreateTicketBloc>(
+      () => _i958.CreateTicketBloc(gh<_i865.TicketRepositoryImpl>()),
     );
     gh.factory<_i720.DashboardBloc>(
       () => _i720.DashboardBloc(gh<_i865.TicketRepositoryImpl>()),

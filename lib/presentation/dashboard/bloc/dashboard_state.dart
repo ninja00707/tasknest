@@ -40,9 +40,28 @@ class DashboardLoaded extends DashboardState {
   final String roleName;
   final String companyName;
   final bool isWide;
+  final double screenWidth;
   final String greeting;
+  final int sentCurrentPage;
 
   late final Map<String, List<TicketModel>> groupedTickets;
+  late final List<TicketModel> sortedAllTickets;
+  late final Map<String, List<TicketModel>> groupedByStatusFromSorted;
+  late final bool hasActiveFilters;
+  late final int openCount;
+  late final int inProgressCount;
+  late final int completedCount;
+  late final int sentPendingCount;
+  late final int sentCompletedCount;
+  late final List<TicketModel> recentTickets;
+  late final List<TicketModel> standardTickets;
+  late final List<TicketModel> subTickets;
+  late final List<TicketModel> multiTaskTickets;
+  late final int standardTicketCount;
+  late final int subTicketCount;
+  late final int multiTaskTicketCount;
+  late final int sentTotalPages;
+  late final List<TicketModel> sentPagedTickets;
 
   DashboardLoaded({
     required this.stats,
@@ -64,17 +83,62 @@ class DashboardLoaded extends DashboardState {
     this.roleName = '',
     this.companyName = '',
     this.isWide = false,
+    this.screenWidth = 0,
     this.greeting = '',
+    this.sentCurrentPage = 1,
   }) {
     groupedTickets = {};
     for (final s in CommonStatus.statuses) {
       groupedTickets[s] = tickets.where((t) => t.status == s).toList()
-        ..sort(
-          (a, b) => CommonStatus.priorityWeight(
-            a.priority,
-          ).compareTo(CommonStatus.priorityWeight(b.priority)),
-        );
+        ..sort((a, b) {
+          final aTime = a.lastUpdatedAt ?? a.createdAt;
+          final bTime = b.lastUpdatedAt ?? b.createdAt;
+          return bTime.compareTo(aTime);
+        });
     }
+
+    sortedAllTickets = List<TicketModel>.from(tickets)
+      ..sort((a, b) {
+        final p = CommonStatus.priorityWeight(b.priority)
+            .compareTo(CommonStatus.priorityWeight(a.priority));
+        if (p != 0) return p;
+        return CommonStatus.statusWeight(a.status)
+            .compareTo(CommonStatus.statusWeight(b.status));
+      });
+
+    groupedByStatusFromSorted = {};
+    for (final s in CommonStatus.statuses) {
+      groupedByStatusFromSorted[s] = sortedAllTickets
+          .where((t) => t.status == s)
+          .toList();
+    }
+
+    hasActiveFilters = filterStatus != null || filterPriority != null;
+
+    openCount = tickets.where((t) => t.status == 'open').length;
+    inProgressCount = tickets.where((t) => t.status == 'in_progress').length;
+    completedCount = tickets.where((t) => t.status == 'completed').length;
+    sentPendingCount = sentTickets.where((t) => t.status != 'completed').length;
+    sentCompletedCount = sentTickets.where((t) => t.status == 'completed').length;
+
+    recentTickets = List<TicketModel>.from(tickets)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+    standardTickets = tickets.where((t) => t.isStandardTicket).toList();
+    subTickets = tickets.where((t) => t.isSubTicket).toList();
+    multiTaskTickets = tickets.where((t) => t.isMultiTaskTicket).toList();
+    standardTicketCount = standardTickets.length;
+    subTicketCount = subTickets.length;
+    multiTaskTicketCount = multiTaskTickets.length;
+
+    sentTotalPages = sentTickets.isEmpty
+        ? 1
+        : (sentTickets.length / 15).ceil().clamp(1, 9999);
+
+    final effectiveSentPage = sentCurrentPage > sentTotalPages ? sentTotalPages : sentCurrentPage;
+    final sentStart = (effectiveSentPage - 1) * 15;
+    final sentEnd = sentStart + 15;
+    sentPagedTickets = sentTickets.sublist(sentStart, sentEnd > sentTickets.length ? sentTickets.length : sentEnd);
   }
 
   static const _sentinel = _Sentinel();
@@ -99,7 +163,9 @@ class DashboardLoaded extends DashboardState {
     String? roleName,
     String? companyName,
     bool? isWide,
+    double? screenWidth,
     String? greeting,
+    int? sentCurrentPage,
   }) {
     return DashboardLoaded(
       stats: stats ?? this.stats,
@@ -127,7 +193,9 @@ class DashboardLoaded extends DashboardState {
       roleName: roleName ?? this.roleName,
       companyName: companyName ?? this.companyName,
       isWide: isWide ?? this.isWide,
+      screenWidth: screenWidth ?? this.screenWidth,
       greeting: greeting ?? this.greeting,
+      sentCurrentPage: sentCurrentPage ?? this.sentCurrentPage,
     );
   }
 
@@ -152,7 +220,9 @@ class DashboardLoaded extends DashboardState {
     roleName,
     companyName,
     isWide,
+    screenWidth,
     greeting,
+    sentCurrentPage,
   ];
 }
 

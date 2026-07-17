@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' hide FormField;
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
-import 'package:tasknest/presentation/ticket/crud/create/create_ticket_form.dart';
+import 'package:tasknest/presentation/create_ticket_module/widget/create_ticket_form.dart';
 
 class WideFormLayout extends StatelessWidget {
   final TextEditingController titleCtrl, descCtrl;

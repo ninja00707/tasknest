@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_date_format.dart';
 import 'package:tasknest/core/theme/common_section_container.dart';
-import 'package:tasknest/core/theme/common_status_color.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/ticket/widgets/card_detailing_widget/common_baged.dart';
 import 'package:tasknest/presentation/ticket/widgets/card_detailing_widget/ticket_detail_table_raw.dart';
@@ -31,9 +31,12 @@ class DetailsCard extends StatelessWidget {
             valueWidget: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: CommonStatusColor.statusColor(
+                color: CommonStatus.ticketStatusColor(
                   ticket.status,
                 ).withValues(alpha: 0.12),
+                // ticketPriorityColor.statusColor(
+                //   ticket.status,
+                // ).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
@@ -41,7 +44,7 @@ class DetailsCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
-                  color: CommonStatusColor.statusColor(ticket.status),
+                  color: CommonStatus.ticketStatusColor(ticket.status),
                 ),
               ),
             ),
@@ -51,7 +54,8 @@ class DetailsCard extends StatelessWidget {
             value: ticket.priority.toUpperCase(),
             valueWidget: CommonBadge(
               label: ticket.priority,
-              color: CommonStatusColor.statusColor(ticket.status),
+              color: CommonStatus.ticketStatusColor(ticket.status),
+              // CommonStatusColor.statusColor(ticket.status),
             ),
           ),
           DetailRow(label: 'Type', value: _typeLabel),

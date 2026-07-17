@@ -38,6 +38,7 @@ class _FirstLoginResetCardState extends State<FirstLoginResetCard> {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
+      buildWhen: (prev, curr) => prev != curr,
       builder: (context, state) {
         return Form(
           key: formKey,

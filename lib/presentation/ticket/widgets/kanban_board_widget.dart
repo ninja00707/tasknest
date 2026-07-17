@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tasknest/core/constant/common_listview_builder.dart';
 import 'package:tasknest/core/constant/common_status.dart';
-import 'package:tasknest/core/theme/common_status_color.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/ticket/widgets/tickets_column.dart';
@@ -36,7 +35,7 @@ class _KanbanBoardState extends State<KanbanBoard> {
       builder: (context, constraints) {
         final boardHeight = constraints.maxHeight.isFinite
             ? constraints.maxHeight
-            : MediaQuery.of(context).size.height * 0.75;
+            : widget.state.screenWidth * 0.75;
         return SizedBox(
           height: boardHeight,
           child: Padding(
@@ -55,7 +54,7 @@ class _KanbanBoardState extends State<KanbanBoard> {
                   return KanbanColumn(
                     status: status,
                     label: CommonStatus.statusLabel(status),
-                    color: CommonStatusColor.statusColor(status),
+                    color: CommonStatus.ticketStatusColor(status),
                     tickets: widget.state.groupedTickets[status] ?? [],
                     user: widget.user,
                   );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/core/theme/common_helpers.dart';
 import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/ticket/widgets/card_detailing_widget/appbar_print_button.dart';
@@ -12,7 +12,7 @@ class TicketDetailAppbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Widget build(TicketModel ticket) {
-    final priorityColor = ticketPriorityColor(ticket.priority);
+    // final priorityColor = ticketPriorityColor(ticket.priority);
 
     return Container(
       height: 60,
@@ -75,16 +75,25 @@ class TicketDetailAppbar extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: priorityColor.withValues(alpha: 0.08),
+              color:
+                  // CommonStatus.ticketStatusColor(
+                  //                     ticket.status,
+                  //                   )
+                  CommonStatus.ticketPriorityColor(
+                    ticket.priority,
+                  ).withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: priorityColor.withValues(alpha: 0.2),
+                color: CommonStatus.ticketPriorityColor(
+                  ticket.priority,
+                ).withValues(alpha: 0.2),
                 width: 1.5,
               ),
             ),
             child: Icon(
               Icons.confirmation_number_rounded,
-              color: priorityColor,
+              color: CommonStatus.ticketPriorityColor(ticket.priority),
+
               size: 18,
             ),
           ),

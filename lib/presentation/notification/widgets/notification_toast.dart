@@ -99,6 +99,7 @@ class LiveNotificationShell extends StatelessWidget {
             ),
           ),
         BlocBuilder<NotificationBloc, NotificationState>(
+          buildWhen: (prev, curr) => prev != curr,
           builder: (context, state) {
             if (state is! NotificationLoaded || state.toasts.isEmpty) {
               return const SizedBox.shrink();

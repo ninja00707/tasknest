@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
-import 'package:tasknest/presentation/ticket/widgets/ticket_card.dart';
+import 'package:tasknest/presentation/ticket_card_module/widget/ticket_card.dart';
 
 class TicketTypeGridScreen extends StatelessWidget {
   final List<TicketModel> tickets;

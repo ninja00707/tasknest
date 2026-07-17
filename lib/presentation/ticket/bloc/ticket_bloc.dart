@@ -55,6 +55,9 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     try {
       final updated = await _dataSource.selfAssign(event.ticketId);
       _lastLoadedTicket = updated;
+      if (updated.parentTicketId != null) {
+        await _promoteParentIfOpen(updated.parentTicketId!);
+      }
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
@@ -89,6 +92,9 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     try {
       final updated = await _dataSource.assignToEmployee(event.ticketId, event.employeeId);
       _lastLoadedTicket = updated;
+      if (updated.parentTicketId != null) {
+        await _promoteParentIfOpen(updated.parentTicketId!);
+      }
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
@@ -207,6 +213,7 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
         departmentId: event.departmentId,
         employeeId: event.employeeId,
       );
+      await _promoteParentIfOpen(event.ticketId);
       emit(TicketActionSuccess('Department work assigned!'));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
@@ -220,10 +227,20 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     emit(TicketActionInProgress());
     try {
       await _dataSource.selfAssignSubDept(event.ticketId, event.departmentId);
+      await _promoteParentIfOpen(event.ticketId);
       emit(TicketActionSuccess('Task self-assigned!'));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
     }
+  }
+
+  Future<void> _promoteParentIfOpen(int ticketId) async {
+    try {
+      final ticket = await _dataSource.getTicket(ticketId);
+      if (ticket.status == 'open') {
+        await _dataSource.updateStatus(ticketId, 'in_progress');
+      }
+    } catch (_) {}
   }
 
   Future<void> _onReopenSubDept(

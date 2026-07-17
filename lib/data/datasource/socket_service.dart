@@ -78,16 +78,19 @@ class SocketService {
     _socket!.onDisconnect((reason) {
       _isConnected = false;
       _connecting = false;
+      print('[Socket] Disconnected: $reason');
     });
 
     _socket!.onConnectError((err) {
       _isConnected = false;
       _connecting = false;
+      print('[Socket] Connect error: $err');
     });
 
     _socket!.onError((err) {
       _isConnected = false;
       _connecting = false;
+      print('[Socket] Error: $err');
     });
 
     _socket!.onReconnect((_) {
@@ -136,8 +139,12 @@ class SocketService {
       _eventController.add(SocketEvent('COMMENT_ADDED', data));
     });
 
-    _socket!.on('NOTIFICATION', (data) {
-      _eventController.add(SocketEvent('NOTIFICATION', data));
+    _socket!.on('TICKET_CLOSED', (data) {
+      _eventController.add(SocketEvent('TICKET_CLOSED', data));
+    });
+
+    _socket!.on('TICKET_VIEWED', (data) {
+      _eventController.add(SocketEvent('TICKET_VIEWED', data));
     });
 
     _socket!.on('NOTIFICATION_COUNT', (data) {
