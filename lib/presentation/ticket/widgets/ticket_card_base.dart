@@ -47,7 +47,8 @@ class FlagChip extends StatelessWidget {
   final Color bg, fg;
   final IconData icon;
 
-  const FlagChip({super.key, 
+  const FlagChip({
+    super.key,
     required this.label,
     required this.bg,
     required this.fg,
@@ -88,7 +89,8 @@ class MetaChip extends StatelessWidget {
   final Color iconColor;
   final String label;
 
-  const MetaChip({super.key, 
+  const MetaChip({
+    super.key,
     required this.icon,
     required this.iconColor,
     required this.label,
@@ -136,12 +138,20 @@ class MetaDivider extends StatelessWidget {
 class SubTicketProgressSection extends StatelessWidget {
   final TicketModel ticket;
   final UserModel user;
-  const SubTicketProgressSection({super.key, required this.ticket, required this.user});
+  const SubTicketProgressSection({
+    super.key,
+    required this.ticket,
+    required this.user,
+  });
 
   @override
   Widget build(BuildContext context) {
     final myDeptTask = ticket.subDeptFor(user.departmentId);
     final isManager = user.roleId == 1 || user.roleId == 0 || user.roleId == 3;
+    final isCreator = user.id == ticket.createdById;
+    final allSubDeptsCompleted =
+        ticket.subDepartments.isNotEmpty &&
+        ticket.subDepartments.every((dept) => dept.isCompleted);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,6 +244,74 @@ class SubTicketProgressSection extends StatelessWidget {
           ),
         ],
         // ── Action Row for My Department (Multi Task) ────────────────
+        // ── Creator Actions (Mark as Done / Finalize & Close) ─────────
+        if (isCreator && allSubDeptsCompleted && !ticket.isCompleted) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF059669).withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: const Color(0xFF059669).withValues(alpha: 0.2),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'All departments completed! Take action:',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF059669),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: !ticket.isCompleted
+                            ? () => context.read<TicketBloc>().add(
+                                MarkTicketAsDone(ticket.id),
+                              )
+                            : null,
+                        icon: const Icon(Icons.check_circle_outline, size: 14),
+                        label: const Text('Mark as Done'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF059669),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          textStyle: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: !ticket.isCompleted
+                            ? () => context.read<TicketBloc>().add(
+                                FinalizeTicket(ticket.id),
+                              )
+                            : null,
+                        icon: const Icon(Icons.verified_outlined, size: 14),
+                        label: const Text('Finalize & Close'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF7C3AED),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          textStyle: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+
         if (myDeptTask != null && !myDeptTask.isCompleted) ...[
           const SizedBox(height: 12),
           Container(
@@ -315,9 +393,9 @@ class SubTicketProgressSection extends StatelessWidget {
     if (loadedState == null) return;
 
     if (loadedState.employees.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text(ConstStrings.noEmployeesInDept)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(ConstStrings.noEmployeesInDept)),
+      );
       return;
     }
 
@@ -391,7 +469,11 @@ class SmallActionBtn extends StatelessWidget {
 class ChildTicketsList extends StatelessWidget {
   final List<ChildTicketModel> children;
   final UserModel user;
-  const ChildTicketsList({super.key, required this.children, required this.user});
+  const ChildTicketsList({
+    super.key,
+    required this.children,
+    required this.user,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -399,7 +481,9 @@ class ChildTicketsList extends StatelessWidget {
       decoration: BoxDecoration(
         color: ThemeColors.unifiedBackground.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ThemeColors.unifiedBorder.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -432,82 +516,82 @@ class ChildTicketsList extends StatelessWidget {
             items: children,
             padding: EdgeInsets.zero,
             itemBuilder: (_, child, index) {
-                final isLast = index == children.length - 1;
+              final isLast = index == children.length - 1;
 
-                return GestureDetector(
-                  onTap: () => context.push('/ticket/${child.id}'),
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: ThemeColors.unifiedPrimary.withValues(
-                                  alpha: 0.1,
-                                ),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                child.ticketNumber.isNotEmpty
-                                    ? child.ticketNumber
-                                    : '#${child.id}',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  color: ThemeColors.unifiedPrimary,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    child.title,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: ThemeColors.unifiedTextPrimary,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  Text(
-                                    'Dept: ${child.deptCode} • ${child.assigneeName ?? "Unassigned"}',
-                                    style: AppTextStyles.micro,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            TicketActions(ticket: child, user: user),
-                            const SizedBox(width: 8),
-                            StatusBadge(status: child.status),
-                          ],
-                        ),
+              return GestureDetector(
+                onTap: () => context.push('/ticket/${child.id}'),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                      if (!isLast)
-                        Divider(
-                          height: 1,
-                          color: ThemeColors.unifiedBorder.withValues(alpha: 0.3),
-                          indent: 12,
-                          endIndent: 12,
-                        ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: ThemeColors.unifiedPrimary.withValues(
+                                alpha: 0.1,
+                              ),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              child.ticketNumber.isNotEmpty
+                                  ? child.ticketNumber
+                                  : '#${child.id}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: ThemeColors.unifiedPrimary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  child.title,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: ThemeColors.unifiedTextPrimary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  'Dept: ${child.deptCode} • ${child.assigneeName ?? "Unassigned"}',
+                                  style: AppTextStyles.micro,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          TicketActions(ticket: child, user: user),
+                          const SizedBox(width: 8),
+                          StatusBadge(status: child.status),
+                        ],
+                      ),
+                    ),
+                    if (!isLast)
+                      Divider(
+                        height: 1,
+                        color: ThemeColors.unifiedBorder.withValues(alpha: 0.3),
+                        indent: 12,
+                        endIndent: 12,
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -526,7 +610,9 @@ class DeptJourneySection extends StatelessWidget {
       decoration: BoxDecoration(
         color: ThemeColors.unifiedBackground.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: ThemeColors.unifiedBorder.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -641,7 +727,9 @@ class DeptJourneySection extends StatelessWidget {
                         child: Icon(
                           Icons.arrow_forward_ios_rounded,
                           size: 10,
-                          color: ThemeColors.unifiedBorder.withValues(alpha: 0.8),
+                          color: ThemeColors.unifiedBorder.withValues(
+                            alpha: 0.8,
+                          ),
                         ),
                       ),
                   ],
