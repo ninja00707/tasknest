@@ -16,15 +16,21 @@ class SocketManager {
   bool _connecting = false;
 
   // ── Stream controllers for multiplexed events ──────────────────────────
-  final _ticketCreatedController = StreamController<Map<String, dynamic>>.broadcast();
-  final _ticketUpdatedController = StreamController<Map<String, dynamic>>.broadcast();
-  final _notificationController = StreamController<Map<String, dynamic>>.broadcast();
+  final _ticketCreatedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _ticketUpdatedController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  final _notificationController =
+      StreamController<Map<String, dynamic>>.broadcast();
   final _connectionController = StreamController<bool>.broadcast();
 
   // ── Public streams ─────────────────────────────────────────────────────
-  Stream<Map<String, dynamic>> get ticketCreated => _ticketCreatedController.stream;
-  Stream<Map<String, dynamic>> get ticketUpdated => _ticketUpdatedController.stream;
-  Stream<Map<String, dynamic>> get notificationNew => _notificationController.stream;
+  Stream<Map<String, dynamic>> get ticketCreated =>
+      _ticketCreatedController.stream;
+  Stream<Map<String, dynamic>> get ticketUpdated =>
+      _ticketUpdatedController.stream;
+  Stream<Map<String, dynamic>> get notificationNew =>
+      _notificationController.stream;
   Stream<bool> get connectionStatus => _connectionController.stream;
 
   bool get isConnected => _connected;
@@ -88,6 +94,16 @@ class SocketManager {
       }
     });
 
+    // ticket:status-changed — granular status update events (for parent chain propagation)
+    _socket!.on('ticket:status-changed', (data) {
+      try {
+        final map = _parseData(data);
+        if (map != null) _ticketUpdatedController.add(map);
+      } catch (e) {
+        debugPrint('[SocketManager] ticket:status-changed parse error: $e');
+      }
+    });
+
     _socket!.on('notification:new', (data) {
       try {
         final map = _parseData(data);
@@ -99,21 +115,25 @@ class SocketManager {
   }
 
   /// Emit a ticket action with ack callback.
-  void emitTicketAction(String action, int ticketId,
-      {Map<String, dynamic>? params, Function(Map<String, dynamic>)? onAck}) {
+  void emitTicketAction(
+    String action,
+    int ticketId, {
+    Map<String, dynamic>? params,
+    Function(Map<String, dynamic>)? onAck,
+  }) {
     if (_socket == null || !_connected) return;
 
-    final payload = {
-      'action': action,
-      'ticketId': ticketId,
-      ...?params,
-    };
+    final payload = {'action': action, 'ticketId': ticketId, ...?params};
 
-    _socket!.emitWithAck('ticket:action', payload, ack: (response) {
-      if (onAck != null && response is Map) {
-        onAck(Map<String, dynamic>.from(response));
-      }
-    });
+    _socket!.emitWithAck(
+      'ticket:action',
+      payload,
+      ack: (response) {
+        if (onAck != null && response is Map) {
+          onAck(Map<String, dynamic>.from(response));
+        }
+      },
+    );
   }
 
   /// Join a ticket detail room for live updates.

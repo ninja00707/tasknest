@@ -35,8 +35,12 @@ class TransferTicket extends TicketEvent {
   final int targetDeptId;
   final String? title;
   final String? description;
-  TransferTicket(this.ticketId, this.targetDeptId,
-      {this.title, this.description});
+  TransferTicket(
+    this.ticketId,
+    this.targetDeptId, {
+    this.title,
+    this.description,
+  });
   @override
   List<Object?> get props => [ticketId, targetDeptId, title, description];
 }
@@ -58,10 +62,10 @@ class DeptTicketData {
     required this.description,
   });
   Map<String, dynamic> toJson() => {
-        'department_id': departmentId,
-        'title': title,
-        'description': description,
-      };
+    'department_id': departmentId,
+    'title': title,
+    'description': description,
+  };
 }
 
 class CreateTicketEvent extends TicketEvent {
@@ -97,10 +101,20 @@ class CreateTicketEvent extends TicketEvent {
 
   @override
   List<Object?> get props => [
-        title, description, priority, departmentIds, createdById, createdByDept,
-        dueDate, assignedToId, parentTicketId, selfAssign, subTitle,
-        subDescription, deptTickets,
-      ];
+    title,
+    description,
+    priority,
+    departmentIds,
+    createdById,
+    createdByDept,
+    dueDate,
+    assignedToId,
+    parentTicketId,
+    selfAssign,
+    subTitle,
+    subDescription,
+    deptTickets,
+  ];
 }
 
 class CreateSubTicketEvent extends TicketEvent {
@@ -122,8 +136,13 @@ class CreateSubTicketEvent extends TicketEvent {
 
   @override
   List<Object?> get props => [
-        title, description, priority, departments, dueDate, parentTicketId,
-      ];
+    title,
+    description,
+    priority,
+    departments,
+    dueDate,
+    parentTicketId,
+  ];
 }
 
 class UpdateSubDeptProgressEvent extends TicketEvent {
@@ -191,9 +210,10 @@ class AddTicketComment extends TicketEvent {
 
 class LoadTicketDetail extends TicketEvent {
   final int ticketId;
-  LoadTicketDetail(this.ticketId);
+  final bool silent;
+  LoadTicketDetail(this.ticketId, {this.silent = false});
   @override
-  List<Object?> get props => [ticketId];
+  List<Object?> get props => [ticketId, silent];
 }
 
 class ClearTicketDetail extends TicketEvent {}
@@ -203,4 +223,25 @@ class SocketTicketDetailUpdated extends TicketEvent {
   SocketTicketDetailUpdated(this.ticket);
   @override
   List<Object?> get props => [ticket.id, ticket.status, ticket.lastUpdatedAt];
+}
+
+class MarkTicketAsDone extends TicketEvent {
+  final int ticketId;
+  MarkTicketAsDone(this.ticketId);
+  @override
+  List<Object?> get props => [ticketId];
+}
+
+class FinalizeTicket extends TicketEvent {
+  final int ticketId;
+  FinalizeTicket(this.ticketId);
+  @override
+  List<Object?> get props => [ticketId];
+}
+
+class CloseTicket extends TicketEvent {
+  final int ticketId;
+  CloseTicket(this.ticketId);
+  @override
+  List<Object?> get props => [ticketId];
 }

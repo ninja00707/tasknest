@@ -8,11 +8,32 @@ class TicketService {
     if (!childTicket.parent_ticket_id) return [];
 
     if (newStatus === 'in_progress') {
-      return await ticketRepo.updateParentChain(childTicket.parent_ticket_id, 'in_progress');
+      const updatedParents = await ticketRepo.updateParentChain(childTicket.parent_ticket_id, 'in_progress');
+      // Broadcast the parent ticket update so dashboard/ticket lists refresh live
+      if (updatedParents && updatedParents.length > 0) {
+        for (const parent of updatedParents) {
+          const parentTicket = await ticketRepo.getTicketById(parent.id, user, true);
+          if (parentTicket) {
+            // Use the child ticket's ticketId for the broadcast room so all viewers see it
+            broadcast('ticket:updated', parentTicket, parentTicket.id, user.id);
+          }
+        }
+      }
+      return updatedParents;
     }
 
     if (newStatus === 'completed' || newStatus === 'closed') {
-      return await ticketRepo.getParentChain(childTicket.parent_ticket_id);
+      const parents = await ticketRepo.getParentChain(childTicket.parent_ticket_id);
+      // Broadcast each parent's update as well so they move columns live
+      if (parents && parents.length > 0) {
+        for (const parent of parents) {
+          const parentTicket = await ticketRepo.getTicketById(parent.id, user, true);
+          if (parentTicket) {
+            broadcast('ticket:updated', parentTicket, parentTicket.id, user.id);
+          }
+        }
+      }
+      return parents;
     }
 
     return [];

@@ -33,6 +33,9 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     on<LoadTicketDetail>(_onLoadTicketDetail);
     on<ClearTicketDetail>(_onClearTicketDetail);
     on<SocketTicketDetailUpdated>(_onSocketTicketDetailUpdated);
+    on<MarkTicketAsDone>(_onMarkTicketAsDone);
+    on<FinalizeTicket>(_onFinalizeTicket);
+    on<CloseTicket>(_onCloseTicket);
   }
 
   void initLiveUpdates(int ticketId) {
@@ -46,9 +49,12 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
         final ticketData = data['ticket'];
         if (ticketData == null) return;
         final ticketIdFromData = data['ticketId'];
-        if (ticketIdFromData != null && ticketIdFromData != _currentTicketId) return;
+        if (ticketIdFromData != null && ticketIdFromData != _currentTicketId)
+          return;
 
-        final ticket = TicketModel.fromJson(Map<String, dynamic>.from(ticketData));
+        final ticket = TicketModel.fromJson(
+          Map<String, dynamic>.from(ticketData),
+        );
         add(SocketTicketDetailUpdated(ticket));
       } catch (e) {
         debugPrint('[TicketBloc] socket ticket:updated error: $e');
@@ -102,7 +108,8 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
       }
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
-      if (_lastLoadedTicket != null) emit(TicketDetailLoaded(_lastLoadedTicket!));
+      if (_lastLoadedTicket != null)
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
     }
   }
 
@@ -121,7 +128,8 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
-      if (_lastLoadedTicket != null) emit(TicketDetailLoaded(_lastLoadedTicket!));
+      if (_lastLoadedTicket != null)
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
     }
   }
 
@@ -131,7 +139,10 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
   ) async {
     emit(TicketActionInProgress());
     try {
-      final updated = await _dataSource.assignToEmployee(event.ticketId, event.employeeId);
+      final updated = await _dataSource.assignToEmployee(
+        event.ticketId,
+        event.employeeId,
+      );
       _lastLoadedTicket = updated;
       if (updated.parentTicketId != null) {
         await _promoteParentIfOpen(updated.parentTicketId!);
@@ -144,7 +155,8 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
       }
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
-      if (_lastLoadedTicket != null) emit(TicketDetailLoaded(_lastLoadedTicket!));
+      if (_lastLoadedTicket != null)
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
     }
   }
 
@@ -164,14 +176,12 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
-      if (_lastLoadedTicket != null) emit(TicketDetailLoaded(_lastLoadedTicket!));
+      if (_lastLoadedTicket != null)
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
     }
   }
 
-  Future<void> _onReopen(
-    ReopenTicket event,
-    Emitter<TicketState> emit,
-  ) async {
+  Future<void> _onReopen(ReopenTicket event, Emitter<TicketState> emit) async {
     emit(TicketActionInProgress());
     try {
       final updated = await _dataSource.reopenTicket(event.ticketId);
@@ -179,7 +189,8 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
-      if (_lastLoadedTicket != null) emit(TicketDetailLoaded(_lastLoadedTicket!));
+      if (_lastLoadedTicket != null)
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
     }
   }
 
@@ -225,7 +236,8 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
         parentTicketId: event.parentTicketId,
       );
       // Re-fetch parent ticket to show new sub-ticket
-      if (event.parentTicketId != null && _currentTicketId == event.parentTicketId) {
+      if (event.parentTicketId != null &&
+          _currentTicketId == event.parentTicketId) {
         final refreshed = await _dataSource.getTicket(event.parentTicketId!);
         _lastLoadedTicket = refreshed;
         emit(TicketDetailLoaded(refreshed));
@@ -349,7 +361,8 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
       emit(TicketDetailLoaded(updated));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
-      if (_lastLoadedTicket != null) emit(TicketDetailLoaded(_lastLoadedTicket!));
+      if (_lastLoadedTicket != null)
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
     }
   }
 
@@ -357,7 +370,9 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     LoadTicketDetail event,
     Emitter<TicketState> emit,
   ) async {
-    emit(TicketActionInProgress());
+    if (!event.silent) {
+      emit(TicketActionInProgress());
+    }
     try {
       final ticket = await _dataSource.getTicket(event.ticketId);
       _lastLoadedTicket = ticket;
@@ -365,7 +380,9 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
       initLiveUpdates(event.ticketId);
       emit(TicketDetailLoaded(ticket));
     } catch (e) {
-      emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (!event.silent) {
+        emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      }
       if (_lastLoadedTicket != null) {
         emit(TicketDetailLoaded(_lastLoadedTicket!));
       }
@@ -385,11 +402,75 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     emit(TicketInitial());
   }
 
-  void _onSocketTicketDetailUpdated(SocketTicketDetailUpdated event, Emitter<TicketState> emit) {
+  void _onSocketTicketDetailUpdated(
+    SocketTicketDetailUpdated event,
+    Emitter<TicketState> emit,
+  ) {
     final currentState = state;
-    if (currentState is TicketDetailLoaded && currentState.ticket.id == event.ticket.id) {
+    if (currentState is TicketDetailLoaded &&
+        currentState.ticket.id == event.ticket.id) {
       _lastLoadedTicket = event.ticket;
       emit(TicketDetailLoaded(event.ticket));
+    }
+  }
+
+  Future<void> _onMarkTicketAsDone(
+    MarkTicketAsDone event,
+    Emitter<TicketState> emit,
+  ) async {
+    emit(TicketActionInProgress());
+    try {
+      final updated = await _dataSource.updateStatus(
+        event.ticketId,
+        'completed',
+        remark: 'Marked as done by creator',
+      );
+      _lastLoadedTicket = updated;
+      emit(TicketDetailLoaded(updated));
+    } catch (e) {
+      emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (_lastLoadedTicket != null)
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
+    }
+  }
+
+  Future<void> _onFinalizeTicket(
+    FinalizeTicket event,
+    Emitter<TicketState> emit,
+  ) async {
+    emit(TicketActionInProgress());
+    try {
+      final updated = await _dataSource.updateStatus(
+        event.ticketId,
+        'closed',
+        remark: 'Finalized and closed',
+      );
+      _lastLoadedTicket = updated;
+      emit(TicketDetailLoaded(updated));
+    } catch (e) {
+      emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (_lastLoadedTicket != null)
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
+    }
+  }
+
+  Future<void> _onCloseTicket(
+    CloseTicket event,
+    Emitter<TicketState> emit,
+  ) async {
+    emit(TicketActionInProgress());
+    try {
+      final updated = await _dataSource.updateStatus(
+        event.ticketId,
+        'closed',
+        remark: 'Closed',
+      );
+      _lastLoadedTicket = updated;
+      emit(TicketDetailLoaded(updated));
+    } catch (e) {
+      emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (_lastLoadedTicket != null)
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
     }
   }
 }
