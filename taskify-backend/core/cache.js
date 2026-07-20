@@ -32,7 +32,7 @@ class CacheManager {
 
   async init() {
     if (!process.env.REDIS_URL && !(process.env.REDIS_HOST && process.env.REDIS_PORT)) {
-      console.log('[Cache] No Redis config, using in-memory cache');
+
       return;
     }
     try {
@@ -51,7 +51,7 @@ class CacheManager {
       await this.redis.connect();
       console.log('[Cache] Using Redis');
     } catch (err) {
-      console.warn('[Cache] Redis unavailable, using in-memory cache');
+
       this.redis = null;
     }
   }

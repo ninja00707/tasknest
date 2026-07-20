@@ -38,6 +38,7 @@ import 'package:tasknest/presentation/login/bloc/login_bloc.dart' as _i406;
 import 'package:tasknest/presentation/notification/bloc/notification_bloc.dart'
     as _i248;
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart' as _i809;
+import 'package:tasknest/data/datasource/socket_manager.dart' as _i900;
 
 extension GetItInjectableX on _i174.GetIt {
   // initializes the registration of main-scope dependencies inside of GetIt
@@ -62,6 +63,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i91.AuthRemoteDataSource>(
       () => _i91.AuthRemoteDataSource(gh<_i365.ApiClient>()),
     );
+    gh.lazySingleton<_i900.SocketManager>(() => _i900.SocketManager());
     gh.lazySingleton<_i865.TicketRepositoryImpl>(
       () => _i865.TicketRepositoryImpl(
         gh<_i407.TicketRemoteDataSource>(),
@@ -72,10 +74,10 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i958.CreateTicketBloc(gh<_i865.TicketRepositoryImpl>()),
     );
     gh.factory<_i720.DashboardBloc>(
-      () => _i720.DashboardBloc(gh<_i865.TicketRepositoryImpl>()),
+      () => _i720.DashboardBloc(gh<_i865.TicketRepositoryImpl>(), gh<_i900.SocketManager>()),
     );
     gh.factory<_i809.TicketBloc>(
-      () => _i809.TicketBloc(gh<_i865.TicketRepositoryImpl>()),
+      () => _i809.TicketBloc(gh<_i865.TicketRepositoryImpl>(), gh<_i900.SocketManager>()),
     );
     gh.lazySingleton<_i321.AuthRepositoryImpl>(
       () => _i321.AuthRepositoryImpl(

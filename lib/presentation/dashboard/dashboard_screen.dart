@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
@@ -14,10 +15,29 @@ import 'package:tasknest/presentation/ticket/crud/update/update_dialog.dart';
 import 'package:tasknest/presentation/ticket_card_module/bloc/ticket_card_bloc.dart';
 import 'package:tasknest/presentation/ticket_card_module/bloc/ticket_card_event.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   final UserModel user;
   final Widget? child;
   const DashboardScreen({super.key, required this.user, this.child});
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +68,9 @@ class DashboardScreen extends StatelessWidget {
             if (state is DashboardInitial) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (context.mounted) {
-                  context.read<DashboardBloc>().add(LoadDashboard());
+                  final bloc = context.read<DashboardBloc>();
+                  bloc.initLiveUpdates();
+                  bloc.add(LoadDashboard());
                 }
               });
               return const Scaffold(
@@ -72,7 +94,13 @@ class DashboardScreen extends StatelessWidget {
                 body: Center(child: Text(state.message)),
               );
             }
-            return _ResponsiveDashboard(user: user, child: child);
+            return ListenableProvider<ScrollController>.value(
+              value: _scrollController,
+              child: _ResponsiveDashboard(
+                user: widget.user,
+                child: widget.child,
+              ),
+            );
           },
         ),
       ),
@@ -129,6 +157,7 @@ class _ResponsiveDashboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scrollController = context.read<ScrollController>();
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 768;
@@ -154,6 +183,7 @@ class _ResponsiveDashboard extends StatelessWidget {
           user: user,
           isWide: isWide,
           child: child ?? const SizedBox.shrink(),
+          scrollController: scrollController,
         );
       },
     );

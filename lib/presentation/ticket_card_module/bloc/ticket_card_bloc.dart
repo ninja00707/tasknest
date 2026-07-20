@@ -1,23 +1,19 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:tasknest/data/datasource/socket_helper.dart';
 import 'package:tasknest/presentation/ticket_card_module/bloc/ticket_card_event.dart';
 import 'package:tasknest/presentation/ticket_card_module/bloc/ticket_card_state.dart';
 
 class TicketCardBloc extends Bloc<TicketCardEvent, TicketCardState> {
-  StreamSubscription<SocketEvent>? _socketSub;
   Timer? _pulseTimer;
   Timer? _cleanupTimer;
   final Map<int, DateTime> _updateTimestamps = {};
 
   TicketCardBloc() : super(TicketCardState.initial) {
     on<InitializeTicketTracking>(_onInitialize);
-    on<SocketTicketUpdated>(_onSocketUpdate);
     on<PulseTick>(_onPulseTick);
     on<CleanupStaleTickets>(_onCleanup);
 
     _startTimers();
-    _listenToSocket();
   }
 
   void _startTimers() {
@@ -35,28 +31,6 @@ class TicketCardBloc extends Bloc<TicketCardEvent, TicketCardState> {
     );
   }
 
-  void _listenToSocket() {
-    _socketSub = SocketHelper().events.listen((event) {
-      if (isClosed) return;
-      if (event.type == 'TICKET_CREATED' ||
-          event.type == 'TICKET_ASSIGNED' ||
-          event.type == 'TICKET_STATUS_UPDATED' ||
-          event.type == 'TICKET_REOPENED' ||
-          event.type == 'TICKET_UPDATED' ||
-          event.type == 'TICKET_CLOSED' ||
-          event.type == 'SUB_TICKET_CREATED' ||
-          event.type == 'SUB_TICKET_ASSIGNED' ||
-          event.type == 'SUB_TICKET_PROGRESS' ||
-          event.type == 'SUB_TICKET_COMPLETED' ||
-          event.type == 'SUB_TICKET_REOPENED') {
-        final data = event.data;
-        if (data is Map && data['ticketId'] != null) {
-          add(SocketTicketUpdated(data['ticketId'] as int));
-        }
-      }
-    });
-  }
-
   void _onInitialize(
     InitializeTicketTracking event,
     Emitter<TicketCardState> emit,
@@ -68,16 +42,6 @@ class TicketCardBloc extends Bloc<TicketCardEvent, TicketCardState> {
         _updateTimestamps[ticket.id] = updated;
       }
     }
-    emit(state.copyWith(
-      recentlyUpdatedIds: _updateTimestamps.keys.toSet(),
-    ));
-  }
-
-  void _onSocketUpdate(
-    SocketTicketUpdated event,
-    Emitter<TicketCardState> emit,
-  ) {
-    _updateTimestamps[event.ticketId] = DateTime.now();
     emit(state.copyWith(
       recentlyUpdatedIds: _updateTimestamps.keys.toSet(),
     ));
@@ -102,7 +66,6 @@ class TicketCardBloc extends Bloc<TicketCardEvent, TicketCardState> {
 
   @override
   Future<void> close() {
-    _socketSub?.cancel();
     _pulseTimer?.cancel();
     _cleanupTimer?.cancel();
     return super.close();

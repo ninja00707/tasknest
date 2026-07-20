@@ -6,11 +6,9 @@ let vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
 let vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
 
 if (!vapidPublicKey || !vapidPrivateKey) {
-  console.warn('[PushNotifier] VAPID keys missing in env. Generating temporary keys...');
   const keys = webpush.generateVAPIDKeys();
   vapidPublicKey = keys.publicKey;
   vapidPrivateKey = keys.privateKey;
-  console.log(`[PushNotifier] Temporary VAPID Public Key: ${vapidPublicKey}`);
 }
 
 webpush.setVapidDetails(

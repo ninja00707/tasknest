@@ -5,6 +5,8 @@ import 'package:tasknest/presentation/ticket/widgets/filter_bar_widget.dart';
 import 'package:tasknest/presentation/ticket/widgets/kanban_board_widget.dart';
 import 'package:tasknest/presentation/ticket/widgets/search_bar_widget.dart';
 
+import 'package:provider/provider.dart';
+
 class TicketListView extends StatelessWidget {
   final DashboardLoaded state;
   final UserModel user;
@@ -13,11 +15,16 @@ class TicketListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scrollController = context.read<ScrollController>();
     return Column(
       children: [
         SearchBarWidget(state: state),
         FilterBarWidget(state: state),
-        KanbanBoard(state: state, user: user),
+        KanbanBoard(
+          state: state,
+          user: user,
+          scrollController: scrollController,
+        ),
       ],
     );
   }

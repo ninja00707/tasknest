@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
 abstract class DashboardEvent extends Equatable {
   @override
@@ -64,10 +65,30 @@ class UpdateScreenSize extends DashboardEvent {
   List<Object?> get props => [isWide, screenWidth];
 }
 
-class SocketTicketEventReceived extends DashboardEvent {
-  final String type;
-  final Map<String, dynamic> data;
-  SocketTicketEventReceived(this.type, this.data);
+class UpdateLocalTicket extends DashboardEvent {
+  final TicketModel ticket;
+  UpdateLocalTicket(this.ticket);
   @override
-  List<Object?> get props => [type, data];
+  List<Object?> get props => [ticket];
+}
+
+class SocketTicketCreated extends DashboardEvent {
+  final TicketModel ticket;
+  SocketTicketCreated(this.ticket);
+  @override
+  List<Object?> get props => [ticket.id];
+}
+
+class SocketTicketUpdated extends DashboardEvent {
+  final TicketModel ticket;
+  SocketTicketUpdated(this.ticket);
+  @override
+  List<Object?> get props => [ticket.id, ticket.status, ticket.lastUpdatedAt];
+}
+
+class SocketConnectionChanged extends DashboardEvent {
+  final bool connected;
+  SocketConnectionChanged(this.connected);
+  @override
+  List<Object?> get props => [connected];
 }

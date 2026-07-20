@@ -263,6 +263,7 @@ class ConstStrings {
   static const String selfAssign = 'Self Assign';
   static const String assignToEmployee = 'Assign to Employee';
   static const String markDone = 'Mark Done';
+  static const String actionCompleted = 'Action completed successfully';
   static const String finalizeAndClose = 'Finalize & Close';
   static const String createSubTicket = 'Create Sub Ticket';
   static const String reopen = 'Reopen';

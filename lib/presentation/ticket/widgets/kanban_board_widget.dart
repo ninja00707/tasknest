@@ -5,29 +5,17 @@ import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/ticket/widgets/tickets_column.dart';
 
-class KanbanBoard extends StatefulWidget {
+class KanbanBoard extends StatelessWidget {
   final DashboardLoaded state;
   final UserModel user;
-  const KanbanBoard({super.key, required this.state, required this.user});
+  final ScrollController scrollController;
 
-  @override
-  State<KanbanBoard> createState() => _KanbanBoardState();
-}
-
-class _KanbanBoardState extends State<KanbanBoard> {
-  late final ScrollController _scrollController;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = ScrollController();
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
+  const KanbanBoard({
+    super.key,
+    required this.state,
+    required this.user,
+    required this.scrollController,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -35,18 +23,18 @@ class _KanbanBoardState extends State<KanbanBoard> {
       builder: (context, constraints) {
         final boardHeight = constraints.maxHeight.isFinite
             ? constraints.maxHeight
-            : widget.state.screenWidth * 0.75;
+            : state.screenWidth * 0.75;
         return SizedBox(
           height: boardHeight,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 64, 0),
             child: Scrollbar(
-              controller: _scrollController,
+              controller: scrollController,
               thumbVisibility: true,
               trackVisibility: true,
               scrollbarOrientation: ScrollbarOrientation.bottom,
               child: CommonListViewBuilder<String>(
-                controller: _scrollController,
+                controller: scrollController,
                 shrinkWrap: false,
                 scrollDirection: Axis.horizontal,
                 items: CommonStatus.statuses,
@@ -55,8 +43,8 @@ class _KanbanBoardState extends State<KanbanBoard> {
                     status: status,
                     label: CommonStatus.statusLabel(status),
                     color: CommonStatus.ticketStatusColor(status),
-                    tickets: widget.state.groupedTickets[status] ?? [],
-                    user: widget.user,
+                    tickets: state.groupedTickets[status] ?? [],
+                    user: user,
                   );
                 },
               ),

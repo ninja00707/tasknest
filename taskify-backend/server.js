@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 const http = require('http');
-require('./core/env'); // Load environment-specific .env
-const { setupSocketIO } = require('./socket');
+require('./core/env');
+const { setupSocket } = require('./core/socket');
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
@@ -16,9 +16,7 @@ function startServer(app) {
   app.set('port', port);
 
   const server = http.createServer(app);
-
-  const isClusterWorker = process.env.CLUSTER_WORKER === 'true';
-  const io = setupSocketIO(server, isClusterWorker);
+  const io = setupSocket(server);
   app.set('io', io);
 
   server.listen(port);

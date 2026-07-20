@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/routes/routes_name.dart';
@@ -20,7 +21,14 @@ class DashboardLayout extends StatelessWidget {
   final UserModel user;
   final Widget child;
   final bool isWide;
-  const DashboardLayout({super.key, required this.user, required this.isWide, required this.child});
+  final ScrollController scrollController;
+  const DashboardLayout({
+    super.key,
+    required this.user,
+    required this.isWide,
+    required this.child,
+    required this.scrollController,
+  });
 
   static int selectedIndex(String path) {
     if (path == RouteNames.dashboard) return 0;
@@ -123,7 +131,12 @@ class DashboardLayout extends StatelessWidget {
                             ),
                           ),
                         ),
-                        Expanded(child: child),
+                        Expanded(
+                          child: ListenableProvider<ScrollController>.value(
+                            value: scrollController,
+                            child: child,
+                          ),
+                        ),
                       ],
                     )
                   : Column(
@@ -132,7 +145,12 @@ class DashboardLayout extends StatelessWidget {
                           showMenu: true,
                           onMenuTap: () => Scaffold.of(context).openDrawer(),
                         ),
-                        Expanded(child: child),
+                        Expanded(
+                          child: ListenableProvider<ScrollController>.value(
+                            value: scrollController,
+                            child: child,
+                          ),
+                        ),
                         if (isMobile)
                           BottomNav(
                             selectedIndex: selectedIdx,

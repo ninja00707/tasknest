@@ -91,8 +91,6 @@ if (require.main === module) {
   const useCluster = process.argv.includes('--cluster');
 
   if (useCluster && isPrimary) {
-    const { setupPrimary } = require('@socket.io/cluster-adapter');
-    setupPrimary();
 
     const numWorkers = parseInt(process.env.WORKERS) || os.cpus().length;
     console.log(`🚀 Cluster mode: ${numWorkers} workers`);

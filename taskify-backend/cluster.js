@@ -8,9 +8,6 @@ const isPrimary = cluster.isPrimary !== undefined ? cluster.isPrimary : cluster.
 
 if (isPrimary) {
   // ── Master / Primary Process ──────────────────────────────────────
-  // Setup Socket.IO cluster adapter to forward events between workers
-  const { setupPrimary } = require('@socket.io/cluster-adapter');
-  setupPrimary();
 
   const numWorkers = parseInt(process.env.WORKERS) || os.cpus().length;
 
@@ -50,7 +47,6 @@ if (isPrimary) {
 
 } else {
   // ── Worker Process ────────────────────────────────────────────────
-  // Set flag so Socket.IO knows it's in a cluster worker
   process.env.CLUSTER_WORKER = 'true';
   require('./bin/www');
 }

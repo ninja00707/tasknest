@@ -68,7 +68,7 @@ class QueueManager {
         this.useBull = true;
         console.log('[Queue] Using BullMQ (Redis available)');
       } catch (err) {
-        console.warn('[Queue] Redis unavailable, using in-process queue');
+
       }
     }
   }

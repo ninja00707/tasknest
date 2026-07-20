@@ -53,13 +53,15 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   Widget build(BuildContext context) {
     return BlocListener<TicketBloc, TicketState>(
       listenWhen: (prev, curr) =>
-          curr is TicketActionSuccess || curr is TicketActionError,
+          (prev is TicketActionInProgress && curr is TicketDetailLoaded) ||
+          curr is TicketActionError,
       listener: (context, state) {
-        if (state is TicketActionSuccess) {
+        if (state is TicketDetailLoaded) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(state.message),
-              backgroundColor: ThemeColors.unifiedPrimary,
+            const SnackBar(
+              content: Text(ConstStrings.actionCompleted),
+              backgroundColor: ThemeColors.unifiedSuccess,
+              duration: Duration(seconds: 2),
             ),
           );
         } else if (state is TicketActionError) {

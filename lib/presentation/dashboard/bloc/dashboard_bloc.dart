@@ -5,7 +5,7 @@ import 'package:tasknest/core/constant/changelog.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/constant/name_by_id.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
-import 'package:tasknest/data/datasource/socket_helper.dart';
+import 'package:tasknest/data/datasource/socket_manager.dart';
 import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
@@ -15,10 +15,12 @@ import 'package:injectable/injectable.dart';
 @injectable
 class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   final TicketRepositoryImpl _dataSource;
-  StreamSubscription<SocketEvent>? _socketSub;
-  bool _socketInitialized = false;
+  final SocketManager _socketManager;
+  StreamSubscription? _ticketCreatedSub;
+  StreamSubscription? _ticketUpdatedSub;
+  StreamSubscription? _connectionSub;
 
-  DashboardBloc(this._dataSource) : super(DashboardInitial()) {
+  DashboardBloc(this._dataSource, this._socketManager) : super(DashboardInitial()) {
     on<LoadDashboard>(_onLoad);
     on<FilterTickets>(_onFilter);
     on<LoadMoreTickets>(_onLoadMore);
@@ -31,9 +33,42 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<ToggleSidebar>(_onToggleSidebar);
     on<MarkVersionSeen>(_onMarkVersionSeen);
     on<UpdateScreenSize>(_onUpdateScreenSize);
-    on<SocketTicketEventReceived>(_onSocketTicketEvent);
+    on<SocketTicketCreated>(_onSocketTicketCreated);
+    on<SocketTicketUpdated>(_onSocketTicketUpdated);
+    on<SocketConnectionChanged>(_onSocketConnectionChanged);
+  }
 
-    _initSocket();
+  void initLiveUpdates() {
+    _ticketCreatedSub = _socketManager.ticketCreated.listen((data) {
+      if (isClosed) return;
+      try {
+        final ticketData = data['ticket'];
+        if (ticketData == null) return;
+        final ticket = TicketModel.fromJson(Map<String, dynamic>.from(ticketData));
+        add(SocketTicketCreated(ticket));
+      } catch (e) {
+        debugPrint('[DashboardBloc] socket ticket:created error: $e');
+      }
+    });
+
+    _ticketUpdatedSub = _socketManager.ticketUpdated.listen((data) {
+      if (isClosed) return;
+      try {
+        final ticketData = data['ticket'];
+        if (ticketData == null) return;
+        final ticket = TicketModel.fromJson(Map<String, dynamic>.from(ticketData));
+        add(SocketTicketUpdated(ticket));
+      } catch (e) {
+        debugPrint('[DashboardBloc] socket ticket:updated error: $e');
+      }
+    });
+
+    _connectionSub = _socketManager.connectionStatus.listen((connected) {
+      if (isClosed) return;
+      add(SocketConnectionChanged(connected));
+    });
+
+    _socketManager.connect();
   }
 
   Future<void> _onUpdateNotificationCount(
@@ -64,63 +99,11 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     return null;
   }
 
-  // ── Socket ────────────────────────────────────────────────────────
-  Timer? _socketDebounce;
-
-  Future<void> _initSocket() async {
-    if (_socketInitialized && SocketHelper().isConnected) return;
-
-    final token = await LocalStorageService().getToken();
-    final user = await LocalStorageService().getUser();
-
-    if (!_socketInitialized) {
-      _socketSub?.cancel();
-      _socketSub = SocketHelper().events.listen((event) {
-        if (isClosed) return;
-        if (event.type == 'SOCKET_CONNECTED') {
-          final loaded = _getLoadedStateOrNull();
-          add(LoadDashboard(page: loaded?.currentPage ?? 1));
-          return;
-        }
-        if (event.type == 'NOTIFICATION_COUNT') {
-          final count = event.data['count'] as int?;
-          if (count != null) add(UpdateNotificationCount(count));
-          return;
-        }
-        final isTicketEvent =
-            event.type == 'TICKET_CREATED' ||
-            event.type == 'TICKET_ASSIGNED' ||
-            event.type == 'TICKET_STATUS_UPDATED' ||
-            event.type == 'TICKET_REOPENED' ||
-            event.type == 'TICKET_UPDATED' ||
-            event.type == 'TICKET_CLOSED' ||
-            event.type == 'COMMENT_ADDED' ||
-            event.type == 'SUB_TICKET_CREATED' ||
-            event.type == 'SUB_TICKET_ASSIGNED' ||
-            event.type == 'SUB_TICKET_PROGRESS' ||
-            event.type == 'SUB_TICKET_COMPLETED' ||
-            event.type == 'SUB_TICKET_REOPENED';
-        if (isTicketEvent) {
-          final data = event.data is Map ? Map<String, dynamic>.from(event.data as Map) : <String, dynamic>{};
-          add(SocketTicketEventReceived(event.type, data));
-        }
-      });
-      _socketInitialized = true;
-    }
-
-    if (token != null && user != null) {
-      SocketHelper().connect(
-        token,
-        userId: user.id,
-        departmentId: user.departmentId,
-      );
-    }
-  }
-
   @override
   Future<void> close() {
-    _socketSub?.cancel();
-    _socketDebounce?.cancel();
+    _ticketCreatedSub?.cancel();
+    _ticketUpdatedSub?.cancel();
+    _connectionSub?.cancel();
     return super.close();
   }
 
@@ -152,8 +135,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       final user = await LocalStorageService().getUser();
       if (user == null) throw Exception('User not found');
-
-      _initSocket();
 
       final prev = _getLoadedStateOrNull();
 
@@ -362,12 +343,6 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     ResetDashboardEvent event,
     Emitter<DashboardState> emit,
   ) async {
-    _socketSub?.cancel();
-    _socketDebounce?.cancel();
-    _socketSub = null;
-    _socketDebounce = null;
-    _socketInitialized = false;
-    SocketHelper().disconnect();
     emit(DashboardInitial());
   }
 
@@ -395,116 +370,54 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   ) {
     final loaded = _getLoadedStateOrNull();
     if (loaded != null) {
-      emit(loaded.copyWith(isWide: event.isWide, screenWidth: event.screenWidth));
+      emit(
+        loaded.copyWith(isWide: event.isWide, screenWidth: event.screenWidth),
+      );
     }
   }
 
-  Future<void> _onSocketTicketEvent(
-    SocketTicketEventReceived event,
-    Emitter<DashboardState> emit,
-  ) async {
+  void _onSocketTicketCreated(SocketTicketCreated event, Emitter<DashboardState> emit) {
     final loaded = _getLoadedStateOrNull();
     if (loaded == null) return;
 
-    final ticketId = event.data['ticketId'] as int?;
-    if (ticketId == null) return;
+    if (loaded.tickets.any((t) => t.id == event.ticket.id)) return;
 
-    // For new ticket creation, we immediately trigger soft background reloads.
-    if (event.type == 'TICKET_CREATED' || event.type == 'SUB_TICKET_CREATED') {
-      add(LoadDashboard(page: loaded.currentPage));
-      final s = state;
-      if (s is TicketDetailLoaded && s.ticket.id == ticketId) {
-        add(LoadTicketDetail(ticketId));
-      }
-      return;
+    final updatedTickets = [event.ticket, ...loaded.tickets];
+    final newLoaded = loaded.copyWith(tickets: updatedTickets);
+    emit(newLoaded);
+
+    final currentState = state;
+    if (currentState is TicketDetailLoaded &&
+        currentState.ticket.id == event.ticket.id) {
+      emit(TicketDetailLoaded(event.ticket, newLoaded));
     }
+  }
 
-    // For update events, we update the status and assignee in-memory instantly to keep the UI responsive!
+  void _onSocketTicketUpdated(SocketTicketUpdated event, Emitter<DashboardState> emit) {
+    final loaded = _getLoadedStateOrNull();
+    if (loaded == null) return;
+
     final updatedTickets = loaded.tickets.map((t) {
-      if (t.id == ticketId) {
-        String newStatus = t.status;
-        String? newAssignee = t.assignedToName;
-        int? newAssigneeId = t.assignedToId;
-
-        if (event.data['newStatus'] != null) {
-          newStatus = event.data['newStatus'] as String;
-        }
-        if (event.data['assignedTo'] != null) {
-          newAssignee = event.data['assignedTo'] as String;
-        }
-        if (event.data['assignedToId'] != null) {
-          newAssigneeId = event.data['assignedToId'] as int;
-        }
-
-        return t.copyWith(
-          status: newStatus,
-          assignedToName: newAssignee,
-          assignedToId: newAssigneeId,
-          lastAction: event.type,
-          lastActedByName: event.data['actedByName'] as String?,
-          lastUpdatedAt: DateTime.now(),
-        );
-      }
-      return t;
+      return t.id == event.ticket.id ? event.ticket : t;
     }).toList();
 
     final updatedSentTickets = loaded.sentTickets.map((t) {
-      if (t.id == ticketId) {
-        String newStatus = t.status;
-        String? newAssignee = t.assignedToName;
-        int? newAssigneeId = t.assignedToId;
-
-        if (event.data['newStatus'] != null) {
-          newStatus = event.data['newStatus'] as String;
-        }
-        if (event.data['assignedTo'] != null) {
-          newAssignee = event.data['assignedTo'] as String;
-        }
-        if (event.data['assignedToId'] != null) {
-          newAssigneeId = event.data['assignedToId'] as int;
-        }
-
-        return t.copyWith(
-          status: newStatus,
-          assignedToName: newAssignee,
-          assignedToId: newAssigneeId,
-          lastAction: event.type,
-          lastActedByName: event.data['actedByName'] as String?,
-          lastUpdatedAt: DateTime.now(),
-        );
-      }
-      return t;
+      return t.id == event.ticket.id ? event.ticket : t;
     }).toList();
 
-    emit(loaded.copyWith(
+    final newLoaded = loaded.copyWith(
       tickets: updatedTickets,
       sentTickets: updatedSentTickets,
-    ));
+    );
+    emit(newLoaded);
 
-    // If the user is currently viewing the details page of this specific ticket, update the detail state as well!
-    final s = state;
-    if (s is TicketDetailLoaded && s.ticket.id == ticketId) {
-      final updatedDetailTicket = s.ticket.copyWith(
-        status: event.data['newStatus'] as String? ?? s.ticket.status,
-        assignedToName: event.data['assignedTo'] as String? ?? s.ticket.assignedToName,
-        assignedToId: event.data['assignedToId'] as int? ?? s.ticket.assignedToId,
-        lastAction: event.type,
-        lastActedByName: event.data['actedByName'] as String?,
-        lastUpdatedAt: DateTime.now(),
-      );
-      emit(TicketDetailLoaded(updatedDetailTicket, loaded.copyWith(
-        tickets: updatedTickets,
-        sentTickets: updatedSentTickets,
-      )));
+    final currentState = state;
+    if (currentState is TicketDetailLoaded &&
+        currentState.ticket.id == event.ticket.id) {
+      emit(TicketDetailLoaded(event.ticket, newLoaded));
     }
+  }
 
-    // Trigger soft background reloads to fetch full sync details (history, comments, child progress, stats)
-    add(LoadDashboard(page: loaded.currentPage));
-    if (state is TicketDetailLoaded) {
-      final detailState = state as TicketDetailLoaded;
-      if (detailState.ticket.id == ticketId) {
-        add(LoadTicketDetail(ticketId));
-      }
-    }
+  void _onSocketConnectionChanged(SocketConnectionChanged event, Emitter<DashboardState> emit) {
   }
 }

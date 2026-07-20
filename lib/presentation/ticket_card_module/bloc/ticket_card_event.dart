@@ -12,13 +12,6 @@ final class InitializeTicketTracking extends TicketCardEvent {
   List<Object> get props => [tickets.length];
 }
 
-final class SocketTicketUpdated extends TicketCardEvent {
-  final int ticketId;
-  const SocketTicketUpdated(this.ticketId);
-  @override
-  List<Object> get props => [ticketId];
-}
-
 final class PulseTick extends TicketCardEvent {
   const PulseTick();
   @override

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:tasknest/data/datasource/socket_helper.dart';
 import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
 import 'package:tasknest/presentation/notification/models/notification_model.dart';
 import 'package:injectable/injectable.dart';
@@ -28,14 +27,6 @@ class UpdateUnreadCount extends NotificationEvent {
   UpdateUnreadCount(this.count);
   @override
   List<Object?> get props => [count];
-}
-
-class SocketNotificationReceived extends NotificationEvent {
-  final String type;
-  final Map<String, dynamic> data;
-  SocketNotificationReceived(this.type, this.data);
-  @override
-  List<Object?> get props => [type, data];
 }
 
 class RemoveToast extends NotificationEvent {
@@ -86,46 +77,17 @@ class NotificationError extends NotificationState {
 @injectable
 class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   final TicketRepositoryImpl _repo;
-  StreamSubscription<SocketEvent>? _socketSub;
-  bool _socketInitialized = false;
-  int _toastIdSeq = 0;
-  final Set<int> _recentNotificationIds = {};
 
   NotificationBloc(this._repo) : super(NotificationInitial()) {
     on<LoadNotifications>(_onLoad);
     on<MarkAsReadEvent>(_onMarkAsRead);
     on<MarkAllReadEvent>(_onMarkAllRead);
     on<UpdateUnreadCount>(_onUpdateUnreadCount);
-    on<SocketNotificationReceived>(_onSocketNotification);
     on<RemoveToast>(_onRemoveToast);
-    _initSocket();
-  }
-
-  Future<void> _initSocket() async {
-    if (_socketInitialized && SocketHelper().isConnected) return;
-    _socketSub?.cancel();
-    _socketSub = SocketHelper().events.listen((event) {
-      if (isClosed) return;
-      if (event.type == 'SOCKET_CONNECTED') return;
-      if (event.type == 'NOTIFICATION_COUNT') {
-        final count = event.data['count'] as int?;
-        if (count != null) add(UpdateUnreadCount(count));
-        return;
-      }
-      final data = event.data is Map ? Map<String, dynamic>.from(event.data as Map) : <String, dynamic>{};
-      final notifId = data['notificationId'];
-      if (notifId == null) return;
-      if (_recentNotificationIds.contains(notifId)) return;
-      _recentNotificationIds.add(notifId);
-      if (_recentNotificationIds.length > 50) _recentNotificationIds.remove(_recentNotificationIds.first);
-      add(SocketNotificationReceived(event.type, data));
-    });
-    _socketInitialized = true;
   }
 
   @override
   Future<void> close() {
-    _socketSub?.cancel();
     return super.close();
   }
 
@@ -169,28 +131,6 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     }
   }
 
-  void _onSocketNotification(SocketNotificationReceived event, Emitter<NotificationState> emit) {
-    final id = ++_toastIdSeq;
-    final toast = ToastData(
-      id: id,
-      type: event.type,
-      ticketNumber: event.data['ticketNumber'] as String?,
-      message: event.data['message'] as String? ?? _labelFor(event.type),
-    );
-    final current = state;
-    final currentToasts = current is NotificationLoaded ? current.toasts : <ToastData>[];
-    final currentNotifs = current is NotificationLoaded ? current.notifications : <NotificationModel>[];
-    final currentUnread = current is NotificationLoaded ? current.unreadCount : 0;
-    emit(NotificationLoaded(
-      notifications: currentNotifs,
-      unreadCount: currentUnread,
-      toasts: [...currentToasts, toast],
-    ));
-    Future.delayed(const Duration(seconds: 5), () {
-      if (!isClosed) add(RemoveToast(id));
-    });
-  }
-
   void _onRemoveToast(RemoveToast event, Emitter<NotificationState> emit) {
     final current = state;
     if (current is NotificationLoaded) {
@@ -199,24 +139,6 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
         unreadCount: current.unreadCount,
         toasts: current.toasts.where((t) => t.id != event.id).toList(),
       ));
-    }
-  }
-
-  String _labelFor(String type) {
-    switch (type) {
-      case 'TICKET_CREATED': return 'New ticket created';
-      case 'TICKET_ASSIGNED': return 'Ticket assigned';
-      case 'TICKET_STATUS_UPDATED': return 'Ticket status updated';
-      case 'TICKET_REOPENED': return 'Ticket reopened';
-      case 'SUB_TICKET_CREATED': return 'Sub-ticket created';
-      case 'SUB_TICKET_ASSIGNED': return 'Sub-ticket assigned';
-      case 'SUB_TICKET_PROGRESS': return 'Sub-ticket progress updated';
-      case 'SUB_TICKET_COMPLETED': return 'Sub-ticket completed';
-      case 'SUB_TICKET_REOPENED': return 'Sub-ticket reopened';
-      case 'COMMENT_ADDED': return 'New comment added';
-      case 'NOTIFICATION': return 'New notification';
-      case 'TICKET_UPDATED': return 'Ticket details updated';
-      default: return type;
     }
   }
 }

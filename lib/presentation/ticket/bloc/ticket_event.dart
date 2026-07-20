@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
 abstract class TicketEvent extends Equatable {
   @override
@@ -196,3 +197,10 @@ class LoadTicketDetail extends TicketEvent {
 }
 
 class ClearTicketDetail extends TicketEvent {}
+
+class SocketTicketDetailUpdated extends TicketEvent {
+  final TicketModel ticket;
+  SocketTicketDetailUpdated(this.ticket);
+  @override
+  List<Object?> get props => [ticket.id, ticket.status, ticket.lastUpdatedAt];
+}
