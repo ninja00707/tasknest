@@ -26,13 +26,10 @@ class CreateTicketView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => context.read<CreateTicketBloc>(),
-      child: _CreateTicketBody(
-        user: user,
-        parentTicketId: parentTicketId,
-        parentTicketTitle: parentTicketTitle,
-      ),
+    return _CreateTicketBody(
+      user: user,
+      parentTicketId: parentTicketId,
+      parentTicketTitle: parentTicketTitle,
     );
   }
 }
@@ -87,10 +84,18 @@ class _CreateTicketBodyState extends State<_CreateTicketBody> {
           final form = blocState as CreateTicketFormState;
 
           final blocData = context.watch<DashboardBloc>().state;
-          final isWide = blocData is DashboardLoaded ? blocData.isWide : true;
-          final allEmployees = blocData is DashboardLoaded
-              ? blocData.employees
-              : <EmployeeModel>[];
+          DashboardLoaded? loaded;
+          if (blocData is DashboardLoaded) {
+            loaded = blocData;
+          } else if (blocData is DashboardActionSuccess) {
+            loaded = blocData.previousState;
+          } else if (blocData is DashboardActionError) {
+            loaded = blocData.previousState;
+          } else if (blocData is TicketDetailLoaded) {
+            loaded = blocData.previousState;
+          }
+          final isWide = loaded?.isWide ?? true;
+          final allEmployees = loaded?.employees ?? <EmployeeModel>[];
           final employeeList = form.selectedDepartments.length == 1
               ? allEmployees
                   .where((e) =>
@@ -102,8 +107,8 @@ class _CreateTicketBodyState extends State<_CreateTicketBody> {
           final canAssignEmployee = widget.user.roleId == 0 ||
               widget.user.roleId == 1 ||
               widget.user.roleId == 3;
-          final availableDepartments = blocData is DashboardLoaded
-              ? blocData.departments
+          final availableDepartments = loaded != null
+              ? loaded.departments
                   .map((d) => Departments(name: d.name, id: d.id))
                   .toList()
               : <Departments>[];

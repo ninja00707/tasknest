@@ -658,27 +658,39 @@ class TicketService {
 
     }
 
-    // Only the assigned resolver can mark a ticket as completed
+    // Mark as completed
     if (!isSystemUpdate && newStatus === 'completed') {
       if (ticket.status === 'open') throw { statusCode: 400, message: 'Ticket must be assigned first.' };
 
-      if (!isResolver) {
-        throw { statusCode: 403, message: 'Only the assigned resolver can mark this ticket as done.' };
+      if (ticket.is_sub_ticket) {
+        // Sub-tickets: only the assigned resolver can mark done
+        if (!isResolver) {
+          throw { statusCode: 403, message: 'Only the assigned resolver can mark this sub-ticket as done.' };
+        }
+      } else {
+        // Master tickets: only creator can mark done
+        if (!isCreator) {
+          throw { statusCode: 403, message: 'Only the creator can mark this ticket as done.' };
+        }
       }
       if (!remark || String(remark).trim() === '') {
         throw { statusCode: 400, message: 'Completion remark is required when marking done' };
       }
     }
 
-    // Only the creator (or CEO) can close a ticket
+    // Finalize and close permission
     if (newStatus === 'closed') {
       if (!isSystemUpdate) {
         if (ticket.is_sub_ticket) {
-          if (!isCreator && !isCeo) {
-            throw { statusCode: 403, message: 'Only the creator can finalize and close this ticket' };
+          // Sub-tickets: only the assigned resolver
+          if (!isResolver) {
+            throw { statusCode: 403, message: 'Only the assigned resolver can finalize and close this sub-ticket' };
           }
-        } else if (!isCreator && !isCeo) {
-          throw { statusCode: 403, message: 'Only the creator can finalize and close this ticket' };
+        } else {
+          // Master tickets: only the creator
+          if (!isCreator) {
+            throw { statusCode: 403, message: 'Only the creator can finalize and close this master ticket' };
+          }
         }
       }
       if (!remark || String(remark).trim() === '') {
@@ -686,386 +698,386 @@ class TicketService {
       }
     }
 
-    // If ticket is completed, it can only be closed or reopened (reopen via different method)
-    if (ticket.status === 'completed' && newStatus !== 'closed') {
-      throw { statusCode: 400, message: 'Ticket is already completed. It can only be finalized and closed or reopened.' };
-    }
+  // If ticket is completed, it can only be closed or reopened (reopen via different method)
+  if(ticket.status === 'completed' && newStatus !== 'closed') {
+  throw { statusCode: 400, message: 'Ticket is already completed. It can only be finalized and closed or reopened.' };
+}
 
-    if (ticket.status === 'closed') {
-      throw { statusCode: 400, message: 'Ticket is already closed. It must be reopened first.' };
-    }
+if (ticket.status === 'closed') {
+  throw { statusCode: 400, message: 'Ticket is already closed. It must be reopened first.' };
+}
 
-    const oldStatus = ticket.status;
-    const updated = await ticketRepo.updateStatus(ticketId, newStatus, user);
-    this._invalidateStats(user.id);
+const oldStatus = ticket.status;
+const updated = await ticketRepo.updateStatus(ticketId, newStatus, user);
+this._invalidateStats(user.id);
+await ticketRepo.logAction(
+  ticketId,
+  user.id,
+  'status_changed',
+  oldStatus,
+  newStatus,
+  `Status updated to ${newStatus} by ${user.name}${isSystemUpdate ? ' (System Action)' : ''}${remark ? `. Remark: ${remark}` : ''}`
+);
+
+// ── Recursively propagate status up the parent chain ──────────────
+const updatedParents = await this._propagateUpward(ticket, newStatus, user);
+
+// Transparency: Add the closing/completion remark as a formal comment so it is visible in the thread
+if ((newStatus === 'completed' || newStatus === 'closed') && remark) {
+  const commentMsg = `[${newStatus.toUpperCase()} REMARK]: ${remark}`;
+  await ticketRepo.addComment(ticketId, user.id, commentMsg);
+  await ticketRepo.logAction(
+    ticketId, user.id, 'comment_added', null,
+    commentMsg.substring(0, 100),
+    `${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)} remark added by ${user.name}`
+  );
+}
+
+// Fire notification dispatch asynchronously — don't block the HTTP response
+setImmediate(async () => {
+  try {
+    const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
+    await socketHelper.update(ticketId, involved, `Ticket #${ticketId} status changed to ${newStatus}`, { ticket: updated }, [user.id]);
+    for (const p of updatedParents) {
+      const parentTicket = await ticketRepo.getTicketById(p.parentId, user, true);
+      const parentInvolved = await ticketRepo.getTicketInvolvedUsers(p.parentId);
+      await socketHelper.update(p.parentId, parentInvolved, `Ticket #${p.parentId} status changed to ${p.newStatus}`, { ticket: parentTicket }, [user.id]);
+    }
+  } catch (err) {
+    console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
+  }
+});
+
+return updated;
+  }
+
+  async selfAssign(ticketId, user) {
+  if (user.role === 'ceo') {
+    throw { statusCode: 400, message: 'CEO does not self-assign' };
+  }
+
+  const ticketBeforeUpdate = await ticketRepo.getTicketById(ticketId, user);
+  if (!ticketBeforeUpdate) throw { statusCode: 404, message: 'Ticket not found' };
+  if (ticketBeforeUpdate.forbidden) throw { statusCode: 403, message: 'Access denied' };
+  if (ticketBeforeUpdate.status !== 'open') {
+    throw { statusCode: 400, message: 'Only OPEN tickets can be self-assigned' };
+  }
+
+  const updated = await ticketRepo.selfAssign(ticketId, user.id);
+  if (!updated) throw { statusCode: 400, message: 'Ticket already assigned' };
+  this._invalidateStats(user.id);
+
+  // Log the assignment
+  await ticketRepo.logAction(
+    ticketId,
+    user.id,
+    'assigned',
+    'Unassigned',
+    user.name,
+    'Self-assigned'
+  );
+
+  // Log the automatic status change to in_progress
+  await ticketRepo.logAction(ticketId, user.id, 'status_changed', 'open', 'in_progress', 'Status changed via self-assignment');
+
+  // Fire notification dispatch asynchronously — don't block the HTTP response
+  setImmediate(async () => {
+    try {
+      const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
+      await socketHelper.assign(ticketId, involved,
+        `Ticket #${ticketId} self-assigned by ${user.name}`,
+        { ticket: updated }, [user.id]);
+      if (ticketBeforeUpdate.parent_ticket_id) {
+        const updatedParents = await this._propagateUpward(ticketBeforeUpdate, 'in_progress', user);
+        for (const p of updatedParents) {
+          const parentTicket = await ticketRepo.getTicketById(p.parentId, user, true);
+          const parentInvolved = await ticketRepo.getTicketInvolvedUsers(p.parentId);
+          await socketHelper.update(p.parentId, parentInvolved,
+            `Ticket #${p.parentId} status changed to in_progress`,
+            { ticket: parentTicket }, [user.id]);
+        }
+      }
+    } catch (err) {
+      console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
+    }
+  });
+
+  return updated;
+}
+
+  async assignToEmployee(ticketId, employeeId, user) {
+  if (!['manager', 'ceo'].includes(user.role)) {
+    throw { statusCode: 403, message: 'Only managers can assign tickets to employees' };
+  }
+
+  const ticketBeforeUpdate = await ticketRepo.getTicketById(ticketId, user);
+  if (!ticketBeforeUpdate) throw { statusCode: 404, message: 'Ticket not found' };
+  if (ticketBeforeUpdate.forbidden) throw { statusCode: 403, message: 'Access denied' };
+
+  // Actions are disabled for completed or closed tickets
+  if (ticketBeforeUpdate.status === 'completed' || ticketBeforeUpdate.status === 'closed') {
+    throw { statusCode: 400, message: 'Cannot assign a ticket that is already completed or closed' };
+  }
+
+  const updated = await ticketRepo.assignToEmployee(ticketId, employeeId, user.id);
+  if (!updated) throw { statusCode: 400, message: 'Unable to assign ticket' };
+  this._invalidateStats(user.id, employeeId);
+
+  const assignedEmployee = await ticketRepo.getUserById(employeeId);
+  const assignedEmployeeName = assignedEmployee ? assignedEmployee.name : `Unknown Employee (ID: ${employeeId})`;
+
+  await ticketRepo.logAction(
+    ticketId,
+    user.id,
+    'assigned',
+    ticketBeforeUpdate.assigned_to_name || 'Unassigned',
+    assignedEmployeeName,
+    `Manager ${user.name} assigned the ticket.`
+  );
+
+  // Fire notification dispatch asynchronously — don't block the HTTP response
+  setImmediate(async () => {
+    try {
+      const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
+      await socketHelper.assign(ticketId, involved, `Manager ${user.name} assigned you to Ticket #${ticketId}`);
+      if (ticketBeforeUpdate.parent_ticket_id && (ticketBeforeUpdate.status === 'open' || updated.status === 'in_progress')) {
+        const updatedParents = await this._propagateUpward(ticketBeforeUpdate, 'in_progress', user);
+        for (const p of updatedParents) {
+          const parentTicket = await ticketRepo.getTicketById(p.parentId, user, true);
+          const parentInvolved = await ticketRepo.getTicketInvolvedUsers(p.parentId);
+          await socketHelper.update(p.parentId, parentInvolved,
+            `Ticket #${p.parentId} status changed to in_progress`,
+            { ticket: parentTicket }, [user.id]);
+        }
+      }
+    } catch (err) {
+      console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
+    }
+  });
+
+  // Log status change if it went from 'open' to 'in_progress'
+  if (ticketBeforeUpdate.status === 'open' && updated.status === 'in_progress') {
     await ticketRepo.logAction(
       ticketId,
       user.id,
       'status_changed',
-      oldStatus,
-      newStatus,
-      `Status updated to ${newStatus} by ${user.name}${isSystemUpdate ? ' (System Action)' : ''}${remark ? `. Remark: ${remark}` : ''}`
+      ticketBeforeUpdate.status,
+      updated.status,
+      'Status changed due to assignment'
     );
-
-    // ── Recursively propagate status up the parent chain ──────────────
-    const updatedParents = await this._propagateUpward(ticket, newStatus, user);
-
-    // Transparency: Add the closing/completion remark as a formal comment so it is visible in the thread
-    if ((newStatus === 'completed' || newStatus === 'closed') && remark) {
-      const commentMsg = `[${newStatus.toUpperCase()} REMARK]: ${remark}`;
-      await ticketRepo.addComment(ticketId, user.id, commentMsg);
-      await ticketRepo.logAction(
-        ticketId, user.id, 'comment_added', null,
-        commentMsg.substring(0, 100),
-        `${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)} remark added by ${user.name}`
-      );
-    }
-
-    // Fire notification dispatch asynchronously — don't block the HTTP response
-    setImmediate(async () => {
-      try {
-        const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-        await socketHelper.update(ticketId, involved, `Ticket #${ticketId} status changed to ${newStatus}`, { ticket: updated }, [user.id]);
-        for (const p of updatedParents) {
-          const parentTicket = await ticketRepo.getTicketById(p.parentId, user, true);
-          const parentInvolved = await ticketRepo.getTicketInvolvedUsers(p.parentId);
-          await socketHelper.update(p.parentId, parentInvolved, `Ticket #${p.parentId} status changed to ${p.newStatus}`, { ticket: parentTicket }, [user.id]);
-        }
-      } catch (err) {
-        console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-      }
-    });
-
-    return updated;
   }
 
-  async selfAssign(ticketId, user) {
-    if (user.role === 'ceo') {
-      throw { statusCode: 400, message: 'CEO does not self-assign' };
-    }
-
-    const ticketBeforeUpdate = await ticketRepo.getTicketById(ticketId, user);
-    if (!ticketBeforeUpdate) throw { statusCode: 404, message: 'Ticket not found' };
-    if (ticketBeforeUpdate.forbidden) throw { statusCode: 403, message: 'Access denied' };
-    if (ticketBeforeUpdate.status !== 'open') {
-      throw { statusCode: 400, message: 'Only OPEN tickets can be self-assigned' };
-    }
-
-    const updated = await ticketRepo.selfAssign(ticketId, user.id);
-    if (!updated) throw { statusCode: 400, message: 'Ticket already assigned' };
-    this._invalidateStats(user.id);
-
-    // Log the assignment
-    await ticketRepo.logAction(
-      ticketId,
-      user.id,
-      'assigned',
-      'Unassigned',
-      user.name,
-      'Self-assigned'
-    );
-
-    // Log the automatic status change to in_progress
-    await ticketRepo.logAction(ticketId, user.id, 'status_changed', 'open', 'in_progress', 'Status changed via self-assignment');
-
-    // Fire notification dispatch asynchronously — don't block the HTTP response
-    setImmediate(async () => {
-      try {
-        const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-        await socketHelper.assign(ticketId, involved,
-          `Ticket #${ticketId} self-assigned by ${user.name}`,
-          { ticket: updated }, [user.id]);
-        if (ticketBeforeUpdate.parent_ticket_id) {
-          const updatedParents = await this._propagateUpward(ticketBeforeUpdate, 'in_progress', user);
-          for (const p of updatedParents) {
-            const parentTicket = await ticketRepo.getTicketById(p.parentId, user, true);
-            const parentInvolved = await ticketRepo.getTicketInvolvedUsers(p.parentId);
-            await socketHelper.update(p.parentId, parentInvolved,
-              `Ticket #${p.parentId} status changed to in_progress`,
-              { ticket: parentTicket }, [user.id]);
-          }
-        }
-      } catch (err) {
-        console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-      }
-    });
-
-    return updated;
-  }
-
-  async assignToEmployee(ticketId, employeeId, user) {
-    if (!['manager', 'ceo'].includes(user.role)) {
-      throw { statusCode: 403, message: 'Only managers can assign tickets to employees' };
-    }
-
-    const ticketBeforeUpdate = await ticketRepo.getTicketById(ticketId, user);
-    if (!ticketBeforeUpdate) throw { statusCode: 404, message: 'Ticket not found' };
-    if (ticketBeforeUpdate.forbidden) throw { statusCode: 403, message: 'Access denied' };
-
-    // Actions are disabled for completed or closed tickets
-    if (ticketBeforeUpdate.status === 'completed' || ticketBeforeUpdate.status === 'closed') {
-      throw { statusCode: 400, message: 'Cannot assign a ticket that is already completed or closed' };
-    }
-
-    const updated = await ticketRepo.assignToEmployee(ticketId, employeeId, user.id);
-    if (!updated) throw { statusCode: 400, message: 'Unable to assign ticket' };
-    this._invalidateStats(user.id, employeeId);
-
-    const assignedEmployee = await ticketRepo.getUserById(employeeId);
-    const assignedEmployeeName = assignedEmployee ? assignedEmployee.name : `Unknown Employee (ID: ${employeeId})`;
-
-    await ticketRepo.logAction(
-      ticketId,
-      user.id,
-      'assigned',
-      ticketBeforeUpdate.assigned_to_name || 'Unassigned',
-      assignedEmployeeName,
-      `Manager ${user.name} assigned the ticket.`
-    );
-
-    // Fire notification dispatch asynchronously — don't block the HTTP response
-    setImmediate(async () => {
-      try {
-        const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-        await socketHelper.assign(ticketId, involved, `Manager ${user.name} assigned you to Ticket #${ticketId}`);
-        if (ticketBeforeUpdate.parent_ticket_id && (ticketBeforeUpdate.status === 'open' || updated.status === 'in_progress')) {
-          const updatedParents = await this._propagateUpward(ticketBeforeUpdate, 'in_progress', user);
-          for (const p of updatedParents) {
-            const parentTicket = await ticketRepo.getTicketById(p.parentId, user, true);
-            const parentInvolved = await ticketRepo.getTicketInvolvedUsers(p.parentId);
-            await socketHelper.update(p.parentId, parentInvolved,
-              `Ticket #${p.parentId} status changed to in_progress`,
-              { ticket: parentTicket }, [user.id]);
-          }
-        }
-      } catch (err) {
-        console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-      }
-    });
-
-    // Log status change if it went from 'open' to 'in_progress'
-    if (ticketBeforeUpdate.status === 'open' && updated.status === 'in_progress') {
-      await ticketRepo.logAction(
-        ticketId,
-        user.id,
-        'status_changed',
-        ticketBeforeUpdate.status,
-        updated.status,
-        'Status changed due to assignment'
-      );
-    }
-
-    return updated;
-  }
+  return updated;
+}
 
   async transferTicket(ticketId, targetDeptId, user, title, description) {
-    const parentTicket = await ticketRepo.getTicketById(ticketId, user);
-    if (!parentTicket) throw { statusCode: 404, message: 'Parent ticket not found' };
-    if (parentTicket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+  const parentTicket = await ticketRepo.getTicketById(ticketId, user);
+  if (!parentTicket) throw { statusCode: 404, message: 'Parent ticket not found' };
+  if (parentTicket.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
-    // Rule: Open ticket must be assigned before sub-ticket creation
-    if (parentTicket.status === 'open') {
-      throw { statusCode: 400, message: 'Ticket must be assigned first before creating a sub-ticket.' };
-    }
-
-    // Rule 3: Mandatory Title and Description for Sub-Tickets
-    if (!title?.trim() || !description?.trim()) {
-      throw { statusCode: 400, message: 'A new Title and Description are mandatory for sub-tickets.' };
-    }
-
-    // Rule 3: Prevent duplicate departments in the project tree
-    const isUsed = await ticketRepo.isDepartmentUsedInTree(ticketId, Number(targetDeptId));
-    if (isUsed) {
-      throw { statusCode: 400, message: 'This department is already part of the project lineage.' };
-    }
-
-    // Actions are disabled for closed tickets
-    if (parentTicket.status === 'closed') {
-      throw { statusCode: 400, message: 'Cannot create sub-ticket for a closed ticket' };
-    }
-
-    // Permission Check: CEO cannot create sub-tickets via transfer, and if assigned, only the resolver can create sub-ticket
-    if (user.role === 'ceo') throw { statusCode: 403, message: 'CEO is not authorized to create sub-tickets' };
-
-    if (parentTicket.assigned_to_id && parentTicket.assigned_to_id !== user.id && user.role !== 'manager') {
-      throw { statusCode: 403, message: 'Only the assigned resolver or a manager can create a sub-ticket' };
-    }
-
-    // Create a new ticket as a sub-ticket (starts open, unassigned)
-    const subTicket = await ticketRepo.createTicket({
-      title: title?.trim() || `Sub: ${parentTicket.title}`,
-      description: description?.trim() || parentTicket.description,
-      priority: parentTicket.priority,
-      assignedDeptId: targetDeptId,
-      dueDate: parentTicket.due_date,
-      createdBy: user,
-      assignedToId: null,
-      parentTicketId: ticketId,
-      ticketType: 'standard'
-    });
-
-    // Log the sub-ticket creation on the parent ticket
-    await ticketRepo.logAction(
-      ticketId,
-      user.id,
-      'sub_ticket_created',
-      null,
-      String(subTicket.id),
-      `Sub-ticket #${subTicket.id} created for department ${subTicket.assigned_dept_name} (formerly Transfer)`
-    );
-
-    // Log creation on the sub-ticket itself
-    await ticketRepo.logAction(
-      subTicket.id,
-      user.id,
-      'created',
-      null,
-      subTicket.status,
-      `Created as a sub-ticket of #${ticketId}`
-    );
-
-    // Fire notification dispatch asynchronously
-    setImmediate(async () => {
-      try {
-        const involved = await ticketRepo.getTicketInvolvedUsers(subTicket.id);
-        await socketHelper.subCreate(subTicket.id, involved, `New Sub-Ticket #${subTicket.id} created from #${ticketId}`, { ticket: subTicket });
-      } catch (err) {
-        console.error(`[TicketService] Async dispatch error for ticket ${subTicket.id}:`, err.message);
-      }
-    });
-
-    return subTicket;
+  // Rule: Open ticket must be assigned before sub-ticket creation
+  if (parentTicket.status === 'open') {
+    throw { statusCode: 400, message: 'Ticket must be assigned first before creating a sub-ticket.' };
   }
+
+  // Rule 3: Mandatory Title and Description for Sub-Tickets
+  if (!title?.trim() || !description?.trim()) {
+    throw { statusCode: 400, message: 'A new Title and Description are mandatory for sub-tickets.' };
+  }
+
+  // Rule 3: Prevent duplicate departments in the project tree
+  const isUsed = await ticketRepo.isDepartmentUsedInTree(ticketId, Number(targetDeptId));
+  if (isUsed) {
+    throw { statusCode: 400, message: 'This department is already part of the project lineage.' };
+  }
+
+  // Actions are disabled for closed tickets
+  if (parentTicket.status === 'closed') {
+    throw { statusCode: 400, message: 'Cannot create sub-ticket for a closed ticket' };
+  }
+
+  // Permission Check: CEO cannot create sub-tickets via transfer, and if assigned, only the resolver can create sub-ticket
+  if (user.role === 'ceo') throw { statusCode: 403, message: 'CEO is not authorized to create sub-tickets' };
+
+  if (parentTicket.assigned_to_id && parentTicket.assigned_to_id !== user.id && user.role !== 'manager') {
+    throw { statusCode: 403, message: 'Only the assigned resolver or a manager can create a sub-ticket' };
+  }
+
+  // Create a new ticket as a sub-ticket (starts open, unassigned)
+  const subTicket = await ticketRepo.createTicket({
+    title: title?.trim() || `Sub: ${parentTicket.title}`,
+    description: description?.trim() || parentTicket.description,
+    priority: parentTicket.priority,
+    assignedDeptId: targetDeptId,
+    dueDate: parentTicket.due_date,
+    createdBy: user,
+    assignedToId: null,
+    parentTicketId: ticketId,
+    ticketType: 'standard'
+  });
+
+  // Log the sub-ticket creation on the parent ticket
+  await ticketRepo.logAction(
+    ticketId,
+    user.id,
+    'sub_ticket_created',
+    null,
+    String(subTicket.id),
+    `Sub-ticket #${subTicket.id} created for department ${subTicket.assigned_dept_name} (formerly Transfer)`
+  );
+
+  // Log creation on the sub-ticket itself
+  await ticketRepo.logAction(
+    subTicket.id,
+    user.id,
+    'created',
+    null,
+    subTicket.status,
+    `Created as a sub-ticket of #${ticketId}`
+  );
+
+  // Fire notification dispatch asynchronously
+  setImmediate(async () => {
+    try {
+      const involved = await ticketRepo.getTicketInvolvedUsers(subTicket.id);
+      await socketHelper.subCreate(subTicket.id, involved, `New Sub-Ticket #${subTicket.id} created from #${ticketId}`, { ticket: subTicket });
+    } catch (err) {
+      console.error(`[TicketService] Async dispatch error for ticket ${subTicket.id}:`, err.message);
+    }
+  });
+
+  return subTicket;
+}
 
   async reopenTicket(ticketId, user) {
-    const ticket = await ticketRepo.getTicketById(ticketId, user);
-    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
-    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+  const ticket = await ticketRepo.getTicketById(ticketId, user);
+  if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+  if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
-    const oldStatus = ticket.status;
+  const oldStatus = ticket.status;
 
-    const updated = await ticketRepo.reopenTicket(ticketId, user.id);
-    if (!updated) throw { statusCode: 400, message: 'Unable to reopen ticket' };
-    this._invalidateStats(user.id);
+  const updated = await ticketRepo.reopenTicket(ticketId, user.id);
+  if (!updated) throw { statusCode: 400, message: 'Unable to reopen ticket' };
+  this._invalidateStats(user.id);
 
-    await ticketRepo.logAction(ticketId, user.id, 'reopened', oldStatus, 'in_progress', `Ticket reopened by creator (${user.name}) and returned to "In Progress" status.`);
+  await ticketRepo.logAction(ticketId, user.id, 'reopened', oldStatus, 'in_progress', `Ticket reopened by creator (${user.name}) and returned to "In Progress" status.`);
 
-    // Fire notification dispatch asynchronously
-    setImmediate(async () => {
-      try {
-        const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-        await socketHelper.reopen(ticketId, involved, `Ticket #${ticketId} has been reopened and is now In Progress.`, { ticket: updated }, [user.id]);
-      } catch (err) {
-        console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-      }
-    });
+  // Fire notification dispatch asynchronously
+  setImmediate(async () => {
+    try {
+      const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
+      await socketHelper.reopen(ticketId, involved, `Ticket #${ticketId} has been reopened and is now In Progress.`, { ticket: updated }, [user.id]);
+    } catch (err) {
+      console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
+    }
+  });
 
-    return updated;
-  }
+  return updated;
+}
 
   async getComments(ticketId, user) {
-    const ticket = await ticketRepo.getTicketById(ticketId, user);
-    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
-    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
-    return await ticketRepo.getComments(ticketId);
-  }
+  const ticket = await ticketRepo.getTicketById(ticketId, user);
+  if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+  if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+  return await ticketRepo.getComments(ticketId);
+}
 
   async addComment(ticketId, message, user) {
-    const ticket = await ticketRepo.getTicketById(ticketId, user);
-    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
-    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
-    const comment = await ticketRepo.addComment(ticketId, user.id, message);
-    this._invalidateStats(user.id);
+  const ticket = await ticketRepo.getTicketById(ticketId, user);
+  if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+  if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+  const comment = await ticketRepo.addComment(ticketId, user.id, message);
+  this._invalidateStats(user.id);
 
-    await ticketRepo.logAction(
-      ticketId,
-      user.id,
-      'comment_added',
-      null,
-      message.substring(0, 100), // Log first 100 chars of comment
-      `Comment added by ${user.name}`
-    );
+  await ticketRepo.logAction(
+    ticketId,
+    user.id,
+    'comment_added',
+    null,
+    message.substring(0, 100), // Log first 100 chars of comment
+    `Comment added by ${user.name}`
+  );
 
-    // Fire notification dispatch asynchronously
-    setImmediate(async () => {
-      try {
-        const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-        await socketHelper.comment(ticketId, involved, `${user.name} commented on Ticket #${ticketId}`, {}, [user.id]);
-      } catch (err) {
-        console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-      }
-    });
+  // Fire notification dispatch asynchronously
+  setImmediate(async () => {
+    try {
+      const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
+      await socketHelper.comment(ticketId, involved, `${user.name} commented on Ticket #${ticketId}`, {}, [user.id]);
+    } catch (err) {
+      console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
+    }
+  });
 
-    return comment;
-  }
+  return comment;
+}
 
   // ── Update ticket details (title, description, priority, due_date) ──────
   async updateTicket(ticketId, user, fields) {
-    const ticket = await ticketRepo.getTicketById(ticketId, user);
-    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
-    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+  const ticket = await ticketRepo.getTicketById(ticketId, user);
+  if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+  if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
-    const updated = await ticketRepo.updateTicketField(ticketId, user.id, fields);
-    if (!updated) throw { statusCode: 400, message: 'No valid fields to update' };
-    this._invalidateStats(user.id);
+  const updated = await ticketRepo.updateTicketField(ticketId, user.id, fields);
+  if (!updated) throw { statusCode: 400, message: 'No valid fields to update' };
+  this._invalidateStats(user.id);
 
-    setImmediate(async () => {
-      try {
-        const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-        const changed = Object.keys(fields).join(', ');
-        await socketHelper.fieldUpdate(ticketId, involved,
-          `${user.name} updated ${changed} on Ticket #${ticketId}`,
-          { ticketNumber: updated.ticket_number }, [user.id]);
-      } catch (err) {
-        console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-      }
-    });
+  setImmediate(async () => {
+    try {
+      const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
+      const changed = Object.keys(fields).join(', ');
+      await socketHelper.fieldUpdate(ticketId, involved,
+        `${user.name} updated ${changed} on Ticket #${ticketId}`,
+        { ticketNumber: updated.ticket_number }, [user.id]);
+    } catch (err) {
+      console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
+    }
+  });
 
-    return updated;
-  }
+  return updated;
+}
 
   async getDepartments(user) {
-    return await ticketRepo.getDepartments(user.company_id);
-  }
+  return await ticketRepo.getDepartments(user.company_id);
+}
 
   async getEmployees(user, departmentId) {
-    if (departmentId) {
-      return await ticketRepo.getEmployeesByDepartment(Number(departmentId));
-    }
-    return await ticketRepo.getEmployeesByCompany(user.company_id);
+  if (departmentId) {
+    return await ticketRepo.getEmployeesByDepartment(Number(departmentId));
   }
+  return await ticketRepo.getEmployeesByCompany(user.company_id);
+}
 
   async getMyTickets(user, filters) {
-    return await ticketRepo.getMyTickets(user.id, filters);
-  }
+  return await ticketRepo.getMyTickets(user.id, filters);
+}
 
   async getSentTickets(user) {
-    const tickets = await ticketRepo.getSentTicketsByDepartment(user.department_id);
-    return await ticketRepo.enrichTicketsWithSubData(tickets);
-  }
+  const tickets = await ticketRepo.getSentTicketsByDepartment(user.department_id);
+  return await ticketRepo.enrichTicketsWithSubData(tickets);
+}
 
   async getDepartmentAnalytics(departmentId, user) {
-    return await ticketRepo.getDashboardStats({
-      role: 'manager',
-      department_id: Number(departmentId),
-      company_id: user.company_id
-    });
-  }
+  return await ticketRepo.getDashboardStats({
+    role: 'manager',
+    department_id: Number(departmentId),
+    company_id: user.company_id
+  });
+}
 
   async getTicketLogs(ticketId, user) {
-    const ticket = await ticketRepo.getTicketById(ticketId, user);
-    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
-    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
-    return await ticketRepo.getTicketLogs(ticketId);
-  }
+  const ticket = await ticketRepo.getTicketById(ticketId, user);
+  if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+  if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+  return await ticketRepo.getTicketLogs(ticketId);
+}
 
   async getAnalyticsByDepartment(user) {
-    return await ticketRepo.getAnalyticsByDepartment(user);
-  }
+  return await ticketRepo.getAnalyticsByDepartment(user);
+}
 
   async getOrganizationAnalytics(user) {
-    return await ticketRepo.getAnalyticsByDepartment(user); // Reusing the existing repo method for now
-  }
+  return await ticketRepo.getAnalyticsByDepartment(user); // Reusing the existing repo method for now
+}
 }
 
 module.exports = new TicketService();

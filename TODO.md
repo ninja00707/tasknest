@@ -5,7 +5,8 @@
 - Implemented `canReopenBy()` for creator-only reopen logic (max 1 reopen, 48h window)
 
 ## ✅ Step 2: Fix `ticket_action.dart` permissions
-- Finalize & Close button: Changed from `isResolver` → `isCreator` for ChildTicketModel
+- **Button #3 (Mark Completed)**: Sub-ticket → `isResolver` only; Master → `isCreator || isCeo` only
+- **Button #4 (Finalize & Close)**: Changed to `isCreator || isCeo` for ALL tickets (was `isResolver` for sub-tickets)
 - Reopen button: Works via `canReopenBy()` now properly implemented for ChildTicketModel
 
 ## ✅ Step 3: Fix backend `ticket.service.js` updateStatus()
