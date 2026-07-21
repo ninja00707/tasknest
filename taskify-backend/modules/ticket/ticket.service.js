@@ -670,12 +670,12 @@ class TicketService {
       }
     }
 
-    // Only the creator or CEO can close a main ticket (not the resolver)
+    // Only the creator (or CEO) can close a ticket
     if (newStatus === 'closed') {
       if (!isSystemUpdate) {
         if (ticket.is_sub_ticket) {
-          if (!isResolver) {
-            throw { statusCode: 403, message: 'Only the assigned resolver can close this sub-ticket.' };
+          if (!isCreator && !isCeo) {
+            throw { statusCode: 403, message: 'Only the creator can finalize and close this ticket' };
           }
         } else if (!isCreator && !isCeo) {
           throw { statusCode: 403, message: 'Only the creator can finalize and close this ticket' };

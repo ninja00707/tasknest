@@ -31,8 +31,7 @@ class TicketActions extends StatelessWidget {
         ticket is TicketModel &&
         ticket.createdByDeptId == user.departmentId;
 
-    final bool isAssignedToMyDept =
-        ticket.assignedDeptId == user.departmentId;
+    final bool isAssignedToMyDept = ticket.assignedDeptId == user.departmentId;
 
     // Once ticket is created user can't do anything until the ticket is assigned
     final bool isUnassigned = ticket.assignedToId == null;
@@ -79,11 +78,11 @@ class TicketActions extends StatelessWidget {
             onTap: () => _showStatusRemarkDialog(context, 'completed'),
           ),
 
-        // 4. Finalize & Close: resolver only (for sub-tickets) or creator/CEO (for main)
+        // 4. Finalize & Close: creator only (for sub-tickets) or creator/CEO (for main)
         if (ticket.isCompleted &&
             !hasUnfinalizedSubs &&
             (ticket is ChildTicketModel
-                ? isResolver
+                ? isCreator
                 : (isCreator || isCeo || isCreatingDeptManager)))
           ActionBtn(
             icon: Icons.lock_outline,
@@ -270,9 +269,7 @@ class TicketActions extends StatelessWidget {
 
     if (depts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(ConstStrings.noDeptsForSubTicket),
-        ),
+        const SnackBar(content: Text(ConstStrings.noDeptsForSubTicket)),
       );
 
       return;
@@ -307,7 +304,8 @@ class TicketActions extends StatelessWidget {
                         labelText: ConstStrings.title,
                         hintText: ConstStrings.enterSubTicketTitle,
                       ),
-                      validator: (v) => v!.isEmpty ? ConstStrings.titleRequired : null,
+                      validator: (v) =>
+                          v!.isEmpty ? ConstStrings.titleRequired : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(

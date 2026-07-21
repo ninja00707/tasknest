@@ -19,6 +19,8 @@ class SocketHelper {
 
   void disconnect() => _service.disconnect();
   void reconnect() => _service.reconnect();
+  void joinTicketRoom(int ticketId) => _service.joinTicketRoom(ticketId);
+  void leaveTicketRoom(int ticketId) => _service.leaveTicketRoom(ticketId);
 
   Stream<SocketEvent> onTicketEvents() => events.where((e) {
         return e.type == 'TICKET_CREATED' ||

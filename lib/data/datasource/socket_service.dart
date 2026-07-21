@@ -23,7 +23,8 @@ class SocketService {
   bool get isConnected => _isConnected;
 
   void connect(String token, {int? userId, int? departmentId}) {
-    if (_isConnected && _socket != null && _token == token && _userId == userId) return;
+    if (_isConnected && _socket != null && _token == token && _userId == userId)
+      return;
     if (_connecting && _token == token && _userId == userId) return;
     if (_connecting) {
       disconnect();
@@ -66,6 +67,7 @@ class SocketService {
             'userId': _userId,
             'departmentId': _departmentId,
           })
+          .setExtraHeaders({'X-Department-Id': _departmentId?.toString() ?? ''})
           .build(),
     );
 
@@ -156,6 +158,14 @@ class SocketService {
     });
 
     _socket!.connect();
+  }
+
+  void joinTicketRoom(int ticketId) {
+    _socket?.emit('ticket:join_details', ticketId);
+  }
+
+  void leaveTicketRoom(int ticketId) {
+    _socket?.emit('ticket:leave_details', ticketId);
   }
 
   void reconnect() {

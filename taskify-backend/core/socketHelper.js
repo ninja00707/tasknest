@@ -22,23 +22,40 @@ class SocketHelper {
       }
     }
 
+    const payloadData = {
+      ticketId,
+      ticketNumber: payload.ticketNumber || payload.ticket?.ticketNumber || payload.ticket?.ticket_number || null,
+      newStatus: payload.newStatus || payload.ticket?.status || null,
+      oldStatus: payload.oldStatus || null,
+      assignedTo: payload.assignedTo || payload.ticket?.assigned_to_name || null,
+      assignedDept: payload.assignedDept || payload.ticket?.assigned_dept_code || null,
+      message,
+      event: eventType,
+      createdAt: new Date().toISOString(),
+    };
+
     const notifMap = {};
     for (const n of notifications) notifMap[n.user_id] = n;
 
     for (const userId of userIds) {
       const notif = notifMap[userId];
       this.io.to(`user_${userId}`).emit(eventType, {
-        ticketId,
-        ticketNumber: payload.ticketNumber || payload.ticket?.ticketNumber || null,
-        newStatus: payload.newStatus || payload.ticket?.status || null,
-        oldStatus: payload.oldStatus || null,
-        assignedTo: payload.assignedTo || payload.ticket?.assigned_to_name || null,
-        assignedDept: payload.assignedDept || payload.ticket?.assigned_dept_code || null,
-        message,
+        ...payloadData,
         notificationId: notif?.id || null,
         createdAt: notif?.created_at || new Date().toISOString(),
-        event: eventType,
       });
+    }
+
+    // Also broadcast to the assigned department room for live dashboard updates
+    const assignedDeptId = payload.ticket?.assigned_dept_id || payload.assignedDeptId;
+    if (assignedDeptId) {
+      this.io.to(`dept_${assignedDeptId}`).emit(eventType, payloadData);
+    }
+
+    // Broadcast to the creator's department room as well
+    const creatorDeptId = payload.ticket?.created_by_dept || payload.createdByDept;
+    if (creatorDeptId && Number(creatorDeptId) !== Number(assignedDeptId)) {
+      this.io.to(`dept_${creatorDeptId}`).emit(eventType, payloadData);
     }
 
     if (notifTarget.length > 0) {

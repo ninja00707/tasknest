@@ -99,16 +99,26 @@ class TicketModel {
     description: j['description'] ?? '',
     status: j['status'] ?? 'open',
     priority: j['priority'] ?? 'low',
-    assignedDeptId: (j['assigned_dept_id'] is num) ? (j['assigned_dept_id'] as num).toInt() : int.tryParse(j['assigned_dept_id']?.toString() ?? ''),
+    assignedDeptId: (j['assigned_dept_id'] is num)
+        ? (j['assigned_dept_id'] as num).toInt()
+        : int.tryParse(j['assigned_dept_id']?.toString() ?? ''),
     assignedDeptCode: j['assigned_dept_code'] ?? '',
     assignedDeptName: j['assigned_dept_name'] ?? '',
     createdByName: j['created_by_name'] ?? '',
-    createdById: (j['created_by_id'] is num) ? (j['created_by_id'] as num).toInt() : (int.tryParse(j['created_by_id']?.toString() ?? '0') ?? 0),
-    createdByDeptId: (j['created_by_dept'] is num) ? (j['created_by_dept'] as num).toInt() : (int.tryParse(j['created_by_dept']?.toString() ?? '0') ?? 0),
+    createdById: (j['created_by_id'] is num)
+        ? (j['created_by_id'] as num).toInt()
+        : (int.tryParse(j['created_by_id']?.toString() ?? '0') ?? 0),
+    createdByDeptId: (j['created_by_dept'] is num)
+        ? (j['created_by_dept'] as num).toInt()
+        : (int.tryParse(j['created_by_dept']?.toString() ?? '0') ?? 0),
     createdByDeptCode: j['created_by_dept_code'] ?? '',
-    assignedToId: (j['assigned_to_id'] is num) ? (j['assigned_to_id'] as num).toInt() : int.tryParse(j['assigned_to_id']?.toString() ?? ''),
+    assignedToId: (j['assigned_to_id'] is num)
+        ? (j['assigned_to_id'] as num).toInt()
+        : int.tryParse(j['assigned_to_id']?.toString() ?? ''),
     assignedToName: j['assigned_to_name'] ?? 'Unassigned',
-    myAssignedToId: (j['my_assigned_to_id'] is num) ? (j['my_assigned_to_id'] as num).toInt() : int.tryParse(j['my_assigned_to_id']?.toString() ?? ''),
+    myAssignedToId: (j['my_assigned_to_id'] is num)
+        ? (j['my_assigned_to_id'] as num).toInt()
+        : int.tryParse(j['my_assigned_to_id']?.toString() ?? ''),
     myAssignedToName: j['my_assigned_to_name'],
     assignedToReportsToName: j['assigned_to_reports_to_name'],
     createdByReportsToName: j['created_by_reports_to_name'],
@@ -233,6 +243,8 @@ class ChildTicketModel {
     this.priority = 'medium',
     this.immediateChildCount = 0,
     this.hasActiveChildren = false,
+    this.closedAt,
+    this.reopenCount = 0,
   });
 
   factory ChildTicketModel.fromJson(Map<String, dynamic> j) => ChildTicketModel(
@@ -241,13 +253,21 @@ class ChildTicketModel {
     title: j['title'] ?? '',
     description: j['description'] ?? '',
     status: j['status'] ?? 'open',
-    assignedDeptId: (j['assigned_dept_id'] is num) ? (j['assigned_dept_id'] as num).toInt() : int.tryParse(j['assigned_dept_id']?.toString() ?? ''),
+    assignedDeptId: (j['assigned_dept_id'] is num)
+        ? (j['assigned_dept_id'] as num).toInt()
+        : int.tryParse(j['assigned_dept_id']?.toString() ?? ''),
     deptCode: j['dept_code'] ?? '',
     deptName: j['dept_name'] ?? '',
-    assignedToId: (j['assigned_to_id'] is num) ? (j['assigned_to_id'] as num).toInt() : int.tryParse(j['assigned_to_id']?.toString() ?? ''),
+    assignedToId: (j['assigned_to_id'] is num)
+        ? (j['assigned_to_id'] as num).toInt()
+        : int.tryParse(j['assigned_to_id']?.toString() ?? ''),
     assigneeName: j['assignee_name'],
-    createdById: (j['created_by_id'] is num) ? (j['created_by_id'] as num).toInt() : (int.tryParse(j['created_by_id']?.toString() ?? '0') ?? 0),
-    createdByDept: (j['created_by_dept'] is num) ? (j['created_by_dept'] as num).toInt() : (int.tryParse(j['created_by_dept']?.toString() ?? '0') ?? 0),
+    createdById: (j['created_by_id'] is num)
+        ? (j['created_by_id'] as num).toInt()
+        : (int.tryParse(j['created_by_id']?.toString() ?? '0') ?? 0),
+    createdByDept: (j['created_by_dept'] is num)
+        ? (j['created_by_dept'] as num).toInt()
+        : (int.tryParse(j['created_by_dept']?.toString() ?? '0') ?? 0),
     createdByName: j['created_by_name'] ?? '',
     createdByDeptCode: j['created_by_dept_code'] ?? '',
     createdAt: DateTime.parse(
@@ -257,9 +277,13 @@ class ChildTicketModel {
     immediateChildCount:
         int.tryParse(j['immediate_child_count']?.toString() ?? '0') ?? 0,
     hasActiveChildren: j['has_active_children'] == true,
+    closedAt: j['closed_at'] != null ? DateTime.parse(j['closed_at']) : null,
+    reopenCount: j['reopen_count'] ?? 0,
   );
 
   final List<Map<String, dynamic>> deptJourney = const [];
+  final DateTime? closedAt;
+  final int reopenCount;
 
   // Helper getters to match TicketModel interface for TicketActions
   bool get isOpen => status == 'open';
@@ -268,8 +292,14 @@ class ChildTicketModel {
   bool get isClosed => status == 'closed';
   bool get isManagementDisabled => isCompleted || isClosed;
 
-  // Mock canReopenBy for now or implement if needed
-  bool canReopenBy(int userId) => false;
+  /// Only the creator can reopen. Max 1 reopen. Within 48h of closing.
+  bool canReopenBy(int userId) {
+    if (createdById != userId) return false;
+    if (reopenCount >= 1) return false;
+    if (!isClosed && !isCompleted) return false;
+    if (closedAt == null) return false;
+    return DateTime.now().difference(closedAt!).inHours <= 48;
+  }
 }
 
 class SubTicketDepartmentModel {
@@ -309,7 +339,9 @@ class SubTicketDepartmentModel {
         taskDescription: j['task_description'] ?? '',
         status: j['status'] ?? 'open',
         progressPercent: j['progress_percent'] ?? 0,
-        assignedToId: (j['assigned_to_id'] is num) ? (j['assigned_to_id'] as num).toInt() : int.tryParse(j['assigned_to_id']?.toString() ?? ''),
+        assignedToId: (j['assigned_to_id'] is num)
+            ? (j['assigned_to_id'] as num).toInt()
+            : int.tryParse(j['assigned_to_id']?.toString() ?? ''),
         assignedToName: j['assigned_to_name'],
         completedAt: j['completed_at'] != null
             ? DateTime.parse(j['completed_at'])
@@ -356,7 +388,9 @@ class CommentModel {
     message: j['message'] ?? '',
     userName: j['user_name'] ?? '',
     deptCode: j['dept_code'] ?? '',
-    createdAt: DateTime.parse(j['created_at'] ?? DateTime.now().toIso8601String()),
+    createdAt: DateTime.parse(
+      j['created_at'] ?? DateTime.now().toIso8601String(),
+    ),
   );
 }
 

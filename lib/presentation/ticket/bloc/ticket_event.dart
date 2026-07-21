@@ -210,9 +210,10 @@ class AddTicketComment extends TicketEvent {
 
 class LoadTicketDetail extends TicketEvent {
   final int ticketId;
-  LoadTicketDetail(this.ticketId);
+  final bool silent;
+  LoadTicketDetail(this.ticketId, {this.silent = false});
   @override
-  List<Object?> get props => [ticketId];
+  List<Object?> get props => [ticketId, silent];
 }
 
 class ClearTicketDetail extends TicketEvent {}
