@@ -1,21 +1,26 @@
 const ticketRepo = require('./ticket.repository');
-const { broadcast } = require('../../core/socket');
 
 class TicketService {
   // ── Recursively propagate in_progress up the parent chain ────────────
-  // For completed/closed: just collect parent chain for notification
-  async _propagateUpward(childTicket, newStatus, user) {
+  // For completed/closed: just collect parent chain for outbox notification
+  async _propagateUpward(childTicket, newStatus, user, client) {
     if (!childTicket.parent_ticket_id) return [];
 
     if (newStatus === 'in_progress') {
-      const updatedParents = await ticketRepo.updateParentChain(childTicket.parent_ticket_id, 'in_progress');
-      // Broadcast the parent ticket update so dashboard/ticket lists refresh live
+      const updatedParents = await ticketRepo.updateParentChain(childTicket.parent_ticket_id, 'in_progress', client);
       if (updatedParents && updatedParents.length > 0) {
         for (const parent of updatedParents) {
-          const parentTicket = await ticketRepo.getTicketById(parent.id, user, true);
+          const parentTicket = await ticketRepo.getTicketDetails(parent.id, client);
           if (parentTicket) {
-            // Use the child ticket's ticketId for the broadcast room so all viewers see it
-            broadcast('ticket:updated', parentTicket, parentTicket.id, user.id);
+            const version = await ticketRepo.bumpVersion(client, parent.id);
+            await ticketRepo.insertOutboxRow(client, {
+              eventType: 'ticket:updated',
+              ticketId: parent.id,
+              parentTicketId: parentTicket.parent_ticket_id,
+              payload: parentTicket,
+              actorId: user.id,
+              version,
+            });
           }
         }
       }
@@ -24,12 +29,20 @@ class TicketService {
 
     if (newStatus === 'completed' || newStatus === 'closed') {
       const parents = await ticketRepo.getParentChain(childTicket.parent_ticket_id);
-      // Broadcast each parent's update as well so they move columns live
       if (parents && parents.length > 0) {
         for (const parent of parents) {
-          const parentTicket = await ticketRepo.getTicketById(parent.id, user, true);
+          const parentId = parent.parentId || parent.id;
+          const parentTicket = await ticketRepo.getTicketDetails(parentId, client);
           if (parentTicket) {
-            broadcast('ticket:updated', parentTicket, parentTicket.id, user.id);
+            const version = await ticketRepo.bumpVersion(client, parentId);
+            await ticketRepo.insertOutboxRow(client, {
+              eventType: 'ticket:updated',
+              ticketId: parentId,
+              parentTicketId: parentTicket.parent_ticket_id,
+              payload: parentTicket,
+              actorId: user.id,
+              version,
+            });
           }
         }
       }
@@ -102,23 +115,35 @@ class TicketService {
 
       if (uniqueDepts.length > 1) {
         // Multi: create master and sub-tickets for all selected departments
-        const masterTicket = await ticketRepo.createTicket({
-          title,
-          description,
-          priority,
-          assignedDeptId: user.department_id,
-          dueDate,
-          createdBy: user,
-          assignedToId: user.id,
-          parentTicketId: null,
-          ticketType: 'multi_task'
-        });
+        const masterTicket = await ticketRepo.withTransaction(async (client) => {
+          const ticket = await ticketRepo.createTicket({
+            title,
+            description,
+            priority,
+            assignedDeptId: user.department_id,
+            dueDate,
+            createdBy: user,
+            assignedToId: user.id,
+            parentTicketId: null,
+            ticketType: 'multi_task'
+          }, client);
 
-        await ticketRepo.logAction(masterTicket.id, user.id, 'created', null, 'open', 'Project Master created for multi-department task');
+          await ticketRepo.logAction(ticket.id, user.id, 'created', null, 'open', 'Project Master created for multi-department task', client);
+
+          const version = await ticketRepo.bumpVersion(client, ticket.id);
+          await ticketRepo.insertOutboxRow(client, {
+            eventType: 'ticket:created',
+            ticketId: ticket.id,
+            payload: ticket,
+            actorId: user.id,
+            version,
+          });
+
+          return ticket;
+        });
 
         for (const deptId of uniqueDepts) {
           const isOwnDept = Number(deptId) === Number(user.department_id);
-          // Use per-department title/description if provided, otherwise fallback
           let deptTitle, deptDesc;
           if (Array.isArray(data.deptTickets)) {
             const dt = data.deptTickets.find(d => Number(d.department_id) === Number(deptId));
@@ -161,19 +186,32 @@ class TicketService {
         ? String(subDescription).trim()
         : description;
 
-      const masterTicket = await ticketRepo.createTicket({
-        title,
-        description,
-        priority,
-        assignedDeptId: user.department_id,
-        dueDate,
-        createdBy: user,
-        assignedToId: user.id,
-        parentTicketId: null,
-        ticketType: 'standard'
-      });
+      const masterTicket = await ticketRepo.withTransaction(async (client) => {
+        const ticket = await ticketRepo.createTicket({
+          title,
+          description,
+          priority,
+          assignedDeptId: user.department_id,
+          dueDate,
+          createdBy: user,
+          assignedToId: user.id,
+          parentTicketId: null,
+          ticketType: 'standard'
+        }, client);
 
-      await ticketRepo.logAction(masterTicket.id, user.id, 'created', null, 'open', 'Project Master created for department oversight');
+        await ticketRepo.logAction(ticket.id, user.id, 'created', null, 'open', 'Project Master created for department oversight', client);
+
+        const version = await ticketRepo.bumpVersion(client, ticket.id);
+        await ticketRepo.insertOutboxRow(client, {
+          eventType: 'ticket:created',
+          ticketId: ticket.id,
+          payload: ticket,
+          actorId: user.id,
+          version,
+        });
+
+        return ticket;
+      });
 
       return await this.createTicket({
         ...data,
@@ -185,28 +223,38 @@ class TicketService {
       }, user);
     }
 
-    const ticket = await ticketRepo.createTicket({
-      title,
-      description,
-      priority,
-      assignedDeptId: effectiveDeptId,
-      dueDate,
-      createdBy: user,
-      assignedToId,
-      parentTicketId: parentTicketId ? Number(parentTicketId) : null,
-      ticketType: 'standard'
+    return await ticketRepo.withTransaction(async (client) => {
+      const ticket = await ticketRepo.createTicket({
+        title,
+        description,
+        priority,
+        assignedDeptId: effectiveDeptId,
+        dueDate,
+        createdBy: user,
+        assignedToId,
+        parentTicketId: parentTicketId ? Number(parentTicketId) : null,
+        ticketType: 'standard'
+      }, client);
+
+      const logNote = `Created by ${user.name}${assignedToId ? ` and assigned to ${ticket.assigned_to_name}` : ''}${parentTicketId ? ` as a sub-ticket of #${parentTicketId}` : ''}`;
+      await ticketRepo.logAction(ticket.id, user.id, 'created', null, ticket.status, logNote, client);
+
+      if (parentTicketId) {
+        await ticketRepo.logAction(parentTicketId, user.id, 'sub_ticket_created', null, String(ticket.id), `Sub-ticket #${ticket.id} created by ${user.name}`, client);
+      }
+
+      const version = await ticketRepo.bumpVersion(client, ticket.id);
+      await ticketRepo.insertOutboxRow(client, {
+        eventType: 'ticket:created',
+        ticketId: ticket.id,
+        parentTicketId: ticket.parent_ticket_id,
+        payload: ticket,
+        actorId: user.id,
+        version,
+      });
+
+      return ticket;
     });
-
-
-    const logNote = `Created by ${user.name}${assignedToId ? ` and assigned to ${ticket.assigned_to_name}` : ''}${parentTicketId ? ` as a sub-ticket of #${parentTicketId}` : ''}`;
-    await ticketRepo.logAction(ticket.id, user.id, 'created', null, ticket.status, logNote);
-
-    if (parentTicketId) {
-      await ticketRepo.logAction(parentTicketId, user.id, 'sub_ticket_created', null, String(ticket.id), `Sub-ticket #${ticket.id} created by ${user.name}`);
-    }
-
-    broadcast('ticket:created', ticket, ticket.id, user.id);
-    return ticket;
   }
 
   async createSubTicket(data, user) {
@@ -247,36 +295,48 @@ class TicketService {
       throw { statusCode: 400, message: 'Duplicate departments are not allowed' };
     }
 
-    const ticket = await ticketRepo.createSubTicket({
-      title: title.trim(),
-      description: description.trim(),
-      priority,
-      dueDate,
-      createdBy: user,
-      departments: normalizedDepts.map((d) => ({
-        departmentId: Number(d.departmentId),
-        taskDescription: d.taskDescription,
-      })),
-      parentTicketId: parentTicketId ? Number(parentTicketId) : null,
+    return await ticketRepo.withTransaction(async (client) => {
+      const ticket = await ticketRepo.createSubTicket({
+        title: title.trim(),
+        description: description.trim(),
+        priority,
+        dueDate,
+        createdBy: user,
+        departments: normalizedDepts.map((d) => ({
+          departmentId: Number(d.departmentId),
+          taskDescription: d.taskDescription,
+        })),
+        parentTicketId: parentTicketId ? Number(parentTicketId) : null,
+      }, client);
+
+      const deptNames = ticket.sub_departments.map(d => d.department_name).join(', ');
+      await ticketRepo.logAction(
+        ticket.id, user.id, 'created', null, 'multi_task',
+        `Multi-task ticket created by ${user.name} for departments: ${deptNames}${parentTicketId ? ` as a sub-ticket of #${parentTicketId}` : ''}`,
+        client
+      );
+      await ticketRepo.logAction(
+        ticket.id, user.id, 'assigned', 'Unassigned', user.name,
+        `Multi-task ticket auto-assigned to creator (${user.name})`,
+        client
+      );
+
+      if (parentTicketId) {
+        await ticketRepo.logAction(parentTicketId, user.id, 'sub_ticket_created', null, String(ticket.id), `Multi-task sub-ticket #${ticket.id} created by ${user.name}`, client);
+      }
+
+      const version = await ticketRepo.bumpVersion(client, ticket.id);
+      await ticketRepo.insertOutboxRow(client, {
+        eventType: 'ticket:created',
+        ticketId: ticket.id,
+        parentTicketId: ticket.parent_ticket_id,
+        payload: ticket,
+        actorId: user.id,
+        version,
+      });
+
+      return ticket;
     });
-
-
-    const deptNames = ticket.sub_departments.map(d => d.department_name).join(', ');
-    await ticketRepo.logAction(
-      ticket.id, user.id, 'created', null, 'multi_task',
-      `Multi-task ticket created by ${user.name} for departments: ${deptNames}${parentTicketId ? ` as a sub-ticket of #${parentTicketId}` : ''}`
-    );
-    await ticketRepo.logAction(
-      ticket.id, user.id, 'assigned', 'Unassigned', user.name,
-      `Multi-task ticket auto-assigned to creator (${user.name})`
-    );
-
-    if (parentTicketId) {
-      await ticketRepo.logAction(parentTicketId, user.id, 'sub_ticket_created', null, String(ticket.id), `Multi-task sub-ticket #${ticket.id} created by ${user.name}`);
-    }
-
-    broadcast('ticket:created', ticket, ticket.id, user.id);
-    return ticket;
   }
 
   async updateSubDeptProgress(ticketId, departmentId, data, user) {
@@ -307,7 +367,6 @@ class TicketService {
     const isAssignedEmployee = Number(deptRow.assigned_to_id) === Number(user.id);
 
     // RULES for status transitions:
-    // in_progress -> pending_approval: only assigned employee (mark done)
     if (status === 'pending_approval') {
       if (!isAssignedEmployee && !isCeo) {
         throw { statusCode: 403, message: 'Only the assigned employee can mark this task as done' };
@@ -316,7 +375,6 @@ class TicketService {
         throw { statusCode: 400, message: 'A completion remark is required when marking as done' };
       }
     }
-    // pending_approval -> approved: only the department's manager or CEO
     if (status === 'approved') {
       if (!isManager && !isCeo) {
         throw { statusCode: 403, message: 'Only a manager can approve completed work' };
@@ -325,66 +383,77 @@ class TicketService {
         throw { statusCode: 403, message: 'You can only approve work for your own department' };
       }
     }
-    // completed: only CEO override (normal flow uses pending_approval -> approved -> creator completes)
     if (status === 'completed' && !isCeo) {
       throw { statusCode: 403, message: 'Only CEO can directly complete a department task' };
     }
-    // completed -> open: only ceo (reopen)
     if (status === 'open' && deptRow.status === 'completed' && !isCeo) {
       throw { statusCode: 403, message: 'Only CEO can reopen a completed department task' };
     }
 
-    const updated = await ticketRepo.updateSubDeptProgress(
-      ticketId,
-      Number(departmentId),
-      { status }
-    );
-
-
-    const deptName = deptRow.department_name || `Dept ${departmentId}`;
-
-    // Log the progress change
-    const progressLog = status === 'pending_approval'
-      ? `${user.name} submitted ${deptName} work as done${note ? `. Remark: ${note}` : ''}`
-      : status === 'approved'
-        ? `${user.name} approved ${deptName} work`
-        : status === 'completed'
-          ? `${user.name} marked ${deptName} as completed`
-          : `${user.name} changed ${deptName} status from ${deptRow.status} to ${status}${note ? `. Remark: ${note}` : ''}`;
-
-    await ticketRepo.logAction(
-      ticketId, user.id, 'status_changed',
-      deptRow.status,
-      `${deptName}: ${updated.overall_progress}% overall`,
-      progressLog
-    );
-
-    // Transparency: add note as a formal comment
-    if (note && note.trim()) {
-      let commentMsg;
-      if (status === 'pending_approval') {
-        commentMsg = `[DEPT COMPLETION - ${deptName}]: ${note.trim()}`;
-      } else if (status === 'approved') {
-        commentMsg = `[DEPT APPROVED - ${deptName}]: Approved by ${user.name}`;
-      } else if (status === 'completed') {
-        commentMsg = `[DEPT COMPLETED - ${deptName}]: Finalized by ${user.name}`;
-      } else {
-        commentMsg = `[DEPT PROGRESS - ${deptName}]: ${note.trim()}`;
-      }
-      await ticketRepo.addComment(ticketId, user.id, commentMsg);
-      await ticketRepo.logAction(
-        ticketId, user.id, 'comment_added', null,
-        commentMsg.substring(0, 100),
-        status === 'approved'
-          ? `Manager ${user.name} approved ${deptName} work`
-          : status === 'completed'
-            ? `CEO ${user.name} finalized ${deptName}`
-            : `Note added by ${user.name} for ${deptName}`
+    return await ticketRepo.withTransaction(async (client) => {
+      const updated = await ticketRepo.updateSubDeptProgress(
+        ticketId,
+        Number(departmentId),
+        { status },
+        client
       );
-    }
 
-    broadcast('ticket:updated', updated, ticketId, user.id);
-    return updated;
+      const deptName = deptRow.department_name || `Dept ${departmentId}`;
+
+      // Log the progress change
+      const progressLog = status === 'pending_approval'
+        ? `${user.name} submitted ${deptName} work as done${note ? `. Remark: ${note}` : ''}`
+        : status === 'approved'
+          ? `${user.name} approved ${deptName} work`
+          : status === 'completed'
+            ? `${user.name} marked ${deptName} as completed`
+            : `${user.name} changed ${deptName} status from ${deptRow.status} to ${status}${note ? `. Remark: ${note}` : ''}`;
+
+      await ticketRepo.logAction(
+        ticketId, user.id, 'status_changed',
+        deptRow.status,
+        `${deptName}: ${updated.overall_progress}% overall`,
+        progressLog,
+        client
+      );
+
+      // Transparency: add note as a formal comment
+      if (note && note.trim()) {
+        let commentMsg;
+        if (status === 'pending_approval') {
+          commentMsg = `[DEPT COMPLETION - ${deptName}]: ${note.trim()}`;
+        } else if (status === 'approved') {
+          commentMsg = `[DEPT APPROVED - ${deptName}]: Approved by ${user.name}`;
+        } else if (status === 'completed') {
+          commentMsg = `[DEPT COMPLETED - ${deptName}]: Finalized by ${user.name}`;
+        } else {
+          commentMsg = `[DEPT PROGRESS - ${deptName}]: ${note.trim()}`;
+        }
+        await ticketRepo.addComment(ticketId, user.id, commentMsg, client);
+        await ticketRepo.logAction(
+          ticketId, user.id, 'comment_added', null,
+          commentMsg.substring(0, 100),
+          status === 'approved'
+            ? `Manager ${user.name} approved ${deptName} work`
+            : status === 'completed'
+              ? `CEO ${user.name} finalized ${deptName}`
+              : `Note added by ${user.name} for ${deptName}`,
+          client
+        );
+      }
+
+      const version = await ticketRepo.bumpVersion(client, ticketId);
+      await ticketRepo.insertOutboxRow(client, {
+        eventType: 'ticket:updated',
+        ticketId,
+        parentTicketId: updated.parent_ticket_id,
+        payload: updated,
+        actorId: user.id,
+        version,
+      });
+
+      return updated;
+    });
   }
 
   async selfAssignSubDept(ticketId, departmentId, user) {
@@ -398,26 +467,40 @@ class TicketService {
     if (deptRow.assigned_to_id) throw { statusCode: 400, message: 'This department task already has an assigned employee' };
     if (deptRow.status !== 'open') throw { statusCode: 400, message: 'Only open department tasks can be self-assigned' };
 
-    const updated = await ticketRepo.assignSubDeptToEmployee(
-      Number(ticketId),
-      Number(departmentId),
-      user.id,
-      user.id
-    );
+    return await ticketRepo.withTransaction(async (client) => {
+      const updated = await ticketRepo.assignSubDeptToEmployee(
+        Number(ticketId),
+        Number(departmentId),
+        user.id,
+        user.id,
+        client
+      );
 
-    await ticketRepo.logAction(
-      ticketId, user.id, 'assigned',
-      'Unassigned', user.name,
-      `Employee ${user.name} self-assigned to ${deptRow.department_name || `Dept ${departmentId}`}`
-    );
-    await ticketRepo.logAction(
-      ticketId, user.id, 'status_changed',
-      'open', 'in_progress',
-      `Status auto-changed to in_progress due to self-assignment by ${user.name}`
-    );
+      await ticketRepo.logAction(
+        ticketId, user.id, 'assigned',
+        'Unassigned', user.name,
+        `Employee ${user.name} self-assigned to ${deptRow.department_name || `Dept ${departmentId}`}`,
+        client
+      );
+      await ticketRepo.logAction(
+        ticketId, user.id, 'status_changed',
+        'open', 'in_progress',
+        `Status auto-changed to in_progress due to self-assignment by ${user.name}`,
+        client
+      );
 
-    broadcast('ticket:updated', updated, ticketId, user.id);
-    return updated;
+      const version = await ticketRepo.bumpVersion(client, ticketId);
+      await ticketRepo.insertOutboxRow(client, {
+        eventType: 'ticket:updated',
+        ticketId,
+        parentTicketId: updated.parent_ticket_id,
+        payload: updated,
+        actorId: user.id,
+        version,
+      });
+
+      return updated;
+    });
   }
 
   async assignSubDeptToEmployee(ticketId, departmentId, employeeId, user) {
@@ -429,31 +512,45 @@ class TicketService {
       throw { statusCode: 403, message: 'Only managers can assign sub-ticket work' };
     }
 
-    const updated = await ticketRepo.assignSubDeptToEmployee(
-      Number(ticketId),
-      Number(departmentId),
-      Number(employeeId),
-      user.id
-    );
+    return await ticketRepo.withTransaction(async (client) => {
+      const updated = await ticketRepo.assignSubDeptToEmployee(
+        Number(ticketId),
+        Number(departmentId),
+        Number(employeeId),
+        user.id,
+        client
+      );
 
-    const assignedEmployee = await ticketRepo.getUserById(Number(employeeId));
-    const deptRow = updated.sub_departments.find(d => Number(d.department_id) === Number(departmentId));
-    await ticketRepo.logAction(
-      ticketId,
-      user.id,
-      'assigned',
-      deptRow?.assigned_to_name || 'Unassigned',
-      assignedEmployee?.name || `Employee ${employeeId}`,
-      `Department manager ${user.name} assigned ${deptRow?.department_name || departmentId} work`
-    );
-    await ticketRepo.logAction(
-      ticketId, user.id, 'status_changed',
-      'open', 'in_progress',
-      `Status auto-changed to in_progress due to assignment by ${user.name}`
-    );
+      const assignedEmployee = await ticketRepo.getUserById(Number(employeeId));
+      const deptRow = updated.sub_departments.find(d => Number(d.department_id) === Number(departmentId));
+      await ticketRepo.logAction(
+        ticketId,
+        user.id,
+        'assigned',
+        deptRow?.assigned_to_name || 'Unassigned',
+        assignedEmployee?.name || `Employee ${employeeId}`,
+        `Department manager ${user.name} assigned ${deptRow?.department_name || departmentId} work`,
+        client
+      );
+      await ticketRepo.logAction(
+        ticketId, user.id, 'status_changed',
+        'open', 'in_progress',
+        `Status auto-changed to in_progress due to assignment by ${user.name}`,
+        client
+      );
 
-    broadcast('ticket:updated', updated, ticketId, user.id);
-    return updated;
+      const version = await ticketRepo.bumpVersion(client, ticketId);
+      await ticketRepo.insertOutboxRow(client, {
+        eventType: 'ticket:updated',
+        ticketId,
+        parentTicketId: updated.parent_ticket_id,
+        payload: updated,
+        actorId: user.id,
+        version,
+      });
+
+      return updated;
+    });
   }
 
   async completeSubTicket(ticketId, user) {
@@ -474,17 +571,29 @@ class TicketService {
       throw { statusCode: 400, message: 'All departments must be approved before completing the ticket' };
     }
 
-    const updated = await ticketRepo.completeSubTicket(ticketId, user.id);
+    return await ticketRepo.withTransaction(async (client) => {
+      const updated = await ticketRepo.completeSubTicket(ticketId, user.id, client);
 
-    const doneDepts = ticket.sub_departments.map(d => d.department_name || `Dept ${d.department_id}`).join(', ');
-    await ticketRepo.logAction(
-      ticketId, user.id, 'status_changed',
-      'in_progress', 'completed',
-      `Creator ${user.name} marked the sub-ticket as completed. Departments: ${doneDepts}`
-    );
+      const doneDepts = ticket.sub_departments.map(d => d.department_name || `Dept ${d.department_id}`).join(', ');
+      await ticketRepo.logAction(
+        ticketId, user.id, 'status_changed',
+        'in_progress', 'completed',
+        `Creator ${user.name} marked the sub-ticket as completed. Departments: ${doneDepts}`,
+        client
+      );
 
-    broadcast('ticket:updated', updated, ticketId, user.id);
-    return updated;
+      const version = await ticketRepo.bumpVersion(client, ticketId);
+      await ticketRepo.insertOutboxRow(client, {
+        eventType: 'ticket:updated',
+        ticketId,
+        parentTicketId: updated.parent_ticket_id,
+        payload: updated,
+        actorId: user.id,
+        version,
+      });
+
+      return updated;
+    });
   }
 
   async reopenSubDept(ticketId, departmentId, user) {
@@ -505,15 +614,12 @@ class TicketService {
       throw { statusCode: 400, message: 'Only approved or completed department tasks can be reopened' };
     }
 
-    // Determine cascade order (sub_departments is already ordered by d.name ASC)
+    // Determine cascade order
     const currentIndex = ticket.sub_departments.findIndex(d => Number(d.department_id) === Number(departmentId));
     const prevDept = currentIndex > 0 ? ticket.sub_departments[currentIndex - 1] : null;
     const isCascadeReopen = prevDept && prevDept.status === 'in_progress';
 
-    // For cascade reopens (previous department already in_progress), skip the
-    // 48-hour and reopen-count restrictions so the chain can continue down.
     if (!isCascadeReopen) {
-      // Check 48-hour window
       const completedTime = deptRow.completed_at || deptRow.updated_at;
       if (!completedTime) {
         throw { statusCode: 400, message: 'Cannot determine when this task was completed' };
@@ -523,7 +629,6 @@ class TicketService {
         throw { statusCode: 400, message: 'Reopen window of 48 hours has passed' };
       }
 
-      // Check if already reopened once
       const logs = await ticketRepo.getTicketLogs(ticketId);
       const reopenedBefore = logs.some(
         l => l.action === 'sub_dept_reopened' && String(l.old_value) === String(departmentId)
@@ -539,22 +644,35 @@ class TicketService {
       : null;
     const nextDeptId = nextDept ? Number(nextDept.department_id) : null;
 
-    const updated = await ticketRepo.reopenSubDept(ticketId, Number(departmentId), nextDeptId);
+    return await ticketRepo.withTransaction(async (client) => {
+      const updated = await ticketRepo.reopenSubDept(ticketId, Number(departmentId), nextDeptId, client);
 
-    const deptName = deptRow.department_name || `Dept ${departmentId}`;
-    await ticketRepo.logAction(
-      ticketId, user.id, 'sub_dept_reopened',
-      String(departmentId), 'in_progress',
-      `Creator ${user.name} reopened ${deptName} work`
-    );
-    await ticketRepo.logAction(
-      ticketId, user.id, 'status_changed',
-      deptRow.status, 'in_progress',
-      `${deptName} status changed to in_progress (reopened by creator ${user.name})`
-    );
+      const deptName = deptRow.department_name || `Dept ${departmentId}`;
+      await ticketRepo.logAction(
+        ticketId, user.id, 'sub_dept_reopened',
+        String(departmentId), 'in_progress',
+        `Creator ${user.name} reopened ${deptName} work`,
+        client
+      );
+      await ticketRepo.logAction(
+        ticketId, user.id, 'status_changed',
+        deptRow.status, 'in_progress',
+        `${deptName} status changed to in_progress (reopened by creator ${user.name})`,
+        client
+      );
 
-    broadcast('ticket:updated', updated, ticketId, user.id);
-    return updated;
+      const version = await ticketRepo.bumpVersion(client, ticketId);
+      await ticketRepo.insertOutboxRow(client, {
+        eventType: 'ticket:updated',
+        ticketId,
+        parentTicketId: updated.parent_ticket_id,
+        payload: updated,
+        actorId: user.id,
+        version,
+      });
+
+      return updated;
+    });
   }
 
   async updateStatus(ticketId, newStatus, user, remark, isSystemUpdate = false) {
@@ -595,10 +713,6 @@ class TicketService {
     const isAssignedDeptManager = user.role === 'manager' && user.department_id === ticket.assigned_dept_id;
     const isCeo = user.role === 'ceo';
 
-    if (!isSystemUpdate) {
-
-    }
-
     // Only the assigned resolver can mark a ticket as completed
     if (!isSystemUpdate && newStatus === 'completed') {
       if (ticket.status === 'open') throw { statusCode: 400, message: 'Ticket must be assigned first.' };
@@ -637,35 +751,48 @@ class TicketService {
       throw { statusCode: 400, message: 'Ticket is already closed. It must be reopened first.' };
     }
 
-    const oldStatus = ticket.status;
-    await ticketRepo.updateStatus(ticketId, newStatus, user);
+    return await ticketRepo.withTransaction(async (client) => {
+      const oldStatus = ticket.status;
+      await ticketRepo.updateStatus(ticketId, newStatus, user, client);
 
-    const updated = await ticketRepo.getTicketById(ticketId, user, true);
-    await ticketRepo.logAction(
-      ticketId,
-      user.id,
-      'status_changed',
-      oldStatus,
-      newStatus,
-      `Status updated to ${newStatus} by ${user.name}${isSystemUpdate ? ' (System Action)' : ''}${remark ? `. Remark: ${remark}` : ''}`
-    );
-
-    // ── Recursively propagate status up the parent chain ──────────────
-    const updatedParents = await this._propagateUpward(ticket, newStatus, user);
-
-    // Transparency: Add the closing/completion remark as a formal comment so it is visible in the thread
-    if ((newStatus === 'completed' || newStatus === 'closed') && remark) {
-      const commentMsg = `[${newStatus.toUpperCase()} REMARK]: ${remark}`;
-      await ticketRepo.addComment(ticketId, user.id, commentMsg);
+      const updated = await ticketRepo.getTicketDetails(ticketId, client);
       await ticketRepo.logAction(
-        ticketId, user.id, 'comment_added', null,
-        commentMsg.substring(0, 100),
-        `${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)} remark added by ${user.name}`
+        ticketId,
+        user.id,
+        'status_changed',
+        oldStatus,
+        newStatus,
+        `Status updated to ${newStatus} by ${user.name}${isSystemUpdate ? ' (System Action)' : ''}${remark ? `. Remark: ${remark}` : ''}`,
+        client
       );
-    }
 
-    broadcast('ticket:updated', updated, ticketId, user.id);
-    return updated;
+      // ── Recursively propagate status up the parent chain ──────────────
+      await this._propagateUpward(ticket, newStatus, user, client);
+
+      // Transparency: Add the closing/completion remark as a formal comment
+      if ((newStatus === 'completed' || newStatus === 'closed') && remark) {
+        const commentMsg = `[${newStatus.toUpperCase()} REMARK]: ${remark}`;
+        await ticketRepo.addComment(ticketId, user.id, commentMsg, client);
+        await ticketRepo.logAction(
+          ticketId, user.id, 'comment_added', null,
+          commentMsg.substring(0, 100),
+          `${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)} remark added by ${user.name}`,
+          client
+        );
+      }
+
+      const version = await ticketRepo.bumpVersion(client, ticketId);
+      await ticketRepo.insertOutboxRow(client, {
+        eventType: 'ticket:updated',
+        ticketId,
+        parentTicketId: updated.parent_ticket_id,
+        payload: updated,
+        actorId: user.id,
+        version,
+      });
+
+      return updated;
+    });
   }
 
   async selfAssign(ticketId, user) {
@@ -680,25 +807,36 @@ class TicketService {
       throw { statusCode: 400, message: 'Only OPEN tickets can be self-assigned' };
     }
 
-    const updated = await ticketRepo.selfAssign(ticketId, user.id);
-    if (!updated) throw { statusCode: 400, message: 'Ticket already assigned' };
+    return await ticketRepo.withTransaction(async (client) => {
+      const updated = await ticketRepo.selfAssign(ticketId, user.id, client);
+      if (!updated) throw { statusCode: 400, message: 'Ticket already assigned' };
 
+      // Log the assignment
+      await ticketRepo.logAction(
+        ticketId,
+        user.id,
+        'assigned',
+        'Unassigned',
+        user.name,
+        'Self-assigned',
+        client
+      );
 
-    // Log the assignment
-    await ticketRepo.logAction(
-      ticketId,
-      user.id,
-      'assigned',
-      'Unassigned',
-      user.name,
-      'Self-assigned'
-    );
+      // Log the automatic status change to in_progress
+      await ticketRepo.logAction(ticketId, user.id, 'status_changed', 'open', 'in_progress', 'Status changed via self-assignment', client);
 
-    // Log the automatic status change to in_progress
-    await ticketRepo.logAction(ticketId, user.id, 'status_changed', 'open', 'in_progress', 'Status changed via self-assignment');
+      const version = await ticketRepo.bumpVersion(client, ticketId);
+      await ticketRepo.insertOutboxRow(client, {
+        eventType: 'ticket:updated',
+        ticketId,
+        parentTicketId: updated.parent_ticket_id,
+        payload: updated,
+        actorId: user.id,
+        version,
+      });
 
-    broadcast('ticket:updated', updated, ticketId, user.id);
-    return updated;
+      return updated;
+    });
   }
 
   async assignToEmployee(ticketId, employeeId, user) {
@@ -715,35 +853,48 @@ class TicketService {
       throw { statusCode: 400, message: 'Cannot assign a ticket that is already completed or closed' };
     }
 
-    const updated = await ticketRepo.assignToEmployee(ticketId, employeeId, user.id);
-    if (!updated) throw { statusCode: 400, message: 'Unable to assign ticket' };
-
     const assignedEmployee = await ticketRepo.getUserById(employeeId);
     const assignedEmployeeName = assignedEmployee ? assignedEmployee.name : `Unknown Employee (ID: ${employeeId})`;
 
-    await ticketRepo.logAction(
-      ticketId,
-      user.id,
-      'assigned',
-      ticketBeforeUpdate.assigned_to_name || 'Unassigned',
-      assignedEmployeeName,
-      `Manager ${user.name} assigned the ticket.`
-    );
+    return await ticketRepo.withTransaction(async (client) => {
+      const updated = await ticketRepo.assignToEmployee(ticketId, employeeId, user.id, client);
+      if (!updated) throw { statusCode: 400, message: 'Unable to assign ticket' };
 
-    // Log status change if it went from 'open' to 'in_progress'
-    if (ticketBeforeUpdate.status === 'open' && updated.status === 'in_progress') {
       await ticketRepo.logAction(
         ticketId,
         user.id,
-        'status_changed',
-        ticketBeforeUpdate.status,
-        updated.status,
-        'Status changed due to assignment'
+        'assigned',
+        ticketBeforeUpdate.assigned_to_name || 'Unassigned',
+        assignedEmployeeName,
+        `Manager ${user.name} assigned the ticket.`,
+        client
       );
-    }
 
-    broadcast('ticket:updated', updated, ticketId, user.id);
-    return updated;
+      // Log status change if it went from 'open' to 'in_progress'
+      if (ticketBeforeUpdate.status === 'open' && updated.status === 'in_progress') {
+        await ticketRepo.logAction(
+          ticketId,
+          user.id,
+          'status_changed',
+          ticketBeforeUpdate.status,
+          updated.status,
+          'Status changed due to assignment',
+          client
+        );
+      }
+
+      const version = await ticketRepo.bumpVersion(client, ticketId);
+      await ticketRepo.insertOutboxRow(client, {
+        eventType: 'ticket:updated',
+        ticketId,
+        parentTicketId: updated.parent_ticket_id,
+        payload: updated,
+        actorId: user.id,
+        version,
+      });
+
+      return updated;
+    });
   }
 
   async transferTicket(ticketId, targetDeptId, user, title, description) {
@@ -772,48 +923,61 @@ class TicketService {
       throw { statusCode: 400, message: 'Cannot create sub-ticket for a closed ticket' };
     }
 
-    // Permission Check: CEO cannot create sub-tickets via transfer, and if assigned, only the resolver can create sub-ticket
+    // Permission Check
     if (user.role === 'ceo') throw { statusCode: 403, message: 'CEO is not authorized to create sub-tickets' };
 
     if (parentTicket.assigned_to_id && parentTicket.assigned_to_id !== user.id && user.role !== 'manager') {
       throw { statusCode: 403, message: 'Only the assigned resolver or a manager can create a sub-ticket' };
     }
 
-    // Create a new ticket as a sub-ticket (starts open, unassigned)
-    const subTicket = await ticketRepo.createTicket({
-      title: title?.trim() || `Sub: ${parentTicket.title}`,
-      description: description?.trim() || parentTicket.description,
-      priority: parentTicket.priority,
-      assignedDeptId: targetDeptId,
-      dueDate: parentTicket.due_date,
-      createdBy: user,
-      assignedToId: null,
-      parentTicketId: ticketId,
-      ticketType: 'standard'
+    return await ticketRepo.withTransaction(async (client) => {
+      // Create a new ticket as a sub-ticket (starts open, unassigned)
+      const subTicket = await ticketRepo.createTicket({
+        title: title?.trim() || `Sub: ${parentTicket.title}`,
+        description: description?.trim() || parentTicket.description,
+        priority: parentTicket.priority,
+        assignedDeptId: targetDeptId,
+        dueDate: parentTicket.due_date,
+        createdBy: user,
+        assignedToId: null,
+        parentTicketId: ticketId,
+        ticketType: 'standard'
+      }, client);
+
+      // Log the sub-ticket creation on the parent ticket
+      await ticketRepo.logAction(
+        ticketId,
+        user.id,
+        'sub_ticket_created',
+        null,
+        String(subTicket.id),
+        `Sub-ticket #${subTicket.id} created for department ${subTicket.assigned_dept_name} (formerly Transfer)`,
+        client
+      );
+
+      // Log creation on the sub-ticket itself
+      await ticketRepo.logAction(
+        subTicket.id,
+        user.id,
+        'created',
+        null,
+        subTicket.status,
+        `Created as a sub-ticket of #${ticketId}`,
+        client
+      );
+
+      const version = await ticketRepo.bumpVersion(client, subTicket.id);
+      await ticketRepo.insertOutboxRow(client, {
+        eventType: 'ticket:created',
+        ticketId: subTicket.id,
+        parentTicketId: subTicket.parent_ticket_id,
+        payload: subTicket,
+        actorId: user.id,
+        version,
+      });
+
+      return subTicket;
     });
-
-    // Log the sub-ticket creation on the parent ticket
-    await ticketRepo.logAction(
-      ticketId,
-      user.id,
-      'sub_ticket_created',
-      null,
-      String(subTicket.id),
-      `Sub-ticket #${subTicket.id} created for department ${subTicket.assigned_dept_name} (formerly Transfer)`
-    );
-
-    // Log creation on the sub-ticket itself
-    await ticketRepo.logAction(
-      subTicket.id,
-      user.id,
-      'created',
-      null,
-      subTicket.status,
-      `Created as a sub-ticket of #${ticketId}`
-    );
-
-    broadcast('ticket:created', subTicket, subTicket.id, user.id);
-    return subTicket;
   }
 
   async reopenTicket(ticketId, user) {
@@ -823,14 +987,24 @@ class TicketService {
 
     const oldStatus = ticket.status;
 
-    const updated = await ticketRepo.reopenTicket(ticketId, user.id);
-    if (!updated) throw { statusCode: 400, message: 'Unable to reopen ticket' };
+    return await ticketRepo.withTransaction(async (client) => {
+      const updated = await ticketRepo.reopenTicket(ticketId, user.id, client);
+      if (!updated) throw { statusCode: 400, message: 'Unable to reopen ticket' };
 
+      await ticketRepo.logAction(ticketId, user.id, 'reopened', oldStatus, 'in_progress', `Ticket reopened by creator (${user.name}) and returned to "In Progress" status.`, client);
 
-    await ticketRepo.logAction(ticketId, user.id, 'reopened', oldStatus, 'in_progress', `Ticket reopened by creator (${user.name}) and returned to "In Progress" status.`);
+      const version = await ticketRepo.bumpVersion(client, ticketId);
+      await ticketRepo.insertOutboxRow(client, {
+        eventType: 'ticket:updated',
+        ticketId,
+        parentTicketId: updated.parent_ticket_id,
+        payload: updated,
+        actorId: user.id,
+        version,
+      });
 
-    broadcast('ticket:updated', updated, ticketId, user.id);
-    return updated;
+      return updated;
+    });
   }
 
   async getComments(ticketId, user) {
@@ -844,20 +1018,32 @@ class TicketService {
     const ticket = await ticketRepo.getTicketById(ticketId, user);
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
-    const comment = await ticketRepo.addComment(ticketId, user.id, message);
 
+    return await ticketRepo.withTransaction(async (client) => {
+      const comment = await ticketRepo.addComment(ticketId, user.id, message, client);
 
-    await ticketRepo.logAction(
-      ticketId,
-      user.id,
-      'comment_added',
-      null,
-      message.substring(0, 100), // Log first 100 chars of comment
-      `Comment added by ${user.name}`
-    );
+      await ticketRepo.logAction(
+        ticketId,
+        user.id,
+        'comment_added',
+        null,
+        message.substring(0, 100),
+        `Comment added by ${user.name}`,
+        client
+      );
 
-    broadcast('ticket:updated', comment, ticketId, user.id);
-    return comment;
+      const version = await ticketRepo.bumpVersion(client, ticketId);
+      await ticketRepo.insertOutboxRow(client, {
+        eventType: 'ticket:updated',
+        ticketId,
+        parentTicketId: ticket.parent_ticket_id,
+        payload: comment,
+        actorId: user.id,
+        version,
+      });
+
+      return comment;
+    });
   }
 
   // ── Update ticket details (title, description, priority, due_date) ──────
@@ -866,11 +1052,22 @@ class TicketService {
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
-    const updated = await ticketRepo.updateTicketField(ticketId, user.id, fields);
-    if (!updated) throw { statusCode: 400, message: 'No valid fields to update' };
+    return await ticketRepo.withTransaction(async (client) => {
+      const updated = await ticketRepo.updateTicketField(ticketId, user.id, fields, client);
+      if (!updated) throw { statusCode: 400, message: 'No valid fields to update' };
 
-    broadcast('ticket:updated', updated, ticketId, user.id);
-    return updated;
+      const version = await ticketRepo.bumpVersion(client, ticketId);
+      await ticketRepo.insertOutboxRow(client, {
+        eventType: 'ticket:updated',
+        ticketId,
+        parentTicketId: updated.parent_ticket_id,
+        payload: updated,
+        actorId: user.id,
+        version,
+      });
+
+      return updated;
+    });
   }
 
   async getDepartments(user) {

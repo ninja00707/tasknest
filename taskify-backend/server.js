@@ -21,7 +21,12 @@ function startServer(app) {
 
   server.listen(port);
   server.on('error', (error) => onError(error, port));
-  server.on('listening', () => onListening(server));
+  server.on('listening', () => {
+    onListening(server);
+    // Start the event outbox processor after server is listening
+    const outboxProcessor = require('./core/outboxProcessor');
+    outboxProcessor.start();
+  });
 
   return server;
 }
