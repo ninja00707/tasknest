@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:tasknest/data/datasource/notification/notification_remote_data_source.dart';
+import 'package:tasknest/data/datasource/socket_helper.dart';
 import 'package:tasknest/presentation/notification/models/notification_model.dart';
 import 'package:tasknest/data/datasource/ticketdatasource/ticket_remote_data_source.dart';
 import 'package:tasknest/data/repositories/ticket/ticket_repository.dart';
@@ -49,6 +51,56 @@ class TicketRepositoryImpl implements TicketRepository {
 
   @override
   Future<TicketModel> getTicket(int id) => _ticketDs.getTicket(id);
+
+  @override
+  Stream<TicketModel> watchTicket(int ticketId) {
+    final controller = StreamController<TicketModel>();
+    SocketHelper().joinTicketRoom(ticketId);
+
+    Timer? debounce;
+    TicketModel? lastTicket;
+
+    _ticketDs.getTicket(ticketId).then((ticket) {
+      lastTicket = ticket;
+      if (!controller.isClosed) controller.add(ticket);
+    }).catchError((_) {});
+
+    final sub = SocketHelper().onTicketEvents().listen((event) {
+      final data = event.data;
+      if (data is Map) {
+        final eid = data['ticketId'];
+        final parentId = data['ticket']?['parent_ticket_id'];
+        if (eid == ticketId || parentId == ticketId) {
+          debounce?.cancel();
+          debounce = Timer(const Duration(milliseconds: 300), () async {
+            try {
+              final updated = await _ticketDs.getTicket(ticketId);
+              if (!controller.isClosed) {
+                if (lastTicket == null ||
+                    updated.status != lastTicket!.status ||
+                    updated.overallProgress != lastTicket!.overallProgress ||
+                    updated.lastUpdatedAt != lastTicket!.lastUpdatedAt ||
+                    updated.assignedToId != lastTicket!.assignedToId ||
+                    updated.completedDepartmentCount !=
+                        lastTicket!.completedDepartmentCount) {
+                  lastTicket = updated;
+                  controller.add(updated);
+                }
+              }
+            } catch (_) {}
+          });
+        }
+      }
+    });
+
+    controller.onCancel = () {
+      sub.cancel();
+      debounce?.cancel();
+      SocketHelper().leaveTicketRoom(ticketId);
+    };
+
+    return controller.stream;
+  }
 
   @override
   Future<TicketModel> createTicket({

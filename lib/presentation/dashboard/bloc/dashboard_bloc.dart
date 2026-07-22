@@ -31,6 +31,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<ToggleSidebar>(_onToggleSidebar);
     on<MarkVersionSeen>(_onMarkVersionSeen);
     on<UpdateScreenSize>(_onUpdateScreenSize);
+    on<PatchTicketOnDashboard>(_onPatchTicket);
 
     _initSocket();
   }
@@ -100,27 +101,15 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
             event.type == 'SUB_TICKET_COMPLETED' ||
             event.type == 'SUB_TICKET_REOPENED';
         if (isTicketEvent) {
-          _socketDebounce?.cancel();
-          _socketDebounce = Timer(const Duration(milliseconds: 2000), () {
-            if (!isClosed) {
-              final loaded = _getLoadedStateOrNull();
-              add(LoadDashboard(page: loaded?.currentPage ?? 1));
-              final s = state;
-              if (s is TicketDetailLoaded) {
-                add(LoadTicketDetail(s.ticket.id));
-              }
-            }
-          });
+          final ticketId = event.data is Map ? event.data['ticketId'] : null;
+          if (ticketId != null) {
+            _socketDebounce?.cancel();
+            _socketDebounce = Timer(const Duration(milliseconds: 300), () {
+              if (!isClosed) add(PatchTicketOnDashboard(ticketId as int));
+            });
+          }
         } else {
           _socketDebounce?.cancel();
-          _socketDebounce = Timer(const Duration(milliseconds: 2000), () {
-            if (!isClosed) {
-              final s = state;
-              if (s is TicketDetailLoaded) {
-                add(LoadTicketDetail(s.ticket.id));
-              }
-            }
-          });
         }
       });
       _socketInitialized = true;
@@ -133,6 +122,56 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         departmentId: user.departmentId,
       );
     }
+  }
+
+  // ── Incremental patch (replaces full LoadDashboard on socket events) ──
+  Future<void> _onPatchTicket(
+    PatchTicketOnDashboard event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final loaded = _getLoadedStateOrNull();
+    if (loaded == null) return;
+
+    try {
+      final updated = await _dataSource.getTicket(event.ticketId);
+
+      // Sub-tickets should never appear as standalone cards in the dashboard.
+      // Only patch the parent so children stay grouped inside it.
+      if (updated.parentTicketId != null) {
+        final refreshed = _getLoadedStateOrNull();
+        if (refreshed == null) return;
+        final parentIdx = refreshed.tickets.indexWhere((t) => t.id == updated.parentTicketId);
+        if (parentIdx >= 0) {
+          try {
+            final parent = await _dataSource.getTicket(updated.parentTicketId!);
+            final latest = _getLoadedStateOrNull();
+            if (latest == null) return;
+            final list = List<TicketModel>.from(latest.tickets);
+            final pi = list.indexWhere((t) => t.id == parent.id);
+            if (pi >= 0) {
+              list[pi] = parent;
+            } else {
+              list.insert(0, parent);
+            }
+            emit(latest.copyWith(tickets: list));
+          } catch (_) {}
+        }
+        return;
+      }
+
+      // Normal ticket (parent or standalone) — patch in place or insert
+      final oldTickets = loaded.tickets;
+      final idx = oldTickets.indexWhere((t) => t.id == updated.id);
+
+      final newTickets = List<TicketModel>.from(oldTickets);
+      if (idx >= 0) {
+        newTickets[idx] = updated;
+      } else {
+        newTickets.insert(0, updated);
+      }
+
+      emit(loaded.copyWith(tickets: newTickets));
+    } catch (_) {}
   }
 
   @override

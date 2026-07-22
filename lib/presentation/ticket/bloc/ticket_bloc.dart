@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:tasknest/data/datasource/socket_helper.dart';
 import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_event.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_state.dart';
@@ -12,8 +10,7 @@ import 'package:injectable/injectable.dart';
 class TicketBloc extends Bloc<TicketEvent, TicketState> {
   final TicketRepositoryImpl _dataSource;
   TicketModel? _lastLoadedTicket;
-  int? _currentTicketId;
-  StreamSubscription<SocketEvent>? _ticketSub;
+  StreamSubscription<TicketModel>? _ticketStreamSub;
 
   TicketBloc(this._dataSource) : super(TicketInitial()) {
     on<SelfAssignTicket>(_onSelfAssign);
@@ -34,45 +31,30 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     on<MarkTicketAsDone>(_onMarkTicketAsDone);
     on<FinalizeTicket>(_onFinalizeTicket);
     on<CloseTicket>(_onCloseTicket);
+    on<_TicketUpdatedFromStream>(_onTicketFromStream);
   }
 
-  void initLiveUpdates(int ticketId) {
-    _ticketSub?.cancel();
-    _currentTicketId = ticketId;
-    SocketHelper().joinTicketRoom(ticketId);
+  void _startWatching(int ticketId) {
+    _ticketStreamSub?.cancel();
 
-    _ticketSub = SocketHelper().events.listen((event) {
-      if (isClosed) return;
-      if (event.type == 'TICKET_UPDATED' ||
-          event.type == 'TICKET_STATUS_UPDATED' ||
-          event.type == 'COMMENT_ADDED' ||
-          event.type == 'SUB_TICKET_CREATED' ||
-          event.type == 'SUB_TICKET_ASSIGNED' ||
-          event.type == 'SUB_TICKET_COMPLETED' ||
-          event.type == 'SUB_TICKET_REOPENED' ||
-          event.type == 'SUB_TICKET_PROGRESS' ||
-          event.type == 'TICKET_ASSIGNED' ||
-          event.type == 'TICKET_CLOSED' ||
-          event.type == 'TICKET_REOPENED') {
-        final data = event.data;
-        if (data is Map) {
-          final ticketIdFromData = data['ticketId'];
-          final parentTicketId = data['ticket']?['parent_ticket_id'];
-          if (ticketIdFromData == _currentTicketId ||
-              parentTicketId == _currentTicketId) {
-            add(LoadTicketDetail(_currentTicketId!, silent: true));
-          }
-        }
-      }
-    });
+    _ticketStreamSub = _dataSource.watchTicket(ticketId).listen(
+      (ticket) {
+        if (isClosed) return;
+        _lastLoadedTicket = ticket;
+        add(_TicketUpdatedFromStream(ticket));
+      },
+      onError: (_) {},
+    );
+  }
+
+  void _stopWatching() {
+    _ticketStreamSub?.cancel();
+    _ticketStreamSub = null;
   }
 
   @override
   Future<void> close() {
-    _ticketSub?.cancel();
-    if (_currentTicketId != null) {
-      SocketHelper().leaveTicketRoom(_currentTicketId!);
-    }
+    _stopWatching();
     return super.close();
   }
 
@@ -92,6 +74,58 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
       errorMessage = error.toString();
     }
     return errorMessage;
+  }
+
+  void _onTicketFromStream(
+    _TicketUpdatedFromStream event,
+    Emitter<TicketState> emit,
+  ) {
+    final current = state;
+    if (current is TicketDetailLoaded) {
+      final prev = current.ticket;
+      final next = event.ticket;
+      if (prev.id == next.id &&
+          prev.status == next.status &&
+          prev.overallProgress == next.overallProgress &&
+          prev.lastUpdatedAt == next.lastUpdatedAt &&
+          prev.assignedToId == next.assignedToId &&
+          prev.completedDepartmentCount == next.completedDepartmentCount &&
+          prev.reopenCount == next.reopenCount) {
+        return;
+      }
+    }
+    emit(TicketDetailLoaded(event.ticket));
+  }
+
+  Future<void> _onLoadTicketDetail(
+    LoadTicketDetail event,
+    Emitter<TicketState> emit,
+  ) async {
+    if (!event.silent) {
+      emit(TicketActionInProgress());
+    }
+    try {
+      final ticket = await _dataSource.getTicket(event.ticketId);
+      _lastLoadedTicket = ticket;
+      _startWatching(event.ticketId);
+      emit(TicketDetailLoaded(ticket));
+    } catch (e) {
+      if (!event.silent) {
+        emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      }
+      if (_lastLoadedTicket != null) {
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
+      }
+    }
+  }
+
+  Future<void> _onClearTicketDetail(
+    ClearTicketDetail event,
+    Emitter<TicketState> emit,
+  ) async {
+    _stopWatching();
+    _lastLoadedTicket = null;
+    emit(TicketInitial());
   }
 
   Future<void> _onSelfAssign(
@@ -338,41 +372,6 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     }
   }
 
-  Future<void> _onLoadTicketDetail(
-    LoadTicketDetail event,
-    Emitter<TicketState> emit,
-  ) async {
-    if (!event.silent) {
-      emit(TicketActionInProgress());
-    }
-    try {
-      final ticket = await _dataSource.getTicket(event.ticketId);
-      _lastLoadedTicket = ticket;
-      initLiveUpdates(event.ticketId);
-      emit(TicketDetailLoaded(ticket));
-    } catch (e) {
-      if (!event.silent) {
-        emit(TicketActionError(_getFriendlyErrorMessage(e)));
-      }
-      if (_lastLoadedTicket != null) {
-        emit(TicketDetailLoaded(_lastLoadedTicket!));
-      }
-    }
-  }
-
-  Future<void> _onClearTicketDetail(
-    ClearTicketDetail event,
-    Emitter<TicketState> emit,
-  ) async {
-    _ticketSub?.cancel();
-    if (_currentTicketId != null) {
-      SocketHelper().leaveTicketRoom(_currentTicketId!);
-      _currentTicketId = null;
-    }
-    _lastLoadedTicket = null;
-    emit(TicketInitial());
-  }
-
   Future<void> _onMarkTicketAsDone(
     MarkTicketAsDone event,
     Emitter<TicketState> emit,
@@ -432,4 +431,11 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
         emit(TicketDetailLoaded(_lastLoadedTicket!));
     }
   }
+}
+
+class _TicketUpdatedFromStream extends TicketEvent {
+  final TicketModel ticket;
+  _TicketUpdatedFromStream(this.ticket);
+  @override
+  List<Object?> get props => [ticket.id, ticket.lastUpdatedAt];
 }

@@ -92,6 +92,8 @@ abstract class TicketRepository {
 
   Future<List<dynamic>> getOrganizationAnalytics();
 
+  Stream<TicketModel> watchTicket(int ticketId);
+
   Future<void> addComment(int ticketId, String message);
 
   Future<NotificationListResponse> getNotifications();

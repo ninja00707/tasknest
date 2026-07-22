@@ -836,7 +836,8 @@ class TicketRepository {
   }
 
   // ── Create ticket ─────────────────────────────────────────────────────────
-  async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId, parentTicketId = null, ticketType = 'standard' }) {
+  async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId, parentTicketId = null, ticketType = 'standard', _outboxClient = null }) {
+    const client = _outboxClient || pool;
     // All tickets start as open regardless of assignment
     const status = 'open';
     const isSubTicket = parentTicketId != null;
@@ -844,43 +845,78 @@ class TicketRepository {
     // Generate ticket number
     let ticketNumber;
     if (parentTicketId) {
-      // Sub-ticket: inherit parent number + append SUB counter
-      const parentRes = await pool.query(`SELECT ticket_number FROM tickets WHERE id = $1`, [parentTicketId]);
+      const parentRes = await client.query(`SELECT ticket_number FROM tickets WHERE id = $1`, [parentTicketId]);
       const parentNumber = parentRes.rows[0]?.ticket_number;
       if (parentNumber) {
-        const subCountRes = await pool.query(`SELECT COUNT(*) AS cnt FROM tickets WHERE parent_ticket_id = $1`, [parentTicketId]);
+        const subCountRes = await client.query(`SELECT COUNT(*) AS cnt FROM tickets WHERE parent_ticket_id = $1`, [parentTicketId]);
         const subSerial = (subCountRes.rows[0]?.cnt || 0) + 1;
         ticketNumber = `${parentNumber}-SUB-${String(subSerial).padStart(3, '0')}`;
       }
     }
     if (!ticketNumber) {
-      // Master ticket: use sequence
-      const seqRes = await pool.query(`SELECT NEXTVAL('ticket_number_seq') AS val`);
+      const seqRes = await client.query(`SELECT NEXTVAL('ticket_number_seq') AS val`);
       const seqVal = seqRes.rows[0].val;
       ticketNumber = `UMP-TKQ-${String(seqVal).padStart(3, '0')}`;
     }
 
-    const result = await pool.query(`
+    const result = await client.query(`
       INSERT INTO tickets
-        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status, parent_ticket_id, ticket_type, is_sub_ticket, ticket_number)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status, parent_ticket_id, ticket_type, is_sub_ticket, ticket_number, version)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1)
       RETURNING id
     `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status, parentTicketId, ticketType, isSubTicket, ticketNumber]);
 
-    return await this.getTicketDetails(result.rows[0].id);
+    const ticketId = result.rows[0].id;
+    const ticket = await this.getTicketDetails(ticketId);
+
+    if (ticket) {
+      await this.insertOutbox({
+        eventType: 'TICKET_CREATED',
+        ticketId,
+        parentTicketId: ticket.parent_ticket_id || null,
+        payload: { ticket },
+        version: ticket.version || 1,
+        actingUserId: createdBy.id,
+      }, client === pool ? undefined : client);
+    }
+
+    return ticket;
   }
 
   // ── Update ticket status ─────────────────────────────────────────────────
   async updateStatus(ticketId, status, user) {
-    await pool.query(`
-      UPDATE tickets SET status = $1::VARCHAR,
-        closed_by_id = CASE WHEN $1::VARCHAR IN ('closed', 'completed') THEN $2 ELSE closed_by_id END,
-        closed_at    = CASE WHEN $1::VARCHAR IN ('closed', 'completed') THEN NOW() ELSE closed_at END
-      WHERE id = $3
-    `, [status, user.id, ticketId]);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(`
+        UPDATE tickets SET
+          status = $1::VARCHAR,
+          closed_by_id = CASE WHEN $1::VARCHAR IN ('closed', 'completed') THEN $2 ELSE closed_by_id END,
+          closed_at    = CASE WHEN $1::VARCHAR IN ('closed', 'completed') THEN NOW() ELSE closed_at END,
+          version = COALESCE(version, 0) + 1
+        WHERE id = $3
+      `, [status, user.id, ticketId]);
 
-    const row = await pool.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
-    return row.rows[0] || null;
+      const row = await client.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
+      const ticket = row.rows[0];
+      if (ticket) {
+        await this.insertOutbox({
+          eventType: 'TICKET_STATUS_UPDATED',
+          ticketId,
+          parentTicketId: ticket.parent_ticket_id,
+          payload: { ticket },
+          version: ticket.version || 1,
+          actingUserId: user.id,
+        }, client);
+      }
+      await client.query('COMMIT');
+      return ticket || null;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   // ── Update generic ticket fields ──────────────────────────────────────────
@@ -892,7 +928,6 @@ class TicketRepository {
 
     for (const [key, value] of Object.entries(fields)) {
       if (allowed.includes(key)) {
-        // Map camelCase keys to snake_case columns
         const col = key === 'dueDate' || key === 'due_date' ? 'due_date' : key;
         sets.push(`${col} = $${idx++}`);
         params.push(value);
@@ -901,56 +936,126 @@ class TicketRepository {
 
     if (sets.length === 0) return null;
 
-    params.push(ticketId);
-    await pool.query(`
-      UPDATE tickets SET ${sets.join(', ')}, updated_at = NOW()
-      WHERE id = $${idx}
-    `, params);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      sets.push(`version = COALESCE(version, 0) + 1`);
+      params.push(ticketId);
+      await client.query(`
+        UPDATE tickets SET ${sets.join(', ')}, updated_at = NOW()
+        WHERE id = $${idx}
+      `, params);
 
-    const row = await pool.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
-    return row.rows[0] || null;
+      const row = await client.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
+      const ticket = row.rows[0];
+      if (ticket) {
+        await this.insertOutbox({
+          eventType: 'TICKET_UPDATED',
+          ticketId,
+          parentTicketId: ticket.parent_ticket_id,
+          payload: { ticket, changedFields: Object.keys(fields) },
+          version: ticket.version || 1,
+          actingUserId: userId,
+        }, client);
+      }
+      await client.query('COMMIT');
+      return ticket || null;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   // ── Self-assign open ticket (employee only) ───────────────────────────────
   async selfAssign(ticketId, userId) {
-    const result = await pool.query(`
-      UPDATE tickets
-      SET assigned_to_id = $1, status = 'in_progress'
-      WHERE id = $2 AND status = 'open' AND assigned_to_id IS NULL
-      RETURNING id
-    `, [userId, ticketId]);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(`
+        UPDATE tickets
+        SET assigned_to_id = $1, status = 'in_progress', version = COALESCE(version, 0) + 1
+        WHERE id = $2 AND status = 'open' AND assigned_to_id IS NULL
+        RETURNING id
+      `, [userId, ticketId]);
 
-    if (result.rows.length === 0) return null;
+      if (result.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return null;
+      }
 
-    const row = await pool.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
-    return row.rows[0] || null;
+      const row = await client.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
+      const ticket = row.rows[0];
+      if (ticket) {
+        await this.insertOutbox({
+          eventType: 'TICKET_ASSIGNED',
+          ticketId,
+          parentTicketId: ticket.parent_ticket_id,
+          payload: { ticket },
+          version: ticket.version || 1,
+          actingUserId: userId,
+        }, client);
+      }
+      await client.query('COMMIT');
+      return ticket || null;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   // ── Manager assigns ticket to employee ───────────────────────────────────
   async assignToEmployee(ticketId, employeeId, managerId) {
-    // Verify employee is in same dept as manager
-    const empCheck = await pool.query(
-      `SELECT u.id FROM users u WHERE u.id = $1 AND u.department_id = (
-         SELECT u2.department_id FROM users u2 WHERE u2.id = $2
-       )`,
-      [employeeId, managerId]
-    );
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const empCheck = await client.query(
+        `SELECT u.id FROM users u WHERE u.id = $1 AND u.department_id = (
+           SELECT u2.department_id FROM users u2 WHERE u2.id = $2
+         )`,
+        [employeeId, managerId]
+      );
 
-    if (empCheck.rows.length === 0) {
-      throw new Error('Employee not in same department');
+      if (empCheck.rows.length === 0) {
+        await client.query('ROLLBACK');
+        throw new Error('Employee not in same department');
+      }
+
+      const result = await client.query(`
+        UPDATE tickets
+        SET assigned_to_id = $1, status = 'in_progress', version = COALESCE(version, 0) + 1
+        WHERE id = $2
+        RETURNING id
+      `, [employeeId, ticketId]);
+
+      if (result.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
+      const row = await client.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
+      const ticket = row.rows[0];
+      if (ticket) {
+        await this.insertOutbox({
+          eventType: 'TICKET_ASSIGNED',
+          ticketId,
+          parentTicketId: ticket.parent_ticket_id,
+          payload: { ticket },
+          version: ticket.version || 1,
+          actingUserId: managerId,
+        }, client);
+      }
+      await client.query('COMMIT');
+      return ticket || null;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-
-    const result = await pool.query(`
-      UPDATE tickets
-      SET assigned_to_id = $1, status = 'in_progress'
-      WHERE id = $2
-      RETURNING id
-    `, [employeeId, ticketId]);
-
-    if (result.rows.length === 0) return null;
-
-    const row = await pool.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
-    return row.rows[0] || null;
   }
 
   // ── Transfer ticket to another department ─────────────────────────────────
@@ -996,7 +1101,8 @@ class TicketRepository {
       // Reopen the master ticket
       await client.query(`
         UPDATE tickets
-        SET status = 'in_progress', reopened_at = NOW(), reopen_count = reopen_count + 1, closed_by_id = NULL, closed_at = NULL
+        SET status = 'in_progress', reopened_at = NOW(), reopen_count = reopen_count + 1, closed_by_id = NULL, closed_at = NULL,
+            version = COALESCE(version, 0) + 1
         WHERE id = $1
       `, [ticketId]);
 
@@ -1009,13 +1115,27 @@ class TicketRepository {
           JOIN child_tickets ct ON t.parent_ticket_id = ct.id
         )
         UPDATE tickets
-        SET status = 'in_progress', reopened_at = NOW(), closed_by_id = NULL, closed_at = NULL
+        SET status = 'in_progress', reopened_at = NOW(), closed_by_id = NULL, closed_at = NULL,
+            version = COALESCE(version, 0) + 1
         WHERE id IN (SELECT id FROM child_tickets)
       `, [ticketId]);
 
-      await client.query('COMMIT');
       const row = await client.query(`SELECT * FROM tickets WHERE id = $1`, [ticketId]);
-      return row.rows[0] || null;
+      const reopenedTicket = row.rows[0];
+
+      if (reopenedTicket) {
+        await this.insertOutbox({
+          eventType: 'TICKET_REOPENED',
+          ticketId,
+          parentTicketId: reopenedTicket.parent_ticket_id || null,
+          payload: { ticket: reopenedTicket },
+          version: reopenedTicket.version || 1,
+          actingUserId: userId,
+        }, client);
+      }
+
+      await client.query('COMMIT');
+      return reopenedTicket || null;
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -1038,14 +1158,39 @@ class TicketRepository {
     return result.rows;
   }
 
-  // ── Add comment ───────────────────────────────────────────────────────────
+  // ── Add comment (with outbox) ──────────────────────────────────────────────
   async addComment(ticketId, userId, message) {
-    const result = await pool.query(`
-      INSERT INTO ticket_comments (ticket_id, user_id, message)
-      VALUES ($1, $2, $3) RETURNING *
-    `, [ticketId, userId, message]);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    return result.rows[0];
+      const result = await client.query(`
+        INSERT INTO ticket_comments (ticket_id, user_id, message)
+        VALUES ($1, $2, $3) RETURNING *
+      `, [ticketId, userId, message]);
+
+      // Get current ticket version for outbox
+      const ticketRow = await client.query(`SELECT version, parent_ticket_id FROM tickets WHERE id = $1`, [ticketId]);
+      const version = ticketRow.rows[0]?.version || 1;
+      const parentTicketId = ticketRow.rows[0]?.parent_ticket_id || null;
+
+      await this.insertOutbox({
+        eventType: 'COMMENT_ADDED',
+        ticketId,
+        parentTicketId,
+        payload: { comment: result.rows[0] },
+        version,
+        actingUserId: userId,
+      }, client);
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   // ── Log action ───────────────────────────────────────────────────────────
@@ -1458,7 +1603,7 @@ class TicketRepository {
 
     await client.query(`
       UPDATE tickets
-      SET overall_progress = $1, status = $2
+      SET overall_progress = $1, status = $2, version = COALESCE(version, 0) + 1
       WHERE id = $3 AND is_sub_ticket = TRUE
     `, [avg_progress, newStatus, ticketId]);
 
@@ -1487,8 +1632,8 @@ class TicketRepository {
       const ticketResult = await client.query(`
         INSERT INTO tickets
           (title, description, priority, assigned_dept_id, due_date,
-           created_by_id, created_by_dept, assigned_to_id, status, is_sub_ticket, overall_progress, parent_ticket_id, ticket_type)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'in_progress', TRUE, 0, $9, 'multi_task')
+           created_by_id, created_by_dept, assigned_to_id, status, is_sub_ticket, overall_progress, parent_ticket_id, ticket_type, version)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'in_progress', TRUE, 0, $9, 'multi_task', 1)
         RETURNING id
       `, [
         title, description, priority,
@@ -1505,14 +1650,25 @@ class TicketRepository {
       for (const dept of departments) {
         await client.query(`
           INSERT INTO sub_ticket_departments
-            (ticket_id, department_id, task_description, status, progress_percent)
-          VALUES ($1, $2, $3, 'open', 0)
+            (ticket_id, department_id, task_description, status, progress_percent, version)
+          VALUES ($1, $2, $3, 'open', 0, 1)
         `, [ticketId, dept.departmentId, dept.taskDescription]);
       }
 
+      // Outbox: emit after commit
+      const ticketData = await this.getTicketDetails(ticketId);
+      const enriched = await this.enrichTicketWithSubData(ticketData);
+        await this.insertOutbox({
+          eventType: 'SUB_TICKET_CREATED',
+          ticketId,
+          parentTicketId: parentTicketId || null,
+          payload: { ticket: enriched },
+          version: 1,
+          actingUserId: createdBy.id,
+        }, client);
+
       await client.query('COMMIT');
-      const ticket = await this.getTicketDetails(ticketId);
-      return await this.enrichTicketWithSubData(ticket);
+      return enriched;
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -1539,16 +1695,21 @@ class TicketRepository {
           updates.push(`completed_at = NOW()`);
           updates.push(`progress_percent = 100`);
           updates.push(`updated_at = NOW()`);
+          updates.push(`version = COALESCE(version, 0) + 1`);
         } else if (status === 'approved') {
           updates.push(`progress_percent = 100`);
           updates.push(`updated_at = NOW()`);
+          updates.push(`version = COALESCE(version, 0) + 1`);
         } else if (status === 'pending_approval') {
           updates.push(`progress_percent = 100`);
           updates.push(`updated_at = NOW()`);
+          updates.push(`version = COALESCE(version, 0) + 1`);
         } else if (status === 'in_progress') {
           updates.push(`progress_percent = GREATEST(progress_percent, 1)`);
+          updates.push(`version = COALESCE(version, 0) + 1`);
         } else if (status === 'open') {
           updates.push(`completed_at = NULL`);
+          updates.push(`version = COALESCE(version, 0) + 1`);
         }
       }
 
@@ -1569,10 +1730,22 @@ class TicketRepository {
 
       await this._recalculateSubTicketProgress(ticketId, client);
 
-      await client.query('COMMIT');
+      // Outbox for sub-ticket progress update
+      const ticketData = await this.getTicketDetails(ticketId);
+      const enriched = await this.enrichTicketWithSubData(ticketData);
+      if (enriched) {
+        await this.insertOutbox({
+          eventType: 'SUB_TICKET_PROGRESS',
+          ticketId,
+          parentTicketId: enriched.parent_ticket_id || null,
+          payload: { ticket: enriched },
+          version: enriched.version || 1,
+          actingUserId: null,
+        }, client);
+      }
 
-      const ticket = await this.getTicketDetails(ticketId);
-      return await this.enrichTicketWithSubData(ticket);
+      await client.query('COMMIT');
+      return enriched;
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -1582,34 +1755,61 @@ class TicketRepository {
   }
 
   async assignSubDeptToEmployee(ticketId, departmentId, employeeId, managerId) {
-    const empCheck = await pool.query(
-      `SELECT u.id FROM users u WHERE u.id = $1 AND u.department_id = (
-         SELECT u2.department_id FROM users u2 WHERE u2.id = $2
-       )`,
-      [employeeId, managerId]
-    );
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    if (empCheck.rows.length === 0) {
-      throw new Error('Employee not in same department');
+      const empCheck = await client.query(
+        `SELECT u.id FROM users u WHERE u.id = $1 AND u.department_id = (
+           SELECT u2.department_id FROM users u2 WHERE u2.id = $2
+         )`,
+        [employeeId, managerId]
+      );
+
+      if (empCheck.rows.length === 0) {
+        await client.query('ROLLBACK');
+        throw new Error('Employee not in same department');
+      }
+
+      const result = await client.query(`
+        UPDATE sub_ticket_departments
+        SET assigned_to_id = $1,
+            status = 'in_progress',
+            progress_percent = GREATEST(progress_percent, 1),
+            updated_at = NOW(),
+            version = COALESCE(version, 0) + 1
+        WHERE ticket_id = $2 AND department_id = $3
+        RETURNING *
+      `, [employeeId, ticketId, departmentId]);
+
+      if (result.rows.length === 0) {
+        await client.query('ROLLBACK');
+        throw new Error('Department assignment not found');
+      }
+
+      await this._recalculateSubTicketProgress(ticketId, client);
+
+      const ticketData = await this.getTicketDetails(ticketId);
+      const enriched = await this.enrichTicketWithSubData(ticketData);
+      if (enriched) {
+        await this.insertOutbox({
+          eventType: 'SUB_TICKET_ASSIGNED',
+          ticketId,
+          parentTicketId: enriched.parent_ticket_id || null,
+          payload: { ticket: enriched },
+          version: enriched.version || 1,
+          actingUserId: managerId,
+        }, client);
+      }
+
+      await client.query('COMMIT');
+      return enriched;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-
-    const result = await pool.query(`
-      UPDATE sub_ticket_departments
-      SET assigned_to_id = $1,
-          status = 'in_progress',
-          progress_percent = GREATEST(progress_percent, 1),
-          updated_at = NOW()
-      WHERE ticket_id = $2 AND department_id = $3
-      RETURNING *
-    `, [employeeId, ticketId, departmentId]);
-
-    if (result.rows.length === 0) {
-      throw new Error('Department assignment not found');
-    }
-
-    await this._recalculateSubTicketProgress(ticketId);
-    const ticket = await this.getTicketDetails(ticketId);
-    return await this.enrichTicketWithSubData(ticket);
   }
 
   async completeSubTicket(ticketId, userId) {
@@ -1619,20 +1819,33 @@ class TicketRepository {
 
       await client.query(`
         UPDATE sub_ticket_departments
-        SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+        SET status = 'completed', completed_at = NOW(), updated_at = NOW(),
+            version = COALESCE(version, 0) + 1
         WHERE ticket_id = $1 AND status = 'approved'
       `, [ticketId]);
 
       await client.query(`
         UPDATE tickets
-        SET status = 'completed', overall_progress = 100, closed_at = NOW()
+        SET status = 'completed', overall_progress = 100, closed_at = NOW(),
+            version = COALESCE(version, 0) + 1
         WHERE id = $1 AND is_sub_ticket = TRUE
       `, [ticketId]);
 
-      await client.query('COMMIT');
+      const ticketData = await this.getTicketDetails(ticketId);
+      const enriched = await this.enrichTicketWithSubData(ticketData);
+      if (enriched) {
+        await this.insertOutbox({
+          eventType: 'SUB_TICKET_COMPLETED',
+          ticketId,
+          parentTicketId: enriched.parent_ticket_id || null,
+          payload: { ticket: enriched },
+          version: enriched.version || 1,
+          actingUserId: userId,
+        }, client);
+      }
 
-      const ticket = await this.getTicketDetails(ticketId);
-      return await this.enrichTicketWithSubData(ticket);
+      await client.query('COMMIT');
+      return enriched;
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -1649,7 +1862,8 @@ class TicketRepository {
       await client.query(`
         UPDATE sub_ticket_departments
         SET status = 'in_progress', progress_percent = 1,
-            completed_at = NULL, updated_at = NOW()
+            completed_at = NULL, updated_at = NOW(),
+            version = COALESCE(version, 0) + 1
         WHERE ticket_id = $1 AND department_id = $2
       `, [ticketId, departmentId]);
 
@@ -1658,15 +1872,27 @@ class TicketRepository {
       if (nextDeptId) {
         await client.query(`
           UPDATE sub_ticket_departments
-          SET completed_at = NULL, updated_at = NOW()
+          SET completed_at = NULL, updated_at = NOW(),
+              version = COALESCE(version, 0) + 1
           WHERE ticket_id = $1 AND department_id = $2
         `, [ticketId, nextDeptId]);
       }
 
-      await client.query('COMMIT');
+      const ticketData = await this.getTicketDetails(ticketId);
+      const enriched = await this.enrichTicketWithSubData(ticketData);
+      if (enriched) {
+        await this.insertOutbox({
+          eventType: 'SUB_TICKET_REOPENED',
+          ticketId,
+          parentTicketId: enriched.parent_ticket_id || null,
+          payload: { ticket: enriched },
+          version: enriched.version || 1,
+          actingUserId: null,
+        }, client);
+      }
 
-      const ticket = await this.getTicketDetails(ticketId);
-      return await this.enrichTicketWithSubData(ticket);
+      await client.query('COMMIT');
+      return enriched;
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -1777,7 +2003,7 @@ class TicketRepository {
         WHERE t.parent_ticket_id IS NOT NULL
       ),
       updated AS (
-        UPDATE tickets SET status = $2, updated_at = NOW()
+        UPDATE tickets SET status = $2, updated_at = NOW(), version = COALESCE(version, 0) + 1
         WHERE id IN (SELECT parent_ticket_id FROM ancestors)
           AND status != $2
         RETURNING id, ticket_number, title, status
@@ -1819,6 +2045,40 @@ class TicketRepository {
       SELECT parent_ticket_id FROM tickets WHERE id = $1
     `, [ticketId]);
     return result.rows[0] || null;
+  }
+
+  // ── Event Outbox ──────────────────────────────────────────────────────
+
+  async insertOutbox({ eventType, ticketId, parentTicketId, payload, version, actingUserId }, client = pool) {
+    const enrichedPayload = { ...payload, actingUserId: actingUserId || null };
+    await client.query(`
+      INSERT INTO event_outbox (event_type, ticket_id, parent_ticket_id, payload, version)
+      VALUES ($1, $2, $3, $4, $5)
+    `, [eventType, ticketId, parentTicketId || null, JSON.stringify(enrichedPayload), version]);
+  }
+
+  async getUnprocessedOutbox(limit = 50) {
+    const result = await pool.query(`
+      SELECT id, event_type, ticket_id, parent_ticket_id, payload, version, created_at
+      FROM event_outbox
+      WHERE processed_at IS NULL
+      ORDER BY created_at ASC
+      LIMIT $1
+    `, [limit]);
+    return result.rows;
+  }
+
+  async markOutboxProcessed(ids) {
+    if (!ids.length) return;
+    await pool.query(`
+      UPDATE event_outbox SET processed_at = now()
+      WHERE id = ANY($1::bigint[])
+    `, [ids]);
+  }
+
+  async getTicketVersion(ticketId) {
+    const result = await pool.query(`SELECT version FROM tickets WHERE id = $1`, [ticketId]);
+    return result.rows[0]?.version || 1;
   }
 }
 

@@ -1,5 +1,4 @@
 const ticketRepo = require('./ticket.repository');
-const socketHelper = require('../../core/socketHelper');
 const cache = require('../../core/cache');
 
 class TicketService {
@@ -22,6 +21,26 @@ class TicketService {
   _invalidateStats(...userIds) {
     for (const id of userIds) {
       if (id) cache.del(`dash:stats:${id}`);
+    }
+  }
+
+  async _emitParentChain(ticketId, updatedParents, actingUserId) {
+    for (const p of updatedParents) {
+      try {
+        const parentTicket = await ticketRepo.getTicketById(p.parentId, null, true);
+        if (parentTicket && !parentTicket.forbidden) {
+          await ticketRepo.insertOutbox({
+            eventType: 'TICKET_STATUS_UPDATED',
+            ticketId: p.parentId,
+            parentTicketId: parentTicket.parent_ticket_id || null,
+            payload: { ticket: parentTicket },
+            version: parentTicket.version || 1,
+            actingUserId,
+          });
+        }
+      } catch (err) {
+        console.error(`[TicketService] Failed to emit parent chain for ${p.parentId}:`, err.message);
+      }
     }
   }
 
@@ -192,16 +211,6 @@ class TicketService {
       await ticketRepo.logAction(parentTicketId, user.id, 'sub_ticket_created', null, String(ticket.id), `Sub-ticket #${ticket.id} created by ${user.name}`);
     }
 
-    // Fire notification dispatch asynchronously
-    setImmediate(async () => {
-      try {
-        const involved = await ticketRepo.getTicketInvolvedUsers(ticket.id);
-        await socketHelper.create(ticket.id, involved, `New Ticket Created: ${title}`, { ticket });
-      } catch (err) {
-        console.error(`[TicketService] Async dispatch error for ticket ${ticket.id}:`, err.message);
-      }
-    });
-
     return ticket;
   }
 
@@ -270,18 +279,6 @@ class TicketService {
     if (parentTicketId) {
       await ticketRepo.logAction(parentTicketId, user.id, 'sub_ticket_created', null, String(ticket.id), `Multi-task sub-ticket #${ticket.id} created by ${user.name}`);
     }
-
-    // Fire notification dispatch asynchronously
-    setImmediate(async () => {
-      try {
-        const involved = await ticketRepo.getTicketInvolvedUsers(ticket.id);
-        await socketHelper.subCreate(ticket.id, involved,
-          `New Multi-Task Ticket #${ticket.id} created ${parentTicketId ? `as sub-ticket of #${parentTicketId}` : ''}`,
-          { ticket });
-      } catch (err) {
-        console.error(`[TicketService] Async dispatch error for ticket ${ticket.id}:`, err.message);
-      }
-    });
 
     return ticket;
   }
@@ -390,17 +387,6 @@ class TicketService {
       );
     }
 
-    setImmediate(async () => {
-      try {
-        const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-        await socketHelper.subProgress(ticketId, involved,
-          `Sub-Ticket #${ticketId}: ${deptName} progress updated (${updated.overall_progress}% complete)`,
-          { ticket: updated }, [user.id]);
-      } catch (err) {
-        console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-      }
-    });
-
     return updated;
   }
 
@@ -432,17 +418,6 @@ class TicketService {
       'open', 'in_progress',
       `Status auto-changed to in_progress due to self-assignment by ${user.name}`
     );
-
-    setImmediate(async () => {
-      try {
-        const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-        await socketHelper.subAssign(ticketId, involved,
-          `${user.name} self-assigned to ${deptRow.department_name || `Dept ${departmentId}`} task for Ticket #${ticketId}`,
-          {}, [user.id]);
-      } catch (err) {
-        console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-      }
-    });
 
     return updated;
   }
@@ -479,19 +454,6 @@ class TicketService {
       `Status auto-changed to in_progress due to assignment by ${user.name}`
     );
 
-    if (assignedEmployee?.id) {
-      setImmediate(async () => {
-        try {
-          const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-          await socketHelper.subAssign(ticketId, involved,
-            `${user.name} assigned ${assignedEmployee.name} to ${deptRow?.department_name || departmentId} work for Ticket #${ticketId}`,
-            {}, [user.id]);
-        } catch (err) {
-          console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-        }
-      });
-    }
-
     return updated;
   }
 
@@ -521,17 +483,6 @@ class TicketService {
       'in_progress', 'completed',
       `Creator ${user.name} marked the sub-ticket as completed. Departments: ${doneDepts}`
     );
-
-    setImmediate(async () => {
-      try {
-        const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-        await socketHelper.complete(ticketId, involved,
-          `Sub-Ticket #${ticketId} has been completed by the creator`,
-          { ticket: updated }, [user.id]);
-      } catch (err) {
-        console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-      }
-    });
 
     return updated;
   }
@@ -601,17 +552,6 @@ class TicketService {
       deptRow.status, 'in_progress',
       `${deptName} status changed to in_progress (reopened by creator ${user.name})`
     );
-
-    setImmediate(async () => {
-      try {
-        const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-        await socketHelper.subReopen(ticketId, involved,
-          `Sub-Ticket #${ticketId}: ${deptName} reopened by creator`,
-          { ticket: updated }, [user.id]);
-      } catch (err) {
-        console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-      }
-    });
 
     return updated;
   }
@@ -721,6 +661,7 @@ await ticketRepo.logAction(
 
 // ── Recursively propagate status up the parent chain ──────────────
 const updatedParents = await this._propagateUpward(ticket, newStatus, user);
+await this._emitParentChain(ticketId, updatedParents, user.id);
 
 // Transparency: Add the closing/completion remark as a formal comment so it is visible in the thread
 if ((newStatus === 'completed' || newStatus === 'closed') && remark) {
@@ -732,21 +673,6 @@ if ((newStatus === 'completed' || newStatus === 'closed') && remark) {
     `${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)} remark added by ${user.name}`
   );
 }
-
-// Fire notification dispatch asynchronously — don't block the HTTP response
-setImmediate(async () => {
-  try {
-    const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-    await socketHelper.update(ticketId, involved, `Ticket #${ticketId} status changed to ${newStatus}`, { ticket: updated }, [user.id]);
-    for (const p of updatedParents) {
-      const parentTicket = await ticketRepo.getTicketById(p.parentId, user, true);
-      const parentInvolved = await ticketRepo.getTicketInvolvedUsers(p.parentId);
-      await socketHelper.update(p.parentId, parentInvolved, `Ticket #${p.parentId} status changed to ${p.newStatus}`, { ticket: parentTicket }, [user.id]);
-    }
-  } catch (err) {
-    console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-  }
-});
 
 return updated;
   }
@@ -780,27 +706,10 @@ return updated;
   // Log the automatic status change to in_progress
   await ticketRepo.logAction(ticketId, user.id, 'status_changed', 'open', 'in_progress', 'Status changed via self-assignment');
 
-  // Fire notification dispatch asynchronously — don't block the HTTP response
-  setImmediate(async () => {
-    try {
-      const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-      await socketHelper.assign(ticketId, involved,
-        `Ticket #${ticketId} self-assigned by ${user.name}`,
-        { ticket: updated }, [user.id]);
-      if (ticketBeforeUpdate.parent_ticket_id) {
-        const updatedParents = await this._propagateUpward(ticketBeforeUpdate, 'in_progress', user);
-        for (const p of updatedParents) {
-          const parentTicket = await ticketRepo.getTicketById(p.parentId, user, true);
-          const parentInvolved = await ticketRepo.getTicketInvolvedUsers(p.parentId);
-          await socketHelper.update(p.parentId, parentInvolved,
-            `Ticket #${p.parentId} status changed to in_progress`,
-            { ticket: parentTicket }, [user.id]);
-        }
-      }
-    } catch (err) {
-      console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-    }
-  });
+  if (ticketBeforeUpdate.parent_ticket_id) {
+    const updatedParents = await this._propagateUpward(ticketBeforeUpdate, 'in_progress', user);
+    await this._emitParentChain(ticketId, updatedParents, user.id);
+  }
 
   return updated;
 }
@@ -835,25 +744,10 @@ return updated;
     `Manager ${user.name} assigned the ticket.`
   );
 
-  // Fire notification dispatch asynchronously — don't block the HTTP response
-  setImmediate(async () => {
-    try {
-      const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-      await socketHelper.assign(ticketId, involved, `Manager ${user.name} assigned you to Ticket #${ticketId}`);
-      if (ticketBeforeUpdate.parent_ticket_id && (ticketBeforeUpdate.status === 'open' || updated.status === 'in_progress')) {
-        const updatedParents = await this._propagateUpward(ticketBeforeUpdate, 'in_progress', user);
-        for (const p of updatedParents) {
-          const parentTicket = await ticketRepo.getTicketById(p.parentId, user, true);
-          const parentInvolved = await ticketRepo.getTicketInvolvedUsers(p.parentId);
-          await socketHelper.update(p.parentId, parentInvolved,
-            `Ticket #${p.parentId} status changed to in_progress`,
-            { ticket: parentTicket }, [user.id]);
-        }
-      }
-    } catch (err) {
-      console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-    }
-  });
+  if (ticketBeforeUpdate.parent_ticket_id && (ticketBeforeUpdate.status === 'open' || updated.status === 'in_progress')) {
+    const updatedParents = await this._propagateUpward(ticketBeforeUpdate, 'in_progress', user);
+    await this._emitParentChain(ticketId, updatedParents, user.id);
+  }
 
   // Log status change if it went from 'open' to 'in_progress'
   if (ticketBeforeUpdate.status === 'open' && updated.status === 'in_progress') {
@@ -936,16 +830,6 @@ return updated;
     `Created as a sub-ticket of #${ticketId}`
   );
 
-  // Fire notification dispatch asynchronously
-  setImmediate(async () => {
-    try {
-      const involved = await ticketRepo.getTicketInvolvedUsers(subTicket.id);
-      await socketHelper.subCreate(subTicket.id, involved, `New Sub-Ticket #${subTicket.id} created from #${ticketId}`, { ticket: subTicket });
-    } catch (err) {
-      console.error(`[TicketService] Async dispatch error for ticket ${subTicket.id}:`, err.message);
-    }
-  });
-
   return subTicket;
 }
 
@@ -961,16 +845,6 @@ return updated;
   this._invalidateStats(user.id);
 
   await ticketRepo.logAction(ticketId, user.id, 'reopened', oldStatus, 'in_progress', `Ticket reopened by creator (${user.name}) and returned to "In Progress" status.`);
-
-  // Fire notification dispatch asynchronously
-  setImmediate(async () => {
-    try {
-      const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-      await socketHelper.reopen(ticketId, involved, `Ticket #${ticketId} has been reopened and is now In Progress.`, { ticket: updated }, [user.id]);
-    } catch (err) {
-      console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-    }
-  });
 
   return updated;
 }
@@ -994,19 +868,9 @@ return updated;
     user.id,
     'comment_added',
     null,
-    message.substring(0, 100), // Log first 100 chars of comment
+    message.substring(0, 100),
     `Comment added by ${user.name}`
   );
-
-  // Fire notification dispatch asynchronously
-  setImmediate(async () => {
-    try {
-      const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-      await socketHelper.comment(ticketId, involved, `${user.name} commented on Ticket #${ticketId}`, {}, [user.id]);
-    } catch (err) {
-      console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-    }
-  });
 
   return comment;
 }
@@ -1020,18 +884,6 @@ return updated;
   const updated = await ticketRepo.updateTicketField(ticketId, user.id, fields);
   if (!updated) throw { statusCode: 400, message: 'No valid fields to update' };
   this._invalidateStats(user.id);
-
-  setImmediate(async () => {
-    try {
-      const involved = await ticketRepo.getTicketInvolvedUsers(ticketId);
-      const changed = Object.keys(fields).join(', ');
-      await socketHelper.fieldUpdate(ticketId, involved,
-        `${user.name} updated ${changed} on Ticket #${ticketId}`,
-        { ticketNumber: updated.ticket_number }, [user.id]);
-    } catch (err) {
-      console.error(`[TicketService] Async dispatch error for ticket ${ticketId}:`, err.message);
-    }
-  });
 
   return updated;
 }

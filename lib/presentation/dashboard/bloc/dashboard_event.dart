@@ -63,3 +63,10 @@ class UpdateScreenSize extends DashboardEvent {
   @override
   List<Object?> get props => [isWide, screenWidth];
 }
+
+class PatchTicketOnDashboard extends DashboardEvent {
+  final int ticketId;
+  PatchTicketOnDashboard(this.ticketId);
+  @override
+  List<Object?> get props => [ticketId];
+}

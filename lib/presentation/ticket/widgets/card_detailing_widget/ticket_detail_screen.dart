@@ -7,7 +7,8 @@ import 'package:tasknest/core/theme/common_loader.dart';
 import 'package:tasknest/core/theme/common_section_container.dart';
 import 'package:tasknest/core/theme/common_text.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
-import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart' hide TicketDetailLoaded;
+import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart'
+    hide TicketDetailLoaded;
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_event.dart';
@@ -35,6 +36,7 @@ class TicketDetailScreen extends StatefulWidget {
 
 class _TicketDetailScreenState extends State<TicketDetailScreen> {
   late final TicketBloc _ticketBloc;
+  TicketModel? _ticket;
 
   @override
   void initState() {
@@ -52,10 +54,25 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocListener<TicketBloc, TicketState>(
-      listenWhen: (prev, curr) =>
-          curr is TicketActionSuccess || curr is TicketActionError,
+      listenWhen: (prev, curr) => true,
       listener: (context, state) {
-        if (state is TicketActionSuccess) {
+        if (state is TicketDetailLoaded) {
+          if (_ticket == null ||
+              _ticket!.id != state.ticket.id ||
+              _ticket!.status != state.ticket.status ||
+              _ticket!.overallProgress != state.ticket.overallProgress ||
+              _ticket!.lastUpdatedAt != state.ticket.lastUpdatedAt ||
+              _ticket!.assignedToId != state.ticket.assignedToId ||
+              _ticket!.completedDepartmentCount !=
+                  state.ticket.completedDepartmentCount ||
+              _ticket!.reopenCount != state.ticket.reopenCount ||
+              _ticket!.children.length != state.ticket.children.length ||
+              _ticket!.comments.length != state.ticket.comments.length) {
+            setState(() {
+              _ticket = state.ticket;
+            });
+          }
+        } else if (state is TicketActionSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -71,131 +88,121 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
           );
         }
       },
-      child: BlocBuilder<TicketBloc, TicketState>(
-        buildWhen: (prev, curr) => prev != curr,
-        builder: (context, state) {
-          if (state is TicketDetailLoaded) {
-            return _buildScaffold(state.ticket);
-          }
-          return const LoadingScaffold();
-        },
+      child: Scaffold(
+        backgroundColor: ThemeColors.unifiedBackground,
+        body: _ticket != null ? _buildBody(_ticket!) : const LoadingScaffold(),
       ),
     );
   }
 
-  Widget _buildScaffold(TicketModel ticket) {
-    final bloc = context.watch<DashboardBloc>();
-    final loaded = bloc.state is DashboardLoaded ? bloc.state as DashboardLoaded : null;
+  Widget _buildBody(TicketModel ticket) {
+    final bloc = context.read<DashboardBloc>();
+    final loaded =
+        bloc.state is DashboardLoaded ? bloc.state as DashboardLoaded : null;
     final screenWidth = loaded?.screenWidth ?? 1200.0;
     final isWide = loaded?.isWide ?? true;
 
-    return Scaffold(
-      backgroundColor: ThemeColors.unifiedBackground,
-      body: Container(
-        height: 800.0,
-        width: screenWidth,
-        color: ThemeColors.unifiedBackground,
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              TicketDetailAppbar(ticket: ticket),
-
-              Center(
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: isWide ? 1750 : double.infinity,
+    return Container(
+      height: 800.0,
+      width: screenWidth,
+      color: ThemeColors.unifiedBackground,
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            TicketDetailAppbar(ticket: ticket),
+            Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: isWide ? 1750 : double.infinity,
+                ),
+                child: Container(
+                  margin: isWide
+                      ? const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 16,
+                        )
+                      : EdgeInsets.zero,
+                  decoration: BoxDecoration(
+                    color: ThemeColors.unifiedSurface,
+                    borderRadius: isWide
+                        ? BorderRadius.circular(20)
+                        : BorderRadius.zero,
+                    boxShadow: isWide
+                        ? [
+                            BoxShadow(
+                              color: CommonStatus.ticketPriorityColor(
+                                ticket.status,
+                              ).withValues(alpha: 0.06),
+                              blurRadius: 40,
+                              offset: const Offset(0, 8),
+                            ),
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 20,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : [],
                   ),
-                  child: Container(
-                    margin: isWide
-                        ? const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 16,
-                          )
-                        : EdgeInsets.zero,
-                    decoration: BoxDecoration(
-                      color: ThemeColors.unifiedSurface,
-                      borderRadius: isWide
-                          ? BorderRadius.circular(20)
-                          : BorderRadius.zero,
-                      boxShadow: isWide
-                          ? [
-                              BoxShadow(
-                                color: CommonStatus.ticketPriorityColor(
-                                  ticket.status,
-                                ).withValues(alpha: 0.06),
-                                // CommonStatus.ticketStatusColor(ticket.status,),
-                                //  priorityColor.withValues(alpha: 0.06),
-                                blurRadius: 40,
-                                offset: const Offset(0, 8),
-                              ),
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
-                                blurRadius: 20,
-                                offset: const Offset(0, 4),
-                              ),
-                            ]
-                          : [],
+                  clipBehavior: isWide ? Clip.hardEdge : Clip.none,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isWide ? 32 : 16,
+                      vertical: 24,
                     ),
-                    clipBehavior: isWide ? Clip.hardEdge : Clip.none,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isWide ? 32 : 16,
-                        vertical: 24,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          TicketDetailHeader(ticket: ticket),
-                          const SizedBox(height: 20),
-                          CommonSectionCardContainer(
-                            icon: Icons.article_outlined,
-                            title: ConstStrings.description,
-                            child: CommonText(
-                              ticket.description,
-                              customeStyle: const TextStyle(
-                                fontSize: 14,
-                                color: ThemeColors.unifiedTextPrimary,
-                                height: 1.7,
-                                fontWeight: FontWeight.w400,
-                              ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TicketDetailHeader(ticket: ticket),
+                        const SizedBox(height: 20),
+                        CommonSectionCardContainer(
+                          icon: Icons.article_outlined,
+                          title: ConstStrings.description,
+                          child: CommonText(
+                            ticket.description,
+                            customeStyle: const TextStyle(
+                              fontSize: 14,
+                              color: ThemeColors.unifiedTextPrimary,
+                              height: 1.7,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
-                          if (ticket.isSubTicket) ...[
-                            const SizedBox(height: 24),
-                            SubTicketDetailSection(
-                              ticket: ticket,
-                              user: widget.user,
-                            ),
-                          ],
+                        ),
+                        if (ticket.isSubTicket) ...[
                           const SizedBox(height: 24),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                flex: 1,
-                                child: LeftColumn(
-                                  ticket: ticket,
-                                  user: widget.user,
-                                ),
-                              ),
-                              const SizedBox(width: 24),
-                              Expanded(
-                                flex: 1,
-                                child: RightColumn(
-                                  ticket: ticket,
-                                  user: widget.user,
-                                ),
-                              ),
-                            ],
+                          SubTicketDetailSection(
+                            ticket: ticket,
+                            user: widget.user,
                           ),
                         ],
-                      ),
+                        const SizedBox(height: 24),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 1,
+                              child: LeftColumn(
+                                ticket: ticket,
+                                user: widget.user,
+                              ),
+                            ),
+                            const SizedBox(width: 24),
+                            Expanded(
+                              flex: 1,
+                              child: RightColumn(
+                                ticket: ticket,
+                                user: widget.user,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
