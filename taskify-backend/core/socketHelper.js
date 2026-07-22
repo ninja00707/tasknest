@@ -24,6 +24,7 @@ class SocketHelper {
 
     const payloadData = {
       ticketId,
+      parentTicketId: payload.parentTicketId ?? payload.ticket?.parent_ticket_id ?? null,
       ticketNumber: payload.ticketNumber || payload.ticket?.ticketNumber || payload.ticket?.ticket_number || null,
       newStatus: payload.newStatus || payload.ticket?.status || null,
       oldStatus: payload.oldStatus || null,

@@ -48,7 +48,8 @@ class TicketCardBloc extends Bloc<TicketCardEvent, TicketCardState> {
           event.type == 'SUB_TICKET_ASSIGNED' ||
           event.type == 'SUB_TICKET_PROGRESS' ||
           event.type == 'SUB_TICKET_COMPLETED' ||
-          event.type == 'SUB_TICKET_REOPENED') {
+          event.type == 'SUB_TICKET_REOPENED' ||
+          event.type == 'TICKET_ENRICHED') {
         final data = event.data;
         if (data is Map && data['ticketId'] != null) {
           add(SocketTicketUpdated(data['ticketId'] as int));

@@ -65,6 +65,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   }
 
   // ── Socket ────────────────────────────────────────────────────────
+  final Set<int> _pendingPatchIds = {};
   Timer? _socketDebounce;
 
   Future<void> _initSocket() async {
@@ -99,17 +100,22 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
             event.type == 'SUB_TICKET_ASSIGNED' ||
             event.type == 'SUB_TICKET_PROGRESS' ||
             event.type == 'SUB_TICKET_COMPLETED' ||
-            event.type == 'SUB_TICKET_REOPENED';
+            event.type == 'SUB_TICKET_REOPENED' ||
+            event.type == 'TICKET_ENRICHED';
         if (isTicketEvent) {
           final ticketId = event.data is Map ? event.data['ticketId'] : null;
           if (ticketId != null) {
+            _pendingPatchIds.add(ticketId as int);
             _socketDebounce?.cancel();
-            _socketDebounce = Timer(const Duration(milliseconds: 300), () {
-              if (!isClosed) add(PatchTicketOnDashboard(ticketId as int));
+            _socketDebounce = Timer(const Duration(milliseconds: 200), () {
+              if (isClosed) return;
+              final ids = Set<int>.from(_pendingPatchIds);
+              _pendingPatchIds.clear();
+              for (final id in ids) {
+                add(PatchTicketOnDashboard(id));
+              }
             });
           }
-        } else {
-          _socketDebounce?.cancel();
         }
       });
       _socketInitialized = true;
@@ -178,6 +184,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   Future<void> close() {
     _socketSub?.cancel();
     _socketDebounce?.cancel();
+    _pendingPatchIds.clear();
     return super.close();
   }
 
@@ -421,6 +428,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   ) async {
     _socketSub?.cancel();
     _socketDebounce?.cancel();
+    _pendingPatchIds.clear();
     _socketSub = null;
     _socketDebounce = null;
     _socketInitialized = false;

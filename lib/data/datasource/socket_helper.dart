@@ -34,7 +34,8 @@ class SocketHelper {
             e.type == 'SUB_TICKET_ASSIGNED' ||
             e.type == 'SUB_TICKET_PROGRESS' ||
             e.type == 'SUB_TICKET_COMPLETED' ||
-            e.type == 'SUB_TICKET_REOPENED';
+            e.type == 'SUB_TICKET_REOPENED' ||
+            e.type == 'TICKET_ENRICHED';
       });
 
   Stream<SocketEvent> onNotificationEvents() => events.where((e) {

@@ -193,6 +193,16 @@ class SocketManager {
       }
     });
 
+    _socket!.on('TICKET_ENRICHED', (data) {
+      debugPrint('[SocketManager] Received TICKET_ENRICHED');
+      try {
+        final map = _parseData(data);
+        if (map != null) _ticketUpdatedController.add(map);
+      } catch (e) {
+        debugPrint('[SocketManager] TICKET_ENRICHED parse error: $e');
+      }
+    });
+
     _socket!.on('COMMENT_ADDED', (data) {
       debugPrint('[SocketManager] Received COMMENT_ADDED');
       try {
