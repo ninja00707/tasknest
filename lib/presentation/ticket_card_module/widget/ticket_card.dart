@@ -40,6 +40,16 @@ class TicketCard extends StatelessWidget {
     );
   }
 
+  String _buildLastUpdatedLabel(TicketModel t) {
+    final name = t.lastActedByName ?? '';
+    final dept = t.lastActedByDeptName;
+    final action = t.lastAction ?? '';
+    if (dept != null && dept.isNotEmpty) {
+      return 'Last updated by $dept - $name - $action';
+    }
+    return 'Last updated by $name - $action';
+  }
+
   Widget _buildCard(BuildContext context, bool pulseActive) {
     final t = ticket;
     final statusColor = CommonStatus.ticketStatusColor(t.status);
@@ -215,6 +225,40 @@ class TicketCard extends StatelessWidget {
                             const SizedBox(height: 16),
                             ChildTicketsList(children: t.children, user: user),
                           ],
+                          const SizedBox(height: 12),
+                          if (t.lastActedByName != null && t.lastActedByName != 'System')
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: ThemeColors.unifiedSurface.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: ThemeColors.unifiedBorder.withValues(alpha: 0.4),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.history_rounded,
+                                    size: 12,
+                                    color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.7),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      _buildLastUpdatedLabel(t),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.85),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           const SizedBox(height: 16),
                           Row(
                             children: [

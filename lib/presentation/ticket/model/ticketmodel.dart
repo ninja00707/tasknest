@@ -27,6 +27,7 @@ class TicketModel {
   final String? lastAction;
   final DateTime? lastUpdatedAt;
   final String? lastActedByName;
+  final String? lastActedByDeptName;
   final List<dynamic>? history;
 
   final bool isSubTicket;
@@ -74,6 +75,7 @@ class TicketModel {
     this.lastAction,
     this.lastUpdatedAt,
     this.lastActedByName,
+    this.lastActedByDeptName,
     this.history,
     this.isSubTicket = false,
     this.overallProgress = 0,
@@ -134,6 +136,7 @@ class TicketModel {
         ? DateTime.parse(j['last_updated_at'])
         : null,
     lastActedByName: j['last_acted_by_name'] ?? 'System',
+    lastActedByDeptName: j['last_acted_by_dept_name'],
     history: j['history'],
     isSubTicket: j['is_sub_ticket'] == true,
     overallProgress: j['overall_progress'] ?? 0,

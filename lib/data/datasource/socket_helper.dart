@@ -29,6 +29,7 @@ class SocketHelper {
             e.type == 'TICKET_REOPENED' ||
             e.type == 'TICKET_UPDATED' ||
             e.type == 'TICKET_CLOSED' ||
+            e.type == 'TICKET_CHILD_UPDATED' ||
             e.type == 'COMMENT_ADDED' ||
             e.type == 'SUB_TICKET_CREATED' ||
             e.type == 'SUB_TICKET_ASSIGNED' ||

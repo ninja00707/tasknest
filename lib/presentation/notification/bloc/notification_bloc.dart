@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:tasknest/data/datasource/socket_helper.dart';
+import 'package:tasknest/data/repositories/ticket/ticket_realtime_repository.dart';
 import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
 import 'package:tasknest/presentation/notification/models/notification_model.dart';
 import 'package:injectable/injectable.dart';
@@ -86,7 +86,8 @@ class NotificationError extends NotificationState {
 @injectable
 class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   final TicketRepositoryImpl _repo;
-  StreamSubscription<SocketEvent>? _socketSub;
+  final TicketRealtimeRepository _realtime = TicketRealtimeRepository();
+  StreamSubscription<Map<String, dynamic>>? _notifSub;
   bool _socketInitialized = false;
   int _toastIdSeq = 0;
   final Set<int> _recentNotificationIds = {};
@@ -102,30 +103,32 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
   }
 
   Future<void> _initSocket() async {
-    if (_socketInitialized && SocketHelper().isConnected) return;
-    _socketSub?.cancel();
-    _socketSub = SocketHelper().events.listen((event) {
+    if (_socketInitialized) return;
+    _realtime.initialize();
+    _notifSub?.cancel();
+    _notifSub = _realtime.notificationEvents.listen((event) {
       if (isClosed) return;
-      if (event.type == 'SOCKET_CONNECTED') return;
-      if (event.type == 'NOTIFICATION_COUNT') {
-        final count = event.data['count'] as int?;
+      final type = event['type'] as String?;
+      final data = event['data'];
+      if (type == 'NOTIFICATION_COUNT') {
+        final count = data is Map ? data['count'] as int? : null;
         if (count != null) add(UpdateUnreadCount(count));
         return;
       }
-      final data = event.data is Map ? Map<String, dynamic>.from(event.data as Map) : <String, dynamic>{};
-      final notifId = data['notificationId'];
+      final notifData = data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+      final notifId = notifData['notificationId'];
       if (notifId == null) return;
       if (_recentNotificationIds.contains(notifId)) return;
       _recentNotificationIds.add(notifId);
       if (_recentNotificationIds.length > 50) _recentNotificationIds.remove(_recentNotificationIds.first);
-      add(SocketNotificationReceived(event.type, data));
+      add(SocketNotificationReceived(type ?? '', notifData));
     });
     _socketInitialized = true;
   }
 
   @override
   Future<void> close() {
-    _socketSub?.cancel();
+    _notifSub?.cancel();
     return super.close();
   }
 

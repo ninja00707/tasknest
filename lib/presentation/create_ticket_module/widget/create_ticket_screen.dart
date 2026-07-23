@@ -83,6 +83,13 @@ class _CreateTicketBodyState extends State<_CreateTicketBody> {
         builder: (context, blocState) {
           final form = blocState as CreateTicketFormState;
 
+          for (final dept in form.selectedDepartments) {
+            _deptFormData.putIfAbsent(dept.id, () => DeptFormData());
+          }
+          _deptFormData.removeWhere(
+            (id, _) => !form.selectedDepartments.any((d) => d.id == id),
+          );
+
           final blocData = context.watch<DashboardBloc>().state;
           DashboardLoaded? loaded;
           if (blocData is DashboardLoaded) {

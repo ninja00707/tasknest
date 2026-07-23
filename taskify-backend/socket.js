@@ -2,7 +2,6 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const socketHelper = require('./core/socketHelper');
 const outboxProcessor = require('./core/outboxProcessor');
-const notificationWorker = require('./workers/notificationWorker');
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
@@ -95,9 +94,6 @@ async function setupSocketIO(server, isWorker = false) {
 
   // Start the outbox processor — picks up DB rows and emits enriched payloads
   outboxProcessor.start();
-
-  // Register background notification worker with io reference
-  await notificationWorker.init(io);
 
   return io;
 }

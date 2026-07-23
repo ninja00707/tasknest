@@ -103,9 +103,10 @@ class TicketRepository {
       LEFT JOIN departments tf ON tf.id = t.transferred_from
       LEFT JOIN tickets pt     ON pt.id = t.parent_ticket_id
       LEFT JOIN LATERAL (
-        SELECT tl.action, tl.created_at, u.name as acted_by_name
+        SELECT tl.action, tl.created_at, u.name as acted_by_name, d.name as acted_by_dept_name
         FROM ticket_logs tl
         JOIN users u ON u.id = tl.acted_by_id
+        LEFT JOIN departments d ON d.id = u.department_id
         WHERE tl.ticket_id = t.id
         ORDER BY tl.created_at DESC
         LIMIT 1
@@ -383,9 +384,10 @@ class TicketRepository {
       LEFT JOIN tickets pt     ON pt.id        = t.parent_ticket_id
       LEFT JOIN journey_agg ja ON ja.leaf_id   = t.id
       LEFT JOIN LATERAL (
-        SELECT tl.action, tl.created_at, u.name as acted_by_name
+        SELECT tl.action, tl.created_at, u.name as acted_by_name, d.name as acted_by_dept_name
         FROM ticket_logs tl
         JOIN users u ON u.id = tl.acted_by_id
+        LEFT JOIN departments d ON d.id = u.department_id
         WHERE tl.ticket_id = t.id
         ORDER BY tl.created_at DESC
         LIMIT 1
@@ -837,50 +839,77 @@ class TicketRepository {
 
   // ── Create ticket ─────────────────────────────────────────────────────────
   async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId, parentTicketId = null, ticketType = 'standard', _outboxClient = null }) {
-    const client = _outboxClient || pool;
-    // All tickets start as open regardless of assignment
-    const status = 'open';
-    const isSubTicket = parentTicketId != null;
+    const ownClient = !_outboxClient;
+    const client = _outboxClient || await pool.connect();
+    try {
+      if (ownClient) await client.query('BEGIN');
 
-    // Generate ticket number
-    let ticketNumber;
-    if (parentTicketId) {
-      const parentRes = await client.query(`SELECT ticket_number FROM tickets WHERE id = $1`, [parentTicketId]);
-      const parentNumber = parentRes.rows[0]?.ticket_number;
-      if (parentNumber) {
-        const subCountRes = await client.query(`SELECT COUNT(*) AS cnt FROM tickets WHERE parent_ticket_id = $1`, [parentTicketId]);
-        const subSerial = (subCountRes.rows[0]?.cnt || 0) + 1;
-        ticketNumber = `${parentNumber}-SUB-${String(subSerial).padStart(3, '0')}`;
+      // All tickets start as open regardless of assignment
+      const status = 'open';
+      const isSubTicket = parentTicketId != null;
+
+      // Generate ticket number
+      let ticketNumber;
+      if (parentTicketId) {
+        const parentRes = await client.query(`SELECT ticket_number FROM tickets WHERE id = $1`, [parentTicketId]);
+        const parentNumber = parentRes.rows[0]?.ticket_number;
+        if (parentNumber) {
+          const subCountRes = await client.query(`SELECT COUNT(*) AS cnt FROM tickets WHERE parent_ticket_id = $1`, [parentTicketId]);
+          const subSerial = (subCountRes.rows[0]?.cnt || 0) + 1;
+          ticketNumber = `${parentNumber}-SUB-${String(subSerial).padStart(3, '0')}`;
+        }
       }
+      if (!ticketNumber) {
+        const seqRes = await client.query(`SELECT NEXTVAL('ticket_number_seq') AS val`);
+        const seqVal = seqRes.rows[0].val;
+        ticketNumber = `UMP-TKQ-${String(seqVal).padStart(3, '0')}`;
+      }
+
+      const result = await client.query(`
+        INSERT INTO tickets
+          (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status, parent_ticket_id, ticket_type, is_sub_ticket, ticket_number, version)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1)
+        RETURNING id
+      `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status, parentTicketId, ticketType, isSubTicket, ticketNumber]);
+
+      const ticketId = result.rows[0].id;
+
+      const detailRes = await client.query(`
+        SELECT t.id, t.title, t.description, t.status, t.priority,
+               t.ticket_number, t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
+               t.due_date, t.created_at, t.updated_at, t.is_sub_ticket, t.overall_progress,
+               t.parent_ticket_id, t.ticket_type, t.version, t.created_by_id,
+               ad.name AS assigned_dept_name, cd.name AS created_by_dept_name,
+               u.name AS assigned_to_name
+        FROM tickets t
+        LEFT JOIN departments ad ON ad.id = t.assigned_dept_id
+        LEFT JOIN departments cd ON cd.id = t.created_by_dept
+        LEFT JOIN users u ON u.id = t.assigned_to_id
+        WHERE t.id = $1
+      `, [ticketId]);
+      const ticket = detailRes.rows[0] || null;
+
+      if (ticket) {
+        await this.insertOutbox({
+          eventType: 'TICKET_CREATED',
+          ticketId,
+          parentTicketId: ticket.parent_ticket_id || null,
+          payload: { ticket },
+          version: ticket.version || 1,
+          actingUserId: createdBy.id,
+        }, client);
+      }
+
+      if (ownClient) await client.query('COMMIT');
+      return ticket;
+    } catch (err) {
+      if (ownClient) {
+        try { await client.query('ROLLBACK'); } catch (_) {}
+      }
+      throw err;
+    } finally {
+      if (ownClient) client.release();
     }
-    if (!ticketNumber) {
-      const seqRes = await client.query(`SELECT NEXTVAL('ticket_number_seq') AS val`);
-      const seqVal = seqRes.rows[0].val;
-      ticketNumber = `UMP-TKQ-${String(seqVal).padStart(3, '0')}`;
-    }
-
-    const result = await client.query(`
-      INSERT INTO tickets
-        (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status, parent_ticket_id, ticket_type, is_sub_ticket, ticket_number, version)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1)
-      RETURNING id
-    `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status, parentTicketId, ticketType, isSubTicket, ticketNumber]);
-
-    const ticketId = result.rows[0].id;
-    const ticket = await this.getTicketDetails(ticketId);
-
-    if (ticket) {
-      await this.insertOutbox({
-        eventType: 'TICKET_CREATED',
-        ticketId,
-        parentTicketId: ticket.parent_ticket_id || null,
-        payload: { ticket },
-        version: ticket.version || 1,
-        actingUserId: createdBy.id,
-      }, client === pool ? undefined : client);
-    }
-
-    return ticket;
   }
 
   // ── Update ticket status ─────────────────────────────────────────────────
@@ -1513,6 +1542,13 @@ class TicketRepository {
     return result.rows[0] || null;
   }
 
+  async getDepartmentById(deptId) {
+    const result = await pool.query(`
+      SELECT id, name, code FROM departments WHERE id = $1
+    `, [deptId]);
+    return result.rows[0] || null;
+  }
+
   // ── Get ticket logs/history ─────────────────────────────────────────────
   async getTicketLogs(ticketId) {
     const result = await pool.query(`
@@ -2062,6 +2098,20 @@ class TicketRepository {
     return result.rows[0] || null;
   }
 
+  // ── Get the absolute root of a ticket's tree ────────────────────────────
+  async getTicketRootId(ticketId) {
+    const result = await pool.query(`
+      WITH RECURSIVE root_finder AS (
+        SELECT id, parent_ticket_id FROM tickets WHERE id = $1
+        UNION ALL
+        SELECT t.id, t.parent_ticket_id FROM tickets t
+        JOIN root_finder rf ON t.id = rf.parent_ticket_id
+      )
+      SELECT id FROM root_finder WHERE parent_ticket_id IS NULL LIMIT 1
+    `, [ticketId]);
+    return result.rows[0]?.id || ticketId;
+  }
+
   // ── Event Outbox ──────────────────────────────────────────────────────
 
   async insertOutbox({ eventType, ticketId, parentTicketId, payload, version, actingUserId }, client = pool) {
@@ -2094,6 +2144,36 @@ class TicketRepository {
   async getTicketVersion(ticketId) {
     const result = await pool.query(`SELECT version FROM tickets WHERE id = $1`, [ticketId]);
     return result.rows[0]?.version || 1;
+  }
+
+  async getTicketTreeDeptIds(ticketId) {
+    const result = await pool.query(`
+      WITH RECURSIVE root_finder AS (
+        SELECT id, parent_ticket_id
+        FROM tickets WHERE id = $1
+        UNION ALL
+        SELECT t.id, t.parent_ticket_id
+        FROM tickets t
+        JOIN root_finder rf ON rf.parent_ticket_id = t.id
+      ),
+      root AS (
+        SELECT id FROM root_finder WHERE parent_ticket_id IS NULL LIMIT 1
+      ),
+      all_tree_tickets AS (
+        SELECT id FROM tickets WHERE id = (SELECT id FROM root)
+        UNION ALL
+        SELECT t.id FROM tickets t
+        JOIN all_tree_tickets att ON att.id = t.parent_ticket_id
+      )
+      SELECT DISTINCT dept_id FROM (
+        SELECT created_by_dept AS dept_id FROM tickets WHERE id IN (SELECT id FROM all_tree_tickets) AND created_by_dept IS NOT NULL
+        UNION
+        SELECT assigned_dept_id AS dept_id FROM tickets WHERE id IN (SELECT id FROM all_tree_tickets) AND assigned_dept_id IS NOT NULL
+        UNION
+        SELECT std.department_id AS dept_id FROM sub_ticket_departments std WHERE std.ticket_id IN (SELECT id FROM all_tree_tickets)
+      ) sub
+    `, [ticketId]);
+    return result.rows.map(r => r.dept_id);
   }
 }
 

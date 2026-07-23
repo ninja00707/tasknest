@@ -25,8 +25,13 @@ class TicketService {
   }
 
   async _emitParentChain(ticketId, updatedParents, actingUserId) {
-    for (const p of updatedParents) {
-      try {
+    if (!updatedParents || updatedParents.length === 0) return;
+
+    const pool = require('../../database/db');
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const p of updatedParents) {
         const parentTicket = await ticketRepo.getTicketById(p.parentId, null, true);
         if (parentTicket && !parentTicket.forbidden) {
           await ticketRepo.insertOutbox({
@@ -36,11 +41,15 @@ class TicketService {
             payload: { ticket: parentTicket },
             version: parentTicket.version || 1,
             actingUserId,
-          });
+          }, client);
         }
-      } catch (err) {
-        console.error(`[TicketService] Failed to emit parent chain for ${p.parentId}:`, err.message);
       }
+      await client.query('COMMIT');
+    } catch (err) {
+      try { await client.query('ROLLBACK'); } catch (_) {}
+      console.error(`[TicketService] Failed to emit parent chain for ticket ${ticketId}:`, err.message);
+    } finally {
+      client.release();
     }
   }
 

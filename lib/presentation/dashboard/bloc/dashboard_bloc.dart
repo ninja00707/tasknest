@@ -6,6 +6,7 @@ import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/constant/name_by_id.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
 import 'package:tasknest/data/datasource/socket_helper.dart';
+import 'package:tasknest/data/repositories/ticket/ticket_realtime_repository.dart';
 import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_event.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
@@ -15,7 +16,10 @@ import 'package:injectable/injectable.dart';
 @injectable
 class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   final TicketRepositoryImpl _dataSource;
-  StreamSubscription<SocketEvent>? _socketSub;
+  final TicketRealtimeRepository _realtime = TicketRealtimeRepository();
+  StreamSubscription<SocketEvent>? _ticketSub;
+  StreamSubscription<SocketEvent>? _connSub;
+  StreamSubscription<Map<String, dynamic>>? _notifSub;
   bool _socketInitialized = false;
 
   DashboardBloc(this._dataSource) : super(DashboardInitial()) {
@@ -33,6 +37,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<UpdateScreenSize>(_onUpdateScreenSize);
     on<PatchTicketOnDashboard>(_onPatchTicket);
     on<TicketCreatedOnDashboard>(_onTicketCreated);
+    on<PatchChildTicketOnDashboard>(_onPatchChildTicket);
 
     _initSocket();
   }
@@ -76,61 +81,67 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     final user = await LocalStorageService().getUser();
 
     if (!_socketInitialized) {
-      _socketSub?.cancel();
-      _socketSub = SocketHelper().events.listen((event) {
+      _realtime.initialize();
+      _ticketSub?.cancel();
+      _connSub?.cancel();
+      _notifSub?.cancel();
+      _connSub = _realtime.connectionEvents.listen((event) {
         if (isClosed) return;
-        if (event.type == 'SOCKET_CONNECTED') {
-          final loaded = _getLoadedStateOrNull();
-          add(LoadDashboard(page: loaded?.currentPage ?? 1));
-          return;
-        }
-        if (event.type == 'NOTIFICATION_COUNT') {
-          final count = event.data['count'] as int?;
+        final loaded = _getLoadedStateOrNull();
+        add(LoadDashboard(page: loaded?.currentPage ?? 1));
+      });
+      _notifSub = _realtime.notificationEvents.listen((event) {
+        if (isClosed) return;
+        if (event['type'] == 'NOTIFICATION_COUNT') {
+          final data = event['data'];
+          final count = data is Map ? data['count'] as int? : null;
           if (count != null) add(UpdateNotificationCount(count));
-          return;
         }
-        final isTicketEvent =
-            event.type == 'TICKET_CREATED' ||
-            event.type == 'TICKET_ASSIGNED' ||
-            event.type == 'TICKET_STATUS_UPDATED' ||
-            event.type == 'TICKET_REOPENED' ||
-            event.type == 'TICKET_UPDATED' ||
-            event.type == 'TICKET_CLOSED' ||
-            event.type == 'COMMENT_ADDED' ||
-            event.type == 'SUB_TICKET_CREATED' ||
-            event.type == 'SUB_TICKET_ASSIGNED' ||
-            event.type == 'SUB_TICKET_PROGRESS' ||
-            event.type == 'SUB_TICKET_COMPLETED' ||
-            event.type == 'SUB_TICKET_REOPENED' ||
-            event.type == 'TICKET_ENRICHED';
-        if (isTicketEvent) {
-          final ticketId = event.data is Map ? event.data['ticketId'] : null;
-          if (ticketId != null) {
-            final enrichedEventType = event.data is Map ? event.data['event'] : null;
-            if (enrichedEventType == 'TICKET_CREATED') {
-              final parentTicketId = event.data is Map ? event.data['parentTicketId'] : null;
-              final parentChainRaw = event.data is Map ? event.data['parentChain'] : null;
-              final parentChain = parentChainRaw is List
-                  ? parentChainRaw.whereType<int>().toList()
-                  : null;
-              add(TicketCreatedOnDashboard(
-                ticketId as int,
-                parentTicketId: parentTicketId as int?,
-                parentChain: parentChain,
-              ));
-            } else {
-              _pendingPatchIds.add(ticketId as int);
-              _socketDebounce?.cancel();
-              _socketDebounce = Timer(const Duration(milliseconds: 200), () {
-                if (isClosed) return;
-                final ids = Set<int>.from(_pendingPatchIds);
-                _pendingPatchIds.clear();
-                for (final id in ids) {
-                  add(PatchTicketOnDashboard(id));
-                }
-              });
-            }
+      });
+      _ticketSub = _realtime.ticketEvents.listen((event) {
+        if (isClosed) return;
+        final ticketId = event.data is Map ? event.data['ticketId'] : null;
+        if (ticketId == null) return;
+
+        final enrichedEventType = event.data is Map ? event.data['event'] : null;
+        if (enrichedEventType == 'TICKET_CREATED') {
+          final parentTicketId = event.data is Map ? event.data['parentTicketId'] : null;
+          final parentChainRaw = event.data is Map ? event.data['parentChain'] : null;
+          final parentChain = parentChainRaw is List
+              ? parentChainRaw.whereType<int>().toList()
+              : null;
+          add(TicketCreatedOnDashboard(
+            ticketId as int,
+            parentTicketId: parentTicketId as int?,
+            parentChain: parentChain,
+          ));
+        } else if (enrichedEventType == 'TICKET_CHILD_UPDATED') {
+          final ticketJson = event.data is Map ? event.data['ticket'] : null;
+          if (ticketJson is Map<String, dynamic>) {
+            add(PatchChildTicketOnDashboard(ticketId as int, ticketJson));
+          } else {
+            _pendingPatchIds.add(ticketId as int);
+            _socketDebounce?.cancel();
+            _socketDebounce = Timer(const Duration(milliseconds: 200), () {
+              if (isClosed) return;
+              final ids = Set<int>.from(_pendingPatchIds);
+              _pendingPatchIds.clear();
+              for (final id in ids) {
+                add(PatchTicketOnDashboard(id));
+              }
+            });
           }
+        } else {
+          _pendingPatchIds.add(ticketId as int);
+          _socketDebounce?.cancel();
+          _socketDebounce = Timer(const Duration(milliseconds: 200), () {
+            if (isClosed) return;
+            final ids = Set<int>.from(_pendingPatchIds);
+            _pendingPatchIds.clear();
+            for (final id in ids) {
+              add(PatchTicketOnDashboard(id));
+            }
+          });
         }
       });
       _socketInitialized = true;
@@ -256,9 +267,32 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     }
   }
 
+  // ── Root ticket patch from TICKET_CHILD_UPDATED (no REST call) ────
+  Future<void> _onPatchChildTicket(
+    PatchChildTicketOnDashboard event,
+    Emitter<DashboardState> emit,
+  ) async {
+    final loaded = _getLoadedStateOrNull();
+    if (loaded == null) return;
+
+    try {
+      final ticket = TicketModel.fromJson(event.ticketJson);
+      final list = List<TicketModel>.from(loaded.tickets);
+      final idx = list.indexWhere((t) => t.id == ticket.id);
+      if (idx >= 0) {
+        list[idx] = ticket;
+      } else {
+        list.insert(0, ticket);
+      }
+      emit(loaded.copyWith(tickets: list));
+    } catch (_) {}
+  }
+
   @override
   Future<void> close() {
-    _socketSub?.cancel();
+    _ticketSub?.cancel();
+    _connSub?.cancel();
+    _notifSub?.cancel();
     _socketDebounce?.cancel();
     _pendingPatchIds.clear();
     return super.close();
@@ -502,10 +536,14 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     ResetDashboardEvent event,
     Emitter<DashboardState> emit,
   ) async {
-    _socketSub?.cancel();
+    _ticketSub?.cancel();
+    _connSub?.cancel();
+    _notifSub?.cancel();
     _socketDebounce?.cancel();
     _pendingPatchIds.clear();
-    _socketSub = null;
+    _ticketSub = null;
+    _connSub = null;
+    _notifSub = null;
     _socketDebounce = null;
     _socketInitialized = false;
     SocketHelper().disconnect();

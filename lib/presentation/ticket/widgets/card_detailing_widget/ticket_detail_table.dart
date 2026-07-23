@@ -126,7 +126,9 @@ class DetailsCard extends StatelessWidget {
           if (ticket.lastActedByName != null)
             DetailRow(
               label: ConstStrings.lastActedBy,
-              value: ticket.lastActedByName!,
+              value: ticket.lastActedByDeptName != null
+                  ? '${ticket.lastActedByName!} (${ticket.lastActedByDeptName!})'
+                  : ticket.lastActedByName!,
             ),
           if (ticket.lastUpdatedAt != null)
             DetailRow(

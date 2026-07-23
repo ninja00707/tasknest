@@ -60,12 +60,14 @@ class OutboxProcessor {
     const { event_type, ticket_id, parent_ticket_id, payload, version } = row;
     const ticket = payload?.ticket || payload?.comment || null;
 
-    // Resolve involved users for the ticket
+    // Use the BROAD query: all users in ALL departments that touched the tree,
+    // not just direct assignees. This ensures e.g. an HR manager in a sibling
+    // sub-department sees the event without needing a direct assignment.
     let involved = [];
     try {
-      involved = await ticketRepo.getTicketInvolvedUsers(ticket_id);
+      involved = await ticketRepo.getTicketParticipants(ticket_id);
     } catch (err) {
-      console.error(`[Outbox] Failed to resolve involved users for ticket ${ticket_id}:`, err.message);
+      console.error(`[Outbox] Failed to resolve participants for ticket ${ticket_id}:`, err.message);
       return;
     }
     if (!involved || involved.length === 0) return;
@@ -78,6 +80,9 @@ class OutboxProcessor {
       console.error(`[Outbox] Failed to resolve parent chain for ticket ${ticket_id}:`, err.message);
     }
 
+    // Resolve actedBy metadata for the enriched payload
+    const actedBy = await this._resolveActedBy(payload);
+
     // Build message and skip list
     const message = this._buildMessage(event_type, ticket_id, ticket, payload);
     const skipUserIds = this._resolveActor(ticket, payload);
@@ -86,7 +91,27 @@ class OutboxProcessor {
     await socketHelper.emit(event_type, ticket_id, involved, message, payload, skipUserIds, parentChain);
 
     // Emit enriched payload for realtime subscribers (TicketBloc stream)
-    this._emitEnriched(event_type, ticket_id, parent_ticket_id, involved, payload, version, skipUserIds, parentChain);
+    this._emitEnriched(event_type, ticket_id, parent_ticket_id, involved, payload, version, skipUserIds, parentChain, actedBy);
+
+    // ── Tree-wide consistency: if this is a sub-ticket event, also emit the root ──
+    if (ticket && ticket.is_sub_ticket) {
+      try {
+        const rootId = await ticketRepo.getTicketRootId(ticket_id);
+        if (rootId && rootId !== ticket_id) {
+          const rootTicket = await ticketRepo.getTicketById(rootId, null, true);
+          if (rootTicket && !rootTicket.forbidden) {
+            // Broadcast TICKET_CHILD_UPDATED to ALL departments in the tree
+            let treeDeptIds = [];
+            try {
+              treeDeptIds = await ticketRepo.getTicketTreeDeptIds(rootId);
+            } catch (_) {}
+            this._emitEnriched('TICKET_CHILD_UPDATED', rootId, rootTicket.parent_ticket_id || null, involved, { ticket: rootTicket }, rootTicket.version || 1, skipUserIds, parentChain, actedBy, treeDeptIds);
+          }
+        }
+      } catch (err) {
+        console.error(`[Outbox] Failed to emit root ticket for tree-wide update (ticket ${ticket_id}):`, err.message);
+      }
+    }
   }
 
   _buildMessage(eventType, ticketId, ticket, payload) {
@@ -132,7 +157,26 @@ class OutboxProcessor {
     return [];
   }
 
-  _emitEnriched(eventType, ticketId, parentTicketId, involved, payload, version, skipUserIds, parentChain = []) {
+  async _resolveActedBy(payload) {
+    const actorId = payload?.actingUserId;
+    if (!actorId) return null;
+    try {
+      const user = await ticketRepo.getUserById(actorId);
+      if (!user) return null;
+      const dept = await ticketRepo.getDepartmentById(user.department_id);
+      return {
+        userId: user.id,
+        userName: user.name,
+        departmentId: user.department_id,
+        departmentName: dept?.name || null,
+        departmentCode: dept?.code || null,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  _emitEnriched(eventType, ticketId, parentTicketId, involved, payload, version, skipUserIds, parentChain = [], actedBy = null, treeDeptIds = null) {
     if (!socketHelper.io) return;
 
     const enrichedPayload = {
@@ -144,6 +188,8 @@ class OutboxProcessor {
       ticket: payload?.ticket || null,
       comment: payload?.comment || null,
       changedFields: payload?.changedFields || null,
+      actedBy,
+      actedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
     };
 
@@ -152,14 +198,22 @@ class OutboxProcessor {
       socketHelper.io.to(`user_${userId}`).emit('TICKET_ENRICHED', enrichedPayload);
     }
 
-    // Also broadcast to department rooms for dashboard live updates
-    const assignedDeptId = payload?.ticket?.assigned_dept_id;
-    if (assignedDeptId) {
-      socketHelper.io.to(`dept_${assignedDeptId}`).emit('TICKET_ENRICHED', enrichedPayload);
-    }
-    const creatorDeptId = payload?.ticket?.created_by_dept;
-    if (creatorDeptId && Number(creatorDeptId) !== Number(assignedDeptId)) {
-      socketHelper.io.to(`dept_${creatorDeptId}`).emit('TICKET_ENRICHED', enrichedPayload);
+    // Broadcast to department rooms for dashboard live updates.
+    // For tree-wide events (treeDeptIds provided), broadcast to ALL departments in the tree.
+    // Otherwise fall back to assigned + creator dept of the payload ticket.
+    if (treeDeptIds && treeDeptIds.length > 0) {
+      for (const deptId of treeDeptIds) {
+        socketHelper.io.to(`dept_${deptId}`).emit('TICKET_ENRICHED', enrichedPayload);
+      }
+    } else {
+      const assignedDeptId = payload?.ticket?.assigned_dept_id;
+      if (assignedDeptId) {
+        socketHelper.io.to(`dept_${assignedDeptId}`).emit('TICKET_ENRICHED', enrichedPayload);
+      }
+      const creatorDeptId = payload?.ticket?.created_by_dept;
+      if (creatorDeptId && Number(creatorDeptId) !== Number(assignedDeptId)) {
+        socketHelper.io.to(`dept_${creatorDeptId}`).emit('TICKET_ENRICHED', enrichedPayload);
+      }
     }
   }
 }

@@ -145,10 +145,6 @@ class SocketService {
       _eventController.add(SocketEvent('TICKET_CLOSED', data));
     });
 
-    _socket!.on('TICKET_VIEWED', (data) {
-      _eventController.add(SocketEvent('TICKET_VIEWED', data));
-    });
-
     _socket!.on('NOTIFICATION_COUNT', (data) {
       _eventController.add(SocketEvent('NOTIFICATION_COUNT', data));
     });
