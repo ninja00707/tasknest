@@ -32,6 +32,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     on<MarkVersionSeen>(_onMarkVersionSeen);
     on<UpdateScreenSize>(_onUpdateScreenSize);
     on<PatchTicketOnDashboard>(_onPatchTicket);
+    on<TicketCreatedOnDashboard>(_onTicketCreated);
 
     _initSocket();
   }
@@ -105,16 +106,30 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         if (isTicketEvent) {
           final ticketId = event.data is Map ? event.data['ticketId'] : null;
           if (ticketId != null) {
-            _pendingPatchIds.add(ticketId as int);
-            _socketDebounce?.cancel();
-            _socketDebounce = Timer(const Duration(milliseconds: 200), () {
-              if (isClosed) return;
-              final ids = Set<int>.from(_pendingPatchIds);
-              _pendingPatchIds.clear();
-              for (final id in ids) {
-                add(PatchTicketOnDashboard(id));
-              }
-            });
+            final enrichedEventType = event.data is Map ? event.data['event'] : null;
+            if (enrichedEventType == 'TICKET_CREATED') {
+              final parentTicketId = event.data is Map ? event.data['parentTicketId'] : null;
+              final parentChainRaw = event.data is Map ? event.data['parentChain'] : null;
+              final parentChain = parentChainRaw is List
+                  ? parentChainRaw.whereType<int>().toList()
+                  : null;
+              add(TicketCreatedOnDashboard(
+                ticketId as int,
+                parentTicketId: parentTicketId as int?,
+                parentChain: parentChain,
+              ));
+            } else {
+              _pendingPatchIds.add(ticketId as int);
+              _socketDebounce?.cancel();
+              _socketDebounce = Timer(const Duration(milliseconds: 200), () {
+                if (isClosed) return;
+                final ids = Set<int>.from(_pendingPatchIds);
+                _pendingPatchIds.clear();
+                for (final id in ids) {
+                  add(PatchTicketOnDashboard(id));
+                }
+              });
+            }
           }
         }
       });
@@ -189,6 +204,56 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
       emit(loaded.copyWith(tickets: newTickets));
     } catch (_) {}
+  }
+
+  // ── New ticket arrival (from socket TICKET_CREATED) ────────────────
+  Future<void> _onTicketCreated(
+    TicketCreatedOnDashboard event,
+    Emitter<DashboardState> emit,
+  ) async {
+    try {
+      final latest = _getLoadedStateOrNull();
+      if (latest == null) return;
+
+      final ticket = await _dataSource.getTicket(event.ticketId);
+      final list = List<TicketModel>.from(latest.tickets);
+
+      if (ticket.parentTicketId != null) {
+        int? ancestorId = event.parentTicketId ?? ticket.parentTicketId;
+        while (ancestorId != null) {
+          final idx = list.indexWhere((t) => t.id == ancestorId);
+          if (idx >= 0) {
+            try {
+              final refreshed = await _dataSource.getTicket(ancestorId);
+              list[idx] = refreshed;
+            } catch (_) {}
+            break;
+          }
+          try {
+            final ancestor = await _dataSource.getTicket(ancestorId);
+            if (ancestor.parentTicketId == null) {
+              list.insert(0, ancestor);
+              break;
+            }
+            ancestorId = ancestor.parentTicketId;
+          } catch (_) {
+            break;
+          }
+        }
+      } else {
+        final idx = list.indexWhere((t) => t.id == ticket.id);
+        if (idx >= 0) {
+          list[idx] = ticket;
+        } else {
+          list.insert(0, ticket);
+        }
+      }
+
+      emit(latest.copyWith(tickets: list));
+    } catch (e) {
+      debugPrint('[DashboardBloc] _onTicketCreated failed: $e');
+      add(LoadDashboard(page: _getLoadedStateOrNull()?.currentPage ?? 1));
+    }
   }
 
   @override

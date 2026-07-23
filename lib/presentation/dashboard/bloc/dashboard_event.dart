@@ -70,3 +70,12 @@ class PatchTicketOnDashboard extends DashboardEvent {
   @override
   List<Object?> get props => [ticketId];
 }
+
+class TicketCreatedOnDashboard extends DashboardEvent {
+  final int ticketId;
+  final int? parentTicketId;
+  final List<int>? parentChain;
+  TicketCreatedOnDashboard(this.ticketId, {this.parentTicketId, this.parentChain});
+  @override
+  List<Object?> get props => [ticketId, parentTicketId, parentChain];
+}
