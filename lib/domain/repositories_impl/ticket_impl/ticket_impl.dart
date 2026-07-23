@@ -70,7 +70,11 @@ class TicketRepositoryImpl implements TicketRepository {
       if (data is Map) {
         final eid = data['ticketId'];
         final parentId = data['parentTicketId'] ?? data['ticket']?['parent_ticket_id'];
-        if (eid == ticketId || parentId == ticketId) {
+        final parentChain = data['parentChain'];
+        final isRelevant = eid == ticketId ||
+            parentId == ticketId ||
+            (parentChain is List && parentChain.contains(ticketId));
+        if (isRelevant) {
           debounce?.cancel();
           debounce = Timer(const Duration(milliseconds: 300), () async {
             try {

@@ -70,16 +70,23 @@ class OutboxProcessor {
     }
     if (!involved || involved.length === 0) return;
 
+    // Resolve full parent chain (ancestors) so frontend can match nested subtickets
+    let parentChain = [];
+    try {
+      parentChain = await ticketRepo.getTicketParentChain(ticket_id);
+    } catch (err) {
+      console.error(`[Outbox] Failed to resolve parent chain for ticket ${ticket_id}:`, err.message);
+    }
+
     // Build message and skip list
     const message = this._buildMessage(event_type, ticket_id, ticket, payload);
     const skipUserIds = this._resolveActor(ticket, payload);
 
     // Create notifications + emit per-user (with notificationId) via the existing emit engine
-    await socketHelper.emit(event_type, ticket_id, involved, message, payload, skipUserIds);
+    await socketHelper.emit(event_type, ticket_id, involved, message, payload, skipUserIds, parentChain);
 
     // Emit enriched payload for realtime subscribers (TicketBloc stream)
-    // This goes beyond the old lightweight emit — it sends the full ticket object
-    this._emitEnriched(event_type, ticket_id, parent_ticket_id, involved, payload, version, skipUserIds);
+    this._emitEnriched(event_type, ticket_id, parent_ticket_id, involved, payload, version, skipUserIds, parentChain);
   }
 
   _buildMessage(eventType, ticketId, ticket, payload) {
@@ -125,12 +132,13 @@ class OutboxProcessor {
     return [];
   }
 
-  _emitEnriched(eventType, ticketId, parentTicketId, involved, payload, version, skipUserIds) {
+  _emitEnriched(eventType, ticketId, parentTicketId, involved, payload, version, skipUserIds, parentChain = []) {
     if (!socketHelper.io) return;
 
     const enrichedPayload = {
       ticketId,
       parentTicketId: parentTicketId || payload?.ticket?.parent_ticket_id || null,
+      parentChain,
       version,
       event: eventType,
       ticket: payload?.ticket || null,

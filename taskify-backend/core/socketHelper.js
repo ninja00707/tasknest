@@ -9,7 +9,7 @@ class SocketHelper {
     this.io = io;
   }
 
-  async emit(eventType, ticketId, userIds, message, payload = {}, skipUserIds = []) {
+  async emit(eventType, ticketId, userIds, message, payload = {}, skipUserIds = [], parentChain = []) {
     if (!this.io) return;
 
     const notifTarget = userIds.filter(id => !skipUserIds.includes(id));
@@ -25,6 +25,7 @@ class SocketHelper {
     const payloadData = {
       ticketId,
       parentTicketId: payload.parentTicketId ?? payload.ticket?.parent_ticket_id ?? null,
+      parentChain,
       ticketNumber: payload.ticketNumber || payload.ticket?.ticketNumber || payload.ticket?.ticket_number || null,
       newStatus: payload.newStatus || payload.ticket?.status || null,
       oldStatus: payload.oldStatus || null,

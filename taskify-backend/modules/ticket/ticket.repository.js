@@ -1487,6 +1487,21 @@ class TicketRepository {
     return result.rows.map(r => r.user_id);
   }
 
+  async getTicketParentChain(ticketId) {
+    const result = await pool.query(`
+      WITH RECURSIVE chain AS (
+        SELECT id, parent_ticket_id
+        FROM tickets WHERE id = $1
+        UNION ALL
+        SELECT t.id, t.parent_ticket_id
+        FROM tickets t
+        JOIN chain c ON c.parent_ticket_id = t.id
+      )
+      SELECT id FROM chain
+    `, [ticketId]);
+    return result.rows.map(r => r.id);
+  }
+
   // ── Get user by ID ───────────────────────────────────────────────────────
   async getUserById(userId) {
     const result = await pool.query(`

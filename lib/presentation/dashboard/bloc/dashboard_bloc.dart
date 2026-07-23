@@ -142,25 +142,36 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       final updated = await _dataSource.getTicket(event.ticketId);
 
       // Sub-tickets should never appear as standalone cards in the dashboard.
-      // Only patch the parent so children stay grouped inside it.
+      // Walk up the parent chain to find the root ancestor that IS in the list.
       if (updated.parentTicketId != null) {
-        final refreshed = _getLoadedStateOrNull();
-        if (refreshed == null) return;
-        final parentIdx = refreshed.tickets.indexWhere((t) => t.id == updated.parentTicketId);
-        if (parentIdx >= 0) {
+        int? ancestorId = updated.parentTicketId;
+        while (ancestorId != null) {
+          final refreshed = _getLoadedStateOrNull();
+          if (refreshed == null) return;
+          final idx = refreshed.tickets.indexWhere((t) => t.id == ancestorId);
+          if (idx >= 0) {
+            try {
+              final ancestor = await _dataSource.getTicket(ancestorId);
+              final latest = _getLoadedStateOrNull();
+              if (latest == null) return;
+              final list = List<TicketModel>.from(latest.tickets);
+              final pi = list.indexWhere((t) => t.id == ancestor.id);
+              if (pi >= 0) {
+                list[pi] = ancestor;
+              } else {
+                list.insert(0, ancestor);
+              }
+              emit(latest.copyWith(tickets: list));
+            } catch (_) {}
+            break;
+          }
+          // Ancestor not in list — walk up one more level
           try {
-            final parent = await _dataSource.getTicket(updated.parentTicketId!);
-            final latest = _getLoadedStateOrNull();
-            if (latest == null) return;
-            final list = List<TicketModel>.from(latest.tickets);
-            final pi = list.indexWhere((t) => t.id == parent.id);
-            if (pi >= 0) {
-              list[pi] = parent;
-            } else {
-              list.insert(0, parent);
-            }
-            emit(latest.copyWith(tickets: list));
-          } catch (_) {}
+            final ancestorTicket = await _dataSource.getTicket(ancestorId);
+            ancestorId = ancestorTicket.parentTicketId;
+          } catch (_) {
+            break;
+          }
         }
         return;
       }
