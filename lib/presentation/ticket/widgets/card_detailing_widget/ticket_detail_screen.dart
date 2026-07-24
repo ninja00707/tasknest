@@ -97,13 +97,14 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
 
   Widget _buildBody(TicketModel ticket) {
     final bloc = context.read<DashboardBloc>();
-    final loaded =
-        bloc.state is DashboardLoaded ? bloc.state as DashboardLoaded : null;
+    final loaded = bloc.state is DashboardLoaded
+        ? bloc.state as DashboardLoaded
+        : null;
     final screenWidth = loaded?.screenWidth ?? 1200.0;
     final isWide = loaded?.isWide ?? true;
 
     return Container(
-      height: 800.0,
+      // height: 800.0,
       width: screenWidth,
       color: ThemeColors.unifiedBackground,
       child: SingleChildScrollView(
@@ -117,10 +118,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                 ),
                 child: Container(
                   margin: isWide
-                      ? const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 16,
-                        )
+                      ? const EdgeInsets.symmetric(horizontal: 24, vertical: 16)
                       : EdgeInsets.zero,
                   decoration: BoxDecoration(
                     color: ThemeColors.unifiedSurface,

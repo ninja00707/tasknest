@@ -25,7 +25,8 @@ class TicketActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isManager = user.roleId == 1;
-    final bool isCeo = user.roleId == 0 || user.roleId == 3;
+    final bool isCeo = user.roleId == 0;
+    final bool isDeveloper = user.roleId == 3;
     final bool isResolver =
         ticket.assignedToId == user.id && ticket.assignedToId != null;
     final bool isCreator = ticket.createdById == user.id;
@@ -89,11 +90,9 @@ class TicketActions extends StatelessWidget {
             onTap: () => _showStatusRemarkDialog(context, 'closed'),
           ),
 
-        // 5. Create Sub Ticket: Only the assigned resolver can create
+        // 5. Create Sub Ticket: visible when ticket is assigned and not finalized
         if (!ticket.isManagementDisabled &&
-            !isCeo &&
             !isUnassigned &&
-            isResolver &&
             ticket.immediateChildCount == 0)
           ActionBtn(
             icon: Icons.add_link_rounded,
@@ -103,7 +102,7 @@ class TicketActions extends StatelessWidget {
           ),
 
         // 6. Reopen: Creator only (CEO also allowed as fallback)
-        if ((isCreator || isCeo) && ticket.canReopenBy(user.id))
+        if ((isCreator || isCeo || isDeveloper) && ticket.canReopenBy(user.id))
           ActionBtn(
             icon: Icons.replay_rounded,
             tooltip: ConstStrings.reopen,
