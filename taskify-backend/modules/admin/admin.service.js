@@ -127,6 +127,12 @@ exports.getTicket = async (id) => {
   return ticket;
 };
 
+exports.getSubTickets = async (parentId) => {
+  const parent = await repo.findTicketById(parentId);
+  if (!parent) { const e = new Error('Ticket not found'); e.statusCode = 404; throw e; }
+  return repo.findSubTickets(parentId);
+};
+
 exports.updateTicket = async (id, body) => {
   const ticket = await repo.findTicketById(id);
   if (!ticket) { const e = new Error('Ticket not found'); e.statusCode = 404; throw e; }

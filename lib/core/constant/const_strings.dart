@@ -502,6 +502,22 @@ class ConstStrings {
   static const String deptUpdatedSuccess = 'Department updated successfully';
   static const String deptDeletedSuccess = 'Department deleted successfully';
   static const String ticketDeletedSuccess = 'Ticket deleted successfully';
+  static const String ticketUpdatedSuccess = 'Ticket updated successfully';
+  static const String ticketDetail = 'Ticket Detail';
+  static const String editTicket = 'Edit Ticket';
+  static const String viewSubTickets = 'View Sub-Tickets';
+  static const String noSubTickets = 'No sub-tickets for this ticket';
+  static const String subTicketCount = 'Sub-Tickets';
+  static const String dueDateLabel = 'Due Date';
+  static const String selectDueDate = 'Select due date';
+  static const String lastActionLabel = 'Last Action';
+  static const String lastActedByLabel = 'Last Acted By';
+  static const String versionLabel = 'Version';
+  static const String overdueLabel = 'Overdue';
+  static const String urgentLabel = 'Urgent';
+  static const String subTicketDeptLabel = 'Sub-Ticket Departments';
+  static const String previousPage = 'Previous';
+  static const String nextPage = 'Next';
 
   // ──────────────────────────────────────────────
   // Auth — Password Reset Errors (kept unique only)

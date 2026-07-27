@@ -90,10 +90,11 @@ class TicketActions extends StatelessWidget {
             onTap: () => _showStatusRemarkDialog(context, 'closed'),
           ),
 
-        // 5. Create Sub Ticket: visible when ticket is assigned and not finalized
+        // 5. Create Sub Ticket: only the assigned person (resolver) can create sub-tickets
         if (!ticket.isManagementDisabled &&
             !isUnassigned &&
-            ticket.immediateChildCount == 0)
+            ticket.immediateChildCount == 0 &&
+            isResolver)
           ActionBtn(
             icon: Icons.add_link_rounded,
             tooltip: ConstStrings.createSubTicket,

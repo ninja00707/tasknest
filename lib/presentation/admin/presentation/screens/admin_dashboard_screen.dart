@@ -61,7 +61,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             _card('Companies', '${stats.totalCompanies}', Icons.apartment, ThemeColors.unifiedAccent),
           ],
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         Row(
           children: [
             _card(ConstStrings.statOpen, '${stats.openTickets}', Icons.pending, ThemeColors.statusOpenFg),
@@ -71,6 +71,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             _card('Completed', '${stats.completedTickets}', Icons.check_circle, ThemeColors.statusDoneFg),
             const SizedBox(width: 16),
             _card('Closed', '${stats.closedTickets}', Icons.archive, ThemeColors.statusClosedFg),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            _card(ConstStrings.overdueLabel, '${stats.overdueTickets}', Icons.warning_amber_rounded, ThemeColors.unifiedDanger),
+            const SizedBox(width: 16),
+            _card(ConstStrings.urgentLabel, '${stats.urgentTickets}', Icons.priority_high, ThemeColors.unifiedHighPriority),
+            const SizedBox(width: 16),
+            _card(ConstStrings.subTicketCount, '${stats.subTicketCount}', Icons.account_tree, ThemeColors.unifiedAccent),
+            const SizedBox(width: 16),
+            _card('Sub-Dept Tasks', '${stats.totalSubTicketDepartments}', Icons.workspaces, ThemeColors.unifiedInfo),
           ],
         ),
       ],

@@ -10,6 +10,10 @@ exports.getStats = async () => {
     pool.query(`SELECT COUNT(*)::int AS total FROM tickets WHERE status = 'completed'`),
     pool.query(`SELECT COUNT(*)::int AS total FROM tickets WHERE status = 'closed'`),
     pool.query('SELECT COUNT(*)::int AS total FROM companies'),
+    pool.query(`SELECT COUNT(*)::int AS total FROM tickets WHERE due_date < NOW() AND status NOT IN ('completed','closed')`),
+    pool.query(`SELECT COUNT(*)::int AS total FROM tickets WHERE priority = 'urgent' AND status NOT IN ('completed','closed')`),
+    pool.query(`SELECT COUNT(*)::int AS total FROM tickets WHERE is_sub_ticket = TRUE`),
+    pool.query('SELECT COUNT(*)::int AS total FROM sub_ticket_departments'),
   ]);
   return {
     totalUsers: results[0].rows[0].total,
@@ -20,6 +24,10 @@ exports.getStats = async () => {
     completedTickets: results[5].rows[0].total,
     closedTickets: results[6].rows[0].total,
     totalCompanies: results[7].rows[0].total,
+    overdueTickets: results[8].rows[0].total,
+    urgentTickets: results[9].rows[0].total,
+    subTicketCount: results[10].rows[0].total,
+    totalSubTicketDepartments: results[11].rows[0].total,
   };
 };
 
@@ -197,11 +205,28 @@ exports.findAllTickets = async (query = {}) => {
             u.email AS created_by_email,
             d.name AS assigned_dept_name,
             d.code AS assigned_dept_code,
-            a.name AS assigned_to_name
+            a.name AS assigned_to_name,
+            ll.action AS last_action,
+            ll.acted_by_name AS last_acted_by_name,
+            ll.acted_by_dept_name AS last_acted_by_dept_name,
+            ll.acted_at AS last_action_at,
+            (SELECT COUNT(*)::int FROM tickets c WHERE c.parent_ticket_id = t.id) AS immediate_child_count
      FROM tickets t
      LEFT JOIN users u ON u.id = t.created_by_id
      LEFT JOIN departments d ON d.id = t.assigned_dept_id
      LEFT JOIN users a ON a.id = t.assigned_to_id
+     LEFT JOIN LATERAL (
+       SELECT tl.action,
+              actor.name AS acted_by_name,
+              dept.name AS acted_by_dept_name,
+              tl.created_at AS acted_at
+       FROM ticket_logs tl
+       LEFT JOIN users actor ON actor.id = tl.acted_by_id
+       LEFT JOIN departments dept ON dept.id = actor.department_id
+       WHERE tl.ticket_id = t.id
+       ORDER BY tl.created_at DESC
+       LIMIT 1
+     ) ll ON TRUE
      ${where}
      ORDER BY t.created_at DESC
      LIMIT $${idx++} OFFSET $${idx}`,
@@ -216,15 +241,68 @@ exports.findTicketById = async (id) => {
     `SELECT t.*,
             u.name AS created_by_name,
             d.name AS assigned_dept_name,
-            a.name AS assigned_to_name
+            d.code AS assigned_dept_code,
+            a.name AS assigned_to_name,
+            ll.action AS last_action,
+            ll.acted_by_name AS last_acted_by_name,
+            ll.acted_by_dept_name AS last_acted_by_dept_name,
+            ll.acted_at AS last_action_at,
+            (SELECT COUNT(*)::int FROM tickets c WHERE c.parent_ticket_id = t.id) AS immediate_child_count
      FROM tickets t
      LEFT JOIN users u ON u.id = t.created_by_id
      LEFT JOIN departments d ON d.id = t.assigned_dept_id
      LEFT JOIN users a ON a.id = t.assigned_to_id
+     LEFT JOIN LATERAL (
+       SELECT tl.action,
+              actor.name AS acted_by_name,
+              dept.name AS acted_by_dept_name,
+              tl.created_at AS acted_at
+       FROM ticket_logs tl
+       LEFT JOIN users actor ON actor.id = tl.acted_by_id
+       LEFT JOIN departments dept ON dept.id = actor.department_id
+       WHERE tl.ticket_id = t.id
+       ORDER BY tl.created_at DESC
+       LIMIT 1
+     ) ll ON TRUE
      WHERE t.id = $1`,
     [id]
   );
   return result.rows[0] || null;
+};
+
+exports.findSubTickets = async (parentId) => {
+  const result = await pool.query(
+    `SELECT t.*,
+            u.name AS created_by_name,
+            d.name AS assigned_dept_name,
+            d.code AS assigned_dept_code,
+            a.name AS assigned_to_name,
+            ll.action AS last_action,
+            ll.acted_by_name AS last_acted_by_name,
+            ll.acted_by_dept_name AS last_acted_by_dept_name,
+            ll.acted_at AS last_action_at,
+            (SELECT COUNT(*)::int FROM tickets c WHERE c.parent_ticket_id = t.id) AS immediate_child_count
+     FROM tickets t
+     LEFT JOIN users u ON u.id = t.created_by_id
+     LEFT JOIN departments d ON d.id = t.assigned_dept_id
+     LEFT JOIN users a ON a.id = t.assigned_to_id
+     LEFT JOIN LATERAL (
+       SELECT tl.action,
+              actor.name AS acted_by_name,
+              dept.name AS acted_by_dept_name,
+              tl.created_at AS acted_at
+       FROM ticket_logs tl
+       LEFT JOIN users actor ON actor.id = tl.acted_by_id
+       LEFT JOIN departments dept ON dept.id = actor.department_id
+       WHERE tl.ticket_id = t.id
+       ORDER BY tl.created_at DESC
+       LIMIT 1
+     ) ll ON TRUE
+     WHERE t.parent_ticket_id = $1
+     ORDER BY t.created_at ASC`,
+    [parentId]
+  );
+  return result.rows;
 };
 
 exports.updateTicket = async (id, updates) => {

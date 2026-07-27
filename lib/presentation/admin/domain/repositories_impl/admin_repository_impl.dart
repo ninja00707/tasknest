@@ -45,7 +45,19 @@ class AdminRepositoryImpl implements AdminRepository {
   Future<void> deleteDept(int id) => _ds.deleteDept(id);
 
   @override
-  Future<List<AdminTicketModel>> getTickets({String? status}) => _ds.getTickets(status: status);
+  Future<Map<String, dynamic>> getTicketsWithTotal({String? status, String? search, int page = 1, int limit = 20}) =>
+      _ds.getTicketsWithTotal(status: status, search: search, page: page, limit: limit);
+
+  @override
+  Future<AdminTicketModel> getTicketDetail(int id) => _ds.getTicketDetail(id);
+
+  @override
+  Future<AdminTicketModel> updateTicket(int id, Map<String, dynamic> body) =>
+      _ds.updateTicket(id, body);
+
+  @override
+  Future<List<AdminSubTicketModel>> getSubTickets(int parentId) =>
+      _ds.getSubTickets(parentId);
 
   @override
   Future<void> deleteTicket(int id) => _ds.deleteTicket(id);

@@ -128,11 +128,7 @@ class TicketTypeSectionScreen extends StatelessWidget {
                   items: types,
                   itemBuilder: (context, t, index) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _TypeCard(
-                      data: t,
-                      user: user,
-                      horizontal: true,
-                    ),
+                    child: _TypeCard(data: t, user: user, horizontal: true),
                   ),
                 ),
         ),
@@ -415,130 +411,127 @@ class _HorizontalCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-            // ── Left gradient strip ─────────────────────────────
-            Container(
-              width: 80,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: data.gradientColors,
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+          // ── Left gradient strip ─────────────────────────────
+          Container(
+            width: 80,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: data.gradientColors,
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(
-                    data.patternIcon,
-                    size: 60,
-                    color: Colors.white.withValues(alpha: 0.08),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  data.patternIcon,
+                  size: 60,
+                  color: Colors.white.withValues(alpha: 0.08),
+                ),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(13),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                      width: 1.5,
+                    ),
                   ),
+                  child: Icon(data.icon, size: 22, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Right content ───────────────────────────────────
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          data.label,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: data.accentColor,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          data.subtitle,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: ThemeColors.unifiedTextMuted,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        _CountBar(count: data.count, color: data.accentColor),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Count pill
                   Container(
-                    width: 44,
-                    height: 44,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(13),
+                      color: data.accentColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.3),
+                        color: data.accentColor.withValues(alpha: 0.2),
                         width: 1.5,
                       ),
                     ),
-                    child: Icon(data.icon, size: 22, color: Colors.white),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${data.count}',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: data.accentColor,
+                            letterSpacing: -0.5,
+                            height: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          ConstStrings.ticketsLabel,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: data.accentColor.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: data.accentColor.withValues(alpha: 0.5),
+                    size: 20,
                   ),
                 ],
               ),
             ),
-
-            // ── Right content ───────────────────────────────────
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            data.label,
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: data.accentColor,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            data.subtitle,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: ThemeColors.unifiedTextMuted,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          _CountBar(count: data.count, color: data.accentColor),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Count pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: data.accentColor.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: data.accentColor.withValues(alpha: 0.2),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${data.count}',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: data.accentColor,
-                              letterSpacing: -0.5,
-                              height: 1,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            ConstStrings.ticketsLabel,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: data.accentColor.withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      color: data.accentColor.withValues(alpha: 0.5),
-                      size: 20,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            ],
           ),
+        ],
+      ),
     );
   }
 }

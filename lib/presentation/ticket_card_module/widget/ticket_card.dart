@@ -3,11 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/core/theme/common_text.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/dashboard/widgets/priority_badges.dart';
 import 'package:tasknest/presentation/dashboard/widgets/status_badges.dart';
+import 'package:tasknest/presentation/ticket/widgets/card_detailing_widget/common_baged.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_action.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_card_base.dart';
 import 'package:tasknest/presentation/ticket_card_module/bloc/ticket_card_bloc.dart';
@@ -55,9 +55,9 @@ class TicketCard extends StatelessWidget {
     final statusColor = CommonStatus.ticketStatusColor(t.status);
     final priorityColor = CommonStatus.ticketPriorityColor(t.priority);
 
-    final shadowAlpha = pulseActive ? 0.18 : 0.08;
-    final shadowBlur = pulseActive ? 22.0 : 16.0;
-    final borderAlpha = pulseActive ? 0.35 : 0.2;
+    final shadowAlpha = pulseActive ? 0.18 : 0.06;
+    final shadowBlur = pulseActive ? 20.0 : 12.0;
+    final borderAlpha = pulseActive ? 0.35 : 0.18;
 
     return RepaintBoundary(
       child: GestureDetector(
@@ -65,55 +65,59 @@ class TicketCard extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             color: ThemeColors.unifiedSurface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: t.isOverdue
                   ? ThemeColors.unifiedDanger.withValues(alpha: 0.35)
                   : priorityColor.withValues(alpha: borderAlpha),
-              width: 1.5,
+              width: 2,
             ),
             boxShadow: [
               if (pulseActive)
                 BoxShadow(
                   color: statusColor.withValues(alpha: shadowAlpha),
                   blurRadius: shadowBlur,
-                  offset: const Offset(0, 4),
+                  offset: const Offset(0, 3),
                 ),
               BoxShadow(
-                color: priorityColor.withValues(alpha: 0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 6,
-                offset: const Offset(0, 1),
+                color: priorityColor.withValues(alpha: 0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
               ),
             ],
           ),
           clipBehavior: Clip.hardEdge,
           child: Stack(
             children: [
+              // Priority accent bar (left edge)
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(width: 4, color: priorityColor),
+              ),
+
               Padding(
-                padding: const EdgeInsets.only(left: 4),
+                padding: const EdgeInsets.fromLTRB(14, 12, 12, 10),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                    // ── Header: id + flags (wrap) ── priority + status ──
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               IdChip(
                                 label: t.ticketNumber.isNotEmpty
                                     ? t.ticketNumber
                                     : '#${t.id}',
                               ),
-                              const SizedBox(width: 8),
                               if (t.isStandardTicket)
                                 FlagChip(
                                   label: 'STANDARD',
@@ -137,258 +141,191 @@ class TicketCard extends StatelessWidget {
                                   fg: const Color(0xFFD97706),
                                   icon: Icons.account_tree_rounded,
                                 ),
-                              const Spacer(),
-                              PriorityBadge(priority: t.priority),
-                              const SizedBox(width: 6),
-                              StatusBadge(status: t.status),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          if (t.deptJourney.isNotEmpty) ...[
-                            DeptJourneySection(journey: t.deptJourney),
-                            const SizedBox(height: 16),
-                          ],
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (t.hasParent)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.subdirectory_arrow_right_rounded,
-                                        size: 13,
-                                        color: ThemeColors.unifiedTextMuted
-                                            .withValues(alpha: 0.6),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'CHILD OF ${t.parentTicketNumber ?? "#${t.parentTicketId}"} ${t.parentTicketTitle ?? ""}',
-                                        style: const TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          color: ThemeColors.unifiedTextMuted,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              Text(
-                                t.title,
+                        ),
+                        const SizedBox(width: 6),
+                        PriorityBadge(priority: t.priority),
+                        const SizedBox(width: 6),
+                        StatusBadge(status: t.status),
+                      ],
+                    ),
+
+                    if (t.deptJourney.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      DeptJourneySection(journey: t.deptJourney),
+                    ],
+
+                    const SizedBox(height: 10),
+
+                    // ── Title / description ──
+                    if (t.hasParent)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.subdirectory_arrow_right_rounded,
+                              size: 12,
+                              color: ThemeColors.unifiedTextMuted.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                'CHILD OF ${t.parentTicketNumber ?? "#${t.parentTicketId}"} ${t.parentTicketTitle ?? ""}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w800,
-                                  color: ThemeColors.unifiedTextPrimary,
-                                  letterSpacing: -0.3,
-                                  height: 1.3,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                t.description,
-                                style: const TextStyle(
-                                  fontSize: 13,
                                   color: ThemeColors.unifiedTextMuted,
-                                  height: 1.45,
-                                  fontWeight: FontWeight.w400,
+                                  letterSpacing: 0.3,
                                 ),
-                                maxLines: 2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    Text(
+                      t.title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: ThemeColors.unifiedTextPrimary,
+                        letterSpacing: -0.2,
+                        height: 1.25,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      t.description,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: ThemeColors.unifiedTextMuted,
+                        height: 1.35,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    if (t.isSubTicket) ...[
+                      SubTicketProgressSection(ticket: t, user: user),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 1,
+                        color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 8),
+                    ] else ...[
+                      Container(
+                        height: 1,
+                        color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
+                    if (t.children.isNotEmpty) ...[
+                      ChildTicketsList(children: t.children, user: user),
+                      const SizedBox(height: 8),
+                    ],
+
+                    if (t.lastActedByName != null &&
+                        t.lastActedByName != 'System') ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: ThemeColors.unifiedSurface.withValues(
+                            alpha: 0.5,
+                          ),
+                          borderRadius: BorderRadius.circular(7),
+                          border: Border.all(
+                            color: ThemeColors.unifiedBorder.withValues(
+                              alpha: 0.35,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.history_rounded,
+                              size: 11,
+                              color: ThemeColors.unifiedTextMuted.withValues(
+                                alpha: 0.7,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: Text(
+                                _buildLastUpdatedLabel(t),
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: ThemeColors.unifiedTextMuted
+                                      .withValues(alpha: 0.85),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          if (t.isSubTicket) ...[
-                            SubTicketProgressSection(ticket: t, user: user),
-                            const SizedBox(height: 12),
-                            Container(
-                              height: 1,
-                              color: ThemeColors.unifiedBorder.withValues(
-                                alpha: 0.6,
-                              ),
                             ),
-                            const SizedBox(height: 10),
-                          ] else ...[
-                            Container(
-                              height: 1,
-                              color: ThemeColors.unifiedBorder.withValues(
-                                alpha: 0.6,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
                           ],
-                          if (t.children.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            ChildTicketsList(children: t.children, user: user),
-                          ],
-                          const SizedBox(height: 12),
-                          if (t.lastActedByName != null && t.lastActedByName != 'System')
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: ThemeColors.unifiedSurface.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: ThemeColors.unifiedBorder.withValues(alpha: 0.4),
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.history_rounded,
-                                    size: 12,
-                                    color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.7),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      _buildLastUpdatedLabel(t),
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.85),
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              if (!t.isSubTicket) ...[
-                                MetaDivider(),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
+                    // ── Footer: dept/assignee meta ── actions ──
+                    Row(
+                      children: [
+                        if (!t.isSubTicket)
+                          Expanded(
+                            child: Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
                                 MetaChip(
                                   icon: Icons.arrow_forward_rounded,
                                   iconColor: ThemeColors.unifiedSecondary,
                                   label: t.assignedDeptCode,
                                 ),
-                                if (t.assignedToName != null) ...[
-                                  MetaDivider(),
+                                if (t.assignedToName != null)
                                   MetaChip(
                                     icon: Icons.person_outline_rounded,
                                     iconColor: ThemeColors.unifiedTextMuted,
                                     label: t.assignedToName!,
                                   ),
-                                ],
                               ],
-                              const Spacer(),
-                              TicketActions(ticket: t, user: user),
-                              // if (pulseActive)
-                              //   Container(
-                              //     padding: const EdgeInsets.symmetric(
-                              //       horizontal: 4,
-                              //       vertical: 3,
-                              //     ),
-                              //     decoration: BoxDecoration(
-                              //       color: statusColor.withValues(alpha: 0.12),
-                              //       borderRadius: BorderRadius.circular(6),
-                              //       border: Border.all(
-                              //         color: statusColor.withValues(
-                              //           alpha: 0.25,
-                              //         ),
-                              //         width: 1,
-                              //       ),
-                              //     ),
-                              //     child: const Row(
-                              //       mainAxisSize: MainAxisSize.min,
-                              //       children: [
-                              //         Icon(
-                              //           Icons.bolt_rounded,
-                              //           size: 11,
-                              //           color: Colors.redAccent,
-                              //         ),
-                              //         SizedBox(width: 3),
-                              //         Text(
-                              //           'JUST UPDATED',
-                              //           style: TextStyle(
-                              //             fontSize: 8,
-                              //             fontWeight: FontWeight.w800,
-                              //             color: Colors.redAccent,
-                              //           ),
-                              //         ),
-                              //       ],
-                              //     ),
-                              //   ),
-                              // if (pulseActive) const SizedBox(width: 6),
-                            ],
-                          ),
-                        ],
-                      ),
+                            ),
+                          )
+                        else
+                          const Spacer(),
+                        TicketActions(ticket: t, user: user),
+                      ],
                     ),
                   ],
                 ),
               ),
-              if (pulseActive) ...[
+
+              // ── "Just updated" corner ribbon (fixed, non-overlapping) ──
+              if (pulseActive)
                 Positioned(
-                  left: 50,
-                  right: 50,
-                  top: 150,
-                  bottom: 150,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: statusColor.withValues(alpha: 0.25),
-                        width: 1,
-                      ),
-                    ),
-                    child: Center(
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.bolt_rounded,
-                            size: 11,
-                            color: Colors.redAccent,
-                          ),
-                          SizedBox(width: 3),
-                          CommonText(
-                            'JUST UPDATED',
-                            customeStyle: TextStyle(
-                              fontSize: 8,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.redAccent,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  top: 70,
+                  right: 18,
+                  child: CommonBadge(
+                    label: 'Just Updated',
+                    color: Colors.redAccent,
                   ),
                 ),
-                if (pulseActive) const SizedBox(width: 6),
-              ],
-              // Positioned(
-              //   left: 0,
-              //   top: 0,
-              //   bottom: 0,
-              //   child: Container(
-              //     width: 4,
-              //     decoration: BoxDecoration(
-              //       gradient: LinearGradient(
-              //         begin: Alignment.topCenter,
-              //         end: Alignment.bottomCenter,
-              //         colors: [
-              //           CommonStatus.ticketPriorityColor(t.priority),
-              //           CommonStatus.ticketPriorityColor(
-              //             t.priority,
-              //           ).withValues(alpha: 0.4),
-              //         ],
-              //       ),
-              //     ),
-              //   ),
-              // ),
             ],
           ),
         ),

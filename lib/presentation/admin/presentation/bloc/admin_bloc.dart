@@ -16,6 +16,7 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
 
   String _ticketSearchQuery = '';
   String? _ticketStatusFilter;
+  int _ticketPage = 1;
 
   int _usersSelectedTab = 0;
   String _usersSearchQuery = '';
@@ -40,11 +41,14 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     on<UpdateDepartment>(_onUpdateDept);
     on<DeleteDepartment>(_onDeleteDept);
     on<LoadTickets>(_onLoadTickets);
+    on<UpdateTicketAdmin>(_onUpdateTicketAdmin);
+    on<LoadTicketDetail>(_onLoadTicketDetail);
     on<DeleteTicket>(_onDeleteTicket);
     on<UpdateDeptSearchQuery>(_onUpdateDeptSearch);
     on<UpdateDeptPage>(_onUpdateDeptPage);
     on<UpdateTicketSearchQuery>(_onUpdateTicketSearch);
     on<UpdateTicketStatusFilter>(_onUpdateTicketStatusFilter);
+    on<UpdateTicketPage>(_onUpdateTicketPage);
     on<UpdateUsersTab>(_onUpdateUsersTab);
     on<UpdateUsersSearchQuery>(_onUpdateUsersSearch);
     on<UpdateUsersShowMissingCode>(_onUpdateUsersMissingCode);
@@ -54,10 +58,29 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     on<UpdateActivityPage>(_onUpdateActivityPage);
   }
 
+  Future<List<AdminDeptModel>> fetchDepartments() => _repo.getDepartments();
+
   void _emitError(Emitter<AdminState> e, dynamic err) {
     e(AdminError(err is Exception
         ? err.toString().replaceFirst('Exception: ', '')
         : 'An error occurred'));
+  }
+
+  Future<void> _fetchTickets(Emitter<AdminState> emit) async {
+    try {
+      final result = await _repo.getTicketsWithTotal(
+        status: _ticketStatusFilter,
+        search: _ticketSearchQuery.isNotEmpty ? _ticketSearchQuery : null,
+        page: _ticketPage,
+      );
+      emit(TicketsLoaded(result['tickets'] as List<AdminTicketModel>,
+          filterStatus: _ticketStatusFilter,
+          searchQuery: _ticketSearchQuery,
+          page: _ticketPage,
+          totalTickets: result['total'] as int));
+    } catch (err) {
+      _emitError(emit, err);
+    }
   }
 
   Future<void> _onLoadDashboard(
@@ -248,11 +271,34 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
   Future<void> _onLoadTickets(
       LoadTickets event, Emitter<AdminState> emit) async {
     _ticketStatusFilter = event.status;
+    _ticketPage = 1;
+    await _fetchTickets(emit);
+  }
+
+  Future<void> _onUpdateTicketAdmin(
+      UpdateTicketAdmin event, Emitter<AdminState> emit) async {
+    try {
+      await _repo.updateTicket(event.id, event.body);
+      if (event.context.mounted) {
+        ScaffoldMessenger.of(event.context).showSnackBar(
+          const SnackBar(content: Text(ConstStrings.ticketUpdatedSuccess)),
+        );
+      }
+      await _fetchTickets(emit);
+    } catch (err) {
+      _emitError(emit, err);
+    }
+  }
+
+  Future<void> _onLoadTicketDetail(
+      LoadTicketDetail event, Emitter<AdminState> emit) async {
     emit(AdminLoading());
     try {
-      final tickets = await _repo.getTickets(status: event.status);
-      emit(TicketsLoaded(tickets,
-          filterStatus: event.status, searchQuery: _ticketSearchQuery));
+      final ticket = await _repo.getTicketDetail(event.id);
+      final subTickets = await _repo.getSubTickets(event.id);
+      final departments = await _repo.getDepartments();
+      emit(TicketDetailLoaded(ticket,
+          subTickets: subTickets, departments: departments));
     } catch (err) {
       _emitError(emit, err);
     }
@@ -267,7 +313,7 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
           const SnackBar(content: Text(ConstStrings.ticketDeletedSuccess)),
         );
       }
-      add(LoadTickets(status: _ticketStatusFilter));
+      await _fetchTickets(emit);
     } catch (err) {
       _emitError(emit, err);
     }
@@ -291,27 +337,24 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     }
   }
 
-  void _onUpdateTicketSearch(
-      UpdateTicketSearchQuery event, Emitter<AdminState> emit) {
+  Future<void> _onUpdateTicketSearch(
+      UpdateTicketSearchQuery event, Emitter<AdminState> emit) async {
     _ticketSearchQuery = event.query;
-    if (state is TicketsLoaded) {
-      final s = state as TicketsLoaded;
-      emit(TicketsLoaded(s.tickets,
-          filterStatus: s.filterStatus, searchQuery: _ticketSearchQuery));
-    }
+    _ticketPage = 1;
+    await _fetchTickets(emit);
   }
 
   Future<void> _onUpdateTicketStatusFilter(
       UpdateTicketStatusFilter event, Emitter<AdminState> emit) async {
     _ticketStatusFilter = event.status;
-    emit(AdminLoading());
-    try {
-      final tickets = await _repo.getTickets(status: event.status);
-      emit(TicketsLoaded(tickets,
-          filterStatus: event.status, searchQuery: _ticketSearchQuery));
-    } catch (err) {
-      _emitError(emit, err);
-    }
+    _ticketPage = 1;
+    await _fetchTickets(emit);
+  }
+
+  Future<void> _onUpdateTicketPage(
+      UpdateTicketPage event, Emitter<AdminState> emit) async {
+    _ticketPage = event.page;
+    await _fetchTickets(emit);
   }
 
   void _onUpdateUsersTab(UpdateUsersTab event, Emitter<AdminState> emit) {

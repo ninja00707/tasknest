@@ -35,6 +35,7 @@ router.delete('/departments/:id', controller.deleteDepartment);
 // Tickets
 router.get('/tickets', controller.listTickets);
 router.get('/tickets/:id', controller.getTicket);
+router.get('/tickets/:id/sub-tickets', controller.getSubTickets);
 router.patch('/tickets/:id', controller.updateTicket);
 router.delete('/tickets/:id', controller.deleteTicket);
 

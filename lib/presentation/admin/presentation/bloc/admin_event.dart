@@ -89,6 +89,24 @@ class LoadTickets extends AdminEvent {
   List<Object?> get props => [status];
 }
 
+class UpdateTicketAdmin extends AdminEvent {
+  final int id;
+  final Map<String, dynamic> body;
+  final BuildContext context;
+  UpdateTicketAdmin(this.id, this.body, this.context);
+
+  @override
+  List<Object?> get props => [id, body, context];
+}
+
+class LoadTicketDetail extends AdminEvent {
+  final int id;
+  LoadTicketDetail(this.id);
+
+  @override
+  List<Object?> get props => [id];
+}
+
 class DeleteTicket extends AdminEvent {
   final int id;
   final BuildContext context;
@@ -128,6 +146,14 @@ class UpdateTicketStatusFilter extends AdminEvent {
 
   @override
   List<Object?> get props => [status];
+}
+
+class UpdateTicketPage extends AdminEvent {
+  final int page;
+  UpdateTicketPage(this.page);
+
+  @override
+  List<Object?> get props => [page];
 }
 
 class UpdateUsersTab extends AdminEvent {

@@ -7,6 +7,10 @@ class AdminStats {
   final int completedTickets;
   final int closedTickets;
   final int totalCompanies;
+  final int overdueTickets;
+  final int urgentTickets;
+  final int subTicketCount;
+  final int totalSubTicketDepartments;
 
   AdminStats({
     required this.totalUsers,
@@ -17,6 +21,10 @@ class AdminStats {
     required this.completedTickets,
     required this.closedTickets,
     required this.totalCompanies,
+    this.overdueTickets = 0,
+    this.urgentTickets = 0,
+    this.subTicketCount = 0,
+    this.totalSubTicketDepartments = 0,
   });
 
   factory AdminStats.fromJson(Map<String, dynamic> json) => AdminStats(
@@ -28,6 +36,10 @@ class AdminStats {
     completedTickets: json['completedTickets'] ?? 0,
     closedTickets: json['closedTickets'] ?? 0,
     totalCompanies: json['totalCompanies'] ?? 0,
+    overdueTickets: json['overdueTickets'] ?? 0,
+    urgentTickets: json['urgentTickets'] ?? 0,
+    subTicketCount: json['subTicketCount'] ?? 0,
+    totalSubTicketDepartments: json['totalSubTicketDepartments'] ?? 0,
   );
 }
 
@@ -180,6 +192,15 @@ class AdminTicketModel {
   final String? assignedToName;
   final bool isSubTicket;
   final String? ticketType;
+  final int? version;
+  final String? lastAction;
+  final String? lastActedByName;
+  final String? lastActedByDeptName;
+  final String? lastActionAt;
+  final String? dueDate;
+  final String? closedAt;
+  final int? parentTicketId;
+  final int immediateChildCount;
 
   AdminTicketModel({
     required this.id,
@@ -199,7 +220,23 @@ class AdminTicketModel {
     this.assignedToName,
     required this.isSubTicket,
     this.ticketType,
+    this.version,
+    this.lastAction,
+    this.lastActedByName,
+    this.lastActedByDeptName,
+    this.lastActionAt,
+    this.dueDate,
+    this.closedAt,
+    this.parentTicketId,
+    this.immediateChildCount = 0,
   });
+
+  bool get isOverdue =>
+      dueDate != null &&
+      DateTime.tryParse(dueDate!) != null &&
+      DateTime.parse(dueDate!).isBefore(DateTime.now()) &&
+      status != 'completed' &&
+      status != 'closed';
 
   factory AdminTicketModel.fromJson(Map<String, dynamic> json) => AdminTicketModel(
     id: json['id'],
@@ -219,5 +256,53 @@ class AdminTicketModel {
     assignedToName: json['assigned_to_name'],
     isSubTicket: json['is_sub_ticket'] ?? false,
     ticketType: json['ticket_type'],
+    version: json['version'] is String ? int.tryParse(json['version']) : json['version'],
+    lastAction: json['last_action'],
+    lastActedByName: json['last_acted_by_name'],
+    lastActedByDeptName: json['last_acted_by_dept_name'],
+    lastActionAt: json['last_action_at'],
+    dueDate: json['due_date'],
+    closedAt: json['closed_at'],
+    parentTicketId: json['parent_ticket_id'],
+    immediateChildCount: json['immediate_child_count'] ?? 0,
+  );
+}
+
+class AdminSubTicketModel {
+  final int id;
+  final int ticketId;
+  final int departmentId;
+  final String? departmentName;
+  final String? departmentCode;
+  final String taskDescription;
+  final String status;
+  final int progressPercent;
+  final String? assignedToName;
+  final String? completedAt;
+
+  AdminSubTicketModel({
+    required this.id,
+    required this.ticketId,
+    required this.departmentId,
+    this.departmentName,
+    this.departmentCode,
+    required this.taskDescription,
+    required this.status,
+    required this.progressPercent,
+    this.assignedToName,
+    this.completedAt,
+  });
+
+  factory AdminSubTicketModel.fromJson(Map<String, dynamic> json) => AdminSubTicketModel(
+    id: json['id'],
+    ticketId: json['ticket_id'],
+    departmentId: json['department_id'],
+    departmentName: json['department_name'],
+    departmentCode: json['department_code'],
+    taskDescription: json['task_description'] ?? '',
+    status: json['status'] ?? 'open',
+    progressPercent: json['progress_percent'] ?? 0,
+    assignedToName: json['assigned_to_name'],
+    completedAt: json['completed_at'],
   );
 }

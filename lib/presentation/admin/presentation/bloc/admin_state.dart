@@ -122,24 +122,31 @@ class TicketsLoaded extends AdminState {
   final List<AdminTicketModel> tickets;
   final String? filterStatus;
   final String searchQuery;
+  final int page;
+  final int totalTickets;
 
-  TicketsLoaded(this.tickets, {this.filterStatus, this.searchQuery = ''});
+  static const int pageSize = 20;
 
-  List<AdminTicketModel> get filteredTickets {
-    if (searchQuery.isEmpty) return tickets;
-    final q = searchQuery.toLowerCase();
-    return tickets
-        .where((t) =>
-            (t.ticketNumber?.toLowerCase().contains(q) ?? false) ||
-            t.title.toLowerCase().contains(q) ||
-            (t.assignedToName?.toLowerCase().contains(q) ?? false) ||
-            (t.createdByName?.toLowerCase().contains(q) ?? false) ||
-            (t.assignedDeptName?.toLowerCase().contains(q) ?? false))
-        .toList();
-  }
+  TicketsLoaded(this.tickets,
+      {this.filterStatus, this.searchQuery = '', this.page = 1, this.totalTickets = 0});
+
+  int get totalPages => totalTickets == 0 ? 1 : (totalTickets / pageSize).ceil();
+
+  int get clampedPage => page.clamp(1, totalPages);
 
   @override
-  List<Object?> get props => [tickets, filterStatus, searchQuery];
+  List<Object?> get props => [tickets, filterStatus, searchQuery, page, totalTickets];
+}
+
+class TicketDetailLoaded extends AdminState {
+  final AdminTicketModel ticket;
+  final List<AdminSubTicketModel> subTickets;
+  final List<AdminDeptModel> departments;
+
+  TicketDetailLoaded(this.ticket, {this.subTickets = const [], this.departments = const []});
+
+  @override
+  List<Object?> get props => [ticket, subTickets, departments];
 }
 
 class UserActivityLoaded extends AdminState {

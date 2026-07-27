@@ -73,11 +73,29 @@ class AdminRemoteDataSource {
   }
 
   // ── Tickets ────────────────────────────────────────────────────────
-  Future<List<AdminTicketModel>> getTickets({String? status}) async {
-    final query = <String, dynamic>{};
+  Future<Map<String, dynamic>> getTicketsWithTotal({String? status, String? search, int page = 1, int limit = 20}) async {
+    final query = <String, dynamic>{'page': '$page', 'limit': '$limit'};
     if (status != null) query['status'] = status;
+    if (search != null && search.isNotEmpty) query['search'] = search;
     final res = await _api.get('admin/tickets', queryParams: query);
-    return (res['data'] as List).map((e) => AdminTicketModel.fromJson(e)).toList();
+    final tickets = (res['data'] as List).map((e) => AdminTicketModel.fromJson(e)).toList();
+    final total = res['pagination']?['total'] ?? 0;
+    return {'tickets': tickets, 'total': total};
+  }
+
+  Future<AdminTicketModel> getTicketDetail(int id) async {
+    final res = await _api.get('admin/tickets/$id');
+    return AdminTicketModel.fromJson(res['data']);
+  }
+
+  Future<AdminTicketModel> updateTicket(int id, Map<String, dynamic> body) async {
+    final res = await _api.patch('admin/tickets/$id', body: body);
+    return AdminTicketModel.fromJson(res['data']);
+  }
+
+  Future<List<AdminSubTicketModel>> getSubTickets(int parentId) async {
+    final res = await _api.get('admin/tickets/$parentId/sub-tickets');
+    return (res['data'] as List).map((e) => AdminSubTicketModel.fromJson(e)).toList();
   }
 
   Future<void> deleteTicket(int id) async {

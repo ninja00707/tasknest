@@ -107,6 +107,11 @@ exports.getTicket = handler(async (req, res) => {
   ok(res, ticket);
 });
 
+exports.getSubTickets = handler(async (req, res) => {
+  const subTickets = await service.getSubTickets(safeInt(req.params.id));
+  ok(res, subTickets);
+});
+
 exports.updateTicket = handler(async (req, res) => {
   const ticket = await service.updateTicket(safeInt(req.params.id), req.body);
   ok(res, ticket, 'Ticket updated successfully');

@@ -158,7 +158,10 @@ class KanbanColumn extends StatelessWidget {
                         itemBuilder: (context, ticket, index) => Padding(
                           key: ValueKey(ticket.id),
                           padding: const EdgeInsets.only(bottom: 8),
-                          child: TicketCard(ticket: ticket, user: user),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 18.0),
+                            child: TicketCard(ticket: ticket, user: user),
+                          ),
                         ),
                       ),
                     ),

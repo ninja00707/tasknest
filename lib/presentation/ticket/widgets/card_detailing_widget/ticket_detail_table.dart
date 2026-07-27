@@ -18,6 +18,22 @@ class DetailsCard extends StatelessWidget {
     return ConstStrings.standardLabel;
   }
 
+  String get _assignedToDisplay {
+    if (ticket.subDepartments.isNotEmpty && ticket.subDepartments.any((d) => d.isAssigned)) {
+      return ticket.subDepartments
+          .where((d) => d.isAssigned)
+          .map((d) => '${d.assignedToName} (${d.departmentCode})')
+          .join(', ');
+    }
+    if (ticket.children.isNotEmpty && ticket.children.any((c) => c.assigneeName != null)) {
+      return ticket.children
+          .where((c) => c.assigneeName != null)
+          .map((c) => '${c.assigneeName} (${c.deptCode})')
+          .join(', ');
+    }
+    return ticket.assignedToName ?? ConstStrings.unassigned;
+  }
+
   @override
   Widget build(BuildContext context) {
     return CommonSectionCardContainer(
@@ -69,7 +85,7 @@ class DetailsCard extends StatelessWidget {
           ),
           DetailRow(
             label: ConstStrings.assignedTo,
-            value: ticket.assignedToName ?? ConstStrings.unassigned,
+            value: _assignedToDisplay,
           ),
           DetailRow(
             label: ConstStrings.created,
@@ -140,15 +156,15 @@ class DetailsCard extends StatelessWidget {
                   (ticket.myAssignedToName == null ||
                       ticket.myAssignedToName == ticket.assignedToName),
             ),
-          if (ticket.assignedToReportsToName != null)
-            DetailRow(
-              label: 'Reports To',
-              value: ticket.assignedToReportsToName!,
-              isLast:
-                  ticket.createdByReportsToName == null &&
-                  (ticket.myAssignedToName == null ||
-                      ticket.myAssignedToName == ticket.assignedToName),
-            ),
+          // if (ticket.assignedToReportsToName != null)
+          //   DetailRow(
+          //     label: 'Reports To',
+          //     value: ticket.assignedToReportsToName!,
+          //     isLast:
+          //         ticket.createdByReportsToName == null &&
+          //         (ticket.myAssignedToName == null ||
+          //             ticket.myAssignedToName == ticket.assignedToName),
+          //   ),
           if (ticket.createdByReportsToName != null)
             DetailRow(
               label: 'Created By Reports To',
