@@ -5,8 +5,8 @@
 CREATE TABLE IF NOT EXISTS event_outbox (
   id BIGSERIAL PRIMARY KEY,
   event_type VARCHAR(100) NOT NULL,
-  ticket_id INT NOT NULL REFERENCES tickets(id),
-  parent_ticket_id INT REFERENCES tickets(id),
+  ticket_id INT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+  parent_ticket_id INT REFERENCES tickets(id) ON DELETE CASCADE,
   payload JSONB NOT NULL DEFAULT '{}',
   version BIGINT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now(),
