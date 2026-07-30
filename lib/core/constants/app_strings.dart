@@ -34,7 +34,6 @@ class AppStrings {
   // ── Ticket Status ──
   static const String open = 'Open';
   static const String inProgress = 'In Progress';
-  static const String completed = 'Completed';
   static const String closed = 'Closed';
 
   // ── Ticket Priority ──

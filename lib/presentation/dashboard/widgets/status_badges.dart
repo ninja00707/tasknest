@@ -21,11 +21,6 @@ class StatusBadge extends StatelessWidget {
         fg = ThemeColors.statusProgressFg;
         label = ConstStrings.statusInProgress;
         break;
-      case 'completed':
-        bg = ThemeColors.statusDoneBg;
-        fg = ThemeColors.statusDoneFg;
-        label = ConstStrings.statusCompleted;
-        break;
       default:
         bg = ThemeColors.statusClosedBg;
         fg = ThemeColors.statusClosedFg;

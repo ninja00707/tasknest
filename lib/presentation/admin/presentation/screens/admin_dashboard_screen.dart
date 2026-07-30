@@ -68,8 +68,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             const SizedBox(width: 16),
             _card('In Progress', '${stats.inProgressTickets}', Icons.play_circle, ThemeColors.statusProgressFg),
             const SizedBox(width: 16),
-            _card('Completed', '${stats.completedTickets}', Icons.check_circle, ThemeColors.statusDoneFg),
-            const SizedBox(width: 16),
             _card('Closed', '${stats.closedTickets}', Icons.archive, ThemeColors.statusClosedFg),
           ],
         ),

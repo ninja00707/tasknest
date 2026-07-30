@@ -50,7 +50,6 @@ class DashboardLoaded extends DashboardState {
   late final bool hasActiveFilters;
   late final int openCount;
   late final int inProgressCount;
-  late final int completedCount;
   late final int sentPendingCount;
   late final int sentCompletedCount;
   late final List<TicketModel> recentTickets;
@@ -117,9 +116,8 @@ class DashboardLoaded extends DashboardState {
 
     openCount = tickets.where((t) => t.status == 'open').length;
     inProgressCount = tickets.where((t) => t.status == 'in_progress').length;
-    completedCount = tickets.where((t) => t.status == 'completed').length;
-    sentPendingCount = sentTickets.where((t) => t.status != 'completed').length;
-    sentCompletedCount = sentTickets.where((t) => t.status == 'completed').length;
+    sentPendingCount = sentTickets.where((t) => t.status != 'closed').length;
+    sentCompletedCount = sentTickets.where((t) => t.status == 'closed').length;
 
     recentTickets = List<TicketModel>.from(tickets)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));

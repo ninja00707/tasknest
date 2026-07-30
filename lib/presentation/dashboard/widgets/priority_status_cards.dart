@@ -133,14 +133,6 @@ class StatusSummaryCard extends StatelessWidget {
         ThemeColors.statusProgressFg,
       ),
       StatusItem(
-        ConstStrings.statusCompleted,
-        s.completed,
-        total,
-        ThemeColors.unifiedAccent,
-        ThemeColors.statusDoneBg,
-        ThemeColors.statusDoneFg,
-      ),
-      StatusItem(
         ConstStrings.statusClosed,
         s.closed,
         total,

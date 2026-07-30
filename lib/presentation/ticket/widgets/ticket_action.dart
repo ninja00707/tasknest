@@ -76,21 +76,10 @@ class TicketActions extends StatelessWidget {
             icon: Icons.check_circle_outline,
             tooltip: ConstStrings.markDone,
             color: ThemeColors.unifiedPrimary,
-            onTap: () => _showStatusRemarkDialog(context, 'completed'),
-          ),
-
-        // 4. Finalize & Close — sub-ticket: resolver only; master: creator only
-        if (ticket.isCompleted &&
-            !hasUnfinalizedSubs &&
-            (ticket is ChildTicketModel ? isResolver : isCreator))
-          ActionBtn(
-            icon: Icons.lock_outline,
-            tooltip: ConstStrings.finalizeAndClose,
-            color: ThemeColors.unifiedPrimary,
             onTap: () => _showStatusRemarkDialog(context, 'closed'),
           ),
 
-        // 5. Create Sub Ticket: only the assigned person (resolver) can create sub-tickets
+        // 4. Create Sub Ticket: only the assigned person (resolver) can create sub-tickets
         if (!ticket.isManagementDisabled &&
             !isUnassigned &&
             ticket.immediateChildCount == 0 &&
@@ -204,7 +193,7 @@ class TicketActions extends StatelessWidget {
   void _showStatusRemarkDialog(BuildContext context, String status) {
     final bloc = context.read<TicketBloc>();
     final controller = TextEditingController();
-    final label = status == 'completed' ? 'done' : 'close';
+    final label = 'close';
     showDialog(
       context: context,
       builder: (dialogContext) {

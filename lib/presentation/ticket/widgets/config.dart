@@ -113,7 +113,7 @@ class TicketListConfig {
         viewType: TicketViewType.grid,
         cardStyle: TicketCardStyle.compact,
         headerStyle: TicketHeaderStyle.myTickets,
-        statusTabs: const ['All', 'Open', 'In Progress', 'Completed'],
+        statusTabs: const ['All', 'Open', 'In Progress', 'Closed'],
         enablePagination: false,
         enableFilters: true,
         emptyIcon: Icons.inbox_rounded,

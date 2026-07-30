@@ -35,9 +35,7 @@ final statuses = [
   Statuses(id: 1, name: 'open'),
 
   Statuses(id: 2, name: 'in_progress'),
-
-  Statuses(id: 3, name: 'completed'),
-  Statuses(id: 4, name: 'closed'),
+  Statuses(id: 3, name: 'closed'),
 ];
 final CompanyNames = [
   Company(id: 0, name: 'UM Enterprises'),

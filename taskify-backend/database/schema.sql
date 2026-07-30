@@ -82,7 +82,7 @@ CREATE TABLE tickets (
   title             VARCHAR(255)  NOT NULL,
   description       TEXT          NOT NULL,
   status            VARCHAR(20)   NOT NULL DEFAULT 'open'
-                    CHECK (status IN ('open','in_progress','completed','closed')),
+                    CHECK (status IN ('open','in_progress','closed')),
   priority          VARCHAR(20)   NOT NULL DEFAULT 'medium'
                     CHECK (priority IN ('low','medium','high','urgent')),
 
@@ -286,7 +286,7 @@ CREATE TRIGGER sub_ticket_departments_updated_at
 --   title             VARCHAR(255)  NOT NULL,
 --   description       TEXT          NOT NULL,
 --   status            VARCHAR(20)   NOT NULL DEFAULT 'open'
---                     CHECK (status IN ('open','in_progress','completed','closed')),
+--                     CHECK (status IN ('open','in_progress','closed')),
 --   priority          VARCHAR(20)   NOT NULL DEFAULT 'medium'
 --                     CHECK (priority IN ('low','medium','high','urgent')),
 

@@ -63,8 +63,6 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
               _ticket!.overallProgress != state.ticket.overallProgress ||
               _ticket!.lastUpdatedAt != state.ticket.lastUpdatedAt ||
               _ticket!.assignedToId != state.ticket.assignedToId ||
-              _ticket!.completedDepartmentCount !=
-                  state.ticket.completedDepartmentCount ||
               _ticket!.reopenCount != state.ticket.reopenCount ||
               _ticket!.children.length != state.ticket.children.length ||
               _ticket!.comments.length != state.ticket.comments.length) {

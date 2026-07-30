@@ -15,7 +15,6 @@ class StatsGrid extends StatelessWidget {
       StatItem(ConstStrings.statTotal, s.total, ThemeColors.unifiedPrimary, Icons.inbox_outlined),
       StatItem(ConstStrings.statOpen, s.open, ThemeColors.unifiedSecondary, Icons.radio_button_unchecked_rounded),
       StatItem(ConstStrings.statInProgress, s.inProgress, ThemeColors.unifiedWarning, Icons.autorenew_rounded),
-      StatItem(ConstStrings.statCompleted, s.completed, ThemeColors.unifiedAccent, Icons.check_circle_outline_rounded),
       StatItem(ConstStrings.statClosed, s.closed, ThemeColors.unifiedTextMuted, Icons.lock_outline_rounded),
       StatItem(ConstStrings.statUrgent, s.urgent, ThemeColors.unifiedDanger, Icons.warning_amber_rounded),
       StatItem(ConstStrings.statHighPri, s.highPriority, ThemeColors.unifiedHighPriority, Icons.priority_high_rounded),

@@ -158,7 +158,6 @@ class ConstStrings {
   static const String statTotal = 'Total';
   static const String statOpen = 'Open';
   static const String statInProgress = 'In Progress';
-  static const String statCompleted = 'Completed';
   static const String statClosed = 'Closed';
   static const String statUrgent = 'Urgent';
   static const String statHighPri = 'High Pri.';
@@ -187,7 +186,6 @@ class ConstStrings {
   static const String statusAll = 'All';
   static const String statusOpen = 'Open';
   static const String statusInProgress = 'In Progress';
-  static const String statusCompleted = 'Completed';
   static const String statusClosed = 'Closed';
   static const String statusDone = 'DONE';
   static const String statusOk = 'OK';
@@ -316,8 +314,6 @@ class ConstStrings {
   static const String stepTicketCreatedDesc = 'Request logged in the system.';
   static const String stepInProgress = 'In Progress';
   static const String stepInProgressDesc = 'A resolver is working on this.';
-  static const String stepCompleted = 'Completed';
-  static const String stepCompletedDesc = 'Task finished, awaiting closure.';
   static const String stepClosed = 'Closed';
   static const String stepClosedDesc = 'Resolved and archived.';
 

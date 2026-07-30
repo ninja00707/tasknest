@@ -5,7 +5,7 @@ import 'package:tasknest/core/theme/color.dart';
 class CommonStatus {
   const CommonStatus._();
 
-  static const statuses = ['open', 'in_progress', 'completed', 'closed'];
+  static const statuses = ['open', 'in_progress', 'closed'];
 
   // ── Labels ──────────────────────────────────────────────────────────────
 
@@ -15,8 +15,6 @@ class CommonStatus {
         return 'Open';
       case 'in_progress':
         return 'In Progress';
-      case 'completed':
-        return 'Completed';
       case 'closed':
         return 'Closed';
       default:
@@ -54,8 +52,6 @@ class CommonStatus {
         return const Color(0xFF22C55E);
       case 'in_progress':
         return const Color(0xFF3B82F6);
-      case 'completed':
-        return const Color(0xFF10B981);
       case 'closed':
         return const Color(0xFF6B7280);
       default:
@@ -180,8 +176,6 @@ class CommonStatus {
         return ThemeColors.unifiedSecondary;
       case 'in_progress':
         return ThemeColors.unifiedWarning;
-      case 'completed':
-        return ThemeColors.unifiedAccent;
       case 'closed':
         return ThemeColors.unifiedTextMuted;
       default:

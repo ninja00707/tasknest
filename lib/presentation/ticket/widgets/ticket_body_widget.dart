@@ -23,7 +23,6 @@ class TicketBody extends StatelessWidget {
   static const List<String> _statusFlow = [
     'open',
     'in_progress',
-    'completed',
     'closed',
   ];
 
@@ -68,8 +67,6 @@ class TicketBody extends StatelessWidget {
         return 'Open';
       case 'in_progress':
         return 'In Progress';
-      case 'completed':
-        return 'Completed';
       case 'closed':
         return 'Closed';
       default:

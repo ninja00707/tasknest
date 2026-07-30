@@ -214,7 +214,7 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
       case 'SUB_TICKET_CREATED': return 'Sub-ticket created';
       case 'SUB_TICKET_ASSIGNED': return 'Sub-ticket assigned';
       case 'SUB_TICKET_PROGRESS': return 'Sub-ticket progress updated';
-      case 'SUB_TICKET_COMPLETED': return 'Sub-ticket completed';
+      case 'SUB_TICKET_COMPLETED': return 'Sub-ticket done';
       case 'SUB_TICKET_REOPENED': return 'Sub-ticket reopened';
       case 'COMMENT_ADDED': return 'New comment added';
       case 'NOTIFICATION': return 'New notification';

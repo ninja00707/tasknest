@@ -667,11 +667,11 @@ class TicketRepository {
         COUNT(*)                                          AS total,
         COUNT(*) FILTER (WHERE status = 'open')          AS open,
         COUNT(*) FILTER (WHERE status = 'in_progress')   AS in_progress,
-        COUNT(*) FILTER (WHERE status = 'completed')     AS completed,
+
         COUNT(*) FILTER (WHERE status = 'closed')        AS closed,
         COUNT(*) FILTER (WHERE priority = 'urgent')      AS urgent,
         COUNT(*) FILTER (WHERE priority = 'high')        AS high_priority,
-        COUNT(*) FILTER (WHERE due_date < NOW() AND status NOT IN ('completed','closed')) AS overdue
+        COUNT(*) FILTER (WHERE due_date < NOW() AND status NOT IN ('closed')) AS overdue
       FROM tickets task ${whereClause}${parentNullClause}
     `, params);
 
@@ -920,8 +920,8 @@ class TicketRepository {
       await client.query(`
         UPDATE tickets SET
           status = $1::VARCHAR,
-          closed_by_id = CASE WHEN $1::VARCHAR IN ('closed', 'completed') THEN $2 ELSE closed_by_id END,
-          closed_at    = CASE WHEN $1::VARCHAR IN ('closed', 'completed') THEN NOW() ELSE closed_at END,
+          closed_by_id = CASE WHEN $1::VARCHAR = 'closed' THEN $2 ELSE closed_by_id END,
+          closed_at    = CASE WHEN $1::VARCHAR = 'closed' THEN NOW() ELSE closed_at END,
           version = COALESCE(version, 0) + 1
         WHERE id = $3
       `, [status, user.id, ticketId]);
@@ -1121,7 +1121,7 @@ class TicketRepository {
 
       if (t.created_by_id !== userId) throw new Error('Only the creator can reopen this ticket');
       if (t.reopen_count >= 1) throw new Error('Ticket can only be reopened once');
-      if (t.status !== 'closed' && t.status !== 'completed') throw new Error('Only closed/completed tickets can be reopened');
+      if (t.status !== 'closed') throw new Error('Only closed tickets can be reopened');
 
       const resolutionTime = t.closed_at || t.updated_at;
       const hoursSinceClosed = (Date.now() - new Date(resolutionTime).getTime()) / 36e5;
@@ -1592,7 +1592,7 @@ class TicketRepository {
     const departments = await this.getSubTicketDepartments(ticket.id);
     ticket.sub_departments = departments;
     ticket.department_count = departments.length;
-    ticket.completed_department_count = departments.filter(d => d.status === 'completed' || d.status === 'approved').length;
+    ticket.completed_department_count = departments.filter(d => d.status === 'approved').length;
     return ticket;
   }
 
@@ -1627,7 +1627,7 @@ class TicketRepository {
         ...t,
         sub_departments: depts,
         department_count: depts.length,
-        completed_department_count: depts.filter(d => d.status === 'completed' || d.status === 'approved').length,
+        completed_department_count: depts.filter(d => d.status === 'approved').length,
       };
     });
   }
@@ -1636,7 +1636,6 @@ class TicketRepository {
     const agg = await client.query(`
       SELECT
         COALESCE(ROUND(AVG(progress_percent)), 0)::int AS avg_progress,
-        COUNT(*) FILTER (WHERE status IN ('completed')) AS completed_count,
         COUNT(*) FILTER (WHERE status IN ('approved')) AS approved_count,
         COUNT(*) AS total_count,
         COUNT(*) FILTER (WHERE status IN ('in_progress', 'pending_approval')) AS in_progress_count
@@ -1644,10 +1643,10 @@ class TicketRepository {
       WHERE ticket_id = $1
     `, [ticketId]);
 
-    const { avg_progress, completed_count, approved_count, total_count, in_progress_count } = agg.rows[0];
+    const { avg_progress, approved_count, total_count, in_progress_count } = agg.rows[0];
     let newStatus = 'open';
-    if (Number(completed_count) === Number(total_count) && total_count > 0) {
-      newStatus = 'completed';
+    if (Number(approved_count) === Number(total_count) && total_count > 0) {
+      newStatus = 'closed';
     } else if (Number(in_progress_count) > 0 || Number(avg_progress) > 0) {
       newStatus = 'in_progress';
     }
@@ -1742,12 +1741,7 @@ class TicketRepository {
         updates.push(`status = $${paramIdx}`);
         params.push(status);
         paramIdx++;
-        if (status === 'completed') {
-          updates.push(`completed_at = NOW()`);
-          updates.push(`progress_percent = 100`);
-          updates.push(`updated_at = NOW()`);
-          updates.push(`version = COALESCE(version, 0) + 1`);
-        } else if (status === 'approved') {
+        if (status === 'approved') {
           updates.push(`progress_percent = 100`);
           updates.push(`updated_at = NOW()`);
           updates.push(`version = COALESCE(version, 0) + 1`);
@@ -1759,7 +1753,6 @@ class TicketRepository {
           updates.push(`progress_percent = GREATEST(progress_percent, 1)`);
           updates.push(`version = COALESCE(version, 0) + 1`);
         } else if (status === 'open') {
-          updates.push(`completed_at = NULL`);
           updates.push(`version = COALESCE(version, 0) + 1`);
         }
       }
@@ -1870,14 +1863,14 @@ class TicketRepository {
 
       await client.query(`
         UPDATE sub_ticket_departments
-        SET status = 'completed', completed_at = NOW(), updated_at = NOW(),
+        SET status = 'closed', completed_at = NOW(), updated_at = NOW(),
             version = COALESCE(version, 0) + 1
         WHERE ticket_id = $1 AND status = 'approved'
       `, [ticketId]);
 
       await client.query(`
         UPDATE tickets
-        SET status = 'completed', overall_progress = 100, closed_at = NOW(),
+        SET status = 'closed', overall_progress = 100, closed_at = NOW(),
             version = COALESCE(version, 0) + 1
         WHERE id = $1 AND is_sub_ticket = TRUE
       `, [ticketId]);
@@ -1918,16 +1911,7 @@ class TicketRepository {
         WHERE ticket_id = $1 AND department_id = $2
       `, [ticketId, departmentId]);
 
-      // Cascade unlock: clear completed_at on the next department so its
-      // 48-hour window is reset when the user chooses to reopen it.
-      if (nextDeptId) {
-        await client.query(`
-          UPDATE sub_ticket_departments
-          SET completed_at = NULL, updated_at = NOW(),
-              version = COALESCE(version, 0) + 1
-          WHERE ticket_id = $1 AND department_id = $2
-        `, [ticketId, nextDeptId]);
-      }
+
 
       const ticketData = await this.getTicketDetails(ticketId);
       const enriched = await this.enrichTicketWithSubData(ticketData);
@@ -1962,11 +1946,11 @@ class TicketRepository {
         COUNT(t.id)                                          AS total,
         COUNT(t.id) FILTER (WHERE t.status = 'open')        AS open,
         COUNT(t.id) FILTER (WHERE t.status = 'in_progress') AS in_progress,
-        COUNT(t.id) FILTER (WHERE t.status = 'completed')   AS completed,
+
         COUNT(t.id) FILTER (WHERE t.status = 'closed')      AS closed,
         COUNT(t.id) FILTER (WHERE t.priority = 'urgent')    AS urgent,
         COUNT(t.id) FILTER (WHERE t.priority = 'high')      AS high_priority,
-        COUNT(t.id) FILTER (WHERE t.due_date < NOW() AND t.status NOT IN ('completed','closed')) AS overdue,
+        COUNT(t.id) FILTER (WHERE t.due_date < NOW() AND t.status NOT IN ('closed')) AS overdue,
         ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(t.closed_at, t.updated_at) - t.created_at)) / 3600)::numeric, 2) AS avg_resolution_hours
       FROM departments d
       LEFT JOIN tickets t ON t.assigned_dept_id = d.id
@@ -2001,7 +1985,7 @@ class TicketRepository {
         SELECT t.id, t.status FROM tickets t
         JOIN descendants d ON t.parent_ticket_id = d.id
       )
-      SELECT EXISTS (SELECT 1 FROM descendants WHERE status NOT IN ('completed', 'closed')) AS active
+      SELECT EXISTS (SELECT 1 FROM descendants WHERE status NOT IN ('closed')) AS active
     `, [ticketId]);
     return result.rows[0].active;
   }
@@ -2010,7 +1994,7 @@ class TicketRepository {
   async allChildrenCompleted(ticketId) {
     const result = await pool.query(`
       SELECT COUNT(*)::int AS total,
-             COUNT(*) FILTER (WHERE status IN ('completed', 'closed'))::int AS done
+             COUNT(*) FILTER (WHERE status = 'closed')::int AS done
       FROM tickets WHERE parent_ticket_id = $1
     `, [ticketId]);
     const row = result.rows[0];

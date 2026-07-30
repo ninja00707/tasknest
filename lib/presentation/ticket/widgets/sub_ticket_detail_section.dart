@@ -22,12 +22,12 @@ class SubTicketDetailSection extends StatelessWidget {
   });
 
   bool _canCompleteTicket(UserModel user, TicketModel t) {
-    if (t.isClosed || t.isCompleted) return false;
+    if (t.isClosed) return false;
     final isCreator = t.createdById == user.id;
     final isCeo = user.roleId == 0 || user.roleId == 3;
     if (!isCreator && !isCeo) return false;
     if (t.subDepartments.isEmpty) return false;
-    return t.subDepartments.every((d) => d.isApproved || d.isCompleted);
+    return t.subDepartments.every((d) => d.isApproved);
   }
 
   @override
@@ -100,8 +100,7 @@ class SubTicketDetailSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '${ticket.departmentCount} departments · '
-                  '${ticket.completedDepartmentCount} completed',
+                  '${ticket.departmentCount} departments',
                   style: const TextStyle(
                     fontSize: 13,
                     color: ThemeColors.unifiedTextMuted,
@@ -204,9 +203,9 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
   bool get _isCreator => widget.ticket.createdById == widget.user.id;
 
   bool get _canEdit {
-    if (widget.ticket.isClosed || widget.ticket.isCompleted) return false;
+    if (widget.ticket.isClosed) return false;
     if (_isCeo) return true;
-    if (widget.dept.isCompleted || widget.dept.isApproved) return false;
+    if (widget.dept.isApproved) return false;
     return _isMyDept ||
         _isAssignedToMe ||
         widget.user.departmentId == widget.ticket.assignedDeptId;
@@ -223,10 +222,10 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
       (_isManager || _isCeo) &&
       _isMyDept;
 
-  // Creator can reopen an approved/completed department (48h, once)
+  // Creator can reopen an approved department
   bool get _canCreatorReopen {
     if (!_isCreator && !_isCeo) return false;
-    if (!widget.dept.isApproved && !widget.dept.isCompleted) return false;
+    if (!widget.dept.isApproved) return false;
     return true;
   }
 
@@ -291,14 +290,14 @@ class _DeptProgressCardState extends State<_DeptProgressCard> {
   Widget build(BuildContext context) {
     final dept = widget.dept;
     final statusColor = CommonStatus.subDeptStatusColor(
-      isCompleted: dept.isCompleted,
+      isCompleted: dept.isApproved,
       isApproved: dept.isApproved,
       isPendingApproval: dept.isPendingApproval,
       isInProgress: dept.isInProgress,
     );
 
     final statusLabel = CommonStatus.subDeptStatusLabel(
-      isCompleted: dept.isCompleted,
+      isCompleted: dept.isApproved,
       isApproved: dept.isApproved,
       isPendingApproval: dept.isPendingApproval,
       isInProgress: dept.isInProgress,

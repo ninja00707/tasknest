@@ -79,7 +79,6 @@ class TicketListBody extends StatelessWidget {
           stats: [
             _StatData(label: 'Open', count: state.openCount, color: ThemeColors.unifiedSecondary),
             _StatData(label: 'In Progress', count: state.inProgressCount, color: ThemeColors.unifiedWarning),
-            _StatData(label: 'Completed', count: state.completedCount, color: ThemeColors.unifiedAccent),
           ],
         );
 
@@ -100,7 +99,6 @@ class TicketListBody extends StatelessWidget {
           stats: [
             _StatData(label: 'Total Sent', count: state.allTickets.length, color: const Color(0xFF7C3AED)),
             _StatData(label: 'Active', count: state.pendingCount, color: ThemeColors.unifiedWarning),
-            _StatData(label: 'Completed', count: state.sentCompletedCount, color: ThemeColors.unifiedAccent),
           ],
         );
 
@@ -202,7 +200,7 @@ class TicketListBody extends StatelessWidget {
   }
 
   Widget _buildKanban(BuildContext context, TicketListState state) {
-    const statuses = ['open', 'in_progress', 'completed', 'closed'];
+    const statuses = ['open', 'in_progress', 'closed'];
     final grouped = <String, List<TicketModel>>{};
     for (final s in statuses) {
       grouped[s] = state.allTickets.where((t) => t.status == s).toList()
@@ -228,7 +226,7 @@ class TicketListBody extends StatelessWidget {
   }
 
   Widget _buildList(BuildContext context, TicketListState state) {
-    const statusFlow = ['open', 'in_progress', 'completed', 'closed'];
+    const statusFlow = ['open', 'in_progress', 'closed'];
     final visible = state.allTickets.where((t) => statusFlow.contains(t.status));
     final grouped = <String, List<TicketModel>>{};
     for (final t in visible) {

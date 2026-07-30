@@ -89,7 +89,6 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
           prev.overallProgress == next.overallProgress &&
           prev.lastUpdatedAt == next.lastUpdatedAt &&
           prev.assignedToId == next.assignedToId &&
-          prev.completedDepartmentCount == next.completedDepartmentCount &&
           prev.reopenCount == next.reopenCount) {
         return;
       }
@@ -349,7 +348,7 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     emit(TicketActionInProgress());
     try {
       await _dataSource.completeSubTicket(event.ticketId);
-      emit(TicketActionSuccess('Sub-ticket completed!'));
+      emit(TicketActionSuccess('Sub-ticket done!'));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
     }
@@ -380,7 +379,7 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     try {
       final updated = await _dataSource.updateStatus(
         event.ticketId,
-        'completed',
+        'closed',
         remark: event.remark,
       );
       _lastLoadedTicket = updated;

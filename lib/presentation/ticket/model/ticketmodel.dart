@@ -33,7 +33,6 @@ class TicketModel {
   final bool isSubTicket;
   final int overallProgress;
   final int departmentCount;
-  final int completedDepartmentCount;
   final List<SubTicketDepartmentModel> subDepartments;
 
   final int? parentTicketId;
@@ -80,7 +79,6 @@ class TicketModel {
     this.isSubTicket = false,
     this.overallProgress = 0,
     this.departmentCount = 0,
-    this.completedDepartmentCount = 0,
     this.subDepartments = const [],
     this.parentTicketId,
     this.ticketType,
@@ -141,7 +139,6 @@ class TicketModel {
     isSubTicket: j['is_sub_ticket'] == true,
     overallProgress: j['overall_progress'] ?? 0,
     departmentCount: j['department_count'] ?? 0,
-    completedDepartmentCount: j['completed_department_count'] ?? 0,
     subDepartments:
         (j['sub_departments'] as List<dynamic>?)
             ?.map((e) => SubTicketDepartmentModel.fromJson(e))
@@ -178,23 +175,21 @@ class TicketModel {
 
   bool get isOpen => status == 'open';
   bool get isInProgress => status == 'in_progress';
-  bool get isCompleted => status == 'completed';
   bool get isClosed => status == 'closed';
 
   /// Logic to disable management actions (Transfer/Assign)
-  bool get isManagementDisabled => isCompleted || isClosed;
+  bool get isManagementDisabled => isClosed;
 
   bool get isUrgent => priority == 'urgent';
   bool get isOverdue =>
       dueDate != null &&
       dueDate!.isBefore(DateTime.now()) &&
-      !isClosed &&
-      !isCompleted;
+      !isClosed;
 
   bool canReopenBy(int userId) {
     if (createdById != userId) return false;
     if (reopenCount >= 1) return false;
-    if (!isClosed && !isCompleted) return false;
+    if (!isClosed) return false;
     if (closedAt == null) return false;
     return DateTime.now().difference(closedAt!).inHours <= 48;
   }
@@ -291,15 +286,14 @@ class ChildTicketModel {
   // Helper getters to match TicketModel interface for TicketActions
   bool get isOpen => status == 'open';
   bool get isInProgress => status == 'in_progress';
-  bool get isCompleted => status == 'completed';
   bool get isClosed => status == 'closed';
-  bool get isManagementDisabled => isCompleted || isClosed;
+  bool get isManagementDisabled => isClosed;
 
   /// Only the creator can reopen. Max 1 reopen. Within 48h of closing.
   bool canReopenBy(int userId) {
     if (createdById != userId) return false;
     if (reopenCount >= 1) return false;
-    if (!isClosed && !isCompleted) return false;
+    if (!isClosed) return false;
     if (closedAt == null) return false;
     return DateTime.now().difference(closedAt!).inHours <= 48;
   }
@@ -316,8 +310,6 @@ class SubTicketDepartmentModel {
   final int progressPercent;
   final int? assignedToId;
   final String? assignedToName;
-  final DateTime? completedAt;
-
   const SubTicketDepartmentModel({
     required this.id,
     required this.ticketId,
@@ -329,7 +321,6 @@ class SubTicketDepartmentModel {
     required this.progressPercent,
     this.assignedToId,
     this.assignedToName,
-    this.completedAt,
   });
 
   factory SubTicketDepartmentModel.fromJson(Map<String, dynamic> j) =>
@@ -346,9 +337,6 @@ class SubTicketDepartmentModel {
             ? (j['assigned_to_id'] as num).toInt()
             : int.tryParse(j['assigned_to_id']?.toString() ?? ''),
         assignedToName: j['assigned_to_name'],
-        completedAt: j['completed_at'] != null
-            ? DateTime.parse(j['completed_at'])
-            : null,
       );
 
   Map<String, dynamic> toJson() => {
@@ -356,7 +344,6 @@ class SubTicketDepartmentModel {
     'taskDescription': taskDescription,
   };
 
-  bool get isCompleted => status == 'completed';
   bool get isInProgress => status == 'in_progress';
   bool get isOpen => status == 'open';
   bool get isPendingApproval => status == 'pending_approval';
@@ -401,7 +388,6 @@ class DashboardStats {
   final int total;
   final int open;
   final int inProgress;
-  final int completed;
   final int closed;
   final int urgent;
   final int highPriority;
@@ -411,7 +397,6 @@ class DashboardStats {
     required this.total,
     required this.open,
     required this.inProgress,
-    required this.completed,
     required this.closed,
     required this.urgent,
     required this.highPriority,
@@ -422,7 +407,6 @@ class DashboardStats {
     total: int.parse(j['total'].toString()),
     open: int.parse(j['open'].toString()),
     inProgress: int.parse(j['in_progress'].toString()),
-    completed: int.parse(j['completed'].toString()),
     closed: int.parse(j['closed'].toString()),
     urgent: int.parse(j['urgent'].toString()),
     highPriority: int.parse(j['high_priority'].toString()),
@@ -433,7 +417,6 @@ class DashboardStats {
     total: 0,
     open: 0,
     inProgress: 0,
-    completed: 0,
     closed: 0,
     urgent: 0,
     highPriority: 0,

@@ -7,11 +7,10 @@ exports.getStats = async () => {
     pool.query('SELECT COUNT(*)::int AS total FROM tickets'),
     pool.query(`SELECT COUNT(*)::int AS total FROM tickets WHERE status = 'open'`),
     pool.query(`SELECT COUNT(*)::int AS total FROM tickets WHERE status = 'in_progress'`),
-    pool.query(`SELECT COUNT(*)::int AS total FROM tickets WHERE status = 'completed'`),
     pool.query(`SELECT COUNT(*)::int AS total FROM tickets WHERE status = 'closed'`),
     pool.query('SELECT COUNT(*)::int AS total FROM companies'),
-    pool.query(`SELECT COUNT(*)::int AS total FROM tickets WHERE due_date < NOW() AND status NOT IN ('completed','closed')`),
-    pool.query(`SELECT COUNT(*)::int AS total FROM tickets WHERE priority = 'urgent' AND status NOT IN ('completed','closed')`),
+    pool.query(`SELECT COUNT(*)::int AS total FROM tickets WHERE due_date < NOW() AND status NOT IN ('closed')`),
+    pool.query(`SELECT COUNT(*)::int AS total FROM tickets WHERE priority = 'urgent' AND status NOT IN ('closed')`),
     pool.query(`SELECT COUNT(*)::int AS total FROM tickets WHERE is_sub_ticket = TRUE`),
     pool.query('SELECT COUNT(*)::int AS total FROM sub_ticket_departments'),
   ]);
@@ -21,13 +20,13 @@ exports.getStats = async () => {
     totalTickets: results[2].rows[0].total,
     openTickets: results[3].rows[0].total,
     inProgressTickets: results[4].rows[0].total,
-    completedTickets: results[5].rows[0].total,
-    closedTickets: results[6].rows[0].total,
-    totalCompanies: results[7].rows[0].total,
-    overdueTickets: results[8].rows[0].total,
-    urgentTickets: results[9].rows[0].total,
-    subTicketCount: results[10].rows[0].total,
-    totalSubTicketDepartments: results[11].rows[0].total,
+
+    closedTickets: results[5].rows[0].total,
+    totalCompanies: results[6].rows[0].total,
+    overdueTickets: results[7].rows[0].total,
+    urgentTickets: results[8].rows[0].total,
+    subTicketCount: results[9].rows[0].total,
+    totalSubTicketDepartments: results[10].rows[0].total,
   };
 };
 

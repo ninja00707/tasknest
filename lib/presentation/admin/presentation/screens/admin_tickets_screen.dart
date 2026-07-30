@@ -175,7 +175,6 @@ class _AdminTicketsScreenState extends State<AdminTicketsScreen> {
         DropdownMenuItem(value: null, child: Text(ConstStrings.allStatus)),
         DropdownMenuItem(value: 'open', child: Text('Open')),
         DropdownMenuItem(value: 'in_progress', child: Text('In Progress')),
-        DropdownMenuItem(value: 'completed', child: Text('Completed')),
         DropdownMenuItem(value: 'closed', child: Text('Closed')),
       ],
       onChanged: (v) => bloc.add(UpdateTicketStatusFilter(v)),
@@ -550,9 +549,6 @@ class _AdminTicketsScreenState extends State<AdminTicketsScreen> {
       case 'in_progress':
         bg = ThemeColors.statusProgressBg;
         fg = ThemeColors.statusProgressFg;
-      case 'completed':
-        bg = ThemeColors.statusDoneBg;
-        fg = ThemeColors.statusDoneFg;
       default:
         bg = ThemeColors.statusClosedBg;
         fg = ThemeColors.statusClosedFg;
@@ -903,9 +899,6 @@ class _TicketDetailDialog extends StatelessWidget {
       case 'in_progress':
         bg = ThemeColors.statusProgressBg;
         fg = ThemeColors.statusProgressFg;
-      case 'completed':
-        bg = ThemeColors.statusDoneBg;
-        fg = ThemeColors.statusDoneFg;
       default:
         bg = ThemeColors.statusClosedBg;
         fg = ThemeColors.statusClosedFg;
@@ -961,9 +954,6 @@ class _TicketDetailDialog extends StatelessWidget {
       case 'in_progress':
         bg = ThemeColors.statusProgressBg;
         fg = ThemeColors.statusProgressFg;
-      case 'completed':
-        bg = ThemeColors.statusDoneBg;
-        fg = ThemeColors.statusDoneFg;
       case 'pending_approval':
         bg = ThemeColors.priorityMedBg;
         fg = ThemeColors.priorityMedFg;

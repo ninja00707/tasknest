@@ -10,7 +10,6 @@ class TicketListState extends Equatable {
   final int totalPages;
   final int openCount;
   final int inProgressCount;
-  final int completedCount;
   final int pendingCount;
   final int sentCompletedCount;
   final bool isWide;
@@ -25,7 +24,6 @@ class TicketListState extends Equatable {
     required this.totalPages,
     required this.openCount,
     required this.inProgressCount,
-    required this.completedCount,
     required this.pendingCount,
     required this.sentCompletedCount,
     required this.isWide,
@@ -54,12 +52,11 @@ class TicketListState extends Equatable {
       totalPages: totalPages,
       openCount: tickets.where((t) => t.status == 'open').length,
       inProgressCount: tickets.where((t) => t.status == 'in_progress').length,
-      completedCount: tickets.where((t) => t.status == 'completed').length,
       pendingCount: tickets
           .where((t) => t.status == 'open' || t.status == 'in_progress')
           .length,
       sentCompletedCount: tickets
-          .where((t) => t.status == 'completed' || t.status == 'closed')
+          .where((t) => t.status == 'closed')
           .length,
       isWide: isWide,
       screenWidth: screenWidth,
@@ -91,8 +88,6 @@ class TicketListState extends Equatable {
         return 'open';
       case 'In Progress':
         return 'in_progress';
-      case 'Completed':
-        return 'completed';
       case 'Closed':
         return 'closed';
       default:
@@ -133,7 +128,6 @@ class TicketListState extends Equatable {
     int? totalPages,
     int? openCount,
     int? inProgressCount,
-    int? completedCount,
     int? pendingCount,
     int? sentCompletedCount,
     bool? isWide,
@@ -148,7 +142,6 @@ class TicketListState extends Equatable {
       totalPages: totalPages ?? this.totalPages,
       openCount: openCount ?? this.openCount,
       inProgressCount: inProgressCount ?? this.inProgressCount,
-      completedCount: completedCount ?? this.completedCount,
       pendingCount: pendingCount ?? this.pendingCount,
       sentCompletedCount: sentCompletedCount ?? this.sentCompletedCount,
       isWide: isWide ?? this.isWide,
@@ -166,7 +159,6 @@ class TicketListState extends Equatable {
         totalPages,
         openCount,
         inProgressCount,
-        completedCount,
         pendingCount,
         sentCompletedCount,
         isWide,

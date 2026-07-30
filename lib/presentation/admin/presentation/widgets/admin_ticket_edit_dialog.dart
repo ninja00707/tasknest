@@ -167,7 +167,6 @@ class _AdminTicketEditDialogState extends State<AdminTicketEditDialog> {
           items: const [
             DropdownMenuItem(value: 'open', child: Text('Open')),
             DropdownMenuItem(value: 'in_progress', child: Text('In Progress')),
-            DropdownMenuItem(value: 'completed', child: Text('Completed')),
             DropdownMenuItem(value: 'closed', child: Text('Closed')),
           ],
           onChanged: (v) => setState(() => _status = v ?? _status),

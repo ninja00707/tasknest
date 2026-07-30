@@ -4,7 +4,6 @@ class AdminStats {
   final int totalTickets;
   final int openTickets;
   final int inProgressTickets;
-  final int completedTickets;
   final int closedTickets;
   final int totalCompanies;
   final int overdueTickets;
@@ -18,7 +17,6 @@ class AdminStats {
     required this.totalTickets,
     required this.openTickets,
     required this.inProgressTickets,
-    required this.completedTickets,
     required this.closedTickets,
     required this.totalCompanies,
     this.overdueTickets = 0,
@@ -33,7 +31,6 @@ class AdminStats {
     totalTickets: json['totalTickets'] ?? 0,
     openTickets: json['openTickets'] ?? 0,
     inProgressTickets: json['inProgressTickets'] ?? 0,
-    completedTickets: json['completedTickets'] ?? 0,
     closedTickets: json['closedTickets'] ?? 0,
     totalCompanies: json['totalCompanies'] ?? 0,
     overdueTickets: json['overdueTickets'] ?? 0,
@@ -235,7 +232,6 @@ class AdminTicketModel {
       dueDate != null &&
       DateTime.tryParse(dueDate!) != null &&
       DateTime.parse(dueDate!).isBefore(DateTime.now()) &&
-      status != 'completed' &&
       status != 'closed';
 
   factory AdminTicketModel.fromJson(Map<String, dynamic> json) => AdminTicketModel(
@@ -278,8 +274,6 @@ class AdminSubTicketModel {
   final String status;
   final int progressPercent;
   final String? assignedToName;
-  final String? completedAt;
-
   AdminSubTicketModel({
     required this.id,
     required this.ticketId,
@@ -290,7 +284,6 @@ class AdminSubTicketModel {
     required this.status,
     required this.progressPercent,
     this.assignedToName,
-    this.completedAt,
   });
 
   factory AdminSubTicketModel.fromJson(Map<String, dynamic> json) => AdminSubTicketModel(
@@ -303,6 +296,5 @@ class AdminSubTicketModel {
     status: json['status'] ?? 'open',
     progressPercent: json['progress_percent'] ?? 0,
     assignedToName: json['assigned_to_name'],
-    completedAt: json['completed_at'],
   );
 }

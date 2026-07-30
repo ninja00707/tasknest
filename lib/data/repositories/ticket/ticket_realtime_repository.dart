@@ -98,9 +98,7 @@ class TicketRealtimeRepository {
                 updated.status != lastTicket!.status ||
                 updated.overallProgress != lastTicket!.overallProgress ||
                 updated.lastUpdatedAt != lastTicket!.lastUpdatedAt ||
-                updated.assignedToId != lastTicket!.assignedToId ||
-                updated.completedDepartmentCount !=
-                    lastTicket!.completedDepartmentCount) {
+                updated.assignedToId != lastTicket!.assignedToId) {
               lastTicket = updated;
               controller.add(updated);
             }

@@ -3,7 +3,7 @@ const cache = require('../../core/cache');
 
 class TicketService {
   // ── Recursively propagate in_progress up the parent chain ────────────
-  // For completed/closed: just collect parent chain for notification
+  // For closed: just collect parent chain for notification
   async _propagateUpward(childTicket, newStatus, user) {
     if (!childTicket.parent_ticket_id) return [];
 
@@ -11,7 +11,7 @@ class TicketService {
       return await ticketRepo.updateParentChain(childTicket.parent_ticket_id, 'in_progress');
     }
 
-    if (newStatus === 'completed' || newStatus === 'closed') {
+    if (newStatus === 'closed') {
       return await ticketRepo.getParentChain(childTicket.parent_ticket_id);
     }
 
@@ -313,8 +313,8 @@ class TicketService {
     if (!deptRow) throw { statusCode: 404, message: 'Department task not found in this sub-ticket' };
 
     const { status, note } = data;
-    if (!['open', 'in_progress', 'pending_approval', 'approved', 'completed'].includes(status)) {
-      throw { statusCode: 400, message: 'Status must be open, in_progress, pending_approval, approved, or completed' };
+    if (!['open', 'in_progress', 'pending_approval', 'approved'].includes(status)) {
+      throw { statusCode: 400, message: 'Status must be open, in_progress, pending_approval, or approved' };
     }
 
     const isAssignedEmployee = Number(deptRow.assigned_to_id) === Number(user.id);
@@ -338,14 +338,7 @@ class TicketService {
         throw { statusCode: 403, message: 'You can only approve work for your own department' };
       }
     }
-    // completed: only CEO override (normal flow uses pending_approval -> approved -> creator completes)
-    if (status === 'completed' && !isCeo) {
-      throw { statusCode: 403, message: 'Only CEO can directly complete a department task' };
-    }
-    // completed -> open: only ceo (reopen)
-    if (status === 'open' && deptRow.status === 'completed' && !isCeo) {
-      throw { statusCode: 403, message: 'Only CEO can reopen a completed department task' };
-    }
+
 
     const updated = await ticketRepo.updateSubDeptProgress(
       ticketId,
@@ -361,8 +354,7 @@ class TicketService {
       ? `${user.name} submitted ${deptName} work as done${note ? `. Remark: ${note}` : ''}`
       : status === 'approved'
         ? `${user.name} approved ${deptName} work`
-        : status === 'completed'
-          ? `${user.name} marked ${deptName} as completed`
+
           : `${user.name} changed ${deptName} status from ${deptRow.status} to ${status}${note ? `. Remark: ${note}` : ''}`;
 
     await ticketRepo.logAction(
@@ -379,8 +371,6 @@ class TicketService {
         commentMsg = `[DEPT COMPLETION - ${deptName}]: ${note.trim()}`;
       } else if (status === 'approved') {
         commentMsg = `[DEPT APPROVED - ${deptName}]: Approved by ${user.name}`;
-      } else if (status === 'completed') {
-        commentMsg = `[DEPT COMPLETED - ${deptName}]: Finalized by ${user.name}`;
       } else {
         commentMsg = `[DEPT PROGRESS - ${deptName}]: ${note.trim()}`;
       }
@@ -390,9 +380,7 @@ class TicketService {
         commentMsg.substring(0, 100),
         status === 'approved'
           ? `Manager ${user.name} approved ${deptName} work`
-          : status === 'completed'
-            ? `CEO ${user.name} finalized ${deptName}`
-            : `Note added by ${user.name} for ${deptName}`
+          : `Note added by ${user.name} for ${deptName}`
       );
     }
 
@@ -478,7 +466,7 @@ class TicketService {
     }
 
     const allApprovedOrCompleted = ticket.sub_departments.every(
-      d => d.status === 'approved' || d.status === 'completed'
+      d => d.status === 'approved'
     );
     if (!allApprovedOrCompleted) {
       throw { statusCode: 400, message: 'All departments must be approved before completing the ticket' };
@@ -489,8 +477,8 @@ class TicketService {
     const doneDepts = ticket.sub_departments.map(d => d.department_name || `Dept ${d.department_id}`).join(', ');
     await ticketRepo.logAction(
       ticketId, user.id, 'status_changed',
-      'in_progress', 'completed',
-      `Creator ${user.name} marked the sub-ticket as completed. Departments: ${doneDepts}`
+      'in_progress', 'closed',
+      `Creator ${user.name} marked the sub-ticket as closed. Departments: ${doneDepts}`
     );
 
     return updated;
@@ -510,8 +498,8 @@ class TicketService {
     const deptRow = ticket.sub_departments.find(d => Number(d.department_id) === Number(departmentId));
     if (!deptRow) throw { statusCode: 404, message: 'Department task not found in this sub-ticket' };
 
-    if (deptRow.status !== 'approved' && deptRow.status !== 'completed') {
-      throw { statusCode: 400, message: 'Only approved or completed department tasks can be reopened' };
+    if (deptRow.status !== 'approved') {
+      throw { statusCode: 400, message: 'Only approved department tasks can be reopened' };
     }
 
     // Determine cascade order (sub_departments is already ordered by d.name ASC)
@@ -520,18 +508,8 @@ class TicketService {
     const isCascadeReopen = prevDept && prevDept.status === 'in_progress';
 
     // For cascade reopens (previous department already in_progress), skip the
-    // 48-hour and reopen-count restrictions so the chain can continue down.
+    // reopen-count restrictions so the chain can continue down.
     if (!isCascadeReopen) {
-      // Check 48-hour window
-      const completedTime = deptRow.completed_at || deptRow.updated_at;
-      if (!completedTime) {
-        throw { statusCode: 400, message: 'Cannot determine when this task was completed' };
-      }
-      const hoursSince = (Date.now() - new Date(completedTime).getTime()) / 36e5;
-      if (hoursSince > 48) {
-        throw { statusCode: 400, message: 'Reopen window of 48 hours has passed' };
-      }
-
       // Check if already reopened once
       const logs = await ticketRepo.getTicketLogs(ticketId);
       const reopenedBefore = logs.some(
@@ -570,20 +548,9 @@ class TicketService {
     if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
     if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
-    const allowedStatuses = ['open', 'in_progress', 'completed', 'closed'];
+    const allowedStatuses = ['open', 'in_progress', 'closed'];
     if (!allowedStatuses.includes(newStatus)) {
       throw { statusCode: 400, message: 'Invalid status' };
-    }
-
-    // Rule 4: Block completion if active children exist
-    if (!isSystemUpdate && newStatus === 'completed') {
-      const hasActive = await ticketRepo.hasActiveChildren(ticketId);
-      if (hasActive) {
-        throw {
-          statusCode: 400,
-          message: `Cannot mark as completed while sub-tickets are still active.`
-        };
-      }
     }
 
     // Block closed if any sub-tickets are not finalized
@@ -602,30 +569,6 @@ class TicketService {
     const isEmployee = user.role === 'employee';
     const isAssignedDeptManager = user.role === 'manager' && user.department_id === ticket.assigned_dept_id;
     const isCeo = user.role === 'ceo';
-
-    if (!isSystemUpdate) {
-
-    }
-
-    // Mark as completed
-    if (!isSystemUpdate && newStatus === 'completed') {
-      if (ticket.status === 'open') throw { statusCode: 400, message: 'Ticket must be assigned first.' };
-
-      if (ticket.is_sub_ticket) {
-        // Sub-tickets: only the assigned resolver can mark done
-        if (!isResolver) {
-          throw { statusCode: 403, message: 'Only the assigned resolver can mark this sub-ticket as done.' };
-        }
-      } else {
-        // Master tickets: only creator can mark done
-        if (!isCreator) {
-          throw { statusCode: 403, message: 'Only the creator can mark this ticket as done.' };
-        }
-      }
-      if (!remark || String(remark).trim() === '') {
-        throw { statusCode: 400, message: 'Completion remark is required when marking done' };
-      }
-    }
 
     // Finalize and close permission
     if (newStatus === 'closed') {
@@ -646,11 +589,6 @@ class TicketService {
         throw { statusCode: 400, message: 'Closing remark is required when closing ticket' };
       }
     }
-
-  // If ticket is completed, it can only be closed or reopened (reopen via different method)
-  if(ticket.status === 'completed' && newStatus !== 'closed') {
-  throw { statusCode: 400, message: 'Ticket is already completed. It can only be finalized and closed or reopened.' };
-}
 
 if (ticket.status === 'closed') {
   throw { statusCode: 400, message: 'Ticket is already closed. It must be reopened first.' };
@@ -673,7 +611,7 @@ const updatedParents = await this._propagateUpward(ticket, newStatus, user);
 await this._emitParentChain(ticketId, updatedParents, user.id);
 
 // Transparency: Add the closing/completion remark as a formal comment so it is visible in the thread
-if ((newStatus === 'completed' || newStatus === 'closed') && remark) {
+if (newStatus === 'closed' && remark) {
   const commentMsg = `[${newStatus.toUpperCase()} REMARK]: ${remark}`;
   await ticketRepo.addComment(ticketId, user.id, commentMsg);
   await ticketRepo.logAction(
@@ -732,9 +670,9 @@ return updated;
   if (!ticketBeforeUpdate) throw { statusCode: 404, message: 'Ticket not found' };
   if (ticketBeforeUpdate.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
-  // Actions are disabled for completed or closed tickets
-  if (ticketBeforeUpdate.status === 'completed' || ticketBeforeUpdate.status === 'closed') {
-    throw { statusCode: 400, message: 'Cannot assign a ticket that is already completed or closed' };
+  // Actions are disabled for closed tickets
+  if (ticketBeforeUpdate.status === 'closed') {
+    throw { statusCode: 400, message: 'Cannot assign a ticket that is already closed' };
   }
 
   const updated = await ticketRepo.assignToEmployee(ticketId, employeeId, user.id);

@@ -228,7 +228,7 @@ class SubTicketProgressSection extends StatelessWidget {
     final isCreator = user.id == ticket.createdById;
     final allSubDeptsCompleted =
         ticket.subDepartments.isNotEmpty &&
-        ticket.subDepartments.every((dept) => dept.isCompleted);
+        ticket.subDepartments.every((dept) => dept.isApproved);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,7 +259,7 @@ class SubTicketProgressSection extends StatelessWidget {
             const SizedBox(width: 6),
             Flexible(
               child: Text(
-                '${ticket.completedDepartmentCount}/${ticket.departmentCount} done',
+                '${ticket.departmentCount} departments',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -291,14 +291,14 @@ class SubTicketProgressSection extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 constraints: const BoxConstraints(maxWidth: 130),
                 decoration: BoxDecoration(
-                  color: dept.isCompleted
-                      ? const Color(0xFFDCFCE7)
-                      : ThemeColors.unifiedBackground,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: dept.isCompleted
-                        ? const Color(0xFF16A34A).withValues(alpha: 0.3)
-                        : ThemeColors.unifiedBorder,
+                      color: dept.isApproved
+                          ? const Color(0xFFDCFCE7)
+                          : ThemeColors.unifiedBackground,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: dept.isApproved
+                            ? const Color(0xFF16A34A).withValues(alpha: 0.3)
+                            : ThemeColors.unifiedBorder,
                   ),
                 ),
                 child: Row(
@@ -312,9 +312,9 @@ class SubTicketProgressSection extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 9.5,
                           fontWeight: FontWeight.w800,
-                          color: dept.isCompleted
-                              ? const Color(0xFF16A34A)
-                              : const Color(0xFF7C3AED),
+                        color: dept.isApproved
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFF7C3AED),
                         ),
                       ),
                     ),
@@ -334,7 +334,7 @@ class SubTicketProgressSection extends StatelessWidget {
           ),
         ],
 
-        if (isCreator && allSubDeptsCompleted && !ticket.isCompleted) ...[
+        if (isCreator && allSubDeptsCompleted && !ticket.isClosed) ...[
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(7),
@@ -349,7 +349,7 @@ class SubTicketProgressSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'All departments completed! Take action:',
+                  'All departments done! Take action:',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -366,7 +366,7 @@ class SubTicketProgressSection extends StatelessWidget {
                         icon: Icons.check_circle_outline,
                         label: 'Mark as Done',
                         color: const Color(0xFF059669),
-                        onPressed: !ticket.isCompleted
+                        onPressed: !ticket.isClosed
                             ? () => context.read<TicketBloc>().add(
                                 MarkTicketAsDone(ticket.id),
                               )
@@ -379,7 +379,7 @@ class SubTicketProgressSection extends StatelessWidget {
                         icon: Icons.verified_outlined,
                         label: 'Finalize & Close',
                         color: const Color(0xFF7C3AED),
-                        onPressed: !ticket.isCompleted
+                        onPressed: !ticket.isClosed
                             ? () => context.read<TicketBloc>().add(
                                 FinalizeTicket(ticket.id),
                               )
@@ -393,7 +393,7 @@ class SubTicketProgressSection extends StatelessWidget {
           ),
         ],
 
-        if (myDeptTask != null && !myDeptTask.isCompleted) ...[
+        if (myDeptTask != null && !myDeptTask.isApproved) ...[
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.all(7),

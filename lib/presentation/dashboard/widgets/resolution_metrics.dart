@@ -9,7 +9,7 @@ class ResolutionMetricsRow extends StatelessWidget {
   const ResolutionMetricsRow({super.key, required this.s, required this.isWide});
 
   String _avgTime() {
-    final resolved = s.completed + s.closed;
+    final resolved = s.closed;
     if (resolved == 0) return '\u2014';
     return 'N/A';
   }
@@ -17,7 +17,7 @@ class ResolutionMetricsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final completionRate = s.total > 0
-        ? ((s.completed / s.total) * 100).toStringAsFixed(1)
+        ? ((s.closed / s.total) * 100).toStringAsFixed(1)
         : '0.0';
     final overdueRate = s.total > 0
         ? ((s.overdue / s.total) * 100).toStringAsFixed(1)
@@ -35,7 +35,7 @@ class ResolutionMetricsRow extends StatelessWidget {
         icon: Icons.check_circle_outline_rounded,
         label: ConstStrings.completionRate,
         value: '$completionRate%',
-        sub: '${s.completed} of ${s.total} tickets',
+        sub: '${s.closed} of ${s.total} tickets',
         color: ThemeColors.unifiedAccent,
       ),
       ResolItem(

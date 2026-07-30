@@ -10,7 +10,6 @@ class ProgressTimeline extends StatelessWidget {
   bool _isPassed(int step) {
     final s = status.toLowerCase();
     if (s == 'closed') return true;
-    if (s == 'completed' && step <= 3) return true;
     if (s == 'in_progress' && step <= 2) return true;
     if (s == 'open' && step <= 1) return true;
     return false;
@@ -20,8 +19,7 @@ class ProgressTimeline extends StatelessWidget {
     final s = status.toLowerCase();
     if (s == 'open' && step == 1) return true;
     if (s == 'in_progress' && step == 2) return true;
-    if (s == 'completed' && step == 3) return true;
-    if (s == 'closed' && step == 4) return true;
+    if (s == 'closed' && step == 3) return true;
     return false;
   }
 
@@ -44,13 +42,6 @@ class ProgressTimeline extends StatelessWidget {
       ),
       TimelineStep(
         step: 3,
-        icon: Icons.check_circle_outline_rounded,
-        title: ConstStrings.stepCompleted,
-        description: ConstStrings.stepCompletedDesc,
-        color: ThemeColors.unifiedAccent,
-      ),
-      TimelineStep(
-        step: 4,
         icon: Icons.lock_outline_rounded,
         title: ConstStrings.stepClosed,
         description: ConstStrings.stepClosedDesc,
