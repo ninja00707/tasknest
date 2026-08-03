@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:tasknest/data/datasource/notification/notification_remote_data_source.dart';
 import 'package:tasknest/data/datasource/socket_helper.dart';
 import 'package:tasknest/data/repositories/ticket/ticket_realtime_repository.dart';
+import 'package:tasknest/presentation/disputes/models/dispute_model.dart';
 import 'package:tasknest/presentation/notification/models/notification_model.dart';
 import 'package:tasknest/data/datasource/ticketdatasource/ticket_remote_data_source.dart';
 import 'package:tasknest/data/repositories/ticket/ticket_repository.dart';
@@ -200,4 +201,49 @@ class TicketRepositoryImpl implements TicketRepository {
 
   @override
   Future<int> markAsRead({List<int>? ids}) => _notificationDs.markAsRead(ids: ids);
+
+  @override
+  Future<TicketModel> disputeTicket(int ticketId, String argument) =>
+      _ticketDs.disputeTicket(ticketId, argument);
+
+  @override
+  Future<DisputeModel?> getDisputeByTicket(int ticketId) =>
+      _ticketDs.getDisputeByTicket(ticketId);
+
+  @override
+  Future<List<DisputeModel>> listDisputes() => _ticketDs.listDisputes();
+
+  @override
+  Future<DisputeModel> raiseDispute(
+    int ticketId, {
+    required String reason,
+    required String description,
+  }) =>
+      _ticketDs.raiseDispute(
+        ticketId,
+        reason: reason,
+        description: description,
+      );
+
+  @override
+  Future<DisputeModel> addDisputeComment(int disputeId, String note) =>
+      _ticketDs.addDisputeComment(disputeId, note);
+
+  @override
+  Future<DisputeModel> updateDisputeStatus(
+    int disputeId, {
+    required String status,
+    String? note,
+    int? reviewerId,
+  }) =>
+      _ticketDs.updateDisputeStatus(
+        disputeId,
+        status: status,
+        note: note,
+        reviewerId: reviewerId,
+      );
+
+  @override
+  Future<DisputeModel> withdrawDispute(int disputeId) =>
+      _ticketDs.withdrawDispute(disputeId);
 }

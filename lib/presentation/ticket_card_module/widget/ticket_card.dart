@@ -141,6 +141,13 @@ class TicketCard extends StatelessWidget {
                                   fg: const Color(0xFFD97706),
                                   icon: Icons.account_tree_rounded,
                                 ),
+                              if (t.isDisputed)
+                                FlagChip(
+                                  label: 'DISPUTED',
+                                  bg: const Color(0xFFFEE2E2),
+                                  fg: const Color(0xFFDC2626),
+                                  icon: Icons.gavel_rounded,
+                                ),
                             ],
                           ),
                         ),

@@ -276,6 +276,95 @@ class TicketController {
       next(err);
     }
   }
+
+  // ── Ticket Disputes ─────────────────────────────────────────────────────
+  async dispute(req, res, next) {
+    try {
+      const updated = await ticketService.dispute(
+        req.params.id,
+        req.user,
+        req.body.argument
+      );
+      res.json({ success: true, data: updated });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async getDisputeByTicket(req, res, next) {
+    try {
+      const dispute = await ticketService.getDisputeByTicket(
+        req.params.id,
+        req.user
+      );
+      res.json({ success: true, data: dispute });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async listDisputes(req, res, next) {
+    try {
+      const disputes = await ticketService.listDisputes(req.user);
+      res.json({ success: true, data: disputes });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async raiseDispute(req, res, next) {
+    try {
+      const dispute = await ticketService.raiseDispute(
+        req.params.id,
+        req.user,
+        req.body.reason,
+        req.body.description
+      );
+      res.json({ success: true, data: dispute });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async addDisputeComment(req, res, next) {
+    try {
+      const dispute = await ticketService.addDisputeComment(
+        req.params.disputeId,
+        req.user,
+        req.body.note
+      );
+      res.json({ success: true, data: dispute });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async updateDisputeStatus(req, res, next) {
+    try {
+      const dispute = await ticketService.updateDisputeStatus(
+        req.params.disputeId,
+        req.user,
+        req.body.status,
+        req.body.note,
+        req.body.reviewerId
+      );
+      res.json({ success: true, data: dispute });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async withdrawDispute(req, res, next) {
+    try {
+      const dispute = await ticketService.withdrawDispute(
+        req.params.disputeId,
+        req.user
+      );
+      res.json({ success: true, data: dispute });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 module.exports = new TicketController();

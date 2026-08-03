@@ -79,6 +79,12 @@ class TicketGridCard extends StatelessWidget {
                                 fg: const Color(0xFFD97706),
                                 icon: Icons.account_tree_rounded,
                               ),
+                            if (ticket.isDisputed)
+                              _GridFlag(
+                                label: 'DISPUTED',
+                                fg: const Color(0xFFDC2626),
+                                icon: Icons.gavel_rounded,
+                              ),
                           ],
                         ),
                       ),

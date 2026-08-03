@@ -29,6 +29,7 @@ class DashboardLayout extends StatelessWidget {
     if (path == RouteNames.sentSubTickets) return 3;
     if (path == RouteNames.recentActivities) return 4;
     if (path == RouteNames.ticketTypes) return 5;
+    if (path == RouteNames.disputes) return 6;
     return 0;
   }
 
@@ -46,6 +47,8 @@ class DashboardLayout extends StatelessWidget {
         context.go(RouteNames.recentActivities);
       case 5:
         context.go(RouteNames.ticketTypes);
+      case 6:
+        context.go(RouteNames.disputes);
     }
   }
 

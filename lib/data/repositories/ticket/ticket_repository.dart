@@ -1,3 +1,4 @@
+import 'package:tasknest/presentation/disputes/models/dispute_model.dart';
 import 'package:tasknest/presentation/notification/models/notification_model.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
@@ -99,4 +100,27 @@ abstract class TicketRepository {
   Future<NotificationListResponse> getNotifications();
 
   Future<int> markAsRead({List<int>? ids});
+
+  Future<TicketModel> disputeTicket(int ticketId, String argument);
+
+  Future<DisputeModel?> getDisputeByTicket(int ticketId);
+
+  Future<List<DisputeModel>> listDisputes();
+
+  Future<DisputeModel> raiseDispute(
+    int ticketId, {
+    required String reason,
+    required String description,
+  });
+
+  Future<DisputeModel> addDisputeComment(int disputeId, String note);
+
+  Future<DisputeModel> updateDisputeStatus(
+    int disputeId, {
+    required String status,
+    String? note,
+    int? reviewerId,
+  });
+
+  Future<DisputeModel> withdrawDispute(int disputeId);
 }

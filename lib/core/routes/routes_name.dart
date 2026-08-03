@@ -14,5 +14,6 @@ class RouteNames {
   static const sentSubTickets = '/sent_sub_tickets';
   static const recentActivities = '/recent_activities';
   static const ticketTypes = '/ticket_types';
+  static const disputes = '/disputes';
   static const admin = '/admin';
 }

@@ -26,6 +26,7 @@ router.post('/:id/complete', controller.completeSubTicket);
 router.patch('/:id/sub-departments/:deptId/reopen', controller.reopenSubDept);
 
 // ── CRUD ──────────────────────────────────────────────────────
+router.get('/disputes', controller.listDisputes);
 router.get('/', controller.getTickets);
 router.get('/:id', controller.getTicket);
 router.post('/', controller.createTicket);
@@ -33,10 +34,18 @@ router.patch('/:id', controller.updateTicket);
 
 // ── Actions ───────────────────────────────────────────────────
 router.patch('/:id/status', controller.updateStatus);
+router.patch('/:id/dispute', isManager, controller.dispute);
 router.patch('/:id/self-assign', controller.selfAssign);
 router.patch('/:id/assign', isManager, controller.assignToEmployee);
 router.patch('/:id/transfer', controller.transferTicket);
 router.patch('/:id/reopen', controller.reopenTicket);
+
+// ── Disputes (review workflow) ────────────────────────────────
+router.get('/:id/dispute', controller.getDisputeByTicket);
+router.post('/:id/dispute', controller.raiseDispute);
+router.post('/disputes/:disputeId/comments', controller.addDisputeComment);
+router.patch('/disputes/:disputeId/status', controller.updateDisputeStatus);
+router.post('/disputes/:disputeId/withdraw', controller.withdrawDispute);
 
 // ── Comments & History ────────────────────────────────────────
 router.get('/:id/comments', controller.getComments);

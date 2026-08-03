@@ -6,6 +6,7 @@ import 'package:tasknest/core/routes/ticket_type_grid_args.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/login/widget/welcome_screen.dart';
+import 'package:tasknest/presentation/disputes/screens/disputes_list_screen.dart';
 import 'package:tasknest/presentation/ticket/widgets/ticket_list.dart';
 import 'package:tasknest/presentation/ticket/widgets/bloc/ticket_list_bloc.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
@@ -85,6 +86,10 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: RouteNames.ticketTypes,
           builder: (context, state) => TicketTypesContent(user: _user!),
+        ),
+        GoRoute(
+          path: RouteNames.disputes,
+          builder: (context, state) => DisputesContent(user: _user!),
         ),
       ],
     ),

@@ -1,4 +1,5 @@
 import 'package:tasknest/core/constant/api_client.dart';
+import 'package:tasknest/presentation/disputes/models/dispute_model.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:injectable/injectable.dart';
 
@@ -270,5 +271,80 @@ class TicketRemoteDataSource {
 
   Future<void> addComment(int ticketId, String message) async {
     await _api.post('tickets/$ticketId/comments', body: {'message': message});
+  }
+
+  // ── Disputes ──────────────────────────────────────────────────────────────
+
+  /// Old manager-only flow: dispute & close a ticket with a solid argument.
+  Future<TicketModel> disputeTicket(int ticketId, String argument) async {
+    final res = await _api.patch(
+      'tickets/$ticketId/dispute',
+      body: {'argument': argument.trim()},
+    );
+    return TicketModel.fromJson(res['data']);
+  }
+
+  /// Full review workflow.
+  Future<DisputeModel?> getDisputeByTicket(int ticketId) async {
+    final res = await _api.get('tickets/$ticketId/dispute');
+    final data = res['data'];
+    if (data == null) return null;
+    return DisputeModel.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<List<DisputeModel>> listDisputes() async {
+    final res = await _api.get('tickets/disputes');
+    final data = res['data'];
+    if (data is List) {
+      return data
+          .map((e) => DisputeModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    }
+    return [];
+  }
+
+  Future<DisputeModel> raiseDispute(
+    int ticketId, {
+    required String reason,
+    required String description,
+  }) async {
+    final res = await _api.post(
+      'tickets/$ticketId/dispute',
+      body: {'reason': reason, 'description': description.trim()},
+    );
+    return DisputeModel.fromJson(res['data'] as Map<String, dynamic>);
+  }
+
+  Future<DisputeModel> addDisputeComment(int disputeId, String note) async {
+    final res = await _api.post(
+      'tickets/disputes/$disputeId/comments',
+      body: {'note': note.trim()},
+    );
+    return DisputeModel.fromJson(res['data'] as Map<String, dynamic>);
+  }
+
+  Future<DisputeModel> updateDisputeStatus(
+    int disputeId, {
+    required String status,
+    String? note,
+    int? reviewerId,
+  }) async {
+    final res = await _api.patch(
+      'tickets/disputes/$disputeId/status',
+      body: {
+        'status': status,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+        'reviewerId': ?reviewerId,
+      },
+    );
+    return DisputeModel.fromJson(res['data'] as Map<String, dynamic>);
+  }
+
+  Future<DisputeModel> withdrawDispute(int disputeId) async {
+    final res = await _api.post(
+      'tickets/disputes/$disputeId/withdraw',
+      body: {},
+    );
+    return DisputeModel.fromJson(res['data'] as Map<String, dynamic>);
   }
 }

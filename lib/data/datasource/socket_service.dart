@@ -157,6 +157,10 @@ class SocketService {
       _eventController.add(SocketEvent('TICKET_ENRICHED', data));
     });
 
+    _socket!.on('DISPUTE_UPDATED', (data) {
+      _eventController.add(SocketEvent('DISPUTE_UPDATED', data));
+    });
+
     _socket!.connect();
   }
 

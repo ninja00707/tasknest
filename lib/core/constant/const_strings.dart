@@ -600,4 +600,57 @@ class ConstStrings {
       'Password Reset Email Not Valid';
   static const String passwordResetEmailNotValidMsg =
       'The password reset email is not valid. Please check your inbox and try again.';
+
+  // ──────────────────────────────────────────────
+  // Disputes
+  // ──────────────────────────────────────────────
+  static const String navDisputes = 'Disputes';
+  static const String dispute = 'Dispute';
+  static const String disputeAndClose = 'Dispute & Close';
+  static const String disputed = 'DISPUTED';
+  static const String disputesSection = 'DISPUTE';
+  static const String raiseDispute = 'Raise Dispute';
+  static const String disputeSectionHint =
+      'Disagree with the resolution? Raise a dispute for review.';
+  static const String noDisputeYet = 'No dispute raised for this ticket.';
+  static const String disputedByManagerHint =
+      'This ticket was disputed and closed by a manager.';
+  static const String noDisputes = 'No disputes yet';
+  static const String disputesWillAppear =
+      'Disputes raised by you or your department will appear here.';
+  static const String reasonLabel = 'Reason';
+  static const String selectReason = 'Select a reason';
+  static const String describeDispute = 'Describe the dispute';
+  static const String describeDisputeHint =
+      'Explain the issue (min 10 characters)';
+  static const String describeDisputeRequired =
+      'Please describe the dispute (min 10 characters)';
+  static const String argument = 'Argument';
+  static const String argumentHint = 'State your case clearly (min 20 characters)';
+  static const String argumentRequired =
+      'Argument is required (min 20 characters)';
+  static const String writeDisputeComment = 'Write your comment...';
+  static const String commentRequired = 'Comment is required';
+  static const String resolutionNote = 'Resolution note';
+  static const String resolutionNoteHint =
+      'Explain the decision (min 10 characters)';
+  static const String resolutionNoteRequired =
+      'A resolution note is required (min 10 characters)';
+  static const String resolve = 'Resolve';
+  static const String reject = 'Reject';
+  static const String escalate = 'Escalate';
+  static const String startReview = 'Start Review';
+  static const String assignReviewer = 'Assign Reviewer';
+  static const String reviewerLabel = 'Reviewer';
+  static const String withdraw = 'Withdraw';
+  static const String withdrawDisputeQuestion = 'Withdraw this dispute?';
+  static const String raisedByLabel = 'Raised by';
+  static const String resolutionNotesLabel = 'Resolution Notes';
+  static const String timelineLabel = 'Timeline';
+  static const String noReviewerAssigned = 'Not assigned';
+  static const String disputeRaisedOn = 'Raised on';
+  static const String onlyParticipantsCanRaise =
+      'Only ticket participants can raise a dispute';
+  static const String disputeAlreadyExists =
+      'A dispute already exists for this ticket';
 }

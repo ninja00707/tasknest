@@ -31,6 +31,7 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     on<MarkTicketAsDone>(_onMarkTicketAsDone);
     on<FinalizeTicket>(_onFinalizeTicket);
     on<CloseTicket>(_onCloseTicket);
+    on<DisputeTicket>(_onDisputeTicket);
     on<_TicketUpdatedFromStream>(_onTicketFromStream);
   }
 
@@ -421,6 +422,25 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
         event.ticketId,
         'closed',
         remark: event.remark,
+      );
+      _lastLoadedTicket = updated;
+      emit(TicketDetailLoaded(updated));
+    } catch (e) {
+      emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (_lastLoadedTicket != null)
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
+    }
+  }
+
+  Future<void> _onDisputeTicket(
+    DisputeTicket event,
+    Emitter<TicketState> emit,
+  ) async {
+    emit(TicketActionInProgress());
+    try {
+      final updated = await _dataSource.disputeTicket(
+        event.ticketId,
+        event.argument,
       );
       _lastLoadedTicket = updated;
       emit(TicketDetailLoaded(updated));

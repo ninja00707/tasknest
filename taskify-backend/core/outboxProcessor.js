@@ -143,6 +143,8 @@ class OutboxProcessor {
         return `Sub-Ticket #${ticketNumber}: department task reopened`;
       case 'SUB_TICKET_COMPLETED':
         return `Sub-Ticket #${ticketNumber} has been completed`;
+      case 'DISPUTE_UPDATED':
+        return `Dispute updated on Ticket #${ticketNumber}`;
       default:
         return `Ticket #${ticketNumber} was updated`;
     }
@@ -187,6 +189,7 @@ class OutboxProcessor {
       event: eventType,
       ticket: payload?.ticket || null,
       comment: payload?.comment || null,
+      dispute: payload?.dispute || null,
       changedFields: payload?.changedFields || null,
       actedBy,
       actedAt: new Date().toISOString(),

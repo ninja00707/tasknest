@@ -27,6 +27,8 @@ class TicketActions extends StatelessWidget {
     final bool isManager = user.roleId == 1;
     final bool isCeo = user.roleId == 0;
     final bool isDeveloper = user.roleId == 3;
+    final bool isSubTicket =
+        ticket is ChildTicketModel || (ticket is TicketModel && ticket.isSubTicket);
     final bool isResolver =
         ticket.assignedToId == user.id && ticket.assignedToId != null;
     final bool isCreator = ticket.createdById == user.id;
@@ -89,6 +91,16 @@ class TicketActions extends StatelessWidget {
             tooltip: ConstStrings.createSubTicket,
             color: ThemeColors.unifiedWarning,
             onTap: () => _showSubTicketDialog(context, ticket),
+          ),
+
+        // 5. Dispute & Close: managers only (with argument) — closes the ticket
+        //    Master tickets only — never on sub-tickets.
+        if (isManager && !ticket.isManagementDisabled && !isSubTicket)
+          ActionBtn(
+            icon: Icons.gavel_rounded,
+            tooltip: ConstStrings.disputeAndClose,
+            color: ThemeColors.unifiedDanger,
+            onTap: () => _showDisputeDialog(context, ticket),
           ),
 
         // 6. Reopen: Creator only (CEO also allowed as fallback)
@@ -220,6 +232,95 @@ class TicketActions extends StatelessWidget {
                 bloc.add(UpdateTicketStatus(ticket.id, status, remark: remark));
               },
               child: const Text(ConstStrings.submit),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDisputeDialog(BuildContext context, dynamic ticket) {
+    final bloc = context.read<TicketBloc>();
+    final controller = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.gavel_rounded,
+                size: 20,
+                color: ThemeColors.unifiedDanger,
+              ),
+              SizedBox(width: 10),
+              Text(
+                ConstStrings.disputeAndClose,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: ThemeColors.unifiedTextPrimary,
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 440,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'This will close the ticket and record your argument. '
+                    'Provide a solid justification (min 20 characters).',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: ThemeColors.unifiedTextMuted,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: controller,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: ConstStrings.argument,
+                      hintText: ConstStrings.argumentHint,
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().length < 20) {
+                        return ConstStrings.argumentRequired;
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text(ConstStrings.cancel),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (!formKey.currentState!.validate()) return;
+                Navigator.pop(dialogContext);
+                bloc.add(DisputeTicket(ticket.id, controller.text.trim()));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ThemeColors.unifiedDanger,
+                foregroundColor: Colors.white,
+                elevation: 0,
+              ),
+              child: const Text(ConstStrings.disputeAndClose),
             ),
           ],
         );

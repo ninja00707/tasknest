@@ -9,6 +9,7 @@ import 'package:tasknest/core/theme/common_text.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart'
     hide TicketDetailLoaded;
+import 'package:tasknest/presentation/disputes/widgets/dispute_section.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_event.dart';
@@ -60,6 +61,7 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
           if (_ticket == null ||
               _ticket!.id != state.ticket.id ||
               _ticket!.status != state.ticket.status ||
+              _ticket!.isDisputed != state.ticket.isDisputed ||
               _ticket!.overallProgress != state.ticket.overallProgress ||
               _ticket!.lastUpdatedAt != state.ticket.lastUpdatedAt ||
               _ticket!.assignedToId != state.ticket.assignedToId ||
@@ -162,6 +164,15 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                               height: 1.7,
                               fontWeight: FontWeight.w400,
                             ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        CommonSectionCardContainer(
+                          icon: Icons.gavel_rounded,
+                          title: ConstStrings.disputesSection,
+                          child: DisputeSection(
+                            ticket: ticket,
+                            user: widget.user,
                           ),
                         ),
                         if (ticket.isSubTicket) ...[

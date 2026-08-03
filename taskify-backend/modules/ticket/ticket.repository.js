@@ -79,6 +79,11 @@ class TicketRepository {
           SELECT 1 FROM descendants WHERE status != 'closed'
         ) as has_active_children,
 
+        -- Flag tickets that were disputed & closed by a manager
+        EXISTS (
+          SELECT 1 FROM ticket_logs tl WHERE tl.ticket_id = t.id AND tl.action = 'disputed'
+        ) AS disputed,
+
         -- Fetch recursive department journey (Global Project Journey)
         (
           SELECT json_agg(js) FROM (
@@ -369,6 +374,11 @@ class TicketRepository {
           )
           SELECT 1 FROM descendants WHERE status != 'closed'
         ) as has_active_children,
+
+        -- Flag tickets that were disputed & closed by a manager
+        EXISTS (
+          SELECT 1 FROM ticket_logs tl WHERE tl.ticket_id = t.id AND tl.action = 'disputed'
+        ) AS disputed,
 
         -- Fetch Global Project Journey
         COALESCE(ja.journey, '[]'::json) as dept_journey
@@ -1364,6 +1374,19 @@ class TicketRepository {
       ) ll ON TRUE
       WHERE (t.created_by_dept = $1 OR t.transferred_from = $1)
         AND t.assigned_dept_id <> $1
+        AND NOT EXISTS (
+          -- Hide sub-tickets whose root master was disputed; the disputed
+          -- master ticket is the single representative shown in the grid.
+          WITH RECURSIVE root_finder AS (
+            SELECT id, parent_ticket_id FROM tickets WHERE id = t.id
+            UNION ALL
+            SELECT p.id, p.parent_ticket_id FROM tickets p
+            JOIN root_finder rf ON p.id = rf.parent_ticket_id
+          )
+          SELECT 1 FROM root_finder rf
+          JOIN ticket_logs tl ON tl.ticket_id = rf.id AND tl.action = 'disputed'
+          WHERE rf.parent_ticket_id IS NULL
+        )
       ORDER BY t.transferred_at DESC, t.created_at DESC
       LIMIT 100
     `, [departmentId]);
@@ -1898,6 +1921,61 @@ class TicketRepository {
     }
   }
 
+  // Close all sub-tickets (and their department tasks) of a master ticket.
+  // Used when a manager disputes a ticket, so the whole tree lands in Closed.
+  async closeAllSubTickets(ticketId, userId) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const children = await client.query(`
+        SELECT id FROM tickets
+        WHERE parent_ticket_id = $1 AND status != 'closed'
+      `, [ticketId]);
+
+      const closedIds = [];
+      for (const child of children.rows) {
+        const childId = child.id;
+
+        await client.query(`
+          UPDATE sub_ticket_departments
+          SET status = 'closed', completed_at = NOW(), updated_at = NOW(),
+              version = COALESCE(version, 0) + 1
+          WHERE ticket_id = $1 AND status != 'closed'
+        `, [childId]);
+
+        await client.query(`
+          UPDATE tickets
+          SET status = 'closed', overall_progress = 100, closed_at = NOW(),
+              version = COALESCE(version, 0) + 1
+          WHERE id = $1 AND is_sub_ticket = TRUE AND status != 'closed'
+        `, [childId]);
+
+        const ticketData = await this.getTicketDetails(childId);
+        const enriched = await this.enrichTicketWithSubData(ticketData);
+        if (enriched) {
+          await this.insertOutbox({
+            eventType: 'SUB_TICKET_COMPLETED',
+            ticketId: childId,
+            parentTicketId: ticketId,
+            payload: { ticket: enriched },
+            version: enriched.version || 1,
+            actingUserId: userId,
+          }, client);
+        }
+        closedIds.push(childId);
+      }
+
+      await client.query('COMMIT');
+      return closedIds;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
   async reopenSubDept(ticketId, departmentId, nextDeptId) {
     const client = await pool.connect();
     try {
@@ -2158,6 +2236,203 @@ class TicketRepository {
       ) sub
     `, [ticketId]);
     return result.rows.map(r => r.dept_id);
+  }
+
+  // ── Ticket Disputes ──────────────────────────────────────────────────────
+  async getDisputeByTicket(ticketId) {
+    const result = await pool.query(`
+      SELECT d.*,
+        ru.name AS raised_by_name,
+        rv.name AS assigned_reviewer_name,
+        t.title AS ticket_title,
+        COALESCE(t.ticket_number, '') AS ticket_number,
+        t.status AS ticket_status
+      FROM ticket_disputes d
+      JOIN tickets t  ON t.id = d.ticket_id
+      JOIN users  ru ON ru.id = d.raised_by_id
+      LEFT JOIN users rv ON rv.id = d.assigned_reviewer_id
+      WHERE d.ticket_id = $1
+    `, [ticketId]);
+    if (!result.rows[0]) return null;
+    const dispute = result.rows[0];
+    dispute.timeline = await this.getDisputeActivities(dispute.id);
+    return dispute;
+  }
+
+  async getDisputeById(disputeId) {
+    const result = await pool.query(`
+      SELECT d.*,
+        ru.name AS raised_by_name,
+        rv.name AS assigned_reviewer_name,
+        t.title AS ticket_title,
+        COALESCE(t.ticket_number, '') AS ticket_number,
+        t.status AS ticket_status
+      FROM ticket_disputes d
+      JOIN tickets t  ON t.id = d.ticket_id
+      JOIN users  ru ON ru.id = d.raised_by_id
+      LEFT JOIN users rv ON rv.id = d.assigned_reviewer_id
+      WHERE d.id = $1
+    `, [disputeId]);
+    if (!result.rows[0]) return null;
+    const dispute = result.rows[0];
+    dispute.timeline = await this.getDisputeActivities(dispute.id);
+    return dispute;
+  }
+
+  async getDisputeActivities(disputeId) {
+    const result = await pool.query(`
+      SELECT id, action, actor_id, actor_name, note, created_at
+      FROM dispute_activities
+      WHERE dispute_id = $1
+      ORDER BY created_at DESC
+    `, [disputeId]);
+    return result.rows;
+  }
+
+  async createDispute({ ticketId, raisedById, reason, description }) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(`
+        INSERT INTO ticket_disputes (ticket_id, raised_by_id, reason, description)
+        VALUES ($1, $2, $3, $4) RETURNING *
+      `, [ticketId, raisedById, reason, description]);
+      const dispute = result.rows[0];
+      const actor = await this.getUserById(raisedById);
+      await this.addDisputeActivity(
+        dispute.id, 'raised', raisedById, actor?.name || '', description, client
+      );
+      await client.query('COMMIT');
+      return await this.getDisputeById(dispute.id);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async addDisputeActivity(disputeId, action, actorId, actorName, note, client = pool) {
+    await client.query(`
+      INSERT INTO dispute_activities (dispute_id, action, actor_id, actor_name, note)
+      VALUES ($1, $2, $3, $4, $5)
+    `, [disputeId, action, actorId, actorName, note]);
+  }
+
+  async updateDispute(disputeId, { status, assignedReviewerId, resolutionNotes }) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const updates = [];
+      const params = [];
+      if (status !== undefined) {
+        params.push(status);
+        updates.push(`status = $${params.length}::text`);
+        updates.push(`resolved_at = CASE WHEN $${params.length}::text IN ('resolved','rejected','escalated','withdrawn') THEN now() ELSE resolved_at END`);
+      }
+      if (assignedReviewerId !== undefined) {
+        params.push(assignedReviewerId);
+        updates.push(`assigned_reviewer_id = $${params.length}`);
+      }
+      if (resolutionNotes !== undefined) {
+        params.push(resolutionNotes);
+        updates.push(`resolution_notes = $${params.length}`);
+      }
+      updates.push('updated_at = now()');
+      params.push(disputeId);
+      const result = await client.query(`
+        UPDATE ticket_disputes SET ${updates.join(', ')}
+        WHERE id = $${params.length} RETURNING *
+      `, params);
+      await client.query('COMMIT');
+      return result.rows[0] || null;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async listDisputes(user) {
+    const isAdmin = ['ceo', 'developer'].includes(user.role);
+    const result = await pool.query(`
+      SELECT * FROM (
+        -- Review-workflow disputes (ticket_disputes rows)
+        SELECT
+          d.id::bigint AS id,
+          d.ticket_id,
+          t.title AS ticket_title,
+          COALESCE(t.ticket_number, '') AS ticket_number,
+          t.status AS ticket_status,
+          d.raised_by_id,
+          ru.name AS raised_by_name,
+          d.reason,
+          d.description,
+          d.status,
+          d.assigned_reviewer_id,
+          rv.name AS assigned_reviewer_name,
+          d.resolution_notes,
+          d.created_at,
+          d.updated_at,
+          d.resolved_at
+        FROM ticket_disputes d
+        JOIN tickets t ON t.id = d.ticket_id
+        JOIN users ru ON ru.id = d.raised_by_id
+        LEFT JOIN users rv ON rv.id = d.assigned_reviewer_id
+        LEFT JOIN departments td ON td.id = t.assigned_dept_id
+        WHERE (td.company_id = $1 OR td.is_shared = TRUE)
+          AND (
+            $2::boolean
+            OR t.assigned_dept_id = $3
+            OR t.created_by_dept = $3
+            OR t.created_by_id = $4
+            OR t.assigned_to_id = $4
+            OR d.raised_by_id = $4
+          )
+
+        UNION ALL
+
+        -- Manager "Dispute & Close" (gavel flow): tickets closed by a manager
+        -- with a 'disputed' log but no ticket_disputes row.
+        SELECT
+          (-t.id)::bigint AS id,
+          t.id AS ticket_id,
+          t.title AS ticket_title,
+          COALESCE(t.ticket_number, '') AS ticket_number,
+          t.status AS ticket_status,
+          COALESCE(l.acted_by_id, 0) AS raised_by_id,
+          COALESCE(m.name, 'Manager') AS raised_by_name,
+          'other' AS reason,
+          COALESCE(l.note, 'Ticket was disputed and closed by a manager.') AS description,
+          'disputed' AS status,
+          NULL::bigint AS assigned_reviewer_id,
+          NULL AS assigned_reviewer_name,
+          NULL AS resolution_notes,
+          l.created_at AS created_at,
+          l.created_at AS updated_at,
+          NULL::timestamptz AS resolved_at
+        FROM tickets t
+        JOIN ticket_logs l ON l.ticket_id = t.id AND l.action = 'disputed'
+        LEFT JOIN users m ON m.id = l.acted_by_id
+        LEFT JOIN departments td ON td.id = t.assigned_dept_id
+        WHERE NOT EXISTS (
+          SELECT 1 FROM ticket_disputes dd WHERE dd.ticket_id = t.id
+        )
+          AND (td.company_id = $1 OR td.is_shared = TRUE)
+          AND (
+            $2::boolean
+            OR t.assigned_dept_id = $3
+            OR t.created_by_dept = $3
+            OR t.created_by_id = $4
+            OR t.assigned_to_id = $4
+            OR l.acted_by_id = $4
+          )
+      ) all_disputes
+      ORDER BY created_at DESC
+      LIMIT 100
+    `, [user.company_id, isAdmin, user.department_id, user.id]);
+    return result.rows;
   }
 }
 

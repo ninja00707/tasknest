@@ -43,6 +43,9 @@ class SocketHelper {
         return e.type == 'NOTIFICATION_COUNT' || e.type == 'COMMENT_ADDED';
       });
 
+  Stream<SocketEvent> onDisputeEvents() =>
+      events.where((e) => e.type == 'DISPUTE_UPDATED');
+
   Stream<SocketEvent> onTicketCreatedEvents() => events.where((e) {
         if (e.type == 'TICKET_ENRICHED' && e.data is Map) {
           return e.data['event'] == 'TICKET_CREATED';

@@ -16,14 +16,15 @@ class RightColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        CommonSectionCardContainer(
-          icon: Icons.bolt_rounded,
-          title: ConstStrings.actions,
-          child: Center(
-            child: TicketActions(ticket: ticket, user: user),
+        if (!ticket.isDisputed)
+          CommonSectionCardContainer(
+            icon: Icons.bolt_rounded,
+            title: ConstStrings.actions,
+            child: Center(
+              child: TicketActions(ticket: ticket, user: user),
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
+        if (!ticket.isDisputed) const SizedBox(height: 16),
         CommonSectionCardContainer(
           icon: Icons.timeline_rounded,
           title: ConstStrings.progress,

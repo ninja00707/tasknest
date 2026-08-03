@@ -11,6 +11,7 @@ class TicketRealtimeRepository {
   StreamSubscription<SocketEvent>? _rootSub;
   final StreamController<SocketEvent> _ticketEvents = StreamController<SocketEvent>.broadcast();
   final StreamController<SocketEvent> _connectionEvents = StreamController<SocketEvent>.broadcast();
+  final StreamController<SocketEvent> _disputeEvents = StreamController<SocketEvent>.broadcast();
   final StreamController<Map<String, dynamic>> _notificationEvents = StreamController<Map<String, dynamic>>.broadcast();
   bool _initialized = false;
 
@@ -19,6 +20,9 @@ class TicketRealtimeRepository {
 
   /// Socket connection lifecycle events
   Stream<SocketEvent> get connectionEvents => _connectionEvents.stream;
+
+  /// Dispute workflow events (DISPUTE_UPDATED)
+  Stream<SocketEvent> get disputeEvents => _disputeEvents.stream;
 
   /// Notification count updates and toast-worthy events
   Stream<Map<String, dynamic>> get notificationEvents => _notificationEvents.stream;
@@ -30,6 +34,12 @@ class TicketRealtimeRepository {
     _rootSub = SocketHelper().events.listen((event) {
       if (event.type == 'SOCKET_CONNECTED') {
         _connectionEvents.add(event);
+        return;
+      }
+
+      if (event.type == 'DISPUTE_UPDATED') {
+        _disputeEvents.add(event);
+        _ticketEvents.add(event);
         return;
       }
 
@@ -59,6 +69,7 @@ class TicketRealtimeRepository {
     _rootSub?.cancel();
     _ticketEvents.close();
     _connectionEvents.close();
+    _disputeEvents.close();
     _notificationEvents.close();
     _initialized = false;
   }

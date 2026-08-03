@@ -31,6 +31,7 @@ class SocketHelper {
       oldStatus: payload.oldStatus || null,
       assignedTo: payload.assignedTo || payload.ticket?.assigned_to_name || null,
       assignedDept: payload.assignedDept || payload.ticket?.assigned_dept_code || null,
+      dispute: payload.dispute || null,
       message,
       event: eventType,
       createdAt: new Date().toISOString(),

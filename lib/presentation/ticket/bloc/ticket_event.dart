@@ -248,3 +248,11 @@ class CloseTicket extends TicketEvent {
   @override
   List<Object?> get props => [ticketId, remark];
 }
+
+class DisputeTicket extends TicketEvent {
+  final int ticketId;
+  final String argument;
+  DisputeTicket(this.ticketId, this.argument);
+  @override
+  List<Object?> get props => [ticketId, argument];
+}

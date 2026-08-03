@@ -31,6 +31,7 @@ class TicketModel {
   final List<dynamic>? history;
 
   final bool isSubTicket;
+  final bool isDisputed;
   final int overallProgress;
   final int departmentCount;
   final List<SubTicketDepartmentModel> subDepartments;
@@ -77,6 +78,7 @@ class TicketModel {
     this.lastActedByDeptName,
     this.history,
     this.isSubTicket = false,
+    this.isDisputed = false,
     this.overallProgress = 0,
     this.departmentCount = 0,
     this.subDepartments = const [],
@@ -137,6 +139,7 @@ class TicketModel {
     lastActedByDeptName: j['last_acted_by_dept_name'],
     history: j['history'],
     isSubTicket: j['is_sub_ticket'] == true,
+    isDisputed: j['disputed'] == true,
     overallProgress: j['overall_progress'] ?? 0,
     departmentCount: j['department_count'] ?? 0,
     subDepartments:

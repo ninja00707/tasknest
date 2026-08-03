@@ -624,6 +624,72 @@ if (newStatus === 'closed' && remark) {
 return updated;
   }
 
+  // ── Dispute & close a ticket (managers only, solid argument required) ───
+  async dispute(ticketId, user, argument) {
+    if (user.role !== 'manager') {
+      throw { statusCode: 403, message: 'Only managers can dispute a ticket' };
+    }
+    if (!argument || String(argument).trim().length < 20) {
+      throw { statusCode: 400, message: 'A solid argument statement is required before closing the ticket (min 20 characters)' };
+    }
+
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    if (ticket.status === 'closed') {
+      throw { statusCode: 400, message: 'Ticket is already closed' };
+    }
+    if (ticket.is_sub_ticket) {
+      throw { statusCode: 400, message: 'Only master tickets can be disputed' };
+    }
+
+    const oldStatus = ticket.status;
+
+    // Dispute closes the whole tree: first force-close every sub-ticket,
+    // then the master goes straight to Closed.
+    if (!ticket.is_sub_ticket) {
+      await ticketRepo.closeAllSubTickets(ticketId, user.id);
+    }
+
+    const updated = await ticketRepo.updateStatus(ticketId, 'closed', user);
+    this._invalidateStats(user.id);
+
+    await ticketRepo.logAction(
+      ticketId, user.id, 'disputed', oldStatus, 'closed',
+      String(argument).trim()
+    );
+
+    const commentMsg = `[DISPUTE]: ${String(argument).trim()}`;
+    await ticketRepo.addComment(ticketId, user.id, commentMsg);
+    await ticketRepo.logAction(
+      ticketId, user.id, 'comment_added', null,
+      commentMsg.substring(0, 100),
+      `Dispute comment added by ${user.name}`
+    );
+
+    if (ticket.parent_ticket_id) {
+      const updatedParents = await this._propagateUpward(ticket, 'closed', user);
+      await this._emitParentChain(ticketId, updatedParents, user.id);
+    }
+
+    const enriched = await ticketRepo.getTicketById(ticketId, user);
+    await this._emitDisputeOutbox(ticketId, {
+      id: -ticketId,
+      ticket_id: ticketId,
+      ticket_title: ticket.title,
+      ticket_number: ticket.ticket_number,
+      ticket_status: 'closed',
+      raised_by_id: user.id,
+      raised_by_name: user.name,
+      reason: 'other',
+      description: String(argument).trim(),
+      status: 'disputed',
+      created_at: new Date().toISOString(),
+    }, user.id);
+
+    return enriched || updated;
+  }
+
   async selfAssign(ticketId, user) {
   if (user.role === 'ceo') {
     throw { statusCode: 400, message: 'CEO does not self-assign' };
@@ -877,6 +943,176 @@ return updated;
   async getOrganizationAnalytics(user) {
   return await ticketRepo.getAnalyticsByDepartment(user); // Reusing the existing repo method for now
 }
+
+  // ── Ticket Disputes (review workflow) ────────────────────────────────────
+  _isTicketParticipant(ticket, user) {
+    return Number(ticket.created_by_id) === Number(user.id) ||
+      Number(ticket.assigned_to_id) === Number(user.id) ||
+      Number(ticket.assigned_dept_id) === Number(user.department_id);
+  }
+
+  _canReviewDispute(ticket, user) {
+    if (['ceo', 'developer'].includes(user.role)) return true;
+    return user.role === 'manager' &&
+      Number(ticket.assigned_dept_id) === Number(user.department_id);
+  }
+
+  _disputeClosed(status) {
+    return ['resolved', 'rejected', 'escalated', 'withdrawn'].includes(status);
+  }
+
+  async _emitDisputeOutbox(ticketId, dispute, userId) {
+    try {
+      let ticket = null;
+      try { ticket = await ticketRepo.getTicketById(ticketId, null, true); } catch (_) {}
+      const version = dispute?.updated_at
+        ? new Date(dispute.updated_at).getTime()
+        : Date.now();
+      await ticketRepo.insertOutbox({
+        eventType: 'DISPUTE_UPDATED',
+        ticketId,
+        parentTicketId: null,
+        payload: { dispute, ticket },
+        version,
+        actingUserId: userId,
+      });
+    } catch (err) {
+      console.error('[Dispute] Outbox emit failed:', err.message);
+    }
+  }
+
+  async getDisputeByTicket(ticketId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    return await ticketRepo.getDisputeByTicket(ticketId);
+  }
+
+  async listDisputes(user) {
+    return await ticketRepo.listDisputes(user);
+  }
+
+  async raiseDispute(ticketId, user, reason, description) {
+    const allowedReasons = ['wrong_resolution', 'sla_breach', 'wrong_assignment', 'quality_issue', 'other'];
+    if (!allowedReasons.includes(reason)) {
+      throw { statusCode: 400, message: 'Invalid dispute reason' };
+    }
+    if (!description || String(description).trim().length < 10) {
+      throw { statusCode: 400, message: 'Please describe the dispute (min 10 characters)' };
+    }
+
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    if (!this._isTicketParticipant(ticket, user)) {
+      throw { statusCode: 403, message: 'Only ticket participants can raise a dispute' };
+    }
+    const existing = await ticketRepo.getDisputeByTicket(ticketId);
+    if (existing) throw { statusCode: 400, message: 'A dispute already exists for this ticket' };
+
+    const dispute = await ticketRepo.createDispute({
+      ticketId,
+      raisedById: user.id,
+      reason,
+      description: String(description).trim(),
+    });
+    await this._emitDisputeOutbox(ticketId, dispute, user.id);
+    return dispute;
+  }
+
+  async addDisputeComment(disputeId, user, note) {
+    if (!note || String(note).trim() === '') {
+      throw { statusCode: 400, message: 'Comment is required' };
+    }
+    const dispute = await ticketRepo.getDisputeById(disputeId);
+    if (!dispute) throw { statusCode: 404, message: 'Dispute not found' };
+    const ticket = await ticketRepo.getTicketById(dispute.ticket_id, user);
+    if (!ticket || ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+
+    const canComment = Number(dispute.raised_by_id) === Number(user.id) ||
+      this._isTicketParticipant(ticket, user) ||
+      this._canReviewDispute(ticket, user);
+    if (!canComment) throw { statusCode: 403, message: 'You cannot comment on this dispute' };
+    if (this._disputeClosed(dispute.status)) {
+      throw { statusCode: 400, message: 'This dispute is already closed' };
+    }
+
+    await ticketRepo.addDisputeActivity(
+      dispute.id, 'commented', user.id, user.name, String(note).trim()
+    );
+    await ticketRepo.updateDispute(dispute.id, {});
+    const updated = await ticketRepo.getDisputeById(dispute.id);
+    await this._emitDisputeOutbox(updated.ticket_id, updated, user.id);
+    return updated;
+  }
+
+  async updateDisputeStatus(disputeId, user, status, note, reviewerId) {
+    const allowed = ['under_review', 'resolved', 'rejected', 'escalated'];
+    if (!allowed.includes(status)) {
+      throw { statusCode: 400, message: 'Invalid dispute status' };
+    }
+
+    const dispute = await ticketRepo.getDisputeById(disputeId);
+    if (!dispute) throw { statusCode: 404, message: 'Dispute not found' };
+    const ticket = await ticketRepo.getTicketById(dispute.ticket_id, user);
+    if (!ticket || ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    if (!this._canReviewDispute(ticket, user)) {
+      throw { statusCode: 403, message: 'Only the department head or an admin can update this dispute' };
+    }
+    if (this._disputeClosed(dispute.status)) {
+      throw { statusCode: 400, message: 'This dispute is already closed' };
+    }
+    if ((status === 'resolved' || status === 'rejected') &&
+        (!note || String(note).trim().length < 10)) {
+      throw { statusCode: 400, message: 'A resolution note is required (min 10 characters)' };
+    }
+
+    const updates = {
+      status,
+      resolutionNotes: note ? String(note).trim() : undefined,
+    };
+    let action = 'status_changed';
+    if (status === 'resolved') action = 'resolved';
+    if (status === 'rejected') action = 'rejected';
+    if (status === 'escalated') action = 'escalated';
+
+    if (status === 'under_review') {
+      const reviewer = reviewerId || user.id;
+      updates.assignedReviewerId = reviewer;
+      if (Number(dispute.assigned_reviewer_id) !== Number(reviewer)) {
+        await ticketRepo.addDisputeActivity(
+          dispute.id, 'reviewer_assigned', user.id, user.name, `Reviewer assigned`
+        );
+      }
+    }
+
+    await ticketRepo.updateDispute(dispute.id, updates);
+    await ticketRepo.addDisputeActivity(
+      dispute.id, action, user.id, user.name, note ? String(note).trim() : null
+    );
+    const updated = await ticketRepo.getDisputeById(dispute.id);
+    await this._emitDisputeOutbox(updated.ticket_id, updated, user.id);
+    return updated;
+  }
+
+  async withdrawDispute(disputeId, user) {
+    const dispute = await ticketRepo.getDisputeById(disputeId);
+    if (!dispute) throw { statusCode: 404, message: 'Dispute not found' };
+    if (Number(dispute.raised_by_id) !== Number(user.id)) {
+      throw { statusCode: 403, message: 'Only the raiser can withdraw this dispute' };
+    }
+    if (this._disputeClosed(dispute.status)) {
+      throw { statusCode: 400, message: 'This dispute is already closed' };
+    }
+
+    await ticketRepo.updateDispute(dispute.id, { status: 'withdrawn' });
+    await ticketRepo.addDisputeActivity(
+      dispute.id, 'withdrawn', user.id, user.name, 'Dispute withdrawn by the raiser'
+    );
+    const updated = await ticketRepo.getDisputeById(dispute.id);
+    await this._emitDisputeOutbox(updated.ticket_id, updated, user.id);
+    return updated;
+  }
 }
 
 module.exports = new TicketService();

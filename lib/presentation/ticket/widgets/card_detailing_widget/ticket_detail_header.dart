@@ -100,6 +100,11 @@ class TicketDetailHeader extends StatelessWidget {
 
                         color: CommonStatus.ticketStatusColor(ticket.status),
                       ),
+                      if (ticket.isDisputed)
+                        CommonBadge(
+                          label: ConstStrings.disputed,
+                          color: ThemeColors.unifiedDanger,
+                        ),
                       // if (ticket.isOverdue) const _OverdueBadge(),
                     ],
                   ),
