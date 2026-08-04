@@ -2,20 +2,48 @@ const ticketRepo = require('./ticket.repository');
 const cache = require('../../core/cache');
 
 class TicketService {
-  // ── Recursively propagate in_progress up the parent chain ────────────
-  // For closed: just collect parent chain for notification
+  // ── Recursively propagate status up the parent chain ────────────────────
+  // in_progress: push every ancestor to in_progress.
+  // closed: auto-close the root master once every descendant sub-ticket is
+  //         closed (sub-tickets themselves are closed by their assignee).
   async _propagateUpward(childTicket, newStatus, user) {
     if (!childTicket.parent_ticket_id) return [];
 
     if (newStatus === 'in_progress') {
-      return await ticketRepo.updateParentChain(childTicket.parent_ticket_id, 'in_progress');
+      return await ticketRepo.updateParentChain(childTicket.id, 'in_progress');
     }
 
     if (newStatus === 'closed') {
-      return await ticketRepo.getParentChain(childTicket.parent_ticket_id);
+      return await this._autoCloseParents(childTicket, user);
     }
 
     return [];
+  }
+
+  // ── Auto-close the root master once every descendant sub-ticket closes ──
+  // Each sub-ticket (including intermediate ones) is closed by its own
+  // assignee — never auto-closed here — so only the root master is ever
+  // closed by this helper. We still walk past intermediate sub-tickets to
+  // check the master whenever a descendant closes.
+  async _autoCloseParents(childTicket, user) {
+    if (!childTicket.parent_ticket_id) return [];
+
+    const chain = await ticketRepo.getParentChain(childTicket.id);
+    const closedParents = [];
+    for (const p of chain) {
+      if (p.isSubTicket) {
+        // Intermediate sub-ticket: its assignee closes it explicitly.
+        continue;
+      }
+      const closed = await ticketRepo.closeTicketIfAllChildrenClosed(p.parentId, user.id);
+      if (closed) {
+        closedParents.push({ parentId: p.parentId });
+      } else {
+        // The master can only close once every sub-ticket is closed.
+        break;
+      }
+    }
+    return closedParents;
   }
 
   _invalidateStats(...userIds) {
@@ -481,6 +509,13 @@ class TicketService {
       `Creator ${user.name} marked the sub-ticket as closed. Departments: ${doneDepts}`
     );
 
+    // Auto-close the master (and any intermediate parents) once all their
+    // direct sub-tickets are closed — no further creator action required.
+    const closedParents = await this._autoCloseParents(ticket, user);
+    if (closedParents.length > 0) {
+      await this._emitParentChain(ticketId, closedParents, user.id);
+    }
+
     return updated;
   }
 
@@ -553,8 +588,10 @@ class TicketService {
       throw { statusCode: 400, message: 'Invalid status' };
     }
 
-    // Block closed if any sub-tickets are not finalized
-    if (!isSystemUpdate && newStatus === 'closed') {
+    // Only the master waits for ALL its sub-tickets to close. A sub-ticket
+    // can always be closed by its own assignee once its work is done,
+    // regardless of how many sub-tickets exist.
+    if (!isSystemUpdate && newStatus === 'closed' && !ticket.is_sub_ticket) {
       const hasUnfinalized = await ticketRepo.hasUnfinalizedSubTickets(ticketId);
       if (hasUnfinalized) {
         throw {
@@ -893,6 +930,17 @@ return updated;
   const ticket = await ticketRepo.getTicketById(ticketId, user);
   if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
   if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+
+  // Description is editable only by the ticket creator while the ticket is
+  // still OPEN (before it moves to in_progress).
+  if (fields && Object.prototype.hasOwnProperty.call(fields, 'description')) {
+    if (Number(ticket.created_by_id) !== Number(user.id)) {
+      throw { statusCode: 403, message: 'Only the ticket creator can edit the description' };
+    }
+    if (ticket.status !== 'open') {
+      throw { statusCode: 400, message: 'Description can only be edited while the ticket is open' };
+    }
+  }
 
   const updated = await ticketRepo.updateTicketField(ticketId, user.id, fields);
   if (!updated) throw { statusCode: 400, message: 'No valid fields to update' };

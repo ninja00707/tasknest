@@ -15,6 +15,14 @@ class TicketRealtimeRepository {
   final StreamController<Map<String, dynamic>> _notificationEvents = StreamController<Map<String, dynamic>>.broadcast();
   bool _initialized = false;
 
+  /// Backend fan-out delivers the same mutation multiple times (raw event +
+  /// TICKET_ENRICHED, each to user_ and dept_ rooms). Deduplicate by logical
+  /// (ticketId, eventType) within a short window so one DB mutation produces
+  /// exactly one realtime notification. Copies carrying a [notificationId]
+  /// (user-room deliveries) are always preferred over bare dept-room copies.
+  static const Duration _dedupeWindow = Duration(milliseconds: 1500);
+  final Map<String, ({DateTime seenAt, bool sawNotification})> _recentEvents = {};
+
   /// All ticket-related events (created, updated, status, enriched, child_updated, etc.)
   Stream<SocketEvent> get ticketEvents => _ticketEvents.stream;
 
@@ -32,37 +40,74 @@ class TicketRealtimeRepository {
     _initialized = true;
 
     _rootSub = SocketHelper().events.listen((event) {
-      if (event.type == 'SOCKET_CONNECTED') {
-        _connectionEvents.add(event);
-        return;
-      }
-
-      if (event.type == 'DISPUTE_UPDATED') {
-        _disputeEvents.add(event);
-        _ticketEvents.add(event);
-        return;
-      }
-
-      if (event.type == 'NOTIFICATION_COUNT') {
-        _notificationEvents.add({
-          'type': 'NOTIFICATION_COUNT',
-          'data': event.data,
-        });
-        return;
-      }
-
-      if (_isTicketEvent(event.type)) {
-        _ticketEvents.add(event);
-
-        final data = event.data;
-        if (data is Map && data['notificationId'] != null) {
-          _notificationEvents.add({
-            'type': event.type,
-            'data': data,
-          });
-        }
+      if (!_isDuplicate(event)) {
+        _routeEvent(event);
       }
     });
+  }
+
+  void _routeEvent(SocketEvent event) {
+    if (event.type == 'SOCKET_CONNECTED') {
+      _connectionEvents.add(event);
+      return;
+    }
+
+    if (event.type == 'DISPUTE_UPDATED') {
+      _disputeEvents.add(event);
+      _ticketEvents.add(event);
+      return;
+    }
+
+    if (event.type == 'NOTIFICATION_COUNT') {
+      _notificationEvents.add({
+        'type': 'NOTIFICATION_COUNT',
+        'data': event.data,
+      });
+      return;
+    }
+
+    if (_isTicketEvent(event.type)) {
+      _ticketEvents.add(event);
+
+      final data = event.data;
+      if (data is Map && data['notificationId'] != null) {
+        _notificationEvents.add({
+          'type': event.type,
+          'data': data,
+        });
+      }
+    }
+  }
+
+  bool _isDuplicate(SocketEvent event) {
+    final data = event.data;
+    if (data is! Map) return false;
+    final ticketId = data['ticketId'];
+    if (ticketId == null) return false;
+
+    final eventType = data['event'] ?? event.type;
+    final key = '$ticketId:$eventType';
+    final now = DateTime.now();
+    final hasNotification = data['notificationId'] != null;
+
+    if (_recentEvents.length > 256) {
+      _recentEvents.removeWhere(
+        (_, e) => now.difference(e.seenAt) > _dedupeWindow,
+      );
+    }
+
+    final last = _recentEvents[key];
+    if (last != null && now.difference(last.seenAt) < _dedupeWindow) {
+      // Prefer the user-room copy that carries the notification id; route it
+      // through even if a dept-room copy was seen first.
+      if (hasNotification && !last.sawNotification) {
+        _recentEvents[key] = (seenAt: now, sawNotification: true);
+        return false;
+      }
+      return true;
+    }
+    _recentEvents[key] = (seenAt: now, sawNotification: hasNotification);
+    return false;
   }
 
   void dispose() {
@@ -76,16 +121,26 @@ class TicketRealtimeRepository {
 
   /// Watch a specific ticket by ID. Returns a stream that emits updated
   /// [TicketModel] whenever the ticket or any of its ancestors/descendants change.
-  Stream<TicketModel> watchTicket(int ticketId, TicketRemoteDataSource dataSource) {
+  /// If [initial] is provided, it is emitted immediately instead of performing
+  /// a redundant initial fetch (the caller already fetched the ticket).
+  Stream<TicketModel> watchTicket(
+    int ticketId,
+    TicketRemoteDataSource dataSource, {
+    TicketModel? initial,
+  }) {
     final controller = StreamController<TicketModel>();
     Timer? debounce;
-    TicketModel? lastTicket;
+    TicketModel? lastTicket = initial;
 
-    // Initial fetch
-    dataSource.getTicket(ticketId).then((ticket) {
-      lastTicket = ticket;
-      if (!controller.isClosed) controller.add(ticket);
-    }).catchError((_) {});
+    if (initial != null) {
+      if (!controller.isClosed) controller.add(initial);
+    } else {
+      // Initial fetch
+      dataSource.getTicket(ticketId).then((ticket) {
+        lastTicket = ticket;
+        if (!controller.isClosed) controller.add(ticket);
+      }).catchError((_) {});
+    }
 
     final sub = ticketEvents.listen((event) {
       final data = event.data;

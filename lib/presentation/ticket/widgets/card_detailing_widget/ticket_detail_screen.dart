@@ -9,7 +9,6 @@ import 'package:tasknest/core/theme/common_text.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart'
     hide TicketDetailLoaded;
-import 'package:tasknest/presentation/disputes/widgets/dispute_section.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_event.dart';
@@ -54,25 +53,25 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<TicketBloc, TicketState>(
-      listenWhen: (prev, curr) => true,
+    return BlocConsumer<TicketBloc, TicketState>(
+      buildWhen: (prev, curr) {
+        if (curr is! TicketDetailLoaded) return false;
+        if (prev is! TicketDetailLoaded) return true;
+        final a = prev.ticket;
+        final b = curr.ticket;
+        return a.id != b.id ||
+            a.status != b.status ||
+            a.isDisputed != b.isDisputed ||
+            a.overallProgress != b.overallProgress ||
+            a.lastUpdatedAt != b.lastUpdatedAt ||
+            a.assignedToId != b.assignedToId ||
+            a.reopenCount != b.reopenCount ||
+            a.description != b.description ||
+            a.children.length != b.children.length ||
+            a.comments.length != b.comments.length;
+      },
       listener: (context, state) {
-        if (state is TicketDetailLoaded) {
-          if (_ticket == null ||
-              _ticket!.id != state.ticket.id ||
-              _ticket!.status != state.ticket.status ||
-              _ticket!.isDisputed != state.ticket.isDisputed ||
-              _ticket!.overallProgress != state.ticket.overallProgress ||
-              _ticket!.lastUpdatedAt != state.ticket.lastUpdatedAt ||
-              _ticket!.assignedToId != state.ticket.assignedToId ||
-              _ticket!.reopenCount != state.ticket.reopenCount ||
-              _ticket!.children.length != state.ticket.children.length ||
-              _ticket!.comments.length != state.ticket.comments.length) {
-            setState(() {
-              _ticket = state.ticket;
-            });
-          }
-        } else if (state is TicketActionSuccess) {
+        if (state is TicketActionSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -88,10 +87,16 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
           );
         }
       },
-      child: Scaffold(
-        backgroundColor: ThemeColors.unifiedBackground,
-        body: _ticket != null ? _buildBody(_ticket!) : const LoadingScaffold(),
-      ),
+      builder: (context, state) {
+        if (state is TicketDetailLoaded) {
+          _ticket = state.ticket;
+        }
+        final ticket = state is TicketDetailLoaded ? state.ticket : _ticket;
+        return Scaffold(
+          backgroundColor: ThemeColors.unifiedBackground,
+          body: ticket != null ? _buildBody(ticket) : const LoadingScaffold(),
+        );
+      },
     );
   }
 
@@ -156,6 +161,10 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                         CommonSectionCardContainer(
                           icon: Icons.article_outlined,
                           title: ConstStrings.description,
+                          trailing: ticket.isOpen &&
+                                  ticket.createdById == widget.user.id
+                              ? _EditDescriptionButton(ticket: ticket)
+                              : null,
                           child: CommonText(
                             ticket.description,
                             customeStyle: const TextStyle(
@@ -164,15 +173,6 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
                               height: 1.7,
                               fontWeight: FontWeight.w400,
                             ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        CommonSectionCardContainer(
-                          icon: Icons.gavel_rounded,
-                          title: ConstStrings.disputesSection,
-                          child: DisputeSection(
-                            ticket: ticket,
-                            user: widget.user,
                           ),
                         ),
                         if (ticket.isSubTicket) ...[
@@ -212,6 +212,143 @@ class _TicketDetailScreenState extends State<TicketDetailScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _EditDescriptionButton extends StatelessWidget {
+  final TicketModel ticket;
+  const _EditDescriptionButton({required this.ticket});
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: () => _showDialog(context),
+      icon: const Icon(
+        Icons.edit_outlined,
+        size: 15,
+        color: ThemeColors.unifiedPrimary,
+      ),
+      tooltip: ConstStrings.editDescription,
+      iconSize: 15,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(
+        minWidth: 28,
+        minHeight: 28,
+      ),
+    );
+  }
+
+  void _showDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => _DescriptionEditDialog(
+        ticket: ticket,
+        onSave: (newDescription) {
+          // Dispatch after the dialog route has fully torn down so the
+          // resulting rebuild never overlaps the dialog's deactivation
+          // (avoids framework inherited-dependency teardown races).
+          Future<void>.delayed(const Duration(milliseconds: 300), () {
+            if (!context.mounted) return;
+            context.read<TicketBloc>().add(
+              UpdateTicketDescription(ticket.id, newDescription),
+            );
+          });
+        },
+      ),
+    );
+  }
+}
+
+class _DescriptionEditDialog extends StatefulWidget {
+  final TicketModel ticket;
+  final void Function(String newDescription) onSave;
+  const _DescriptionEditDialog({
+    required this.ticket,
+    required this.onSave,
+  });
+
+  @override
+  State<_DescriptionEditDialog> createState() => _DescriptionEditDialogState();
+}
+
+class _DescriptionEditDialogState extends State<_DescriptionEditDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.ticket.description);
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleSave() {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    final newDescription = _controller.text.trim();
+    Navigator.pop(context);
+    if (newDescription != widget.ticket.description) {
+      widget.onSave(newDescription);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      title: const Row(
+        children: [
+          Icon(
+            Icons.edit_note_rounded,
+            size: 20,
+            color: ThemeColors.unifiedPrimary,
+          ),
+          SizedBox(width: 10),
+          Text(
+            ConstStrings.editDescription,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: ThemeColors.unifiedTextPrimary,
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 440,
+        child: Form(
+          key: _formKey,
+          child: TextFormField(
+            controller: _controller,
+            maxLines: 6,
+            decoration: const InputDecoration(
+              labelText: ConstStrings.description,
+              hintText: ConstStrings.enterTaskDescription,
+              helperText: ConstStrings.editDescriptionHint,
+            ),
+            validator: (v) => (v == null || v.trim().isEmpty)
+                ? ConstStrings.descriptionRequired
+                : null,
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text(ConstStrings.cancel),
+        ),
+        ElevatedButton(
+          onPressed: _handleSave,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: ThemeColors.unifiedPrimary,
+            foregroundColor: Colors.white,
+            elevation: 0,
+          ),
+          child: const Text(ConstStrings.save),
+        ),
+      ],
     );
   }
 }

@@ -120,7 +120,12 @@ class TicketActions extends StatelessWidget {
     final bloc = context.read<TicketBloc>();
     final state = context.read<DashboardBloc>().state;
     if (state is! DashboardLoaded) return;
-    if (state.employees.isEmpty) {
+
+    // Only show employees of the department the ticket is assigned to.
+    final employees = state.employees
+        .where((e) => e.departmentId == ticket.assignedDeptId)
+        .toList();
+    if (employees.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(ConstStrings.noEmployeesInDept),
@@ -130,7 +135,7 @@ class TicketActions extends StatelessWidget {
       return;
     }
 
-    int selectedEmployeeId = state.employees.first.id;
+    int selectedEmployeeId = employees.first.id;
 
     showDialog(
       context: context,
@@ -161,7 +166,7 @@ class TicketActions extends StatelessWidget {
                     ),
                   ),
                 ),
-                items: state.employees.map((employee) {
+                items: employees.map((employee) {
                   return DropdownMenuItem<int>(
                     value: employee.id,
                     child: Text('${employee.name} (${employee.deptCode})'),

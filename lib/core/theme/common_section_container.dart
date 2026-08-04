@@ -6,12 +6,14 @@ class CommonSectionCardContainer extends StatelessWidget {
   final IconData icon;
   final String title;
   final Widget child;
+  final Widget? trailing;
 
   const CommonSectionCardContainer({
     super.key,
     required this.icon,
     required this.title,
     required this.child,
+    this.trailing,
   });
 
   @override
@@ -56,6 +58,8 @@ class CommonSectionCardContainer extends StatelessWidget {
                     letterSpacing: 1.0,
                   ),
                 ),
+                const Spacer(),
+                if (trailing != null) trailing!,
               ],
             ),
           ),

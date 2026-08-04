@@ -18,6 +18,7 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     on<AssignTicketToEmployee>(_onAssignEmployee);
     on<TransferTicket>(_onTransfer);
     on<ReopenTicket>(_onReopen);
+    on<UpdateTicketDescription>(_onUpdateDescription);
     on<CreateTicketEvent>(_onCreate);
     on<CreateSubTicketEvent>(_onCreateSubTicket);
     on<UpdateSubDeptProgressEvent>(_onUpdateSubDeptProgress);
@@ -35,10 +36,10 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     on<_TicketUpdatedFromStream>(_onTicketFromStream);
   }
 
-  void _startWatching(int ticketId) {
+  void _startWatching(int ticketId, {TicketModel? initial}) {
     _ticketStreamSub?.cancel();
 
-    _ticketStreamSub = _dataSource.watchTicket(ticketId).listen(
+    _ticketStreamSub = _dataSource.watchTicket(ticketId, initial: initial).listen(
       (ticket) {
         if (isClosed) return;
         _lastLoadedTicket = ticket;
@@ -90,7 +91,8 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
           prev.overallProgress == next.overallProgress &&
           prev.lastUpdatedAt == next.lastUpdatedAt &&
           prev.assignedToId == next.assignedToId &&
-          prev.reopenCount == next.reopenCount) {
+          prev.reopenCount == next.reopenCount &&
+          prev.description == next.description) {
         return;
       }
     }
@@ -107,7 +109,7 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     try {
       final ticket = await _dataSource.getTicket(event.ticketId);
       _lastLoadedTicket = ticket;
-      _startWatching(event.ticketId);
+      _startWatching(event.ticketId, initial: ticket);
       emit(TicketDetailLoaded(ticket));
     } catch (e) {
       if (!event.silent) {
@@ -214,6 +216,25 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     emit(TicketActionInProgress());
     try {
       final updated = await _dataSource.reopenTicket(event.ticketId);
+      _lastLoadedTicket = updated;
+      emit(TicketDetailLoaded(updated));
+    } catch (e) {
+      emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (_lastLoadedTicket != null)
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
+    }
+  }
+
+  Future<void> _onUpdateDescription(
+    UpdateTicketDescription event,
+    Emitter<TicketState> emit,
+  ) async {
+    emit(TicketActionInProgress());
+    try {
+      final updated = await _dataSource.updateDescription(
+        event.ticketId,
+        event.description,
+      );
       _lastLoadedTicket = updated;
       emit(TicketDetailLoaded(updated));
     } catch (e) {

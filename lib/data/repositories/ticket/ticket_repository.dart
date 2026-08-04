@@ -62,6 +62,8 @@ abstract class TicketRepository {
 
   Future<TicketModel> reopenTicket(int id);
 
+  Future<TicketModel> updateDescription(int id, String description);
+
   Future<List<DepartmentModel>> getDepartments();
 
   Future<List<EmployeeModel>> getEmployees({int? departmentId});
@@ -93,7 +95,7 @@ abstract class TicketRepository {
 
   Future<List<dynamic>> getOrganizationAnalytics();
 
-  Stream<TicketModel> watchTicket(int ticketId);
+  Stream<TicketModel> watchTicket(int ticketId, {TicketModel? initial});
 
   Future<void> addComment(int ticketId, String message);
 

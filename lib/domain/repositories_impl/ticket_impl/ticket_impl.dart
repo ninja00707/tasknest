@@ -56,12 +56,10 @@ class TicketRepositoryImpl implements TicketRepository {
   Future<TicketModel> getTicket(int id) => _ticketDs.getTicket(id);
 
   @override
-  Stream<TicketModel> watchTicket(int ticketId) {
+  Stream<TicketModel> watchTicket(int ticketId, {TicketModel? initial}) {
     SocketHelper().joinTicketRoom(ticketId);
 
-    final stream = _realtime.watchTicket(ticketId, _ticketDs);
-
-    return stream;
+    return _realtime.watchTicket(ticketId, _ticketDs, initial: initial);
   }
 
   @override
@@ -135,6 +133,10 @@ class TicketRepositoryImpl implements TicketRepository {
 
   @override
   Future<TicketModel> reopenTicket(int id) => _ticketDs.reopenTicket(id);
+
+  @override
+  Future<TicketModel> updateDescription(int id, String description) =>
+      _ticketDs.updateDescription(id, description);
 
   @override
   Future<List<DepartmentModel>> getDepartments() => _ticketDs.getDepartments();

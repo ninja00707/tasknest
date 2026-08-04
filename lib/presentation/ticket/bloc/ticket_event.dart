@@ -52,6 +52,14 @@ class ReopenTicket extends TicketEvent {
   List<Object?> get props => [ticketId];
 }
 
+class UpdateTicketDescription extends TicketEvent {
+  final int ticketId;
+  final String description;
+  UpdateTicketDescription(this.ticketId, this.description);
+  @override
+  List<Object?> get props => [ticketId, description];
+}
+
 class DeptTicketData {
   final int departmentId;
   final String title;

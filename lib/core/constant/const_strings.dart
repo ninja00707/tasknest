@@ -278,6 +278,9 @@ class ConstStrings {
   static const String descriptionLabel = 'Description';
   static const String enterTaskDescription = 'Enter task description';
   static const String descriptionRequired = 'Description is required';
+  static const String editDescription = 'Edit Description';
+  static const String editDescriptionHint =
+      'Only editable by the creator while the ticket is open';
   static const String targetDepartment = 'Target Department';
   static const String completeTicket = 'Complete Ticket';
   static const String selfAssignToTask = 'Self-Assign to this Task';

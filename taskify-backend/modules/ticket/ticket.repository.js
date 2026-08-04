@@ -2079,22 +2079,6 @@ class TicketRepository {
     return row.total > 0 && row.total === row.done;
   }
 
-  // ── Get parent chain from immediate parent up to root ──────────────────────
-  async getParentChain(ticketId) {
-    const result = await pool.query(`
-      WITH RECURSIVE ancestors AS (
-        SELECT id, parent_ticket_id FROM tickets WHERE id = $1
-        UNION ALL
-        SELECT t.id, t.parent_ticket_id
-        FROM tickets t JOIN ancestors a ON t.id = a.parent_ticket_id
-      )
-      SELECT id FROM ancestors WHERE id != $1 AND parent_ticket_id IS NOT NULL
-      UNION ALL
-      SELECT id FROM ancestors WHERE id != $1 AND parent_ticket_id IS NULL
-    `, [ticketId]);
-    return result.rows.map(r => r.id);
-  }
-
   // ── Update a parent ticket's status (used for propagation) ──────────────
   async updateParentTicketStatus(ticketId, newStatus) {
     const result = await pool.query(`
@@ -2126,19 +2110,24 @@ class TicketRepository {
     return result.rows.map(r => ({ parentId: r.id, ticket_number: r.ticket_number, title: r.title, newStatus }));
   }
 
-  // ── Get all ancestor IDs in one recursive query ──────────────────────
+  // ── Get all ancestors bottom-up (immediate parent first) ──────────────
   async getParentChain(ticketId) {
     const result = await pool.query(`
       WITH RECURSIVE ancestors AS (
-        SELECT parent_ticket_id FROM tickets WHERE id = $1 AND parent_ticket_id IS NOT NULL
+        SELECT parent_ticket_id AS id, 1 AS depth
+        FROM tickets WHERE id = $1 AND parent_ticket_id IS NOT NULL
         UNION ALL
-        SELECT t.parent_ticket_id FROM tickets t
-        JOIN ancestors a ON t.id = a.parent_ticket_id
+        SELECT t.parent_ticket_id, a.depth + 1
+        FROM tickets t
+        JOIN ancestors a ON t.id = a.id
         WHERE t.parent_ticket_id IS NOT NULL
       )
-      SELECT parent_ticket_id AS id FROM ancestors
+      SELECT a.id AS id, t.is_sub_ticket AS is_sub_ticket
+      FROM ancestors a
+      JOIN tickets t ON t.id = a.id
+      ORDER BY a.depth ASC
     `, [ticketId]);
-    return result.rows.map(r => ({ parentId: r.id }));
+    return result.rows.map(r => ({ parentId: r.id, isSubTicket: r.is_sub_ticket }));
   }
 
   // ── Check if all direct children are closed ─────────────────────────────
@@ -2150,6 +2139,65 @@ class TicketRepository {
     `, [ticketId]);
     const row = result.rows[0];
     return row.total > 0 && row.total === row.done;
+  }
+
+  // ── Auto-close a parent ticket when every descendant sub-ticket closes ──
+  // Only the root master (is_sub_ticket = false) is auto-closed here.
+  // Intermediate sub-tickets are closed by their own assignee, never auto.
+  // Returns the updated ticket, or null when not every descendant is closed.
+  async closeTicketIfAllChildrenClosed(ticketId, userId) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const owner = await client.query(`
+        SELECT is_sub_ticket FROM tickets WHERE id = $1
+      `, [ticketId]);
+      if (!owner.rows[0] || owner.rows[0].is_sub_ticket) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
+      const check = await client.query(`
+        WITH RECURSIVE descendants AS (
+          SELECT id, status FROM tickets WHERE parent_ticket_id = $1
+          UNION ALL
+          SELECT child.id, child.status FROM tickets child
+          JOIN descendants d ON child.parent_ticket_id = d.id
+        )
+        SELECT COUNT(*)::int AS total,
+               COUNT(*) FILTER (WHERE status = 'closed')::int AS done
+        FROM descendants
+      `, [ticketId]);
+      const { total, done } = check.rows[0];
+      if (total === 0 || total !== done) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
+      const row = await client.query(`
+        UPDATE tickets SET
+          status = 'closed',
+          closed_by_id = $2,
+          closed_at    = NOW(),
+          version = COALESCE(version, 0) + 1
+        WHERE id = $1 AND status != 'closed'
+        RETURNING *
+      `, [ticketId, userId]);
+      const ticket = row.rows[0];
+      if (!ticket) {
+        await client.query('COMMIT');
+        return null;
+      }
+
+      await client.query('COMMIT');
+      return ticket;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   // ── Get the parent_ticket_id for a given ticket ─────────────────────────
