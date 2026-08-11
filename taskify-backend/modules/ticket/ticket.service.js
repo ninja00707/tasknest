@@ -123,7 +123,7 @@ class TicketService {
   }
 
   async createTicket(data, user) {
-    const { title, description, priority = 'medium', assignedDeptId, dueDate, parentTicketId = null, selfAssign = false } = data;
+    const { title, description, priority = 'medium', assignedDeptId, dueDate, parentTicketId = null, selfAssign = false, projectId } = data;
     const departmentIds = data.departmentIds;
 
     const subTitle = data.subTitle || data.sub_title;
@@ -154,7 +154,8 @@ class TicketService {
           createdBy: user,
           assignedToId: user.id,
           parentTicketId: null,
-          ticketType: 'multi_task'
+          ticketType: 'multi_task',
+          projectId: projectId != null ? Number(projectId) : null
         });
 
         await ticketRepo.logAction(masterTicket.id, user.id, 'created', null, 'open', 'Project Master created for multi-department task');
@@ -213,7 +214,8 @@ class TicketService {
         createdBy: user,
         assignedToId: user.id,
         parentTicketId: null,
-        ticketType: 'standard'
+        ticketType: 'standard',
+        projectId: projectId != null ? Number(projectId) : null
       });
 
       await ticketRepo.logAction(masterTicket.id, user.id, 'created', null, 'open', 'Project Master created for department oversight');
@@ -237,7 +239,8 @@ class TicketService {
       createdBy: user,
       assignedToId,
       parentTicketId: parentTicketId ? Number(parentTicketId) : null,
-      ticketType: 'standard'
+      ticketType: 'standard',
+      projectId: projectId != null ? Number(projectId) : null
     });
     this._invalidateStats(user.id, assignedToId);
 

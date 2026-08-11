@@ -200,7 +200,7 @@ class TicketRepository {
     const offset = (Number(page) - 1) * effectiveLimit;
     const useCursor = cursor && cursorId;
     const params = [];
-    let whereClause = 'WHERE t.parent_ticket_id IS NULL';
+    let whereClause = 'WHERE t.parent_ticket_id IS NULL AND t.project_id IS NULL';
 
     // ── Role/scope visibility + company isolation (pre-materialized CTEs) ──
     let extraCTEs = [];
@@ -281,7 +281,7 @@ class TicketRepository {
     if (search) {
       params.push(`%${search}%`);
       const searchParam = `$${params.length}`;
-      whereClause += ` AND (t.ticket_number::text ILIKE ${searchParam} OR t.title ILIKE ${searchParam})`;
+      whereClause += ` AND (t.ticket_number::text ILIKE ${searchParam} OR t.title ILIKE ${searchParam} OR t.description ILIKE ${searchParam})`;
     }
 
     if (useCursor) {
@@ -481,7 +481,7 @@ class TicketRepository {
     const params = [userId];
 
     // Show top-level tickets where the user is assigned to the ticket itself OR any of its nested children
-    let whereClause = `WHERE t.parent_ticket_id IS NULL AND (
+    let whereClause = `WHERE t.parent_ticket_id IS NULL AND t.project_id IS NULL AND (
       t.assigned_to_id = $1 
       OR EXISTS (
         WITH RECURSIVE child_search AS (
@@ -671,7 +671,7 @@ class TicketRepository {
     }
 
     // Only count top-level tickets (matches what the ticket list shows)
-    const parentNullClause = whereClause === '' ? 'WHERE task.parent_ticket_id IS NULL' : ' AND task.parent_ticket_id IS NULL';
+    const parentNullClause = whereClause === '' ? 'WHERE task.parent_ticket_id IS NULL AND task.project_id IS NULL' : ' AND task.parent_ticket_id IS NULL AND task.project_id IS NULL';
     const result = await pool.query(`
       SELECT
         COUNT(*)                                          AS total,
@@ -848,11 +848,18 @@ class TicketRepository {
   }
 
   // ── Create ticket ─────────────────────────────────────────────────────────
-  async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId, parentTicketId = null, ticketType = 'standard', _outboxClient = null }) {
+  async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId, parentTicketId = null, ticketType = 'standard', projectId = null, _outboxClient = null }) {
     const ownClient = !_outboxClient;
     const client = _outboxClient || await pool.connect();
     try {
       if (ownClient) await client.query('BEGIN');
+
+      if (projectId != null) {
+        const projRes = await client.query(`SELECT id FROM projects WHERE id = $1`, [projectId]);
+        if (projRes.rows.length === 0) {
+          throw { statusCode: 400, message: 'Project not found' };
+        }
+      }
 
       // All tickets start as open regardless of assignment
       const status = 'open';
@@ -877,10 +884,10 @@ class TicketRepository {
 
       const result = await client.query(`
         INSERT INTO tickets
-          (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status, parent_ticket_id, ticket_type, is_sub_ticket, ticket_number, version)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1)
+          (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status, parent_ticket_id, ticket_type, is_sub_ticket, ticket_number, version, project_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1, $14)
         RETURNING id
-      `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status, parentTicketId, ticketType, isSubTicket, ticketNumber]);
+      `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status, parentTicketId, ticketType, isSubTicket, ticketNumber, projectId || null]);
 
       const ticketId = result.rows[0].id;
 
@@ -888,7 +895,7 @@ class TicketRepository {
         SELECT t.id, t.title, t.description, t.status, t.priority,
                t.ticket_number, t.assigned_dept_id, t.created_by_dept, t.assigned_to_id,
                t.due_date, t.created_at, t.updated_at, t.is_sub_ticket, t.overall_progress,
-               t.parent_ticket_id, t.ticket_type, t.version, t.created_by_id,
+               t.parent_ticket_id, t.ticket_type, t.version, t.created_by_id, t.project_id,
                ad.name AS assigned_dept_name, cd.name AS created_by_dept_name,
                u.name AS assigned_to_name
         FROM tickets t
@@ -1386,6 +1393,17 @@ class TicketRepository {
           SELECT 1 FROM root_finder rf
           JOIN ticket_logs tl ON tl.ticket_id = rf.id AND tl.action = 'disputed'
           WHERE rf.parent_ticket_id IS NULL
+        )
+        AND NOT EXISTS (
+          -- Hide sub-tickets whose root master is linked to a project; those
+          -- tickets live only inside the project, never on the ticket board.
+          WITH RECURSIVE proj_root AS (
+            SELECT id, parent_ticket_id, project_id FROM tickets WHERE id = t.id
+            UNION ALL
+            SELECT p.id, p.parent_ticket_id, p.project_id FROM tickets p
+            JOIN proj_root pr ON p.id = pr.parent_ticket_id
+          )
+          SELECT 1 FROM proj_root WHERE project_id IS NOT NULL
         )
       ORDER BY t.transferred_at DESC, t.created_at DESC
       LIMIT 100
@@ -2222,6 +2240,19 @@ class TicketRepository {
     return result.rows[0]?.id || ticketId;
   }
 
+  async getTicketRootProjectId(ticketId) {
+    const result = await pool.query(`
+      WITH RECURSIVE root_finder AS (
+        SELECT id, parent_ticket_id, project_id FROM tickets WHERE id = $1
+        UNION ALL
+        SELECT p.id, p.parent_ticket_id, p.project_id FROM tickets p
+        JOIN root_finder rf ON p.id = rf.parent_ticket_id
+      )
+      SELECT project_id FROM root_finder WHERE project_id IS NOT NULL LIMIT 1
+    `, [ticketId]);
+    return result.rows[0]?.project_id || null;
+  }
+
   // ── Event Outbox ──────────────────────────────────────────────────────
 
   async insertOutbox({ eventType, ticketId, parentTicketId, payload, version, actingUserId }, client = pool) {
@@ -2467,6 +2498,7 @@ class TicketRepository {
         WHERE NOT EXISTS (
           SELECT 1 FROM ticket_disputes dd WHERE dd.ticket_id = t.id
         )
+          AND t.project_id IS NULL
           AND (td.company_id = $1 OR td.is_shared = TRUE)
           AND (
             $2::boolean

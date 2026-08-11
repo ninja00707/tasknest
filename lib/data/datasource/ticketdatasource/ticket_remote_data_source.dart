@@ -84,6 +84,7 @@ class TicketRemoteDataSource {
     String? subTitle,
     String? subDescription,
     List<Map<String, dynamic>>? deptTickets,
+    int? projectId,
   }) async {
     final body = <String, dynamic>{
       'title': title,
@@ -100,6 +101,7 @@ class TicketRemoteDataSource {
     if (subTitle != null) body['subTitle'] = subTitle;
     if (subDescription != null) body['subDescription'] = subDescription;
     if (deptTickets != null) body['deptTickets'] = deptTickets;
+    if (projectId != null) body['projectId'] = projectId;
 
     final res = await _api.post('tickets', body: body);
 

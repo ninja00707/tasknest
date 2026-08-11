@@ -18,10 +18,14 @@ import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart'
     as _i298;
 import 'package:tasknest/data/datasource/notification/notification_remote_data_source.dart'
     as _i346;
+import 'package:tasknest/data/datasource/project/project_remote_data_source.dart'
+    as _i41;
 import 'package:tasknest/data/datasource/ticketdatasource/ticket_remote_data_source.dart'
     as _i407;
 import 'package:tasknest/domain/repositories_impl/auth_impl/auth_impl.dart'
     as _i321;
+import 'package:tasknest/domain/repositories_impl/project_impl/project_impl.dart'
+    as _i861;
 import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart'
     as _i865;
 import 'package:tasknest/presentation/admin/data/datasource/admin_remote_data_source.dart'
@@ -53,6 +57,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i346.NotificationRemoteDataSource>(
       () => _i346.NotificationRemoteDataSource(gh<_i365.ApiClient>()),
     );
+    gh.lazySingleton<_i41.ProjectRemoteDataSource>(
+      () => _i41.ProjectRemoteDataSource(gh<_i365.ApiClient>()),
+    );
     gh.lazySingleton<_i407.TicketRemoteDataSource>(
       () => _i407.TicketRemoteDataSource(gh<_i365.ApiClient>()),
     );
@@ -61,6 +68,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i91.AuthRemoteDataSource>(
       () => _i91.AuthRemoteDataSource(gh<_i365.ApiClient>()),
+    );
+    gh.lazySingleton<_i861.ProjectRepositoryImpl>(
+      () => _i861.ProjectRepositoryImpl(gh<_i41.ProjectRemoteDataSource>()),
     );
     gh.lazySingleton<_i865.TicketRepositoryImpl>(
       () => _i865.TicketRepositoryImpl(

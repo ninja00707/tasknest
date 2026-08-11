@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/injection.dart';
+import 'package:tasknest/domain/repositories_impl/project_impl/project_impl.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_state.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
+import 'package:tasknest/presentation/projects/model/project_models.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/create_ticket_module/bloc/create_ticket_bloc.dart';
 import 'package:tasknest/presentation/create_ticket_module/bloc/create_ticket_event.dart';
@@ -16,12 +19,14 @@ class CreateTicketView extends StatelessWidget {
   final UserModel user;
   final int? parentTicketId;
   final String? parentTicketTitle;
+  final int? initialProjectId;
 
   const CreateTicketView({
     super.key,
     required this.user,
     this.parentTicketId,
     this.parentTicketTitle,
+    this.initialProjectId,
   });
 
   @override
@@ -30,6 +35,7 @@ class CreateTicketView extends StatelessWidget {
       user: user,
       parentTicketId: parentTicketId,
       parentTicketTitle: parentTicketTitle,
+      initialProjectId: initialProjectId,
     );
   }
 }
@@ -38,11 +44,13 @@ class _CreateTicketBody extends StatefulWidget {
   final UserModel user;
   final int? parentTicketId;
   final String? parentTicketTitle;
+  final int? initialProjectId;
 
   const _CreateTicketBody({
     required this.user,
     this.parentTicketId,
     this.parentTicketTitle,
+    this.initialProjectId,
   });
 
   @override
@@ -54,6 +62,41 @@ class _CreateTicketBodyState extends State<_CreateTicketBody> {
   final _title = TextEditingController();
   final _description = TextEditingController();
   final Map<int, DeptFormData> _deptFormData = {};
+
+  bool _addToProject = false;
+  int? _selectedProjectId;
+  List<ProjectModel> _projects = [];
+  bool _loadingProjects = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProjects();
+    final initialProjectId = widget.initialProjectId;
+    if (initialProjectId != null) {
+      _addToProject = true;
+      _selectedProjectId = initialProjectId;
+    }
+  }
+
+  Future<void> _loadProjects() async {
+    if (mounted) setState(() => _loadingProjects = true);
+    try {
+      final projects = await sl<ProjectRepositoryImpl>().getProjects();
+      if (!mounted) return;
+      setState(() {
+        _projects = projects;
+        if (_selectedProjectId != null &&
+            !projects.any((p) => p.id == _selectedProjectId)) {
+          _selectedProjectId = null;
+        }
+      });
+    } catch (_) {
+      if (mounted) setState(() => _projects = []);
+    } finally {
+      if (mounted) setState(() => _loadingProjects = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -138,6 +181,18 @@ class _CreateTicketBodyState extends State<_CreateTicketBody> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        ProjectLinkSection(
+                          addToProject: _addToProject,
+                          onChanged: (v) => setState(() {
+                            _addToProject = v;
+                            if (!v) _selectedProjectId = null;
+                          }),
+                          projects: _projects,
+                          loadingProjects: _loadingProjects,
+                          selectedProjectId: _selectedProjectId,
+                          onProjectSelected: (id) =>
+                              setState(() => _selectedProjectId = id),
+                        ),
                         isWide
                             ? WideFormLayout(
                                 titleCtrl: _title,
@@ -240,6 +295,11 @@ class _CreateTicketBodyState extends State<_CreateTicketBody> {
       }
     }
 
+    if (_addToProject && _selectedProjectId == null) {
+      _showSnack(context, 'Please select a project', isError: true);
+      return;
+    }
+
     Map<int, ({String title, String description})>? deptTickets;
     if (form.isMulti) {
       deptTickets = {};
@@ -258,6 +318,7 @@ class _CreateTicketBodyState extends State<_CreateTicketBody> {
           createdById: widget.user.id,
           createdByDept: widget.user.departmentId,
           parentTicketId: widget.parentTicketId,
+          projectId: _addToProject ? _selectedProjectId : null,
           deptTickets: deptTickets,
         ));
   }
@@ -270,6 +331,10 @@ class _CreateTicketBodyState extends State<_CreateTicketBody> {
     }
     _deptFormData.clear();
     _formKey.currentState?.reset();
+    setState(() {
+      _addToProject = false;
+      _selectedProjectId = null;
+    });
   }
 
   void _showSnack(BuildContext context, String msg, {bool isError = false}) {

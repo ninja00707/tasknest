@@ -140,6 +140,7 @@ class ConstStrings {
   static const String navTicketTypes = 'Ticket Types';
   static const String navAdminPanel = 'Admin Panel';
   static const String navNotifications = 'Notifications';
+  static const String navProjects = 'Projects';
   static const String taskify = 'Taskify';
 
   // ──────────────────────────────────────────────
@@ -608,6 +609,49 @@ class ConstStrings {
   // Disputes
   // ──────────────────────────────────────────────
   static const String navDisputes = 'Disputes';
+
+  // ──────────────────────────────────────────────
+  // Projects
+  // ──────────────────────────────────────────────
+  static const String projectsTitle = 'Projects';
+  static const String projectsAll = 'All Projects';
+  static const String projectsObserved = 'Observed';
+  static const String projectsMine = 'Created By Me';
+  static const String projectsCreate = 'New Project';
+  static const String projectsNoData = 'No projects found.';
+  static const String projectsObservedHint =
+      'Projects where you are added as an observer appear here.';
+  static const String projectsName = 'Project Name';
+  static const String projectsDescription = 'Project Description';
+  static const String projectsPriority = 'Priority';
+  static const String projectsDepartments = 'Departments';
+  static const String projectsMembers = 'Members';
+  static const String projectsObservers = 'Observers';
+  static const String projectsStartDate = 'Start Date';
+  static const String projectsEndDate = 'End Date';
+  static const String projectsTasks = 'Tasks';
+  static const String projectsAddTask = 'Add Task';
+  static const String projectsTickets = 'Tickets';
+  static const String projectsNewTicket = 'New Ticket';
+  static const String projectsNoTickets = 'No tickets yet. Add one to link it to this project.';
+  static const String projectsTaskTitle = 'Task Title';
+  static const String projectsTaskDescription = 'Task Description';
+  static const String projectsAssignee = 'Assignee';
+  static const String projectsStatus = 'Status';
+  static const String projectsProgress = 'Progress';
+  static const String projectsObserverBanner =
+      'You are an observer on this project (read-only).';
+  static const String projectsCreatedBy = 'Created By';
+  static const String projectsNoTasks = 'No tasks yet.';
+  static const String projectsEdit = 'Edit Project';
+  static const String projectsSaveChanges = 'Save Changes';
+  static const String projectsCreateTask = 'Create Task';
+  static const String projectsSaveTask = 'Save Task';
+  static const String projectsDueDate = 'Due Date';
+  static const String projectsAddMembers = 'Add Members';
+  static const String projectsAddObservers = 'Add Observers';
+  static const String projectsAddDepartments = 'Add Departments';
+  static const String projectsDelete = 'Delete Project';
   static const String dispute = 'Dispute';
   static const String disputeAndClose = 'Dispute & Close';
   static const String disputed = 'DISPUTED';

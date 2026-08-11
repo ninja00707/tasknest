@@ -171,6 +171,13 @@ class Sidebar extends StatelessWidget {
             selected: selectedIndex == 6,
             onTap: onNav,
           ),
+          NavItem(
+            icon: Icons.folder_outlined,
+            label: ConstStrings.navProjects,
+            index: 7,
+            selected: selectedIndex == 7,
+            onTap: onNav,
+          ),
 
           // Admin Panel — only for Developer/CEO
           if (user.roleId == 3 || user.email == 'qasim@um.com') ...[

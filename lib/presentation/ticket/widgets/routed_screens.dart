@@ -80,11 +80,12 @@ class DepartmentTicketsContent extends StatelessWidget {
 
 class NewTicketContent extends StatelessWidget {
   final UserModel user;
-  const NewTicketContent({super.key, required this.user});
+  final int? projectId;
+  const NewTicketContent({super.key, required this.user, this.projectId});
 
   @override
   Widget build(BuildContext context) {
-    return CreateTicketView(user: user);
+    return CreateTicketView(user: user, initialProjectId: projectId);
   }
 }
 

@@ -46,6 +46,7 @@ class TicketModel {
   final bool hasActiveChildren;
   final List<CommentModel> comments;
   final bool canComment;
+  final int? projectId;
 
   const TicketModel({
     required this.id,
@@ -92,6 +93,7 @@ class TicketModel {
     this.hasActiveChildren = false,
     this.comments = const [],
     this.canComment = false,
+    this.projectId,
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> j) => TicketModel(
@@ -170,6 +172,9 @@ class TicketModel {
             .toList() ??
         const [],
     canComment: j['can_comment'] == true,
+    projectId: (j['project_id'] is num)
+        ? (j['project_id'] as num).toInt()
+        : int.tryParse(j['project_id']?.toString() ?? ''),
   );
 
   bool get isStandardTicket => ticketType == 'standard';

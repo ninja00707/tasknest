@@ -11,6 +11,7 @@ const authRoutes = require('./modules/auth/auth.routes');
 const ticketRoutes = require('./modules/ticket/ticket.routes');
 const notificationRoutes = require('./modules/notification/notification.routes');
 const adminRoutes = require('./modules/admin/admin.routes');
+const projectRoutes = require('./modules/projects/projects.routes');
 
 const app = express();
 
@@ -64,6 +65,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/projects', projectRoutes);
 
 // ── 404 Handler ──────────────────────────────────────────────────────────
 app.use((req, res, next) => {

@@ -77,6 +77,7 @@ class TicketRepositoryImpl implements TicketRepository {
     String? subTitle,
     String? subDescription,
     List<Map<String, dynamic>>? deptTickets,
+    int? projectId,
   }) =>
       _ticketDs.createTicket(
         title: title,
@@ -92,6 +93,7 @@ class TicketRepositoryImpl implements TicketRepository {
         subTitle: subTitle,
         subDescription: subDescription,
         deptTickets: deptTickets,
+        projectId: projectId,
       );
 
   @override

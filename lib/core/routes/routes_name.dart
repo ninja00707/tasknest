@@ -15,5 +15,6 @@ class RouteNames {
   static const recentActivities = '/recent_activities';
   static const ticketTypes = '/ticket_types';
   static const disputes = '/disputes';
+  static const projects = '/projects';
   static const admin = '/admin';
 }

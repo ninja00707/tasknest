@@ -105,6 +105,7 @@ class CreateTicketBloc extends Bloc<CreateTicketEvent, CreateTicketBaseState> {
         subTitle: null,
         subDescription: null,
         deptTickets: deptTicketsMap,
+        projectId: event.projectId,
       );
 
       emit(CreateTicketSuccess(_form));

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/injection.dart';
 import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
+import 'package:tasknest/domain/repositories_impl/project_impl/project_impl.dart';
 import 'package:tasknest/presentation/admin/presentation/bloc/admin_bloc.dart';
 import 'package:tasknest/presentation/create_ticket_module/bloc/create_ticket_bloc.dart';
 import 'package:tasknest/presentation/dashboard/bloc/dashboard_bloc.dart';
 import 'package:tasknest/presentation/recent_activities/bloc/recent_activities_bloc.dart';
+import 'package:tasknest/presentation/projects/bloc/project_bloc.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
 import 'package:tasknest/presentation/ticket_card_module/bloc/ticket_card_bloc.dart';
 import 'package:url_strategy/url_strategy.dart';
@@ -38,6 +40,9 @@ class MyApp extends StatelessWidget {
         BlocProvider<TicketCardBloc>(create: (_) => TicketCardBloc()),
         BlocProvider<CreateTicketBloc>(
           create: (_) => CreateTicketBloc(sl<TicketRepositoryImpl>()),
+        ),
+        BlocProvider<ProjectBloc>(
+          create: (_) => ProjectBloc(sl<ProjectRepositoryImpl>()),
         ),
       ],
       child: MaterialApp.router(

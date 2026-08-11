@@ -17,6 +17,7 @@ import 'package:tasknest/presentation/ticket/widgets/card_detailing_widget/ticke
 import 'package:tasknest/presentation/login/signup_view.dart';
 import 'package:tasknest/presentation/recent_activities/bloc/recent_activities_bloc.dart';
 import 'package:tasknest/presentation/recent_activities/widget/recent_activities_content.dart';
+import 'package:tasknest/presentation/projects/screens/project_list_screen.dart';
 
 final LocalStorageService storage = LocalStorageService();
 UserModel? _user;
@@ -70,7 +71,12 @@ final GoRouter appRouter = GoRouter(
         ),
         GoRoute(
           path: RouteNames.newTicket,
-          builder: (context, state) => NewTicketContent(user: _user!),
+          builder: (context, state) => NewTicketContent(
+            user: _user!,
+            projectId: int.tryParse(
+              state.uri.queryParameters['projectId'] ?? '',
+            ),
+          ),
         ),
         GoRoute(
           path: RouteNames.sentSubTickets,
@@ -90,6 +96,10 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: RouteNames.disputes,
           builder: (context, state) => DisputesContent(user: _user!),
+        ),
+        GoRoute(
+          path: RouteNames.projects,
+          builder: (context, state) => const ProjectListScreen(),
         ),
       ],
     ),

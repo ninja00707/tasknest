@@ -37,6 +37,7 @@ abstract class TicketRepository {
     String? subTitle,
     String? subDescription,
     List<Map<String, dynamic>>? deptTickets,
+    int? projectId,
   });
 
   Future<TicketModel> createSubTicket({

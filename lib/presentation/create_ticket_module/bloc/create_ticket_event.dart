@@ -46,6 +46,7 @@ final class SubmitTicket extends CreateTicketEvent {
   final int createdById;
   final int createdByDept;
   final int? parentTicketId;
+  final int? projectId;
   final Map<int, ({String title, String description})>? deptTickets;
 
   const SubmitTicket({
@@ -54,11 +55,12 @@ final class SubmitTicket extends CreateTicketEvent {
     required this.createdById,
     required this.createdByDept,
     this.parentTicketId,
+    this.projectId,
     this.deptTickets,
   });
 
   @override
-  List<Object> get props => [title, description, createdById];
+  List<Object> get props => [title, description, createdById, projectId ?? -1];
 }
 
 final class ResetCreateForm extends CreateTicketEvent {

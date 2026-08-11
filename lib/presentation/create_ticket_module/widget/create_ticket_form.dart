@@ -4,6 +4,7 @@ import 'package:tasknest/core/constant/const_dep.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/core/theme/common_text_styles.dart';
+import 'package:tasknest/presentation/projects/model/project_models.dart';
 
 class PageHeader extends StatelessWidget {
   final int? parentId;
@@ -705,5 +706,113 @@ class DeptFormData {
   void dispose() {
     titleCtrl.dispose();
     descCtrl.dispose();
+  }
+}
+
+class ProjectLinkSection extends StatelessWidget {
+  final bool addToProject;
+  final ValueChanged<bool> onChanged;
+  final List<ProjectModel> projects;
+  final bool loadingProjects;
+  final int? selectedProjectId;
+  final ValueChanged<int> onProjectSelected;
+
+  const ProjectLinkSection({
+    super.key,
+    required this.addToProject,
+    required this.onChanged,
+    required this.projects,
+    required this.loadingProjects,
+    required this.selectedProjectId,
+    required this.onProjectSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: ThemeColors.unifiedPrimary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: ThemeColors.unifiedPrimary.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.folder_special_rounded,
+                size: 18,
+                color: ThemeColors.unifiedPrimary,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Link this ticket to a project',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: ThemeColors.unifiedTextPrimary,
+                  ),
+                ),
+              ),
+              Switch(
+                value: addToProject,
+                onChanged: onChanged,
+                activeThumbColor: ThemeColors.unifiedPrimary,
+                activeTrackColor: ThemeColors.unifiedPrimary.withValues(
+                  alpha: 0.3,
+                ),
+              ),
+            ],
+          ),
+          if (addToProject) ...[
+            const SizedBox(height: 12),
+            if (loadingProjects)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Loading projects...',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: ThemeColors.unifiedTextMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (projects.isEmpty)
+              const Text(
+                'No projects available',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: ThemeColors.unifiedTextMuted,
+                ),
+              )
+            else
+              StyledDropdown<int>(
+                hint: 'Select a project',
+                value: selectedProjectId,
+                items: projects.map((p) => p.id).toList(),
+                labelBuilder: (id) =>
+                    projects.firstWhere((p) => p.id == id).name,
+                onChanged: onProjectSelected,
+              ),
+          ],
+        ],
+      ),
+    );
   }
 }

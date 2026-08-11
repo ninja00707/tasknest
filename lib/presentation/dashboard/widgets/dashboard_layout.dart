@@ -23,13 +23,15 @@ class DashboardLayout extends StatelessWidget {
   const DashboardLayout({super.key, required this.user, required this.isWide, required this.child});
 
   static int selectedIndex(String path) {
-    if (path == RouteNames.dashboard) return 0;
-    if (path == RouteNames.departmentTickets) return 1;
-    if (path == RouteNames.newTicket) return 2;
-    if (path == RouteNames.sentSubTickets) return 3;
-    if (path == RouteNames.recentActivities) return 4;
-    if (path == RouteNames.ticketTypes) return 5;
-    if (path == RouteNames.disputes) return 6;
+    final p = path.split('?').first;
+    if (p == RouteNames.dashboard) return 0;
+    if (p == RouteNames.departmentTickets) return 1;
+    if (p == RouteNames.newTicket) return 2;
+    if (p == RouteNames.sentSubTickets) return 3;
+    if (p == RouteNames.recentActivities) return 4;
+    if (p == RouteNames.ticketTypes) return 5;
+    if (p == RouteNames.disputes) return 6;
+    if (p == RouteNames.projects) return 7;
     return 0;
   }
 
@@ -49,6 +51,8 @@ class DashboardLayout extends StatelessWidget {
         context.go(RouteNames.ticketTypes);
       case 6:
         context.go(RouteNames.disputes);
+      case 7:
+        context.go(RouteNames.projects);
     }
   }
 
