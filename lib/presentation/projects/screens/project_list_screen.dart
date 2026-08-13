@@ -8,7 +8,7 @@ import 'package:tasknest/presentation/projects/bloc/project_state.dart';
 import 'package:tasknest/presentation/projects/model/project_models.dart';
 import 'package:tasknest/presentation/projects/screens/create_project_screen.dart';
 import 'package:tasknest/presentation/projects/screens/project_detail_screen.dart';
-import 'package:tasknest/presentation/projects/widgets/UIhelpers.dart';
+import 'package:tasknest/presentation/projects/widgets/ui_helpers.dart';
 
 class ProjectListScreen extends StatefulWidget {
   const ProjectListScreen({super.key});
@@ -185,7 +185,7 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
               return _EmptyState(showHint: _tab == 1);
             }
             return RefreshIndicator(
-              onRefresh: () => _load(),
+              onRefresh: _load,
               color: ThemeColors.unifiedPrimary,
               child: LayoutBuilder(
                 builder: (context, constraints) {
@@ -197,7 +197,7 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
                       child: ResponsiveCardGrid(
                         spacing: 14,
                         runSpacing: 14,
-                        maxColumns: 3,
+                        maxColumns: 2,
                         children: [
                           for (final project in projects)
                             _ProjectCard(project: project),
@@ -282,26 +282,74 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
+const List<LinearGradient> kCardGradients = [
+  LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFE8F5E9), Color(0xFFF1F8E9)],
+  ),
+  LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFFF3E0), Color(0xFFFFF8E1)],
+  ),
+  LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFE8F5E9), Color(0xFFE0F2F1)],
+  ),
+  LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFCE4EC), Color(0xFFF3E5F5)],
+  ),
+  LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFE3F2FD), Color(0xFFE8EAF6)],
+  ),
+  LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFFF9C4), Color(0xFFFFF3E0)],
+  ),
+];
+
 class _ProjectCard extends StatelessWidget {
   final ProjectModel project;
   const _ProjectCard({required this.project});
 
+  String _formatDate(DateTime d) {
+    const months = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${months[d.month]} ${d.day}, ${d.year}';
+  }
+
+  String _timeLeft() {
+    if (project.endDate == null) return '';
+    final diff = project.endDate!.difference(DateTime.now());
+    if (diff.isNegative) return 'Overdue';
+    if (diff.inDays > 7) return '${(diff.inDays / 7).floor()} week left';
+    if (diff.inDays > 0) return '${diff.inDays} Days Left';
+    if (diff.inHours > 0) return '${diff.inHours}h left';
+    return 'Today';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final (priorityBg, priorityFg) = switch (project.priority) {
-      'high' => (ThemeColors.priorityHighBg, ThemeColors.priorityHighFg),
-      'urgent' => (ThemeColors.priorityUrgentBg, ThemeColors.priorityUrgentFg),
-      'low' => (ThemeColors.priorityLowBg, ThemeColors.priorityLowFg),
-      _ => (ThemeColors.priorityMedBg, ThemeColors.priorityMedFg),
-    };
-    final progressColor = project.progress >= 100
-        ? ThemeColors.unifiedSuccess
-        : project.progress >= 50
-        ? ThemeColors.unifiedAccent
-        : ThemeColors.unifiedPrimary;
+    final gradient = kCardGradients[project.id % kCardGradients.length];
+    final members = project.members.take(3).toList();
+    final extraCount = project.memberCount - members.length;
+    final category = project.departments.isNotEmpty
+        ? project.departments.first.name
+        : project.description.isNotEmpty
+            ? project.description
+            : 'General';
+    final timeLeft = _timeLeft();
 
-    return SoftCard(
-      padding: const EdgeInsets.all(16),
+    return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -309,193 +357,208 @@ class _ProjectCard extends StatelessWidget {
           ),
         );
       },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      project.name,
-                      style: const TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w800,
-                        color: ThemeColors.unifiedTextPrimary,
-                        letterSpacing: -0.1,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (project.description.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        project.description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          height: 1.35,
-                          color: ThemeColors.unifiedTextMuted,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              DotPill(
-                label: project.priority.toUpperCase(),
-                bg: priorityBg,
-                fg: priorityFg,
-              ),
-            ],
-          ),
-          if (project.departments.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: project.departments
-                  .map(
-                    (d) => Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: ThemeColors.unifiedPrimary.withValues(
-                          alpha: 0.1,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        d.name,
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w600,
-                          color: ThemeColors.unifiedPrimary,
-                        ),
-                      ),
-                    ),
-                  )
-                  .toList(),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: gradient,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
             ),
           ],
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _MetricPill(
-                icon: Icons.check_circle_rounded,
-                label: '${project.doneCount}/${project.taskCount}',
-                color: ThemeColors.unifiedSuccess,
-              ),
-              _MetricPill(
-                icon: Icons.people_alt_rounded,
-                label: '${project.memberCount}',
-                color: ThemeColors.unifiedPrimary,
-              ),
-              _MetricPill(
-                icon: Icons.visibility_rounded,
-                label: '${project.observerCount}',
-                color: ThemeColors.unifiedAccent,
-              ),
-              _StatusChip(status: project.status),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: SoftProgressBar(
-                  value: project.progress / 100,
-                  color: progressColor,
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    _formatDate(project.createdAt),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                '${project.progress}%',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                  color: progressColor,
+                const Spacer(),
+                PopupMenuButton<String>(
+                  icon: Icon(
+                    Icons.more_vert_rounded,
+                    size: 18,
+                    color: Colors.grey.shade600,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  onSelected: (v) {
+                    if (v == 'view') {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ProjectDetailScreen(
+                            projectId: project.id,
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'view',
+                      child: Text('View details'),
+                    ),
+                  ],
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  const _MetricPill({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: color,
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            Text(
+              project.name,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF2D3436),
+                letterSpacing: -0.2,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              category,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Text(
+                  'Progress',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${project.progress}%',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: (project.progress / 100).clamp(0, 1),
+                minHeight: 6,
+                backgroundColor: Colors.white.withValues(alpha: 0.5),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  project.progress >= 100
+                      ? const Color(0xFF00C853)
+                      : project.progress >= 50
+                          ? const Color(0xFF00BFA5)
+                          : const Color(0xFF2979FF),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (members.isNotEmpty)
+                  SizedBox(
+                    width: (members.length * 22.0) + (members.length > 1 ? 4.0 : 0),
+                    height: 26,
+                    child: Stack(
+                      children: [
+                        for (int i = 0; i < members.length; i++)
+                          Positioned(
+                            left: i * 22.0,
+                            child: InitialsAvatar(
+                              name: members[i].name,
+                              size: 26,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                if (extraCount > 0) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '+$extraCount',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                if (timeLeft.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.access_time_rounded,
+                          size: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          timeLeft,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  final String status;
-  const _StatusChip({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final (bg, fg, label) = switch (status) {
-      'completed' => (
-        ThemeColors.statusDoneBg,
-        ThemeColors.statusDoneFg,
-        'Completed',
-      ),
-      'in_progress' => (
-        ThemeColors.statusProgressBg,
-        ThemeColors.statusProgressFg,
-        'In Progress',
-      ),
-      'on_hold' => (
-        ThemeColors.statusClosedBg,
-        ThemeColors.statusClosedFg,
-        'On Hold',
-      ),
-      _ => (ThemeColors.statusOpenBg, ThemeColors.statusOpenFg, 'Planned'),
-    };
-    return DotPill(label: label, bg: bg, fg: fg, fontSize: 10.5);
   }
 }

@@ -6,7 +6,7 @@ import 'package:tasknest/presentation/projects/bloc/project_bloc.dart';
 import 'package:tasknest/presentation/projects/bloc/project_event.dart';
 import 'package:tasknest/presentation/projects/bloc/project_state.dart';
 import 'package:tasknest/presentation/projects/model/project_models.dart';
-import 'package:tasknest/presentation/projects/widgets/UIhelpers.dart';
+import 'package:tasknest/presentation/projects/widgets/ui_helpers.dart';
 
 class EditProjectScreen extends StatefulWidget {
   final ProjectModel project;
@@ -19,7 +19,7 @@ class EditProjectScreen extends StatefulWidget {
 class _EditProjectScreenState extends State<EditProjectScreen> {
   late final TextEditingController _nameCtrl;
   late final TextEditingController _descCtrl;
-  late String _priority;
+  String _priority = 'medium';
   DateTime? _startDate;
   DateTime? _endDate;
   bool _submitting = false;
@@ -71,15 +71,15 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
     }
     setState(() => _submitting = true);
     context.read<ProjectBloc>().add(
-      UpdateProject(
-        id: widget.project.id,
-        name: name,
-        description: _descCtrl.text.trim(),
-        priority: _priority,
-        startDate: _startDate,
-        endDate: _endDate,
-      ),
-    );
+          UpdateProject(
+            id: widget.project.id,
+            name: name,
+            description: _descCtrl.text.trim(),
+            priority: _priority,
+            startDate: _startDate,
+            endDate: _endDate,
+          ),
+        );
   }
 
   @override
@@ -129,6 +129,12 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    _FormHeader(
+                      icon: Icons.edit_outlined,
+                      title: ConstStrings.projectsEdit,
+                      subtitle: 'Editing "${widget.project.name}"',
+                    ),
+                    const SizedBox(height: 20),
                     SoftCard(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -151,26 +157,17 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                           const SizedBox(height: 14),
                           DropdownButtonFormField<String>(
                             initialValue: _priority,
-                            decoration: projectFieldDecoration(
-                              ConstStrings.projectsPriority,
-                            ),
+                            decoration:
+                                projectFieldDecoration(ConstStrings.projectsPriority),
                             items: const [
                               DropdownMenuItem(
-                                value: 'low',
-                                child: Text('Low'),
-                              ),
+                                  value: 'low', child: Text('Low')),
                               DropdownMenuItem(
-                                value: 'medium',
-                                child: Text('Medium'),
-                              ),
+                                  value: 'medium', child: Text('Medium')),
                               DropdownMenuItem(
-                                value: 'high',
-                                child: Text('High'),
-                              ),
+                                  value: 'high', child: Text('High')),
                               DropdownMenuItem(
-                                value: 'urgent',
-                                child: Text('Urgent'),
-                              ),
+                                  value: 'urgent', child: Text('Urgent')),
                             ],
                             onChanged: (v) =>
                                 setState(() => _priority = v ?? 'medium'),
@@ -217,6 +214,66 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _FormHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  const _FormHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SoftCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: ThemeColors.unifiedPrimary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  size: 22,
+                  color: ThemeColors.unifiedPrimary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: ThemeColors.unifiedTextPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 13,
+              color: ThemeColors.unifiedTextMuted,
+            ),
+          ),
+        ],
       ),
     );
   }

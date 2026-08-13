@@ -207,7 +207,22 @@ class ProjectRepository {
 
   async getProjectTickets(projectId) {
     const result = await pool.query(
-      `SELECT t.id, t.title, t.description, t.status, t.priority, t.ticket_number,
+      `WITH RECURSIVE seed AS (
+          SELECT id, parent_ticket_id FROM tickets WHERE project_id = $1
+        ),
+        upward AS (
+          SELECT id, parent_ticket_id FROM seed
+          UNION
+          SELECT p.id, p.parent_ticket_id FROM tickets p
+          JOIN upward u ON p.id = u.parent_ticket_id
+        ),
+        full_tree AS (
+          SELECT id FROM upward
+          UNION
+          SELECT c.id FROM tickets c
+          JOIN full_tree f ON c.parent_ticket_id = f.id
+        )
+       SELECT t.id, t.title, t.description, t.status, t.priority, t.ticket_number,
               t.assigned_dept_id, t.assigned_to_id, t.created_by_id,
               t.created_by_dept, t.due_date, t.created_at, t.updated_at,
               t.is_sub_ticket, t.parent_ticket_id, t.ticket_type,
@@ -217,6 +232,18 @@ class ProjectRepository {
               creator.name AS created_by_name,
               ll.action AS last_action,
               ll.acted_by_name AS last_acted_by_name,
+              (SELECT COUNT(*) FROM tickets WHERE parent_ticket_id = t.id) AS immediate_child_count,
+              EXISTS (
+                WITH RECURSIVE descendants AS (
+                  SELECT id, status FROM tickets WHERE parent_ticket_id = t.id
+                  UNION ALL
+                  SELECT child.id, child.status FROM tickets child
+                  JOIN descendants d ON child.parent_ticket_id = d.id
+                )
+                SELECT 1 FROM descendants WHERE status != 'closed'
+              ) AS has_active_children,
+              pt.title AS parent_ticket_title,
+              pt.ticket_number AS parent_ticket_number,
               EXISTS (
                 SELECT 1 FROM ticket_logs tl WHERE tl.ticket_id = t.id AND tl.action = 'disputed'
               ) AS disputed
@@ -224,6 +251,7 @@ class ProjectRepository {
        LEFT JOIN departments ad ON ad.id = t.assigned_dept_id
        LEFT JOIN users u ON u.id = t.assigned_to_id
        JOIN users creator ON creator.id = t.created_by_id
+       LEFT JOIN tickets pt ON pt.id = t.parent_ticket_id
        LEFT JOIN LATERAL (
          SELECT l.action, u.name AS acted_by_name, l.created_at
          FROM ticket_logs l
@@ -232,11 +260,63 @@ class ProjectRepository {
          ORDER BY l.created_at DESC
          LIMIT 1
        ) ll ON true
-       WHERE t.project_id = $1
+       WHERE t.id IN (SELECT id FROM full_tree)
        ORDER BY t.created_at DESC`,
       [projectId]
     );
-    return result.rows;
+
+    const rows = result.rows;
+    if (rows.length === 0) return rows;
+
+    const byId = new Map(rows.map(r => [r.id, r]));
+    const childrenByParent = new Map();
+    for (const r of rows) {
+      if (r.parent_ticket_id != null) {
+        if (!childrenByParent.has(r.parent_ticket_id)) childrenByParent.set(r.parent_ticket_id, []);
+        childrenByParent.get(r.parent_ticket_id).push(r);
+      }
+    }
+
+    const toChildModel = (r) => ({
+      id: r.id,
+      ticket_number: r.ticket_number,
+      title: r.title,
+      description: r.description,
+      status: r.status,
+      assigned_dept_id: r.assigned_dept_id,
+      dept_code: r.assigned_dept_code,
+      dept_name: r.assigned_dept_name,
+      assigned_to_id: r.assigned_to_id,
+      assignee_name: r.assigned_to_name,
+      created_by_id: r.created_by_id,
+      created_by_dept: r.created_by_dept,
+      created_by_name: r.created_by_name,
+      created_by_dept_code: r.created_by_dept_code,
+      created_at: r.created_at,
+      priority: r.priority,
+      immediate_child_count: r.immediate_child_count,
+      has_active_children: r.has_active_children,
+      closed_at: r.closed_at,
+      reopen_count: r.reopen_count,
+    });
+
+    const allDescendants = (id) => {
+      const out = [];
+      const stack = [...(childrenByParent.get(id) || [])];
+      const seen = new Set();
+      while (stack.length) {
+        const n = stack.pop();
+        if (seen.has(n.id)) continue;
+        seen.add(n.id);
+        out.push(n);
+        const kids = childrenByParent.get(n.id);
+        if (kids) for (const k of kids) stack.push(k);
+      }
+      return out;
+    };
+
+    const roots = rows.filter(r => r.parent_ticket_id == null || !byId.has(r.parent_ticket_id));
+    return roots.map(r => ({ ...r, children: allDescendants(r.id).map(toChildModel) }));
   }
 
   // ── Update project ──────────────────────────────────────────────────────

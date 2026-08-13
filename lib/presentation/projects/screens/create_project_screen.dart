@@ -8,7 +8,7 @@ import 'package:tasknest/presentation/projects/bloc/project_bloc.dart';
 import 'package:tasknest/presentation/projects/bloc/project_event.dart';
 import 'package:tasknest/presentation/projects/bloc/project_state.dart';
 import 'package:tasknest/presentation/projects/screens/project_list_screen.dart';
-import 'package:tasknest/presentation/projects/widgets/UIhelpers.dart';
+import 'package:tasknest/presentation/projects/widgets/ui_helpers.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
 class CreateProjectScreen extends StatefulWidget {
@@ -81,17 +81,20 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
     }
     setState(() => _submitting = true);
     context.read<ProjectBloc>().add(
-      CreateProject(
-        name: name,
-        description: _descCtrl.text.trim(),
-        priority: _priority,
-        departmentIds: _selectedDepts.isEmpty ? null : _selectedDepts.toList(),
-        memberIds: _selectedMembers.isEmpty ? null : _selectedMembers.toList(),
-        observerIds: _selectedObservers.isEmpty
-            ? null
-            : _selectedObservers.toList(),
-      ),
-    );
+          CreateProject(
+            name: name,
+            description: _descCtrl.text.trim(),
+            priority: _priority,
+            departmentIds:
+                _selectedDepts.isEmpty ? null : _selectedDepts.toList(),
+            memberIds: _selectedMembers.isEmpty
+                ? null
+                : _selectedMembers.toList(),
+            observerIds: _selectedObservers.isEmpty
+                ? null
+                : _selectedObservers.toList(),
+          ),
+        );
   }
 
   @override
@@ -144,6 +147,13 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    _FormHeader(
+                      icon: Icons.add_rounded,
+                      title: ConstStrings.projectsCreate,
+                      subtitle:
+                          'Fill in the project details below to create a new project.',
+                    ),
+                    const SizedBox(height: 20),
                     SoftCard(
                       padding: const EdgeInsets.all(16),
                       child: Column(
@@ -170,22 +180,13 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                               ConstStrings.projectsPriority,
                             ),
                             items: const [
+                              DropdownMenuItem(value: 'low', child: Text('Low')),
                               DropdownMenuItem(
-                                value: 'low',
-                                child: Text('Low'),
-                              ),
+                                  value: 'medium', child: Text('Medium')),
                               DropdownMenuItem(
-                                value: 'medium',
-                                child: Text('Medium'),
-                              ),
+                                  value: 'high', child: Text('High')),
                               DropdownMenuItem(
-                                value: 'high',
-                                child: Text('High'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'urgent',
-                                child: Text('Urgent'),
-                              ),
+                                  value: 'urgent', child: Text('Urgent')),
                             ],
                             onChanged: (v) =>
                                 setState(() => _priority = v ?? 'medium'),
@@ -296,9 +297,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                         style: projectPrimaryButtonStyle(),
                         onPressed: _submitting ? null : _submit,
                         child: Text(
-                          _submitting
-                              ? 'Creating…'
-                              : ConstStrings.projectsCreate,
+                          _submitting ? 'Creating…' : ConstStrings.projectsCreate,
                         ),
                       ),
                     ),
@@ -308,6 +307,66 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _FormHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  const _FormHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SoftCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: ThemeColors.unifiedPrimary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  size: 22,
+                  color: ThemeColors.unifiedPrimary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: ThemeColors.unifiedTextPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              fontSize: 13,
+              color: ThemeColors.unifiedTextMuted,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -358,12 +417,12 @@ class _MultiSelectSectionState extends State<_MultiSelectSection> {
     final filtered = _query.isEmpty
         ? widget.allItems
         : widget.allItems
-              .where(
-                (e) =>
-                    e.label.toLowerCase().contains(_query.toLowerCase()) ||
-                    e.subtitle.toLowerCase().contains(_query.toLowerCase()),
-              )
-              .toList();
+            .where(
+              (e) =>
+                  e.label.toLowerCase().contains(_query.toLowerCase()) ||
+                  e.subtitle.toLowerCase().contains(_query.toLowerCase()),
+            )
+            .toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -420,10 +479,8 @@ class _MultiSelectSectionState extends State<_MultiSelectSection> {
                   isDense: true,
                   filled: true,
                   fillColor: ThemeColors.unifiedInputBg,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none,
