@@ -14,7 +14,7 @@ import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 /// Handles ticket transitions with strict role and resolver-based permissions.
 /// Resolver: The user assigned to the ticket.
 /// Rules:
-///   - Mark Completed: sub-ticket → resolver only; master → creator or CEO
+///   - Mark Completed: resolver only (the user the ticket is assigned to)
 ///   - Finalize & Close: only the ticket CREATOR (for both sub-tickets and master)
 ///   - Reopen: only the ticket CREATOR
 class TicketActions extends StatelessWidget {
@@ -70,10 +70,10 @@ class TicketActions extends StatelessWidget {
             onTap: () => _showAssignDialog(context),
           ),
 
-        // 3. Mark Completed — sub-ticket: resolver only; master: creator only
+        // 3. Mark Completed — resolver only (the user the ticket is assigned to)
         if (ticket.isInProgress &&
             !hasUnfinalizedSubs &&
-            (ticket is ChildTicketModel ? isResolver : isCreator))
+            isResolver)
           ActionBtn(
             icon: Icons.check_circle_outline,
             tooltip: ConstStrings.markDone,

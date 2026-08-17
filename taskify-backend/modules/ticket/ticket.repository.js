@@ -1297,7 +1297,7 @@ class TicketRepository {
       JOIN roles r ON r.id = u.role_id
       JOIN departments d ON d.id = u.department_id
       LEFT JOIN users reporter ON reporter.id = u.reports_to
-      WHERE u.company_id = $1
+      WHERE (u.company_id = $1 OR d.is_shared = TRUE)
         AND u.is_active = TRUE
       ORDER BY u.name ASC
     `, [companyId]);

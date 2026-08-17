@@ -194,6 +194,22 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           // Ancestor not in list — walk up one more level
           try {
             final ancestorTicket = await _dataSource.getTicket(ancestorId);
+            if (ancestorTicket.parentTicketId == null) {
+              // Reached the root and it isn't on this user's dashboard yet.
+              // Insert it so a freshly assigned sub-ticket appears live without
+              // requiring a manual refresh.
+              final latest = _getLoadedStateOrNull();
+              if (latest == null) return;
+              final list = List<TicketModel>.from(latest.tickets);
+              final pi = list.indexWhere((t) => t.id == ancestorTicket.id);
+              if (pi >= 0) {
+                list[pi] = ancestorTicket;
+              } else {
+                list.insert(0, ancestorTicket);
+              }
+              emit(latest.copyWith(tickets: list));
+              break;
+            }
             ancestorId = ancestorTicket.parentTicketId;
           } catch (_) {
             break;

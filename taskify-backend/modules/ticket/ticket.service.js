@@ -616,9 +616,9 @@ class TicketService {
             throw { statusCode: 403, message: 'Only the assigned resolver can finalize and close this sub-ticket' };
           }
         } else {
-          // Master tickets: only the creator
-          if (!isCreator) {
-            throw { statusCode: 403, message: 'Only the creator can finalize and close this master ticket' };
+          // Master tickets: only the assigned resolver
+          if (!isResolver) {
+            throw { statusCode: 403, message: 'Only the assigned resolver can finalize and close this master ticket' };
           }
         }
       }
