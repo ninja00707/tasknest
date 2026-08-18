@@ -119,10 +119,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
             },
             onDelete: () => _confirmDelete(context, project),
           ),
-          body: _ProjectDetailView(
-            project: project,
-            currentUser: _currentUser,
-          ),
+          body: _ProjectDetailView(project: project, currentUser: _currentUser),
         );
       },
     );
@@ -135,10 +132,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       scrolledUnderElevation: 0,
       title: const Text(
         ConstStrings.projectsTitle,
-        style: TextStyle(
-          fontWeight: FontWeight.w800,
-          fontSize: 18,
-        ),
+        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
       ),
       actions: [
         IconButton(
@@ -192,10 +186,7 @@ class _ProjectDetailView extends StatefulWidget {
   final ProjectModel project;
   final UserModel? currentUser;
 
-  const _ProjectDetailView({
-    required this.project,
-    required this.currentUser,
-  });
+  const _ProjectDetailView({required this.project, required this.currentUser});
 
   @override
   State<_ProjectDetailView> createState() => _ProjectDetailViewState();
@@ -414,7 +405,8 @@ class _TasksSection extends StatelessWidget {
                 _TaskCard(
                   task: task,
                   project: project,
-                  canUpdate: _canManage ||
+                  canUpdate:
+                      _canManage ||
                       (currentUser != null &&
                           task.assignedToId == currentUser!.id),
                 ),
@@ -445,8 +437,8 @@ class _HeaderCard extends StatelessWidget {
     final (progressColor, _) = project.progress >= 100
         ? (ThemeColors.unifiedSuccess, 'Complete')
         : project.progress >= 50
-            ? (ThemeColors.unifiedAccent, 'In Progress')
-            : (ThemeColors.unifiedPrimary, 'To Do');
+        ? (ThemeColors.unifiedAccent, 'In Progress')
+        : (ThemeColors.unifiedPrimary, 'To Do');
 
     return SoftCard(
       padding: const EdgeInsets.all(18),
@@ -470,8 +462,10 @@ class _HeaderCard extends StatelessWidget {
               const SizedBox(width: 8),
               if (project.projectCode.isNotEmpty)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: ThemeColors.statusOpenBg,
                     borderRadius: BorderRadius.circular(8),
@@ -658,10 +652,10 @@ class _TeamSection extends StatelessWidget {
                     color: ThemeColors.unifiedPrimary,
                     onRemove: _canManage
                         ? () => _removePeople(
-                              context,
-                              isObserver: false,
-                              userId: m.id,
-                            )
+                            context,
+                            isObserver: false,
+                            userId: m.id,
+                          )
                         : null,
                   ),
               ],
@@ -699,10 +693,10 @@ class _TeamSection extends StatelessWidget {
                     color: ThemeColors.unifiedAccent,
                     onRemove: _canManage
                         ? () => _removePeople(
-                              context,
-                              isObserver: true,
-                              userId: o.id,
-                            )
+                            context,
+                            isObserver: true,
+                            userId: o.id,
+                          )
                         : null,
                   ),
               ],
@@ -717,11 +711,7 @@ class _PeopleChip extends StatelessWidget {
   final String name;
   final Color color;
   final VoidCallback? onRemove;
-  const _PeopleChip({
-    required this.name,
-    required this.color,
-    this.onRemove,
-  });
+  const _PeopleChip({required this.name, required this.color, this.onRemove});
 
   @override
   Widget build(BuildContext context) {

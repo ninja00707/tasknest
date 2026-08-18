@@ -10,6 +10,17 @@ import 'package:tasknest/presentation/projects/screens/create_project_screen.dar
 import 'package:tasknest/presentation/projects/screens/project_detail_screen.dart';
 import 'package:tasknest/presentation/projects/widgets/ui_helpers.dart';
 
+/// Two-tone "cover" palettes cycled by project id — every project gets a
+/// consistent, book-jacket-like identity across the whole gallery.
+const List<List<Color>> kCoverPalettes = [
+  [Color(0xFF1B4B43), Color(0xFF2F6F62)], // pine
+  [Color(0xFF7A3B2E), Color(0xFFB5624A)], // terracotta
+  [Color(0xFF1E3A5F), Color(0xFF2F6690)], // ink navy
+  [Color(0xFF5B3A6B), Color(0xFF8C5A9E)], // plum
+  [Color(0xFF6B4E1D), Color(0xFFA97F33)], // bronze
+  [Color(0xFF39494A), Color(0xFF5E7677)], // slate
+];
+
 class ProjectListScreen extends StatefulWidget {
   const ProjectListScreen({super.key});
 
@@ -20,10 +31,18 @@ class ProjectListScreen extends StatefulWidget {
 class _ProjectListScreenState extends State<ProjectListScreen> {
   int _tab = 0;
   List<ProjectModel>? _lastProjects;
+  final _searchCtrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   static const _scopes = [null, 'observed', 'mine'];
   static const _tabIcons = [
-    Icons.grid_view_rounded,
+    Icons.auto_stories_rounded,
     Icons.visibility_outlined,
     Icons.person_outline_rounded,
   ];
@@ -48,18 +67,24 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
           backgroundColor: ThemeColors.unifiedSurface,
           elevation: 0,
           scrolledUnderElevation: 0,
-          title: Text(
-            ConstStrings.projectsTitle,
-            style: const TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w800,
-              color: ThemeColors.unifiedTextPrimary,
-              letterSpacing: -0.2,
-            ),
-          ),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded, size: 22),
             onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                ConstStrings.projectsTitle,
+                style: const TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  color: ThemeColors.unifiedTextPrimary,
+                  letterSpacing: -0.4,
+                ),
+              ),
+            ],
           ),
           actions: [
             IconButton(
@@ -69,51 +94,55 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
             const SizedBox(width: 4),
           ],
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(52),
+            preferredSize: const Size.fromHeight(48),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-              child: Container(
-                height: 54,
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: ThemeColors.unifiedInputBg,
-                  borderRadius: BorderRadius.circular(14),
-                ),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
                 child: TabBar(
+                  isScrollable: true,
                   onTap: (i) {
-                    setState(() => _tab = i);
+                    setState(() {
+                      _tab = i;
+                      _searchCtrl.clear();
+                      _query = '';
+                    });
                     _load();
                   },
-                  indicator: BoxDecoration(
-                    color: ThemeColors.unifiedPrimary,
-                    borderRadius: BorderRadius.circular(11),
+                  indicator: UnderlineTabIndicator(
+                    borderSide: BorderSide(
+                      color: ThemeColors.unifiedPrimary,
+                      width: 3,
+                    ),
+                    insets: const EdgeInsets.symmetric(horizontal: 10),
                   ),
                   dividerColor: Colors.transparent,
-                  indicatorSize: TabBarIndicatorSize.tab,
-                  splashBorderRadius: BorderRadius.circular(11),
-                  labelColor: Colors.white,
+                  labelColor: ThemeColors.unifiedPrimary,
                   unselectedLabelColor: ThemeColors.unifiedTextMuted,
                   labelStyle: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13.5,
                   ),
                   unselectedLabelStyle: const TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 12.5,
+                    fontSize: 13.5,
                   ),
                   tabs: [
                     Tab(
-                      icon: Icon(_tabIcons[0], size: 15),
+                      height: 40,
+                      icon: Icon(_tabIcons[0], size: 16),
                       iconMargin: const EdgeInsets.only(bottom: 2),
                       text: ConstStrings.projectsAll,
                     ),
                     Tab(
-                      icon: Icon(_tabIcons[1], size: 15),
+                      height: 40,
+                      icon: Icon(_tabIcons[1], size: 16),
                       iconMargin: const EdgeInsets.only(bottom: 2),
                       text: ConstStrings.projectsObserved,
                     ),
                     Tab(
-                      icon: Icon(_tabIcons[2], size: 15),
+                      height: 40,
+                      icon: Icon(_tabIcons[2], size: 16),
                       iconMargin: const EdgeInsets.only(bottom: 2),
                       text: ConstStrings.projectsMine,
                     ),
@@ -181,6 +210,14 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
             final projects = state is ProjectListLoaded
                 ? state.projects
                 : _lastProjects ?? const <ProjectModel>[];
+            final filtered = _query.isEmpty
+                ? projects
+                : projects
+                    .where(
+                      (p) =>
+                          p.name.toLowerCase().contains(_query.toLowerCase()),
+                    )
+                    .toList();
             if (projects.isEmpty) {
               return _EmptyState(showHint: _tab == 1);
             }
@@ -194,13 +231,95 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
                     padding: projectPagePadding(constraints.maxWidth),
                     child: ResponsivePageContainer(
                       maxWidth: kProjectsPageMaxWidth,
-                      child: ResponsiveCardGrid(
-                        spacing: 14,
-                        runSpacing: 14,
-                        maxColumns: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          for (final project in projects)
-                            _ProjectCard(project: project),
+                          TextField(
+                            controller: _searchCtrl,
+                            onChanged: (v) => setState(() => _query = v),
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              color: ThemeColors.unifiedTextPrimary,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Search projects...',
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                size: 20,
+                                color: ThemeColors.unifiedTextMuted,
+                              ),
+                              suffixIcon: _query.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(
+                                        Icons.close_rounded,
+                                        size: 18,
+                                        color: ThemeColors.unifiedTextMuted,
+                                      ),
+                                      onPressed: () {
+                                        _searchCtrl.clear();
+                                        setState(() => _query = '');
+                                      },
+                                    )
+                                  : null,
+                              isDense: true,
+                              filled: true,
+                              fillColor: ThemeColors.unifiedSurface,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: const BorderSide(
+                                  color: ThemeColors.unifiedPrimary,
+                                  width: 1.4,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            '${filtered.length} ${filtered.length == 1 ? 'project' : 'projects'}',
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: ThemeColors.unifiedTextMuted,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          if (filtered.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 40),
+                              child: Center(
+                                child: Text(
+                                  'No projects match "$_query"',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: ThemeColors.unifiedTextMuted,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else
+                            ResponsiveCardGrid(
+                              spacing: 16,
+                              runSpacing: 16,
+                              maxColumns: 2,
+                              children: [
+                                for (final project in filtered)
+                                  _ProjectCard(project: project),
+                              ],
+                            ),
                         ],
                       ),
                     ),
@@ -242,18 +361,11 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 88,
-              height: 88,
-              decoration: BoxDecoration(
-                color: ThemeColors.unifiedPrimary.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(26),
-              ),
-              child: Icon(
-                Icons.folder_open_rounded,
-                size: 42,
-                color: ThemeColors.unifiedPrimary,
-              ),
+            IconBadge(
+              icon: Icons.auto_stories_rounded,
+              size: 88,
+              color: ThemeColors.unifiedPrimary,
+              iconScale: 0.42,
             ),
             const SizedBox(height: 18),
             Text(
@@ -282,47 +394,25 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-const List<LinearGradient> kCardGradients = [
-  LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFFE8F5E9), Color(0xFFF1F8E9)],
-  ),
-  LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFFFFF3E0), Color(0xFFFFF8E1)],
-  ),
-  LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFFE8F5E9), Color(0xFFE0F2F1)],
-  ),
-  LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFFFCE4EC), Color(0xFFF3E5F5)],
-  ),
-  LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFFE3F2FD), Color(0xFFE8EAF6)],
-  ),
-  LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFFFFF9C4), Color(0xFFFFF3E0)],
-  ),
-];
-
 class _ProjectCard extends StatelessWidget {
   final ProjectModel project;
   const _ProjectCard({required this.project});
 
   String _formatDate(DateTime d) {
     const months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      '',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month]} ${d.day}, ${d.year}';
   }
@@ -331,25 +421,30 @@ class _ProjectCard extends StatelessWidget {
     if (project.endDate == null) return '';
     final diff = project.endDate!.difference(DateTime.now());
     if (diff.isNegative) return 'Overdue';
-    if (diff.inDays > 7) return '${(diff.inDays / 7).floor()} week left';
-    if (diff.inDays > 0) return '${diff.inDays} Days Left';
+    if (diff.inDays > 7) return '${(diff.inDays / 7).floor()}w left';
+    if (diff.inDays > 0) return '${diff.inDays}d left';
     if (diff.inHours > 0) return '${diff.inHours}h left';
-    return 'Today';
+    return 'Due today';
   }
 
   @override
   Widget build(BuildContext context) {
-    final gradient = kCardGradients[project.id % kCardGradients.length];
-    final members = project.members.take(3).toList();
+    final palette = kCoverPalettes[project.id % kCoverPalettes.length];
+    final members = project.members.take(4).toList();
     final extraCount = project.memberCount - members.length;
     final category = project.departments.isNotEmpty
         ? project.departments.first.name
-        : project.description.isNotEmpty
-            ? project.description
-            : 'General';
+        : 'General';
     final timeLeft = _timeLeft();
+    final progressColor = project.progress >= 100
+        ? ThemeColors.unifiedSuccess
+        : project.progress >= 50
+        ? ThemeColors.unifiedAccent
+        : ThemeColors.unifiedPrimary;
 
-    return GestureDetector(
+    return SoftCard(
+      radius: 20,
+      padding: EdgeInsets.zero,
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -357,207 +452,201 @@ class _ProjectCard extends StatelessWidget {
           ),
         );
       },
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: gradient,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _formatDate(project.createdAt),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade700,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Cover banner — the "book jacket" for this project.
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
+            child: Container(
+              height: 96,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: palette,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned(
+                    right: -10,
+                    bottom: -18,
+                    child: Icon(
+                      Icons.auto_stories_rounded,
+                      size: 96,
+                      color: Colors.white.withValues(alpha: 0.09),
                     ),
                   ),
-                ),
-                const Spacer(),
-                PopupMenuButton<String>(
-                  icon: Icon(
-                    Icons.more_vert_rounded,
-                    size: 18,
-                    color: Colors.grey.shade600,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  onSelected: (v) {
-                    if (v == 'view') {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ProjectDetailScreen(
-                            projectId: project.id,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 10, 0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            _formatDate(project.createdAt),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
-                      );
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'view',
-                      child: Text('View details'),
+                        const Spacer(),
+                        PopupMenuButton<String>(
+                          icon: const Icon(
+                            Icons.more_vert_rounded,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          onSelected: (v) {
+                            if (v == 'view') {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => ProjectDetailScreen(
+                                    projectId: project.id,
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                          itemBuilder: (_) => [
+                            const PopupMenuItem(
+                              value: 'view',
+                              child: Text('View details'),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
+                  ),
+                  Positioned(
+                    left: 14,
+                    bottom: 10,
+                    right: 14,
+                    child: Eyebrow(text: category, color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  project.name,
+                  style: const TextStyle(
+                    fontSize: 16.5,
+                    fontWeight: FontWeight.w800,
+                    color: ThemeColors.unifiedTextPrimary,
+                    letterSpacing: -0.2,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (project.description.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    project.description,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: ThemeColors.unifiedTextMuted,
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: 14),
+                Container(height: 1, color: ThemeColors.unifiedBorder),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    ProgressRing(
+                      value: project.progress / 100,
+                      size: 38,
+                      strokeWidth: 4,
+                      color: progressColor,
+                      trackColor: ThemeColors.unifiedInputBg,
+                      centerChild: Text(
+                        '${project.progress}',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: progressColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    if (members.isNotEmpty)
+                      SizedBox(
+                        width: (members.length * 18.0) + 6,
+                        height: 24,
+                        child: Stack(
+                          children: [
+                            for (int i = 0; i < members.length; i++)
+                              Positioned(
+                                left: i * 18.0,
+                                child: InitialsAvatar(
+                                  name: members[i].name,
+                                  size: 24,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    if (extraCount > 0) ...[
+                      const SizedBox(width: 2),
+                      Text(
+                        '+$extraCount',
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: ThemeColors.unifiedTextMuted,
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
+                    if (timeLeft.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: ThemeColors.unifiedInputBg,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          timeLeft,
+                          style: const TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: ThemeColors.unifiedTextMuted,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Text(
-              project.name,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF2D3436),
-                letterSpacing: -0.2,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              category,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Text(
-                  'Progress',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${project.progress}%',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.grey.shade700,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: (project.progress / 100).clamp(0, 1),
-                minHeight: 6,
-                backgroundColor: Colors.white.withValues(alpha: 0.5),
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  project.progress >= 100
-                      ? const Color(0xFF00C853)
-                      : project.progress >= 50
-                          ? const Color(0xFF00BFA5)
-                          : const Color(0xFF2979FF),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                if (members.isNotEmpty)
-                  SizedBox(
-                    width: (members.length * 22.0) + (members.length > 1 ? 4.0 : 0),
-                    height: 26,
-                    child: Stack(
-                      children: [
-                        for (int i = 0; i < members.length; i++)
-                          Positioned(
-                            left: i * 22.0,
-                            child: InitialsAvatar(
-                              name: members[i].name,
-                              size: 26,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                if (extraCount > 0) ...[
-                  const SizedBox(width: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '+$extraCount',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                  ),
-                ],
-                const Spacer(),
-                if (timeLeft.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.access_time_rounded,
-                          size: 11,
-                          color: Colors.grey.shade600,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          timeLeft,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

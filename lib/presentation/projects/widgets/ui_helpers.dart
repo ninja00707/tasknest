@@ -1,10 +1,18 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:tasknest/core/theme/color.dart';
 
-/// Shared visual building blocks used across the redesigned Projects UI.
-/// Keeping these in one place gives every screen a consistent look
-/// (soft cards, avatar chips, icon-badged section headers, pill badges)
-/// without touching any Bloc/event/model logic.
+/// ============================================================================
+/// TaskNest — Projects Design System ("The Ledger")
+/// ----------------------------------------------------------------------------
+/// A single, editorial visual language shared by every screen in the Projects
+/// module: soft lifted cards, gradient icon badges, radial progress rings and
+/// a numbered "chapter" timeline for storytelling detail pages.
+///
+/// Every symbol that existed before keeps its exact name and signature, so
+/// screens that aren't being redesigned in this pass (create/edit/add-task,
+/// team sheets) keep compiling and simply inherit the refreshed look.
+/// ============================================================================
 
 const List<Color> kAvatarPalette = [
   Color(0xFF6C5CE7),
@@ -54,13 +62,13 @@ class InitialsAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.16),
         shape: BoxShape.circle,
-        border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 1.2),
       ),
       child: Text(
         initialsForName(name),
         style: TextStyle(
           fontSize: size * 0.36,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
           color: color,
         ),
       ),
@@ -68,8 +76,55 @@ class InitialsAvatar extends StatelessWidget {
   }
 }
 
+/// A rounded gradient-tinted icon tile, reused for chapter markers, hero
+/// badges and card watermarks throughout the module.
+class IconBadge extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final Color color;
+  final double iconScale;
+  final Gradient? gradient;
+  const IconBadge({
+    super.key,
+    required this.icon,
+    required this.color,
+    this.size = 40,
+    this.iconScale = 0.48,
+    this.gradient,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: gradient == null ? color.withValues(alpha: 0.14) : null,
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(size * 0.32),
+        boxShadow: gradient == null
+            ? null
+            : [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.32),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+      ),
+      child: Icon(
+        icon,
+        size: size * iconScale,
+        color: gradient == null ? color : Colors.white,
+      ),
+    );
+  }
+}
+
 /// Consistent card container: soft shadow, subtle border, rounded corners.
-/// Interactive cards (with [onTap]) gently lift + tint on hover — a web-native touch.
+/// Interactive cards (with [onTap]) gently lift + tint on hover — a web-native
+/// touch that reads as intentional rather than default Material.
 class SoftCard extends StatefulWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -94,13 +149,16 @@ class _SoftCardState extends State<SoftCard> {
   Widget build(BuildContext context) {
     final interactive = widget.onTap != null;
     final borderColor = _hovered
-        ? ThemeColors.unifiedPrimary.withValues(alpha: 0.35)
+        ? ThemeColors.unifiedPrimary.withValues(alpha: 0.38)
         : ThemeColors.unifiedBorder;
 
     final content = AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       padding: widget.padding,
+      transform: _hovered
+          ? (Matrix4.identity()..translate(0.0, -2.0))
+          : Matrix4.identity(),
       decoration: BoxDecoration(
         color: ThemeColors.unifiedSurface,
         borderRadius: BorderRadius.circular(widget.radius),
@@ -108,10 +166,10 @@ class _SoftCardState extends State<SoftCard> {
         boxShadow: [
           BoxShadow(
             color: _hovered
-                ? ThemeColors.unifiedPrimary.withValues(alpha: 0.12)
+                ? ThemeColors.unifiedPrimary.withValues(alpha: 0.14)
                 : Colors.black.withValues(alpha: 0.035),
-            blurRadius: _hovered ? 22 : 14,
-            offset: Offset(0, _hovered ? 10 : 6),
+            blurRadius: _hovered ? 26 : 14,
+            offset: Offset(0, _hovered ? 12 : 6),
           ),
         ],
       ),
@@ -137,7 +195,7 @@ class _SoftCardState extends State<SoftCard> {
   }
 }
 
-/// Section header used above lists: icon badge + title + optional trailing widget.
+/// Section header used above lists: icon badge + title + optional trailing.
 class SectionHeader extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -153,15 +211,11 @@ class SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
-          width: 30,
-          height: 30,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: ThemeColors.unifiedPrimary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Icon(icon, size: 16, color: ThemeColors.unifiedPrimary),
+        IconBadge(
+          icon: icon,
+          size: 32,
+          color: ThemeColors.unifiedPrimary,
+          iconScale: 0.5,
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -169,14 +223,36 @@ class SectionHeader extends StatelessWidget {
             title,
             style: const TextStyle(
               fontSize: 15,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
               color: ThemeColors.unifiedTextPrimary,
+              letterSpacing: -0.1,
             ),
           ),
         ),
         // ignore: use_null_aware_elements
         if (trailing != null) trailing!,
       ],
+    );
+  }
+}
+
+/// An uppercase, letter-spaced micro-label used as a narrative "eyebrow"
+/// above titles — the signature typographic touch of the module.
+class Eyebrow extends StatelessWidget {
+  final String text;
+  final Color color;
+  const Eyebrow({super.key, required this.text, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 1.6,
+        color: color,
+      ),
     );
   }
 }
@@ -253,7 +329,95 @@ class SoftProgressBar extends StatelessWidget {
   }
 }
 
-/// A friendly empty-state block: icon in a soft circle + message + optional hint.
+/// A radial "story" progress ring — the module's signature replacement for
+/// plain linear bars wherever progress is the hero of the moment.
+class ProgressRing extends StatelessWidget {
+  final double value; // 0..1
+  final double size;
+  final double strokeWidth;
+  final Color color;
+  final Color trackColor;
+  final Widget? centerChild;
+  const ProgressRing({
+    super.key,
+    required this.value,
+    required this.color,
+    required this.trackColor,
+    this.size = 88,
+    this.strokeWidth = 8,
+    this.centerChild,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _RingPainter(
+          value: value.clamp(0, 1),
+          color: color,
+          trackColor: trackColor,
+          strokeWidth: strokeWidth,
+        ),
+        child: centerChild == null ? null : Center(child: centerChild),
+      ),
+    );
+  }
+}
+
+class _RingPainter extends CustomPainter {
+  final double value;
+  final Color color;
+  final Color trackColor;
+  final double strokeWidth;
+  _RingPainter({
+    required this.value,
+    required this.color,
+    required this.trackColor,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = (size.shortestSide - strokeWidth) / 2;
+
+    final trackPaint = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(center, radius, trackPaint);
+
+    if (value <= 0) return;
+    final fgPaint = Paint()
+      ..shader = SweepGradient(
+        startAngle: -math.pi / 2,
+        endAngle: 3 * math.pi / 2,
+        colors: [color.withValues(alpha: 0.55), color],
+      ).createShader(Rect.fromCircle(center: center, radius: radius))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    final sweep = 2 * math.pi * value;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      sweep,
+      false,
+      fgPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RingPainter oldDelegate) =>
+      oldDelegate.value != value ||
+      oldDelegate.color != color ||
+      oldDelegate.trackColor != trackColor;
+}
+
+/// A friendly empty-state block: icon in a soft circle + message + hint.
 class FriendlyEmptyState extends StatelessWidget {
   final IconData icon;
   final String message;
@@ -272,14 +436,11 @@ class FriendlyEmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: ThemeColors.unifiedPrimary.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 28, color: ThemeColors.unifiedPrimary),
+          IconBadge(
+            icon: icon,
+            size: 64,
+            color: ThemeColors.unifiedPrimary,
+            iconScale: 0.42,
           ),
           const SizedBox(height: 14),
           Text(
@@ -309,6 +470,137 @@ class FriendlyEmptyState extends StatelessWidget {
   }
 }
 
+/// ----------------------------------------------------------------------------
+/// Story timeline: the numbered "chapter" spine used to turn the project
+/// detail page into a narrative rather than a stack of anonymous cards.
+/// ----------------------------------------------------------------------------
+
+class StoryChapter {
+  final IconData icon;
+  final String label;
+  final String title;
+  final String? subtitle;
+  final Widget child;
+  const StoryChapter({
+    required this.icon,
+    required this.label,
+    required this.title,
+    this.subtitle,
+    required this.child,
+  });
+}
+
+class StoryTimeline extends StatelessWidget {
+  final List<StoryChapter> chapters;
+  const StoryTimeline({super.key, required this.chapters});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < chapters.length; i++)
+          _ChapterBlock(
+            index: i + 1,
+            chapter: chapters[i],
+            isLast: i == chapters.length - 1,
+          ),
+      ],
+    );
+  }
+}
+
+class _ChapterBlock extends StatelessWidget {
+  final int index;
+  final StoryChapter chapter;
+  final bool isLast;
+  const _ChapterBlock({
+    required this.index,
+    required this.chapter,
+    required this.isLast,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconBadge(
+              icon: chapter.icon,
+              size: 42,
+              color: ThemeColors.unifiedPrimary,
+              iconScale: 0.44,
+              gradient: LinearGradient(
+                colors: [
+                  ThemeColors.unifiedPrimary,
+                  ThemeColors.unifiedAccent,
+                ],
+              ),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: 32,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      ThemeColors.unifiedPrimary.withValues(alpha: 0.35),
+                      ThemeColors.unifiedBorder,
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 4 : 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Eyebrow(
+                  text:
+                      'Chapter ${index.toString().padLeft(2, '0')} · ${chapter.label}',
+                  color: ThemeColors.unifiedPrimary,
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  chapter.title,
+                  style: const TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
+                    color: ThemeColors.unifiedTextPrimary,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                if (chapter.subtitle != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    chapter.subtitle!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: ThemeColors.unifiedTextMuted,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                chapter.child,
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Max content width for project pages (list / detail) on wide screens.
 const double kProjectsPageMaxWidth = 1240;
 
@@ -316,7 +608,7 @@ const double kProjectsPageMaxWidth = 1240;
 const double kProjectsFormMaxWidth = 760;
 
 /// Centers content and caps its width so desktop screens don't stretch
-/// cards/forms edge-to-edge. Passes the remaining width through to [child].
+/// cards/forms edge-to-edge.
 class ResponsivePageContainer extends StatelessWidget {
   final Widget child;
   final double maxWidth;
@@ -339,7 +631,6 @@ class ResponsivePageContainer extends StatelessWidget {
 
 /// A responsive wrap-style grid for cards.
 /// 1 column on narrow screens, 2 on tablets, up to [maxColumns] on desktop.
-/// Children keep their natural height; each run aligns to its tallest card.
 class ResponsiveCardGrid extends StatelessWidget {
   final List<Widget> children;
   final double spacing;
@@ -386,20 +677,24 @@ InputDecoration projectFieldDecoration(String label, {String? hint}) {
     labelText: label,
     hintText: hint,
     filled: true,
-    fillColor: ThemeColors.unifiedSurface,
+    fillColor: ThemeColors.unifiedInputBg.withValues(alpha: 0.5),
+    labelStyle: const TextStyle(
+      fontWeight: FontWeight.w600,
+      color: ThemeColors.unifiedTextMuted,
+    ),
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       borderSide: const BorderSide(color: ThemeColors.unifiedBorder),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       borderSide: const BorderSide(color: ThemeColors.unifiedBorder),
     ),
     focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       borderSide: const BorderSide(
         color: ThemeColors.unifiedPrimary,
-        width: 1.5,
+        width: 1.6,
       ),
     ),
   );
@@ -411,13 +706,13 @@ ButtonStyle projectPrimaryButtonStyle() => ElevatedButton.styleFrom(
   foregroundColor: Colors.white,
   padding: const EdgeInsets.symmetric(vertical: 15),
   elevation: 0,
-  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
   textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
 );
 
 /// Responsive horizontal gutter for a scroll page — roomier on desktop.
 EdgeInsets projectPagePadding(double width) {
-  if (width >= 1024) return const EdgeInsets.fromLTRB(28, 24, 28, 110);
+  if (width >= 1024) return const EdgeInsets.fromLTRB(32, 26, 32, 110);
   if (width >= 640) return const EdgeInsets.fromLTRB(22, 18, 22, 96);
   return const EdgeInsets.fromLTRB(16, 12, 16, 96);
 }
