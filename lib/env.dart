@@ -1,12 +1,13 @@
 class Env {
-  static bool isLive = false;
+  static bool isLive = true;
 
-  /// Override this if your IIS hostname (e.g. "loop") doesn't resolve on clients.
-  /// Set to e.g. 'http://10.100.0.23:82' to force a fixed IP for WebSocket.
-  static String? socketHostOverride;
+  /// Backend API URL (set to your Railway / production backend)
+  static String? backendUrl = 'https://tasknest-backend-production.up.railway.app';
 
   static String get baseUrl {
-    if (isLive) {
+    if (isLive && backendUrl != null) {
+      return '$backendUrl/api/';
+    } else if (isLive) {
       return '/api/';
     } else {
       return 'http://localhost:5050/api/';
@@ -14,8 +15,9 @@ class Env {
   }
 
   static String get socketUrl {
-    if (isLive) {
-      if (socketHostOverride != null) return socketHostOverride!;
+    if (isLive && backendUrl != null) {
+      return backendUrl!;
+    } else if (isLive) {
       return '';
     } else {
       return 'http://localhost:5050';

@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "gmkhowaja"
+  },
+  "targets": {
+    "gmkhowaja": {
+      "hosting": {
+        "tasknest-app": {
+          "site": "tasknest-app"
+        }
+      }
+    }
+  }
+}
