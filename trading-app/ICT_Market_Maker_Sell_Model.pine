@@ -1,0 +1,229 @@
+//@version=5
+indicator("ICT Market Maker Sell Model", overlay=true, max_boxes_count=50, max_labels_count=50, max_lines_count=50)
+
+// ─── Inputs ──────────────────────────────────────────────────────────────────
+grpAcc   = "Phase 1 - Accumulation"
+accLen   = input.int(20,    "Lookback (bars)",        minval=5,            group=grpAcc)
+atrLen   = input.int(14,    "ATR length",             minval=5,            group=grpAcc)
+atrMult  = input.float(3.5, "Max range / ATR",        step=0.5, minval=1,  group=grpAcc)
+
+grpMan   = "Phase 2 - Manipulation (Judas Swing)"
+sweepATR = input.float(0.3, "Sweep threshold x ATR",  step=0.1, minval=0.1, group=grpMan)
+
+grpExp   = "Phase 3 - Expansion / Displacement"
+dispBody = input.float(0.65,"Min body/range ratio",   step=0.05, minval=0.4, group=grpExp)
+dispATR  = input.float(0.8, "Min range x ATR",        step=0.1, minval=0.3, group=grpExp)
+
+grpFVG   = "Phase 4 - Entry (FVG + OTE)"
+showFVG  = input.bool(true, "Show FVG zones",         group=grpFVG)
+showOTE  = input.bool(true, "Show OTE Fibonacci",     group=grpFVG)
+oteUpper = input.float(0.79, "OTE upper",    step=0.01, group=grpFVG)
+oteLower = input.float(0.62, "OTE lower",    step=0.01, group=grpFVG)
+oteSweet = input.float(0.705,"OTE sweet spot", step=0.005, group=grpFVG)
+
+grpTgt   = "Phase 5 - Targets"
+showTgt  = input.bool(true, "Show SSL targets",       group=grpTgt)
+numTgts  = input.int(3,     "Target count", minval=1, maxval=5, group=grpTgt)
+
+grpVis   = "Visuals"
+colAcc   = input.color(color.new(#555555, 70), "Accumulation", group=grpVis)
+colMan   = input.color(color.new(#F5A623, 50), "Manipulation", group=grpVis)
+colExp   = input.color(color.new(#EF5350, 70), "Expansion",    group=grpVis)
+colFVG   = input.color(color.new(#EF5350, 85), "FVG zone",     group=grpVis)
+colOTE   = input.color(color.new(#AB47BC, 80), "OTE zone",     group=grpVis)
+colEntry = input.color(#EF5350, "Entry label", group=grpVis)
+
+// ─── ATR ─────────────────────────────────────────────────────────────────────
+atr = ta.atr(atrLen)
+
+// ─── State machine ────────────────────────────────────────────────────────────
+var int   phase = 0         // 0=idle 1=acc 2=man 3=exp 4=entry 5=done
+var float accHi     = na
+var float accLo     = na
+var int   accStart  = na
+var float manWickHi = na
+var int   expBar    = na
+var float fvgTop    = na
+var float fvgBot    = na
+var float fvgCE     = na
+var float oteHigh   = na
+var float oteLow    = na
+
+// ─── Phase 1: Accumulation ────────────────────────────────────────────────────
+if phase == 0
+    hi = ta.highest(high, accLen)
+    lo = ta.lowest(low, accLen)
+    rng = hi - lo
+    if rng <= atr * atrMult and bar_index > accLen
+        phase   := 1
+        accHi   := hi
+        accLo   := lo
+        accStart:= bar_index - accLen
+
+// ─── Phase 2: Manipulation - BSL Sweep above accumulation ──────────────────────
+if phase == 1
+    if high > accHi + sweepATR * atr and close < accHi
+        phase     := 2
+        manWickHi := high
+
+// invalidate stale accumulation (genuine breakout, not a sweep)
+if phase == 1 and close < accLo - 2 * atr
+    phase := 0
+
+// ─── Phase 3: Expansion - bearish displacement candle ─────────────────────────
+if phase == 2
+    bodyRng = math.abs(close - open)
+    cRange  = high - low
+    isDispl = cRange >= dispATR * atr and bodyRng / math.max(cRange, 1e-10) >= dispBody
+    if isDispl and close < accLo
+        phase   := 3
+        expBar  := bar_index
+        // bearish FVG from (candle[i-2].low) to (candle[i].high)
+        if bar_index >= 2
+            fvgTop := low[2]
+            fvgBot := high
+            if fvgTop > fvgBot
+                fvgCE := (fvgTop + fvgBot) / 2
+                oteHigh := manWickHi
+                oteLow  := fvgBot
+
+// ─── Phase 4: Waiting for retrace into FVG/OTE ────────────────────────────────
+if phase == 3
+    if not na(fvgCE) and low <= fvgTop and high >= fvgBot
+        phase := 4
+
+// ─── Phase 5: Target / completion ──────────────────────────────────────────────
+if phase == 4 and close < accLo - sweepATR * atr
+    phase := 5
+
+// reset after completion
+if phase == 5 and bar_index > expBar + accLen * 2
+    phase    := 0
+    accHi    := na
+    accLo    := na
+    manWickHi:= na
+    fvgTop   := na
+    fvgBot   := na
+
+// ─── Drawing helpers ───────────────────────────────────────────────────────────
+f_phaseColor(p) => p == 0 ? color.new(color.gray, 95) : p == 1 ? colAcc : p == 2 ? colMan : p == 3 ? colExp : p == 4 ? color.new(#AB47BC, 70) : color.new(#26A69A, 70)
+
+f_phaseLabel(p) => p == 1 ? "ACCUMULATION" : p == 2 ? "JUDAS SWEEP (BSL)" : p == 3 ? "EXPANSION DOWN" : p == 4 ? "RETRACE - SHORT" : p == 5 ? "TARGET HIT OK" : ""
+
+// ─── Draw Phase 1 box ──────────────────────────────────────────────────────────
+var box accBox = na
+if phase == 1 and bar_index == accStart
+    accBox := box.new(accStart, accHi, bar_index + 5, accLo,
+         bgcolor = colAcc, border_color = color.new(#888888, 50), border_width = 1)
+if phase >= 2 and not na(accBox)
+    box.set_right(accBox, bar_index)
+    accBox := na
+
+// ─── Draw Phase 2 (manipulation sweep wick) ───────────────────────────────────
+var line manLine = na
+if phase == 2 and not na(manWickHi) and na(manLine)
+    manLine := line.new(bar_index, manWickHi, bar_index, accHi,
+         color = color.new(#F5A623, 30), width = 2, style = line.style_dashed)
+if phase >= 3 and not na(manLine)
+    manLine := na
+
+if phase == 2 and not na(manWickHi)
+    label.new(bar_index, manWickHi, "BSL SWEEP",
+         style = label.style_label_down, color = color.new(#F5A623, 20),
+         textcolor = color.white, size = size.small)
+
+// ─── Phase 3 - expansion box + displacement marker ────────────────────────────
+var box expBox = na
+if phase == 3 and na(expBox)
+    expBox := box.new(accStart, accHi, bar_index, accLo,
+         bgcolor = colExp, border_color = color.new(#EF5350, 40), border_width = 1)
+if not na(expBox) and phase >= 3
+    box.set_right(expBox, bar_index)
+
+if phase == 3
+    label.new(bar_index, high, "DISPLACEMENT",
+         style = label.style_label_down, color = color.new(#EF5350, 20),
+         textcolor = color.white, size = size.tiny)
+
+// ─── FVG zone (Phase 3->4) ─────────────────────────────────────────────────────
+var box  fvgBox = na
+var line fvgCEl = na
+if showFVG and phase >= 3 and not na(fvgTop) and not na(fvgBot) and fvgTop > fvgBot
+    if na(fvgBox)
+        fvgBox := box.new(expBar - 1, fvgTop, bar_index + 5, fvgBot,
+             bgcolor = colFVG, border_color = color.new(#EF5350, 50), border_width = 1,
+             border_style = line.style_dashed)
+        fvgCEl := line.new(expBar - 1, fvgCE, bar_index + 5, fvgCE,
+             color = color.new(#EF5350, 40), width = 1, style = line.style_dotted)
+    else
+        box.set_right(fvgBox, bar_index + 5)
+        line.set_x2(fvgCEl, bar_index + 5)
+
+// ─── OTE Fibonacci zone (Phase 3->4) ──────────────────────────────────────────
+var box  oteBox = na
+var line ote705 = na
+if showOTE and phase >= 3 and not na(oteHigh) and not na(oteLow) and oteHigh > oteLow
+    ote62 = oteLow + (oteHigh - oteLow) * oteLower
+    ote79 = oteLow + (oteHigh - oteLow) * oteUpper
+    oteSP = oteLow + (oteHigh - oteLow) * oteSweet
+    if na(oteBox)
+        oteBox := box.new(expBar - 1, ote79, bar_index + 8, ote62,
+             bgcolor = colOTE, border_color = color.new(#AB47BC, 50), border_width = 1,
+             border_style = line.style_dotted)
+        ote705 := line.new(expBar - 1, oteSP, bar_index + 8, oteSP,
+             color = color.new(#AB47BC, 20), width = 2, style = line.style_solid)
+        label.new(bar_index + 8, oteSP, "70.5% Sweet Spot",
+             style = label.style_label_left, color = color.new(color.black, 100),
+             textcolor = color.new(#AB47BC, 10), size = size.tiny)
+        label.new(bar_index + 8, ote62, "62%", style = label.style_label_left,
+             color = color.new(color.black, 100), textcolor = color.new(#AB47BC, 30), size = size.tiny)
+        label.new(bar_index + 8, ote79, "79%", style = label.style_label_left,
+             color = color.new(color.black, 100), textcolor = color.new(#AB47BC, 30), size = size.tiny)
+    else
+        box.set_right(oteBox, bar_index + 8)
+        line.set_x2(ote705, bar_index + 8)
+
+// ─── Entry signal (Phase 4) ───────────────────────────────────────────────────
+if phase == 4 and phase[1] == 3
+    entryPx = not na(fvgCE) ? fvgCE : close
+    label.new(bar_index, entryPx, "SHORT ENTRY\n" + str.tostring(entryPx, format.mintick),
+         style = label.style_label_down, color = colEntry,
+         textcolor = color.white, size = size.normal)
+
+// ─── SSL Targets (from accumulation lows, staged) ─────────────────────────────
+var line[] tgtLines = array.new_line()
+if showTgt and phase == 3 and not na(accLo) and array.size(tgtLines) == 0
+    for i = 1 to numTgts
+        tgtPx = accLo - i * (accHi - accLo) * 0.618
+        array.push(tgtLines, line.new(accStart, tgtPx, bar_index + 15, tgtPx,
+             color = color.new(#26A69A, 40), width = 1, style = line.style_dashed))
+        label.new(bar_index + 15, tgtPx, "T" + str.tostring(i) + " " + str.tostring(tgtPx, format.mintick),
+             style = label.style_label_left, color = color.new(#26A69A, 60),
+             textcolor = color.new(#26A69A, 10), size = size.tiny)
+
+// clean target lines on reset
+if phase == 0 and array.size(tgtLines) > 0
+    for i = 0 to array.size(tgtLines) - 1
+        line.delete(array.get(tgtLines, i))
+    array.clear(tgtLines)
+
+// ─── Phase status label ────────────────────────────────────────────────────────
+var label phaseLabel = na
+if not na(phaseLabel)
+    label.delete(phaseLabel)
+if phase >= 1
+    phaseLabel := label.new(bar_index + 3, high, f_phaseLabel(phase),
+         style = label.style_label_left, color = f_phaseColor(phase),
+         textcolor = color.white, size = size.small)
+
+// ─── High-probability entry arrow ──────────────────────────────────────────────
+if phase == 4 and phase[1] == 3
+    label.new(bar_index, low, "DOWN",
+         style = label.style_label_up, color = color.new(#EF5350, 30),
+         textcolor = color.white, size = size.large)
+
+// ─── Alerts ────────────────────────────────────────────────────────────────────
+alertcondition(phase == 4 and phase[1] == 3, "ICT Sell Model: Short Entry", "Phase 4 retrace into FVG - short entry zone")
+alertcondition(phase == 3 and phase[1] == 2, "ICT Sell Model: Displacement", "Phase 3 bearish displacement confirmed")
+alertcondition(phase == 2 and phase[1] == 1, "ICT Sell Model: BSL Sweep",   "Phase 2 Judas Swing BSL sweep detected")
+alertcondition(phase == 5 and phase[1] != 5, "ICT Sell Model: Target Hit",  "Phase 5 SSL target reached")

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/projects/bloc/project_bloc.dart';
@@ -46,13 +47,29 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
     final picked = await showDatePicker(
       context: context,
       initialDate: first ?? DateTime.now(),
-      firstDate: DateTime(2000),
+      firstDate: DateTime(2020),
       lastDate: DateTime(2100),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: ThemeColors.unifiedPrimary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: ThemeColors.unifiedTextPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
-    if (picked == null) return;
+    if (picked == null || !mounted) return;
     setState(() {
       if (isStart) {
         _startDate = picked;
+        if (_endDate != null && _endDate!.isBefore(_startDate!)) {
+          _endDate = _startDate!.add(const Duration(days: 7));
+        }
       } else {
         _endDate = picked;
       }
@@ -65,7 +82,11 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(content: Text('Project name is required')),
+          const SnackBar(
+            content: Text('Project name is required'),
+            backgroundColor: ThemeColors.unifiedDanger,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       return;
     }
@@ -85,14 +106,22 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: ThemeColors.unifiedInputBg.withValues(alpha: 0.35),
+      backgroundColor: ThemeColors.unifiedBackground,
       appBar: AppBar(
         backgroundColor: ThemeColors.unifiedSurface,
         elevation: 0,
-        scrolledUnderElevation: 0,
+        scrolledUnderElevation: 1,
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded, size: 22),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: const Text(
           ConstStrings.projectsEdit,
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 18,
+            color: ThemeColors.unifiedTextPrimary,
+          ),
         ),
       ),
       body: BlocConsumer<ProjectBloc, ProjectState>(
@@ -103,7 +132,7 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
               ..hideCurrentSnackBar()
               ..showSnackBar(
                 SnackBar(
-                  content: const Text('Project updated'),
+                  content: const Text('Project updated successfully!'),
                   backgroundColor: ThemeColors.unifiedSuccess,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
@@ -117,7 +146,13 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
             setState(() => _submitting = false);
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
-              ..showSnackBar(SnackBar(content: Text(state.message)));
+              ..showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: ThemeColors.unifiedDanger,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
           }
         },
         builder: (context, state) => LayoutBuilder(
@@ -129,21 +164,67 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _FormHeader(
-                      icon: Icons.edit_outlined,
-                      title: ConstStrings.projectsEdit,
-                      subtitle: 'Editing "${widget.project.name}"',
-                    ),
-                    const SizedBox(height: 20),
+                    // Header card
                     SoftCard(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(18),
+                      radius: 16,
+                      child: Row(
+                        children: [
+                          IconBadge(
+                            icon: Icons.edit_note_rounded,
+                            size: 44,
+                            color: ThemeColors.unifiedPrimary,
+                            iconScale: 0.5,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Edit "${widget.project.name}"',
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                    color: ThemeColors.unifiedTextPrimary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 3),
+                                if (widget.project.projectCode.isNotEmpty)
+                                  Text(
+                                    'Code: ${widget.project.projectCode}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: ThemeColors.unifiedTextMuted,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Section: Details & Priority
+                    SoftCard(
+                      padding: const EdgeInsets.all(18),
+                      radius: 16,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          const SectionHeader(
+                            icon: Icons.edit_rounded,
+                            title: 'Project Information',
+                          ),
+                          const SizedBox(height: 16),
                           TextField(
                             controller: _nameCtrl,
                             decoration: projectFieldDecoration(
-                              ConstStrings.projectsName,
+                              '${ConstStrings.projectsName} *',
                             ),
                           ),
                           const SizedBox(height: 14),
@@ -154,39 +235,39 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                               ConstStrings.projectsDescription,
                             ),
                           ),
-                          const SizedBox(height: 14),
-                          DropdownButtonFormField<String>(
-                            initialValue: _priority,
-                            decoration:
-                                projectFieldDecoration(ConstStrings.projectsPriority),
-                            items: const [
-                              DropdownMenuItem(
-                                  value: 'low', child: Text('Low')),
-                              DropdownMenuItem(
-                                  value: 'medium', child: Text('Medium')),
-                              DropdownMenuItem(
-                                  value: 'high', child: Text('High')),
-                              DropdownMenuItem(
-                                  value: 'urgent', child: Text('Urgent')),
-                            ],
-                            onChanged: (v) =>
-                                setState(() => _priority = v ?? 'medium'),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Project Priority',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: ThemeColors.unifiedTextPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildPrioritySelector(),
+                          const SizedBox(height: 18),
+                          const SectionHeader(
+                            icon: Icons.calendar_month_rounded,
+                            title: 'Schedule Dates',
                           ),
                           const SizedBox(height: 14),
                           Row(
                             children: [
                               Expanded(
-                                child: _DateField(
+                                child: _FormDatePicker(
                                   label: ConstStrings.projectsStartDate,
                                   value: _startDate,
+                                  icon: Icons.event_available_rounded,
                                   onTap: () => _pickDate(isStart: true),
                                 ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: _DateField(
+                                child: _FormDatePicker(
                                   label: ConstStrings.projectsEndDate,
                                   value: _endDate,
+                                  icon: Icons.event_busy_rounded,
                                   onTap: () => _pickDate(isStart: false),
                                 ),
                               ),
@@ -196,16 +277,30 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
+
+                    // Submit CTA
                     SizedBox(
                       width: double.infinity,
+                      height: 48,
                       child: ElevatedButton(
                         style: projectPrimaryButtonStyle(),
                         onPressed: _submitting ? null : _submit,
-                        child: Text(
-                          _submitting
-                              ? 'Saving…'
-                              : ConstStrings.projectsSaveChanges,
-                        ),
+                        child: _submitting
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                ConstStrings.projectsSaveChanges,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                       ),
                     ),
                   ],
@@ -217,75 +312,67 @@ class _EditProjectScreenState extends State<EditProjectScreen> {
       ),
     );
   }
-}
 
-class _FormHeader extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  const _FormHeader({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
+  Widget _buildPrioritySelector() {
+    final priorities = [
+      {'key': 'low', 'label': 'Low', 'color': ThemeColors.unifiedSuccess},
+      {'key': 'medium', 'label': 'Medium', 'color': ThemeColors.priorityMedFg},
+      {'key': 'high', 'label': 'High', 'color': ThemeColors.priorityHighFg},
+      {'key': 'urgent', 'label': 'Urgent', 'color': ThemeColors.priorityUrgentFg},
+    ];
 
-  @override
-  Widget build(BuildContext context) {
-    return SoftCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                alignment: Alignment.center,
+    return Row(
+      children: priorities.map((p) {
+        final key = p['key'] as String;
+        final label = p['label'] as String;
+        final color = p['color'] as Color;
+        final selected = _priority == key;
+
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: InkWell(
+              onTap: () => setState(() => _priority = key),
+              borderRadius: BorderRadius.circular(10),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color: ThemeColors.unifiedPrimary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  color: selected ? color.withValues(alpha: 0.15) : ThemeColors.unifiedInputBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: selected ? color : ThemeColors.unifiedBorder,
+                    width: selected ? 1.8 : 1,
+                  ),
                 ),
-                child: Icon(
-                  icon,
-                  size: 22,
-                  color: ThemeColors.unifiedPrimary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
+                alignment: Alignment.center,
                 child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: ThemeColors.unifiedTextPrimary,
+                  label,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    color: selected ? color : ThemeColors.unifiedTextPrimary,
                   ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 13,
-              color: ThemeColors.unifiedTextMuted,
             ),
           ),
-        ],
-      ),
+        );
+      }).toList(),
     );
   }
 }
 
-class _DateField extends StatelessWidget {
+class _FormDatePicker extends StatelessWidget {
   final String label;
   final DateTime? value;
+  final IconData icon;
   final VoidCallback onTap;
-  const _DateField({
+
+  const _FormDatePicker({
     required this.label,
     required this.value,
+    required this.icon,
     required this.onTap,
   });
 
@@ -294,29 +381,43 @@ class _DateField extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
-      child: InputDecorator(
-        decoration: projectFieldDecoration(label),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: ThemeColors.unifiedInputBg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: ThemeColors.unifiedBorder),
+        ),
         child: Row(
           children: [
-            Icon(
-              Icons.calendar_today_rounded,
-              size: 15,
-              color: value == null
-                  ? ThemeColors.unifiedTextMuted
-                  : ThemeColors.unifiedPrimary,
-            ),
-            const SizedBox(width: 8),
+            Icon(icon, size: 18, color: ThemeColors.unifiedPrimary),
+            const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                value == null
-                    ? 'Not set'
-                    : '${value!.day}/${value!.month}/${value!.year}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: value == null
-                      ? ThemeColors.unifiedTextMuted
-                      : ThemeColors.unifiedTextPrimary,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: ThemeColors.unifiedTextMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value != null
+                        ? DateFormat('MMM d, y').format(value!)
+                        : 'Select date',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: value != null
+                          ? ThemeColors.unifiedTextPrimary
+                          : ThemeColors.unifiedTextMuted,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

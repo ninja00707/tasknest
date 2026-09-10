@@ -157,7 +157,7 @@ class _SoftCardState extends State<SoftCard> {
       curve: Curves.easeOut,
       padding: widget.padding,
       transform: _hovered
-          ? (Matrix4.identity()..translate(0.0, -2.0))
+          ? Matrix4.translationValues(0.0, -2.0, 0.0)
           : Matrix4.identity(),
       decoration: BoxDecoration(
         color: ThemeColors.unifiedSurface,
@@ -297,6 +297,215 @@ class DotPill extends StatelessWidget {
               letterSpacing: 0.2,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Dynamic Priority Pill that maps strings like 'urgent', 'high', 'medium', 'low'
+/// to brand semantic colors.
+class PriorityBadge extends StatelessWidget {
+  final String priority;
+  final double fontSize;
+  const PriorityBadge({super.key, required this.priority, this.fontSize = 11});
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg, label) = switch (priority.toLowerCase()) {
+      'urgent' => (
+        ThemeColors.priorityUrgentBg,
+        ThemeColors.priorityUrgentFg,
+        'URGENT',
+      ),
+      'high' => (
+        ThemeColors.priorityHighBg,
+        ThemeColors.priorityHighFg,
+        'HIGH',
+      ),
+      'low' => (ThemeColors.priorityLowBg, ThemeColors.priorityLowFg, 'LOW'),
+      _ => (ThemeColors.priorityMedBg, ThemeColors.priorityMedFg, 'MEDIUM'),
+    };
+    return DotPill(label: label, bg: bg, fg: fg, fontSize: fontSize);
+  }
+}
+
+/// Dynamic Status Pill that maps project / task statuses to semantic colors.
+class StatusBadge extends StatelessWidget {
+  final String status;
+  final double fontSize;
+  const StatusBadge({super.key, required this.status, this.fontSize = 11});
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg, label) = switch (status.toLowerCase()) {
+      'completed' || 'done' => (
+        ThemeColors.statusDoneBg,
+        ThemeColors.statusDoneFg,
+        'Done',
+      ),
+      'in_progress' || 'active' => (
+        ThemeColors.statusProgressBg,
+        ThemeColors.statusProgressFg,
+        'In Progress',
+      ),
+      'closed' => (
+        ThemeColors.statusClosedBg,
+        ThemeColors.statusClosedFg,
+        'Closed',
+      ),
+      'cancelled' => (
+        ThemeColors.priorityUrgentBg,
+        ThemeColors.priorityUrgentFg,
+        'Cancelled',
+      ),
+      'on_hold' => (
+        ThemeColors.priorityMedBg,
+        ThemeColors.priorityMedFg,
+        'On Hold',
+      ),
+      _ => (ThemeColors.statusOpenBg, ThemeColors.statusOpenFg, 'Planned'),
+    };
+    return DotPill(label: label, bg: bg, fg: fg, fontSize: fontSize);
+  }
+}
+
+/// Overlapping avatar stack with a "+N" overflow chip.
+class AvatarStack extends StatelessWidget {
+  final List<String> names;
+  final int max;
+  final double size;
+  final double overlap;
+
+  const AvatarStack({
+    super.key,
+    required this.names,
+    this.max = 4,
+    this.size = 28,
+    this.overlap = 18,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = names.take(max).toList();
+    final overflow = names.length - visible.length;
+    final totalWidth = (visible.length * overlap) + (size - overlap) + (overflow > 0 ? 28.0 : 0.0);
+
+    return SizedBox(
+      width: totalWidth,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (int i = 0; i < visible.length; i++)
+            Positioned(
+              left: i * overlap,
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: ThemeColors.unifiedSurface, width: 2),
+                ),
+                child: InitialsAvatar(name: visible[i], size: size - 2),
+              ),
+            ),
+          if (overflow > 0)
+            Positioned(
+              left: visible.length * overlap,
+              child: Container(
+                width: size - 2,
+                height: size - 2,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: ThemeColors.unifiedInputBg,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: ThemeColors.unifiedSurface, width: 2),
+                ),
+                child: Text(
+                  '+$overflow',
+                  style: TextStyle(
+                    fontSize: size * 0.36,
+                    fontWeight: FontWeight.w800,
+                    color: ThemeColors.unifiedTextMuted,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Modern KPI Stat Card for dashboard grids and project overviews.
+class StatMetricCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+  final String? subtitle;
+  final Color accentColor;
+  final VoidCallback? onTap;
+
+  const StatMetricCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.value,
+    this.subtitle,
+    this.accentColor = ThemeColors.unifiedPrimary,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SoftCard(
+      padding: const EdgeInsets.all(16),
+      onTap: onTap,
+      radius: 16,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: ThemeColors.unifiedTextMuted,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              IconBadge(
+                icon: icon,
+                size: 34,
+                color: accentColor,
+                iconScale: 0.5,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              color: ThemeColors.unifiedTextPrimary,
+              letterSpacing: -0.8,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle!,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: accentColor,
+              ),
+            ),
+          ],
         ],
       ),
     );

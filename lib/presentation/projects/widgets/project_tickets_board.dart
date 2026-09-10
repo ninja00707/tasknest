@@ -41,24 +41,19 @@ class ProjectTicketsBoard extends StatelessWidget {
             : constraints.maxWidth * 0.75;
         return SizedBox(
           height: boardHeight,
-          child: Scrollbar(
-            thumbVisibility: true,
-            trackVisibility: true,
-            scrollbarOrientation: ScrollbarOrientation.bottom,
-            child: CommonListViewBuilder<String>(
-              shrinkWrap: false,
-              scrollDirection: Axis.horizontal,
-              items: CommonStatus.statuses,
-              itemBuilder: (context, status, index) {
-                return KanbanColumn(
-                  status: status,
-                  label: CommonStatus.statusLabel(status),
-                  color: CommonStatus.ticketStatusColor(status),
-                  tickets: grouped[status] ?? const [],
-                  user: currentUser,
-                );
-              },
-            ),
+          child: CommonListViewBuilder<String>(
+            shrinkWrap: false,
+            scrollDirection: Axis.horizontal,
+            items: CommonStatus.statuses,
+            itemBuilder: (context, status, index) {
+              return KanbanColumn(
+                status: status,
+                label: CommonStatus.statusLabel(status),
+                color: CommonStatus.ticketStatusColor(status),
+                tickets: grouped[status] ?? const [],
+                user: currentUser,
+              );
+            },
           ),
         );
       },
