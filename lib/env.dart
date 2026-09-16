@@ -1,8 +1,9 @@
 class Env {
-  static bool isLive = true;
+  static bool isLive = false;
 
   /// Backend API URL (set to your Railway / production backend)
-  static String? backendUrl = 'https://tasknest-backend-production.up.railway.app';
+  static String? backendUrl =
+      'https://tasknest-backend-production.up.railway.app';
 
   static String get baseUrl {
     if (isLive && backendUrl != null) {
