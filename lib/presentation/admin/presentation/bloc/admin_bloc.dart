@@ -27,6 +27,9 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
   String _activitySearchQuery = '';
   int _activityPage = 0;
 
+  String _projectSearchQuery = '';
+  int _projectPage = 1;
+
   AdminBloc(this._repo) : super(AdminInitial()) {
     on<LoadAdminDashboard>(_onLoadDashboard);
     on<LoadUsers>(_onLoadUsers);
@@ -44,6 +47,9 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
     on<UpdateTicketAdmin>(_onUpdateTicketAdmin);
     on<LoadTicketDetail>(_onLoadTicketDetail);
     on<DeleteTicket>(_onDeleteTicket);
+    on<LoadProjects>(_onLoadProjects);
+    on<UpdateProjectSearchQuery>(_onUpdateProjectSearch);
+    on<UpdateProjectPage>(_onUpdateProjectPage);
     on<UpdateDeptSearchQuery>(_onUpdateDeptSearch);
     on<UpdateDeptPage>(_onUpdateDeptPage);
     on<UpdateTicketSearchQuery>(_onUpdateTicketSearch);
@@ -458,5 +464,40 @@ class AdminBloc extends Bloc<AdminEvent, AdminState> {
           searchQuery: _activitySearchQuery,
           page: _activityPage));
     }
+  }
+
+  Future<void> _fetchProjects(Emitter<AdminState> emit) async {
+    try {
+      final result = await _repo.getProjectsWithTotal(
+        search: _projectSearchQuery.isNotEmpty ? _projectSearchQuery : null,
+        page: _projectPage,
+      );
+      emit(ProjectsLoaded(result['projects'] as List<AdminProjectModel>,
+          searchQuery: _projectSearchQuery,
+          page: _projectPage,
+          totalProjects: result['total'] as int));
+    } catch (err) {
+      _emitError(emit, err);
+    }
+  }
+
+  Future<void> _onLoadProjects(
+      LoadProjects event, Emitter<AdminState> emit) async {
+    _projectPage = 1;
+    emit(AdminLoading());
+    await _fetchProjects(emit);
+  }
+
+  Future<void> _onUpdateProjectSearch(
+      UpdateProjectSearchQuery event, Emitter<AdminState> emit) async {
+    _projectSearchQuery = event.query;
+    _projectPage = 1;
+    await _fetchProjects(emit);
+  }
+
+  Future<void> _onUpdateProjectPage(
+      UpdateProjectPage event, Emitter<AdminState> emit) async {
+    _projectPage = event.page;
+    await _fetchProjects(emit);
   }
 }

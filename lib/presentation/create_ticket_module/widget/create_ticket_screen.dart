@@ -68,6 +68,13 @@ class _CreateTicketBodyState extends State<_CreateTicketBody> {
   List<ProjectModel> _projects = [];
   bool _loadingProjects = false;
 
+  // Cross-company directory (both companies) used when the ticket is being
+  // created inside a project. Loaded lazily; falls back to the dashboard's
+  // own-company lists on error (e.g. non-managers who can't access it).
+  List<EmployeeModel> _directoryEmployees = [];
+  List<DepartmentModel> _directoryDepartments = [];
+  bool _directoryLoaded = false;
+
   @override
   void initState() {
     super.initState();
@@ -76,6 +83,22 @@ class _CreateTicketBodyState extends State<_CreateTicketBody> {
     if (initialProjectId != null) {
       _addToProject = true;
       _selectedProjectId = initialProjectId;
+      _ensureDirectory();
+    }
+  }
+
+  Future<void> _ensureDirectory() async {
+    if (_directoryLoaded) return;
+    try {
+      final directory = await sl<ProjectRepositoryImpl>().getDirectory();
+      if (!mounted) return;
+      setState(() {
+        _directoryEmployees = directory.employees;
+        _directoryDepartments = directory.departments;
+        _directoryLoaded = true;
+      });
+    } catch (_) {
+      // keep using the dashboard (own-company) lists as fallback
     }
   }
 
@@ -145,7 +168,10 @@ class _CreateTicketBodyState extends State<_CreateTicketBody> {
             loaded = blocData.previousState;
           }
           final isWide = loaded?.isWide ?? true;
-          final allEmployees = loaded?.employees ?? <EmployeeModel>[];
+          final useDirectory = _addToProject && _directoryLoaded;
+          final allEmployees = useDirectory
+              ? _directoryEmployees
+              : (loaded?.employees ?? <EmployeeModel>[]);
           final employeeList = form.selectedDepartments.length == 1
               ? allEmployees
                   .where((e) =>
@@ -157,11 +183,11 @@ class _CreateTicketBodyState extends State<_CreateTicketBody> {
           final canAssignEmployee = widget.user.roleId == 0 ||
               widget.user.roleId == 1 ||
               widget.user.roleId == 3;
-          final availableDepartments = loaded != null
-              ? loaded.departments
-                  .map((d) => Departments(name: d.name, id: d.id))
-                  .toList()
-              : <Departments>[];
+          final fromDirectory =
+              useDirectory ? _directoryDepartments : (loaded?.departments ?? []);
+          final availableDepartments = fromDirectory
+              .map((d) => Departments(name: d.name, id: d.id))
+              .toList();
 
           return SingleChildScrollView(
             padding: EdgeInsets.all(isWide ? 28 : 16).copyWith(bottom: 48),
@@ -183,10 +209,11 @@ class _CreateTicketBodyState extends State<_CreateTicketBody> {
                       children: [
                         ProjectLinkSection(
                           addToProject: _addToProject,
-                          onChanged: (v) => setState(() {
-                            _addToProject = v;
+                          onChanged: (v) {
+                            setState(() => _addToProject = v);
+                            if (v) _ensureDirectory();
                             if (!v) _selectedProjectId = null;
-                          }),
+                          },
                           projects: _projects,
                           loadingProjects: _loadingProjects,
                           selectedProjectId: _selectedProjectId,

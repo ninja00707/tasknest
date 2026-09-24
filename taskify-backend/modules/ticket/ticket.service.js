@@ -259,7 +259,7 @@ class TicketService {
       throw { statusCode: 403, message: 'Only managers or CEO can create multi-task tickets' };
     }
 
-    const { title, description, priority = 'medium', dueDate, departments, parentTicketId = null } = data;
+    const { title, description, priority = 'medium', dueDate, departments, parentTicketId = null, projectId = null } = data;
 
     if (!title || !description || title.trim() === '' || description.trim() === '') {
       throw { statusCode: 400, message: 'title and description are required' };
@@ -303,6 +303,7 @@ class TicketService {
         taskDescription: d.taskDescription,
       })),
       parentTicketId: parentTicketId ? Number(parentTicketId) : null,
+      projectId: projectId != null ? Number(projectId) : null,
     });
     this._invalidateStats(user.id);
 

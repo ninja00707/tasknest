@@ -1,7 +1,11 @@
 import 'package:tasknest/presentation/projects/model/project_models.dart';
+import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
 abstract class ProjectRepository {
   Future<List<ProjectModel>> getProjects({String? scope, String? status});
+
+  Future<({List<EmployeeModel> employees, List<DepartmentModel> departments})>
+      getDirectory();
 
   Future<ProjectModel> getProject(int id);
 

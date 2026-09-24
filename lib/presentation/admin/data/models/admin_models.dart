@@ -198,6 +198,8 @@ class AdminTicketModel {
   final String? closedAt;
   final int? parentTicketId;
   final int immediateChildCount;
+  final int? projectId;
+  final String? projectName;
 
   AdminTicketModel({
     required this.id,
@@ -226,6 +228,8 @@ class AdminTicketModel {
     this.closedAt,
     this.parentTicketId,
     this.immediateChildCount = 0,
+    this.projectId,
+    this.projectName,
   });
 
   bool get isOverdue =>
@@ -261,6 +265,71 @@ class AdminTicketModel {
     closedAt: json['closed_at'],
     parentTicketId: json['parent_ticket_id'],
     immediateChildCount: json['immediate_child_count'] ?? 0,
+    projectId: json['project_id'],
+    projectName: json['project_name'],
+  );
+}
+
+class AdminProjectModel {
+  final int id;
+  final String name;
+  final String? description;
+  final String status;
+  final String priority;
+  final String? projectCode;
+  final int? createdById;
+  final int? createdByDept;
+  final int? companyId;
+  final String? companyName;
+  final String? createdByName;
+  final String? createdByDeptName;
+  final String? startDate;
+  final String? endDate;
+  final double progress;
+  final String? createdAt;
+  final int memberCount;
+  final int ticketCount;
+
+  AdminProjectModel({
+    required this.id,
+    required this.name,
+    this.description,
+    required this.status,
+    required this.priority,
+    this.projectCode,
+    this.createdById,
+    this.createdByDept,
+    this.companyId,
+    this.companyName,
+    this.createdByName,
+    this.createdByDeptName,
+    this.startDate,
+    this.endDate,
+    this.progress = 0,
+    this.createdAt,
+    this.memberCount = 0,
+    this.ticketCount = 0,
+  });
+
+  factory AdminProjectModel.fromJson(Map<String, dynamic> json) => AdminProjectModel(
+    id: json['id'],
+    name: json['name'] ?? '',
+    description: json['description'],
+    status: json['status'] ?? 'active',
+    priority: json['priority'] ?? 'medium',
+    projectCode: json['project_code'],
+    createdById: json['created_by_id'],
+    createdByDept: json['created_by_dept'],
+    companyId: json['company_id'],
+    companyName: json['company_name'],
+    createdByName: json['created_by_name'],
+    createdByDeptName: json['created_by_dept_name'],
+    startDate: json['start_date'],
+    endDate: json['end_date'],
+    progress: (json['progress'] is num) ? (json['progress'] as num).toDouble() : 0,
+    createdAt: json['created_at'],
+    memberCount: json['member_count'] ?? 0,
+    ticketCount: json['ticket_count'] ?? 0,
   );
 }
 

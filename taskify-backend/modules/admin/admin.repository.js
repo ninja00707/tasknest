@@ -205,6 +205,7 @@ exports.findAllTickets = async (query = {}) => {
             d.name AS assigned_dept_name,
             d.code AS assigned_dept_code,
             a.name AS assigned_to_name,
+            pj.name AS project_name,
             ll.action AS last_action,
             ll.acted_by_name AS last_acted_by_name,
             ll.acted_by_dept_name AS last_acted_by_dept_name,
@@ -214,6 +215,7 @@ exports.findAllTickets = async (query = {}) => {
      LEFT JOIN users u ON u.id = t.created_by_id
      LEFT JOIN departments d ON d.id = t.assigned_dept_id
      LEFT JOIN users a ON a.id = t.assigned_to_id
+     LEFT JOIN projects pj ON pj.id = t.project_id
      LEFT JOIN LATERAL (
        SELECT tl.action,
               actor.name AS acted_by_name,
@@ -242,6 +244,7 @@ exports.findTicketById = async (id) => {
             d.name AS assigned_dept_name,
             d.code AS assigned_dept_code,
             a.name AS assigned_to_name,
+            pj.name AS project_name,
             ll.action AS last_action,
             ll.acted_by_name AS last_acted_by_name,
             ll.acted_by_dept_name AS last_acted_by_dept_name,
@@ -251,6 +254,7 @@ exports.findTicketById = async (id) => {
      LEFT JOIN users u ON u.id = t.created_by_id
      LEFT JOIN departments d ON d.id = t.assigned_dept_id
      LEFT JOIN users a ON a.id = t.assigned_to_id
+     LEFT JOIN projects pj ON pj.id = t.project_id
      LEFT JOIN LATERAL (
        SELECT tl.action,
               actor.name AS acted_by_name,
@@ -276,6 +280,7 @@ exports.findSubTickets = async (parentId) => {
             d.name AS assigned_dept_name,
             d.code AS assigned_dept_code,
             a.name AS assigned_to_name,
+            pj.name AS project_name,
             ll.action AS last_action,
             ll.acted_by_name AS last_acted_by_name,
             ll.acted_by_dept_name AS last_acted_by_dept_name,
@@ -285,6 +290,7 @@ exports.findSubTickets = async (parentId) => {
      LEFT JOIN users u ON u.id = t.created_by_id
      LEFT JOIN departments d ON d.id = t.assigned_dept_id
      LEFT JOIN users a ON a.id = t.assigned_to_id
+     LEFT JOIN projects pj ON pj.id = t.project_id
      LEFT JOIN LATERAL (
        SELECT tl.action,
               actor.name AS acted_by_name,
@@ -346,4 +352,103 @@ exports.findUserActivity = async () => {
      ORDER BY u.last_active DESC NULLS LAST, u.name`
   );
   return result.rows;
+};
+
+exports.findAllProjects = async (query = {}) => {
+  const page = parseInt(query.page) || 1;
+  const limit = parseInt(query.limit) || 20;
+  const offset = (page - 1) * limit;
+  const conditions = [];
+  const values = [];
+  let idx = 1;
+
+  if (query.companyId && Number(query.companyId) > 0) {
+    conditions.push(`p.company_id = $${idx++}`);
+    values.push(Number(query.companyId));
+  }
+  if (query.search) {
+    conditions.push(`(p.name ILIKE $${idx} OR p.project_code ILIKE $${idx} OR p.description ILIKE $${idx})`);
+    values.push(`%${query.search}%`);
+    idx++;
+  }
+
+  const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+  const countResult = await pool.query(
+    `SELECT COUNT(*)::int AS total FROM projects p ${where}`,
+    values
+  );
+  const total = countResult.rows[0].total;
+  const totalPages = Math.ceil(total / limit);
+
+  const result = await pool.query(
+    `SELECT p.*,
+            c.name AS company_name,
+            u.name AS created_by_name,
+            d.name AS created_by_dept_name,
+            (SELECT COUNT(*)::int FROM project_members pm WHERE pm.project_id = p.id) AS member_count,
+            (SELECT COUNT(*)::int FROM tickets t WHERE t.project_id = p.id) AS ticket_count
+     FROM projects p
+     LEFT JOIN companies c ON c.id = p.company_id
+     LEFT JOIN users u ON u.id = p.created_by_id
+     LEFT JOIN departments d ON d.id = p.created_by_dept
+     ${where}
+     ORDER BY p.created_at DESC
+     LIMIT $${idx++} OFFSET $${idx}`,
+    [...values, limit, offset]
+  );
+
+  return { projects: result.rows, total, page, totalPages };
+};
+
+exports.findProjectById = async (id) => {
+  const projectRes = await pool.query(
+    `SELECT p.*,
+            c.name AS company_name,
+            u.name AS created_by_name,
+            d.name AS created_by_dept_name
+     FROM projects p
+     LEFT JOIN companies c ON c.id = p.company_id
+     LEFT JOIN users u ON u.id = p.created_by_id
+     LEFT JOIN departments d ON d.id = p.created_by_dept
+     WHERE p.id = $1`,
+    [id]
+  );
+  const project = projectRes.rows[0] || null;
+  if (!project) return null;
+
+  const [membersRes, departmentsRes, ticketsRes] = await Promise.all([
+    pool.query(
+      `SELECT pm.user_id, pm.role, u.name, u.email, u.company_id, c.name AS company_name
+       FROM project_members pm
+       JOIN users u ON u.id = pm.user_id
+       LEFT JOIN companies c ON c.id = u.company_id
+       WHERE pm.project_id = $1
+       ORDER BY pm.role, u.name`,
+      [id]
+    ),
+    pool.query(
+      `SELECT pd.department_id, d.name, d.code, d.company_id, c.name AS company_name
+       FROM project_departments pd
+       JOIN departments d ON d.id = pd.department_id
+       LEFT JOIN companies c ON c.id = d.company_id
+       WHERE pd.project_id = $1
+       ORDER BY d.name`,
+      [id]
+    ),
+    pool.query(
+      `SELECT t.id, t.ticket_number, t.title, t.status, t.priority, t.created_at
+       FROM tickets t
+       WHERE t.project_id = $1
+       ORDER BY t.created_at DESC`,
+      [id]
+    ),
+  ]);
+
+  return {
+    ...project,
+    members: membersRes.rows,
+    departments: departmentsRes.rows,
+    tickets: ticketsRes.rows,
+  };
 };

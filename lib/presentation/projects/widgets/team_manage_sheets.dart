@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
+import 'package:tasknest/domain/repositories_impl/project_impl/project_impl.dart';
 import 'package:tasknest/presentation/projects/widgets/ui_helpers.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
@@ -96,12 +96,12 @@ class _AddPeopleSheetState extends State<AddPeopleSheet> {
       _error = null;
     });
     try {
-      final employees = await GetIt.instance
-          .get<TicketRepositoryImpl>()
-          .getEmployees();
+      final directory = await GetIt.instance
+          .get<ProjectRepositoryImpl>()
+          .getDirectory();
       if (!mounted) return;
       setState(() {
-        _employees = employees;
+        _employees = directory.employees;
         _loading = false;
       });
     } catch (e) {
@@ -331,11 +331,11 @@ class _AddDepartmentsSheetState extends State<AddDepartmentsSheet> {
     });
     try {
       final depts = await GetIt.instance
-          .get<TicketRepositoryImpl>()
-          .getDepartments();
+          .get<ProjectRepositoryImpl>()
+          .getDirectory();
       if (!mounted) return;
       setState(() {
-        _departments = depts;
+        _departments = depts.departments;
         _loading = false;
       });
     } catch (e) {

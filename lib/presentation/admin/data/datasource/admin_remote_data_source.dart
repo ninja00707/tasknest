@@ -101,4 +101,14 @@ class AdminRemoteDataSource {
   Future<void> deleteTicket(int id) async {
     await _api.delete('admin/tickets/$id');
   }
+
+  // ── Projects ───────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>> getProjectsWithTotal({String? search, int page = 1, int limit = 20}) async {
+    final query = <String, dynamic>{'page': '$page', 'limit': '$limit'};
+    if (search != null && search.isNotEmpty) query['search'] = search;
+    final res = await _api.get('admin/projects', queryParams: query);
+    final projects = (res['data'] as List).map((e) => AdminProjectModel.fromJson(e)).toList();
+    final total = res['pagination']?['total'] ?? 0;
+    return {'projects': projects, 'total': total};
+  }
 }

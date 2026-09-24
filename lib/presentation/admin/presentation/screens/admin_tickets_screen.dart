@@ -245,6 +245,12 @@ class _AdminTicketsScreenState extends State<AdminTicketsScreen> {
                   ),
                   DataColumn(
                     label: Text(
+                      'Project',
+                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
                       'Assigned To',
                       style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
                     ),
@@ -339,6 +345,25 @@ class _AdminTicketsScreenState extends State<AdminTicketsScreen> {
                             Text(
                               t.assignedDeptName ?? '-',
                               style: const TextStyle(fontSize: 11),
+                            ),
+                          ),
+                          DataCell(
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 140),
+                              child: Text(
+                                t.projectName ?? '-',
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: t.projectName != null
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                  color: t.projectName != null
+                                      ? ThemeColors.unifiedSecondary
+                                      : ThemeColors.unifiedTextMuted,
+                                ),
+                              ),
                             ),
                           ),
                           DataCell(
@@ -696,6 +721,14 @@ class _TicketDetailDialog extends StatelessWidget {
                     style: const TextStyle(fontSize: 13),
                   ),
                 ),
+                if (t.projectName != null)
+                  _infoRow(
+                    'Project',
+                    Text(
+                      t.projectName!,
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
                 if (t.dueDate != null)
                   _infoRow(
                     'Due Date',

@@ -154,3 +154,13 @@ exports.deleteTicket = async (id) => {
   if (!ticket) { const e = new Error('Ticket not found'); e.statusCode = 404; throw e; }
   await repo.deleteTicket(id);
 };
+
+exports.listProjects = async (query) => {
+  return repo.findAllProjects(query);
+};
+
+exports.getProject = async (id) => {
+  const project = await repo.findProjectById(id);
+  if (!project) { const e = new Error('Project not found'); e.statusCode = 404; throw e; }
+  return project;
+};

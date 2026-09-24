@@ -107,6 +107,24 @@ class LoadTicketDetail extends AdminEvent {
   List<Object?> get props => [id];
 }
 
+class LoadProjects extends AdminEvent {}
+
+class UpdateProjectSearchQuery extends AdminEvent {
+  final String query;
+  UpdateProjectSearchQuery(this.query);
+
+  @override
+  List<Object?> get props => [query];
+}
+
+class UpdateProjectPage extends AdminEvent {
+  final int page;
+  UpdateProjectPage(this.page);
+
+  @override
+  List<Object?> get props => [page];
+}
+
 class DeleteTicket extends AdminEvent {
   final int id;
   final BuildContext context;

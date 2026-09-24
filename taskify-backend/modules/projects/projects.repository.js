@@ -205,22 +205,52 @@ class ProjectRepository {
     return result.rows;
   }
 
+  // ── Cross-company directory for the project module ────────────────────
+  // Managers see employees AND departments of BOTH companies while working
+  // inside the project module (members, observers, ticket assignment).
+  async getDirectory() {
+    const [employeesRes, departmentsRes] = await Promise.all([
+      pool.query(`
+        SELECT
+          u.id, u.name, u.email, u.department_id, u.company_id, u.is_active,
+          r.name AS role,
+          d.code AS dept_code, d.name AS dept_name,
+          u.reports_to, reporter.name AS reports_to_name,
+          c.name AS company_name
+        FROM users u
+        JOIN roles r ON r.id = u.role_id
+        JOIN departments d ON d.id = u.department_id
+        LEFT JOIN companies c ON c.id = u.company_id
+        LEFT JOIN users reporter ON reporter.id = u.reports_to
+        WHERE u.is_active = TRUE
+        ORDER BY u.name ASC
+      `),
+      pool.query(`
+        SELECT d.id, d.name, d.code, d.tier, d.parent_id, d.is_shared,
+               d.company_id, c.name AS company_name
+        FROM departments d
+        LEFT JOIN companies c ON c.id = d.company_id
+        ORDER BY d.tier, d.name
+      `),
+    ]);
+    return {
+      employees: employeesRes.rows,
+      departments: departmentsRes.rows,
+    };
+  }
+
   async getProjectTickets(projectId) {
     const result = await pool.query(
-      `WITH RECURSIVE seed AS (
-          SELECT id, parent_ticket_id FROM tickets WHERE project_id = $1
-        ),
-        upward AS (
-          SELECT id, parent_ticket_id FROM seed
-          UNION
-          SELECT p.id, p.parent_ticket_id FROM tickets p
-          JOIN upward u ON p.id = u.parent_ticket_id
-        ),
-        full_tree AS (
-          SELECT id FROM upward
-          UNION
+      `WITH RECURSIVE project_tree AS (
+          -- Seeds: every ticket that belongs to this project
+          SELECT id FROM tickets WHERE project_id = $1
+          UNION ALL
+          -- Descendants, but ONLY descendants that also belong to this project.
+          -- No upward climb to project-less roots => a project can never show
+          -- tickets belonging to another project or to the general board.
           SELECT c.id FROM tickets c
-          JOIN full_tree f ON c.parent_ticket_id = f.id
+          JOIN project_tree f ON c.parent_ticket_id = f.id
+          WHERE c.project_id = $1
         )
        SELECT t.id, t.title, t.description, t.status, t.priority, t.ticket_number,
               t.assigned_dept_id, t.assigned_to_id, t.created_by_id,
@@ -260,7 +290,7 @@ class ProjectRepository {
          ORDER BY l.created_at DESC
          LIMIT 1
        ) ll ON true
-       WHERE t.id IN (SELECT id FROM full_tree)
+       WHERE t.id IN (SELECT id FROM project_tree)
        ORDER BY t.created_at DESC`,
       [projectId]
     );

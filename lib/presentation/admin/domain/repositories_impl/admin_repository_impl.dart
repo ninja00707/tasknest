@@ -61,4 +61,8 @@ class AdminRepositoryImpl implements AdminRepository {
 
   @override
   Future<void> deleteTicket(int id) => _ds.deleteTicket(id);
+
+  @override
+  Future<Map<String, dynamic>> getProjectsWithTotal({String? search, int page = 1, int limit = 20}) =>
+      _ds.getProjectsWithTotal(search: search, page: page, limit: limit);
 }

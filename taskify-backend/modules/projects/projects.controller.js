@@ -15,6 +15,11 @@ class ProjectController {
     res.json({ success: true, data: projects });
   });
 
+  getDirectory = handler(async (req, res) => {
+    const directory = await projectService.getDirectory(req.user);
+    res.json({ success: true, data: directory });
+  });
+
   getProjectDetail = handler(async (req, res) => {
     const project = await projectService.getProjectDetail(req.user, Number(req.params.id), req.query);
     res.json({ success: true, data: project });

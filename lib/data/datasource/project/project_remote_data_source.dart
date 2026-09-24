@@ -1,11 +1,25 @@
 import 'package:injectable/injectable.dart';
 import 'package:tasknest/core/constant/api_client.dart';
 import 'package:tasknest/presentation/projects/model/project_models.dart';
+import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
 @lazySingleton
 class ProjectRemoteDataSource {
   final ApiClient _api;
   ProjectRemoteDataSource(this._api);
+
+  Future<({List<EmployeeModel> employees, List<DepartmentModel> departments})>
+      getDirectory() async {
+    final res = await _api.get('projects/directory');
+    final data = res['data'] ?? {};
+    final employees = ((data['employees'] ?? []) as List)
+        .map((e) => EmployeeModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final departments = ((data['departments'] ?? []) as List)
+        .map((e) => DepartmentModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return (employees: employees, departments: departments);
+  }
 
   Future<List<ProjectModel>> getProjects({
     String? scope,

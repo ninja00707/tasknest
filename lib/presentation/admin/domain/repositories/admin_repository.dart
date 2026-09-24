@@ -18,4 +18,5 @@ abstract class AdminRepository {
   Future<AdminTicketModel> updateTicket(int id, Map<String, dynamic> body);
   Future<List<AdminSubTicketModel>> getSubTickets(int parentId);
   Future<void> deleteTicket(int id);
+  Future<Map<String, dynamic>> getProjectsWithTotal({String? search, int page, int limit});
 }

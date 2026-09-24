@@ -39,4 +39,8 @@ router.get('/tickets/:id/sub-tickets', controller.getSubTickets);
 router.patch('/tickets/:id', controller.updateTicket);
 router.delete('/tickets/:id', controller.deleteTicket);
 
+// Projects
+router.get('/projects', controller.listProjects);
+router.get('/projects/:id', controller.getProject);
+
 module.exports = router;

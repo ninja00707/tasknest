@@ -167,6 +167,17 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
     try {
       final updated = await _dataSource.getTicket(event.ticketId);
 
+      // Project tickets live only inside their project screen.
+      if (updated.projectId != null) {
+        final cur = _getLoadedStateOrNull();
+        if (cur != null && cur.tickets.any((t) => t.id == updated.id)) {
+          final cleaned = List<TicketModel>.from(cur.tickets)
+            ..removeWhere((t) => t.id == updated.id);
+          emit(cur.copyWith(tickets: cleaned));
+        }
+        return;
+      }
+
       // Sub-tickets should never appear as standalone cards in the dashboard.
       // Walk up the parent chain to find the root ancestor that IS in the list.
       if (updated.parentTicketId != null) {
@@ -184,7 +195,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
               final pi = list.indexWhere((t) => t.id == ancestor.id);
               if (pi >= 0) {
                 list[pi] = ancestor;
-              } else {
+              } else if (ancestor.projectId == null) {
                 list.insert(0, ancestor);
               }
               emit(latest.copyWith(tickets: list));
@@ -227,6 +238,11 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
       if (latest == null) return;
 
       final ticket = await _dataSource.getTicket(event.ticketId);
+
+      // Project tickets live only inside their project screen — never on the
+      // main dashboard / department board.
+      if (ticket.projectId != null) return;
+
       final list = List<TicketModel>.from(latest.tickets);
 
       if (ticket.parentTicketId != null) {
@@ -243,7 +259,7 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
           try {
             final ancestor = await _dataSource.getTicket(ancestorId);
             if (ancestor.parentTicketId == null) {
-              list.insert(0, ancestor);
+              if (ancestor.projectId == null) list.insert(0, ancestor);
               break;
             }
             ancestorId = ancestor.parentTicketId;
@@ -277,6 +293,18 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
 
     try {
       final ticket = TicketModel.fromJson(event.ticketJson);
+
+      // Project tickets live only inside their project screen.
+      if (ticket.projectId != null) {
+        final cur = _getLoadedStateOrNull();
+        if (cur != null && cur.tickets.any((t) => t.id == ticket.id)) {
+          final cleaned = List<TicketModel>.from(cur.tickets)
+            ..removeWhere((t) => t.id == ticket.id);
+          emit(cur.copyWith(tickets: cleaned));
+        }
+        return;
+      }
+
       final list = List<TicketModel>.from(loaded.tickets);
       final idx = list.indexWhere((t) => t.id == ticket.id);
       if (idx >= 0) {

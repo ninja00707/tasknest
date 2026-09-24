@@ -121,3 +121,18 @@ exports.deleteTicket = handler(async (req, res) => {
   await service.deleteTicket(safeInt(req.params.id));
   ok(res, null, 'Ticket deleted successfully');
 });
+
+// ── Projects ────────────────────────────────────────────────────────────
+exports.listProjects = handler(async (req, res) => {
+  const result = await service.listProjects(req.query);
+  res.status(200).json({
+    success: true,
+    data: result.projects,
+    pagination: { total: result.total, page: result.page, totalPages: result.totalPages },
+  });
+});
+
+exports.getProject = handler(async (req, res) => {
+  const project = await service.getProject(safeInt(req.params.id));
+  ok(res, project);
+});

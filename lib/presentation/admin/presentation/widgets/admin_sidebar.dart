@@ -57,8 +57,9 @@ class AdminSidebar extends StatelessWidget {
           _item(Icons.dashboard_outlined, 'Dashboard', 0),
           _item(Icons.people_outlined, 'Users', 1),
           _item(Icons.business_outlined, 'Departments', 2),
-          _item(Icons.confirmation_number_outlined, 'Tickets', 3),
-          _item(Icons.access_time_outlined, 'Activity', 4),
+          _item(Icons.folder_outlined, 'Projects', 3),
+          _item(Icons.confirmation_number_outlined, 'Tickets', 4),
+          _item(Icons.access_time_outlined, 'Activity', 5),
           const Spacer(),
           if (onBackToMain != null)
             Padding(

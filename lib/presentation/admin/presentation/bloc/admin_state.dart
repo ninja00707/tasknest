@@ -149,6 +149,25 @@ class TicketDetailLoaded extends AdminState {
   List<Object?> get props => [ticket, subTickets, departments];
 }
 
+class ProjectsLoaded extends AdminState {
+  final List<AdminProjectModel> projects;
+  final String searchQuery;
+  final int page;
+  final int totalProjects;
+
+  static const int pageSize = 20;
+
+  ProjectsLoaded(this.projects,
+      {this.searchQuery = '', this.page = 1, this.totalProjects = 0});
+
+  int get totalPages => totalProjects == 0 ? 1 : (totalProjects / pageSize).ceil();
+
+  int get clampedPage => page.clamp(1, totalPages);
+
+  @override
+  List<Object?> get props => [projects, searchQuery, page, totalProjects];
+}
+
 class UserActivityLoaded extends AdminState {
   final List<AdminUserModel> users;
   final String filter;

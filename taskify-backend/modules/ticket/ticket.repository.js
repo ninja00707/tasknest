@@ -40,7 +40,7 @@ class TicketRepository {
         t.due_date, t.created_at, t.updated_at,
         t.closed_at, t.reopened_at, t.reopen_count,
         t.is_sub_ticket, t.overall_progress,
-        t.parent_ticket_id, t.ticket_type,
+        t.parent_ticket_id, t.ticket_type, t.project_id,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -865,6 +865,22 @@ class TicketRepository {
       const status = 'open';
       const isSubTicket = parentTicketId != null;
 
+      // Tickets created for a project must only live inside that project.
+      // When a sub-ticket is created under a project ticket and no explicit
+      // projectId was passed, inherit the parent ticket's project so the
+      // sub-ticket cannot leak out to another project (or to the board).
+      let effectiveProjectId = null;
+      if (projectId != null) {
+        effectiveProjectId = Number(projectId);
+      } else if (parentTicketId != null) {
+        const parentProjRes = await client.query(
+          `SELECT project_id FROM tickets WHERE id = $1`,
+          [parentTicketId]
+        );
+        const parentProjectId = parentProjRes.rows[0]?.project_id;
+        if (parentProjectId != null) effectiveProjectId = parentProjectId;
+      }
+
       // Generate ticket number
       let ticketNumber;
       if (parentTicketId) {
@@ -887,7 +903,7 @@ class TicketRepository {
           (title, description, priority, assigned_dept_id, due_date, created_by_id, created_by_dept, assigned_to_id, status, parent_ticket_id, ticket_type, is_sub_ticket, ticket_number, version, project_id)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 1, $14)
         RETURNING id
-      `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status, parentTicketId, ticketType, isSubTicket, ticketNumber, projectId || null]);
+      `, [title, description, priority, assignedDeptId, dueDate || null, createdBy.id, createdBy.department_id, assignedToId || null, status, parentTicketId, ticketType, isSubTicket, ticketNumber, effectiveProjectId || null]);
 
       const ticketId = result.rows[0].id;
 
@@ -1715,16 +1731,30 @@ class TicketRepository {
     return { avg_progress, newStatus, approved_count };
   }
 
-  async createSubTicket({ title, description, priority, dueDate, createdBy, departments, parentTicketId = null }) {
+  async createSubTicket({ title, description, priority, dueDate, createdBy, departments, parentTicketId = null, projectId = null }) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
+      // Keep multi-task sub-tickets inside their project too: inherit the
+      // parent's project when one exists and none was passed explicitly.
+      let effectiveProjectId = null;
+      if (projectId != null) {
+        effectiveProjectId = Number(projectId);
+      } else if (parentTicketId != null) {
+        const parentProjRes = await client.query(
+          `SELECT project_id FROM tickets WHERE id = $1`,
+          [parentTicketId]
+        );
+        const parentProjectId = parentProjRes.rows[0]?.project_id;
+        if (parentProjectId != null) effectiveProjectId = parentProjectId;
+      }
+
       const ticketResult = await client.query(`
         INSERT INTO tickets
           (title, description, priority, assigned_dept_id, due_date,
-           created_by_id, created_by_dept, assigned_to_id, status, is_sub_ticket, overall_progress, parent_ticket_id, ticket_type, version)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'in_progress', TRUE, 0, $9, 'multi_task', 1)
+           created_by_id, created_by_dept, assigned_to_id, status, is_sub_ticket, overall_progress, parent_ticket_id, ticket_type, version, project_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'in_progress', TRUE, 0, $9, 'multi_task', 1, $10)
         RETURNING id
       `, [
         title, description, priority,
@@ -1733,7 +1763,8 @@ class TicketRepository {
         createdBy.id,
         createdBy.department_id,
         createdBy.id,
-        parentTicketId
+        parentTicketId,
+        effectiveProjectId || null
       ]);
 
       const ticketId = ticketResult.rows[0].id;
@@ -2050,7 +2081,8 @@ class TicketRepository {
         ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(t.closed_at, t.updated_at) - t.created_at)) / 3600)::numeric, 2) AS avg_resolution_hours
       FROM departments d
       LEFT JOIN tickets t ON t.assigned_dept_id = d.id
-      WHERE ($1::boolean OR (d.company_id = $2 OR d.is_shared = TRUE))
+      WHERE t.project_id IS NULL
+        AND ($1::boolean OR (d.company_id = $2 OR d.is_shared = TRUE))
       GROUP BY d.id, d.code, d.name
       ORDER BY d.name ASC
     `, [user.see_all_companies || false, user.company_id]);

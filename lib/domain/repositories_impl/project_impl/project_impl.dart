@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tasknest/data/datasource/project/project_remote_data_source.dart';
 import 'package:tasknest/data/repositories/project/project_repository.dart';
 import 'package:tasknest/presentation/projects/model/project_models.dart';
+import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
 @lazySingleton
 class ProjectRepositoryImpl implements ProjectRepository {
@@ -12,6 +13,10 @@ class ProjectRepositoryImpl implements ProjectRepository {
   @override
   Future<List<ProjectModel>> getProjects({String? scope, String? status}) =>
       _projectDs.getProjects(scope: scope, status: status);
+
+  @override
+  Future<({List<EmployeeModel> employees, List<DepartmentModel> departments})>
+      getDirectory() => _projectDs.getDirectory();
 
   @override
   Future<ProjectModel> getProject(int id) => _projectDs.getProject(id);

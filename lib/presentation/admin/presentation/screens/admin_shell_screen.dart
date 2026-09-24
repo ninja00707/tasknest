@@ -8,6 +8,7 @@ import 'package:tasknest/presentation/admin/presentation/screens/admin_users_scr
 import 'package:tasknest/presentation/admin/presentation/screens/admin_departments_screen.dart';
 import 'package:tasknest/presentation/admin/presentation/screens/admin_tickets_screen.dart';
 import 'package:tasknest/presentation/admin/presentation/screens/admin_user_activity_screen.dart';
+import 'package:tasknest/presentation/admin/presentation/screens/admin_projects_screen.dart';
 import 'package:tasknest/presentation/admin/presentation/widgets/admin_sidebar.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 
@@ -30,6 +31,7 @@ class _AdminShellScreenState extends State<AdminShellScreen> {
       AdminDashboardScreen(bloc: context.read<AdminBloc>()),
       AdminUsersScreen(bloc: context.read<AdminBloc>()),
       AdminDepartmentsScreen(bloc: context.read<AdminBloc>()),
+      AdminProjectsScreen(bloc: context.read<AdminBloc>()),
       AdminTicketsScreen(bloc: context.read<AdminBloc>()),
       AdminUserActivityScreen(bloc: context.read<AdminBloc>()),
     ]);

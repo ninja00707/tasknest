@@ -4,7 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
-import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
+import 'package:tasknest/domain/repositories_impl/project_impl/project_impl.dart';
 import 'package:tasknest/presentation/projects/bloc/project_bloc.dart';
 import 'package:tasknest/presentation/projects/bloc/project_event.dart';
 import 'package:tasknest/presentation/projects/bloc/project_state.dart';
@@ -22,7 +22,6 @@ class CreateProjectScreen extends StatefulWidget {
 class _CreateProjectScreenState extends State<CreateProjectScreen> {
   final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
-  final _ticketRepo = GetIt.instance.get<TicketRepositoryImpl>();
   String _priority = 'medium';
   DateTime? _startDate;
   DateTime? _endDate;
@@ -55,12 +54,14 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
       _optionsError = null;
     });
     try {
-      final depts = await _ticketRepo.getDepartments();
-      final employees = await _ticketRepo.getEmployees();
+      // Project module uses BOTH companies' employees and departments
+      final directory = await GetIt.instance
+          .get<ProjectRepositoryImpl>()
+          .getDirectory();
       if (!mounted) return;
       setState(() {
-        _departments = depts;
-        _employees = employees;
+        _departments = directory.departments;
+        _employees = directory.employees;
         _loadingOptions = false;
       });
     } catch (e) {

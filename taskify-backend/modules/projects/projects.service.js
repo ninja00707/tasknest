@@ -65,6 +65,10 @@ class ProjectService {
     return project;
   }
 
+  async getDirectory(user) {
+    return projectRepo.getDirectory();
+  }
+
   async listProjects(user, query) {
     const scope = query.scope || 'all';
     const filters = { status: query.status };
