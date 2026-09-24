@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tasknest/data/repositories/ticket/ticket_realtime_repository.dart';
 import 'package:tasknest/domain/repositories_impl/project_impl/project_impl.dart';
 import 'package:tasknest/presentation/projects/bloc/project_event.dart';
 import 'package:tasknest/presentation/projects/bloc/project_state.dart';
@@ -6,12 +9,16 @@ import 'package:tasknest/presentation/projects/model/project_models.dart';
 
 class ProjectBloc extends Bloc<ProjectEvent, ProjectState> {
   final ProjectRepositoryImpl _repository;
+  final TicketRealtimeRepository _realtime = TicketRealtimeRepository();
+  StreamSubscription<dynamic>? _ticketEventsSub;
+  Timer? _refreshDebounce;
   ProjectModel? _lastProject;
   Map<int, List<ProjectCommentModel>> _commentsCache = {};
 
   ProjectBloc(this._repository) : super(ProjectInitial()) {
     on<LoadProjects>(_onLoadList);
     on<LoadProjectDetail>(_onLoadDetail);
+    on<RefreshProjectDetail>(_onRefreshDetail);
     on<CreateProject>(_onCreate);
     on<UpdateProject>(_onUpdate);
     on<AddProjectTask>(_onAddTask);
@@ -26,6 +33,42 @@ class ProjectBloc extends Bloc<ProjectEvent, ProjectState> {
     on<AddProjectDepartments>(_onAddDepartments);
     on<RemoveProjectDepartment>(_onRemoveDepartment);
     on<ClearProjectState>(_onClear);
+
+    _initRealtime();
+  }
+
+  /// Live-refresh the open project whenever any ticket event arrives
+  /// (new ticket, status change, comment, child update — inside this project
+  /// or any other; debounced so bursts collapse into one reload).
+  void _initRealtime() {
+    _realtime.initialize();
+    _ticketEventsSub?.cancel();
+    _ticketEventsSub = _realtime.ticketEvents.listen((event) {
+      if (isClosed) return;
+      if (state is! ProjectDetailLoaded) return;
+      _refreshDebounce?.cancel();
+      _refreshDebounce = Timer(const Duration(milliseconds: 400), () {
+        if (isClosed) return;
+        if (state is! ProjectDetailLoaded) return;
+        add(RefreshProjectDetail());
+      });
+    });
+  }
+
+  Future<void> _onRefreshDetail(
+    RefreshProjectDetail event,
+    Emitter<ProjectState> emit,
+  ) async {
+    final project = _lastProject;
+    if (project == null || state is! ProjectDetailLoaded) return;
+    try {
+      final refreshed = await _repository.getProject(project.id);
+      if (isClosed) return;
+      _lastProject = refreshed;
+      emit(ProjectDetailLoaded(refreshed));
+    } catch (_) {
+      // Silent refresh — keep showing the previous data on failure.
+    }
   }
 
   String _friendly(dynamic error) {
@@ -354,10 +397,13 @@ class ProjectBloc extends Bloc<ProjectEvent, ProjectState> {
       isObserver: p.isObserver,
       viewerRole: p.viewerRole,
       canManage: p.canManage,
+      canEdit: p.canEdit,
+      canManageObservers: p.canManageObservers,
       departments: p.departments,
       members: p.members,
       observers: p.observers,
       tasks: tasks ?? p.tasks,
+      tickets: p.tickets,
     );
   }
 
@@ -368,5 +414,12 @@ class ProjectBloc extends Bloc<ProjectEvent, ProjectState> {
     _lastProject = null;
     _commentsCache = {};
     emit(ProjectInitial());
+  }
+
+  @override
+  Future<void> close() {
+    _ticketEventsSub?.cancel();
+    _refreshDebounce?.cancel();
+    return super.close();
   }
 }

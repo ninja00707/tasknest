@@ -297,29 +297,38 @@ class _ProjectDetailBodyState extends State<_ProjectDetailBody>
     super.dispose();
   }
 
+  void _reloadProject() {
+    if (!mounted) return;
+    context.read<ProjectBloc>().add(LoadProjectDetail(widget.project.id));
+  }
+
   void _openAddTaskModal() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => AddTaskScreen(
-          projectId: widget.project.id,
-          projectName: widget.project.name,
-          departments: widget.project.departments,
-          members: widget.project.members,
-        ),
-      ),
-    );
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => AddTaskScreen(
+              projectId: widget.project.id,
+              projectName: widget.project.name,
+              departments: widget.project.departments,
+              members: widget.project.members,
+            ),
+          ),
+        )
+        .then((_) => _reloadProject());
   }
 
   void _openNewTicketModal() {
     if (widget.currentUser == null) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => CreateTicketView(
-          user: widget.currentUser!,
-          initialProjectId: widget.project.id,
-        ),
-      ),
-    );
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (_) => CreateTicketView(
+              user: widget.currentUser!,
+              initialProjectId: widget.project.id,
+            ),
+          ),
+        )
+        .then((_) => _reloadProject());
   }
 
   @override
@@ -776,6 +785,7 @@ class _ProjectOverviewTab extends StatelessWidget {
                 ProjectTicketsBoard(
                   tickets: project.tickets,
                   user: currentUser,
+                  projectId: project.id,
                 ),
               ],
             ],
@@ -1218,6 +1228,7 @@ class _ProjectBoardTabState extends State<_ProjectBoardTab> {
                     : ProjectTicketsBoard(
                         tickets: widget.project.tickets,
                         user: widget.currentUser,
+                        projectId: widget.project.id,
                       )),
           ),
         ],

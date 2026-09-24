@@ -20,6 +20,10 @@ class LoadProjectDetail extends ProjectEvent {
   List<Object?> get props => [projectId];
 }
 
+/// Silent refresh triggered by realtime ticket events — reloads the currently
+/// open project detail without flashing the loading state.
+class RefreshProjectDetail extends ProjectEvent {}
+
 class CreateProject extends ProjectEvent {
   final String name;
   final String description;

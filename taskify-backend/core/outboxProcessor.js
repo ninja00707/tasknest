@@ -88,19 +88,11 @@ class OutboxProcessor {
     const skipUserIds = this._resolveActor(ticket, payload);
 
     // Create notifications + emit per-user (with notificationId) via the existing emit engine
+    // Project-linked tickets MUST also receive the enriched stream +
+    // tree-wide TICKET_CHILD_UPDATED so their project board / ticket detail
+    // screens update in realtime. Keeping them off the main dashboard is
+    // handled client-side (DashboardBloc skips any ticket with projectId).
     await socketHelper.emit(event_type, ticket_id, involved, message, payload, skipUserIds, parentChain);
-
-    // Project-linked tickets (or sub-tickets whose root belongs to a project)
-    // live only inside the project screen, which is REST-driven. Skip the
-    // realtime enriched board stream entirely so they never appear on the
-    // dashboard/department board, while notifications above are still delivered.
-    let isProjectLinked = false;
-    try {
-      isProjectLinked = (await ticketRepo.getTicketRootProjectId(ticket_id)) != null;
-    } catch (err) {
-      console.error(`[Outbox] Failed to resolve root project for ticket ${ticket_id}:`, err.message);
-    }
-    if (isProjectLinked) return;
 
     // Emit enriched payload for realtime subscribers (TicketBloc stream)
     this._emitEnriched(event_type, ticket_id, parent_ticket_id, involved, payload, version, skipUserIds, parentChain, actedBy);

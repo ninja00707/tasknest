@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:tasknest/core/constant/common_listview_builder.dart';
 import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
+import 'package:tasknest/presentation/projects/bloc/project_bloc.dart';
+import 'package:tasknest/presentation/projects/bloc/project_event.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/ticket/widgets/tickets_column.dart';
 
@@ -11,7 +15,13 @@ import 'package:tasknest/presentation/ticket/widgets/tickets_column.dart';
 class ProjectTicketsBoard extends StatelessWidget {
   final List<TicketModel> tickets;
   final UserModel? user;
-  const ProjectTicketsBoard({super.key, required this.tickets, this.user});
+  final int? projectId;
+  const ProjectTicketsBoard({
+    super.key,
+    required this.tickets,
+    this.user,
+    this.projectId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +62,14 @@ class ProjectTicketsBoard extends StatelessWidget {
                 color: CommonStatus.ticketStatusColor(status),
                 tickets: grouped[status] ?? const [],
                 user: currentUser,
+                onTicketTap: (ticket) async {
+                  await context.push('/ticket/${ticket.id}');
+                  if (context.mounted && projectId != null) {
+                    context
+                        .read<ProjectBloc>()
+                        .add(LoadProjectDetail(projectId!));
+                  }
+                },
               );
             },
           ),

@@ -20,6 +20,11 @@ class KanbanColumn extends StatelessWidget {
   final bool isLoadingMore;
   final VoidCallback? onLoadMore;
 
+  /// Optional per-ticket tap override (e.g. project board reloads after
+  /// popping the ticket detail). Falls back to TicketCard's default
+  /// `context.push('/ticket/{id}')` when null.
+  final void Function(TicketModel ticket)? onTicketTap;
+
   const KanbanColumn({
     super.key,
     required this.status,
@@ -30,6 +35,7 @@ class KanbanColumn extends StatelessWidget {
     this.hasMore = false,
     this.isLoadingMore = false,
     this.onLoadMore,
+    this.onTicketTap,
   });
 
   @override
@@ -158,10 +164,16 @@ class KanbanColumn extends StatelessWidget {
                         itemBuilder: (context, ticket, index) => Padding(
                           key: ValueKey(ticket.id),
                           padding: const EdgeInsets.only(bottom: 8),
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 18.0),
-                            child: TicketCard(ticket: ticket, user: user),
-                          ),
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 18.0),
+                              child: TicketCard(
+                                ticket: ticket,
+                                user: user,
+                                onTap: onTicketTap == null
+                                    ? null
+                                    : () => onTicketTap!(ticket),
+                              ),
+                            ),
                         ),
                       ),
                     ),

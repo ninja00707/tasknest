@@ -1533,6 +1533,19 @@ class TicketRepository {
             UNION
             SELECT department_id FROM sub_ticket_departments WHERE ticket_id IN (SELECT id FROM all_tree_tickets)
           )
+        UNION
+        -- Project team (members + observers + project departments) for project-linked tickets
+        SELECT pm.user_id FROM project_members pm
+        WHERE pm.project_id = (SELECT project_id FROM tickets WHERE id = (SELECT id FROM root))
+        UNION
+        SELECT po.user_id FROM project_observers po
+        WHERE po.project_id = (SELECT project_id FROM tickets WHERE id = (SELECT id FROM root))
+        UNION
+        SELECT u.id FROM users u
+        WHERE u.department_id IN (
+            SELECT pd.department_id FROM project_departments pd
+            WHERE pd.project_id = (SELECT project_id FROM tickets WHERE id = (SELECT id FROM root))
+          )
       ) sub
     `, [ticketId]);
     return result.rows.map(r => r.user_id);
