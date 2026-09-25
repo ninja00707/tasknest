@@ -13,7 +13,6 @@ import 'package:tasknest/presentation/projects/model/project_models.dart';
 import 'package:tasknest/presentation/projects/screens/add_task_screen.dart';
 import 'package:tasknest/presentation/projects/screens/edit_project_screen.dart';
 import 'package:tasknest/presentation/projects/widgets/gantt_chart.dart';
-import 'package:tasknest/presentation/projects/widgets/project_calendar.dart';
 import 'package:tasknest/presentation/projects/widgets/project_stats_section.dart';
 import 'package:tasknest/presentation/projects/widgets/project_task_kanban_board.dart';
 import 'package:tasknest/presentation/projects/widgets/project_tickets_board.dart';
@@ -288,7 +287,7 @@ class _ProjectDetailBodyState extends State<_ProjectDetailBody>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -337,125 +336,143 @@ class _ProjectDetailBodyState extends State<_ProjectDetailBody>
       children: [
         if (widget.project.isObserver) _buildObserverBanner(),
 
-        // Project Hero Header
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: ResponsivePageContainer(
-            maxWidth: kProjectsPageMaxWidth,
-            child: _ModernProjectHeader(
-              project: widget.project,
-              onAddTask: widget.project.canManage ? _openAddTaskModal : null,
-              onNewTicket: _openNewTicketModal,
-              onEdit: widget.project.canEdit ? widget.onEdit : null,
+        // Full-width content with low gutters — header, tabs and the active
+        // tab view all live inside ONE card.
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SoftCard(
+                  padding: const EdgeInsets.all(14),
+                  radius: 14,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _ModernProjectHeader(
+                        project: widget.project,
+                        onAddTask: widget.project.canManage
+                            ? _openAddTaskModal
+                            : null,
+                        onNewTicket: _openNewTicketModal,
+                        onEdit: widget.project.canEdit ? widget.onEdit : null,
+                      ),
+                      const SizedBox(height: 8),
+                      const Divider(height: 1),
+                      // Tab Navigation
+                      TabBar(
+                        controller: _tabController,
+                        isScrollable: true,
+                        tabAlignment: TabAlignment.start,
+                        indicatorColor: ThemeColors.unifiedPrimary,
+                        indicatorWeight: 3,
+                        labelColor: ThemeColors.unifiedPrimary,
+                        unselectedLabelColor: ThemeColors.unifiedTextMuted,
+                        labelStyle: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                        ),
+                        unselectedLabelStyle: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                        tabs: [
+                          const Tab(
+                            icon: Icon(Icons.analytics_outlined, size: 16),
+                            text: 'Overview',
+                          ),
+                          Tab(
+                            icon: const Icon(Icons.task_alt_rounded, size: 16),
+                            text: 'Tasks (${widget.project.tasks.length})',
+                          ),
+                          const Tab(
+                            icon: Icon(Icons.view_kanban_rounded, size: 16),
+                            text: 'Board',
+                          ),
+                          const Tab(
+                            icon: Icon(Icons.view_timeline_rounded, size: 16),
+                            text: 'Timeline',
+                          ),
+                          Tab(
+                            icon: const Icon(Icons.group_rounded, size: 16),
+                            text: 'Team (${widget.project.members.length})',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // Active tab view (inside the card)
+                      AnimatedBuilder(
+                        animation: _tabController,
+                        builder: (context, _) => _buildActiveTab(),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Linked Tickets sit below the card on the Overview tab
+                if (_tabController.index == 0 &&
+                    widget.project.tickets.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _buildLinkedTickets(),
+                ],
+              ],
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActiveTab() {
+    switch (_tabController.index) {
+      case 1:
+        return _ProjectTasksTab(
+          project: widget.project,
+          currentUser: widget.currentUser,
+          onAddTask: widget.project.canManage ? _openAddTaskModal : null,
+        );
+      case 2:
+        return _ProjectBoardTab(
+          project: widget.project,
+          currentUser: widget.currentUser,
+        );
+      case 3:
+        return SizedBox(
+          height: 560,
+          width: double.infinity,
+          child: GanttChart(project: widget.project),
+        );
+      case 4:
+        return _ProjectTeamTab(
+          project: widget.project,
+          canManage: widget.project.canManage,
+          onEdit: widget.onEdit,
+          onDelete: widget.onDelete,
+        );
+      default:
+        return ProjectStatsSection(project: widget.project);
+    }
+  }
+
+  Widget _buildLinkedTickets() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          icon: Icons.confirmation_number_outlined,
+          title: 'Linked Tickets',
+          trailing: TextButton.icon(
+            onPressed: _openNewTicketModal,
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('Add Ticket'),
           ),
         ),
         const SizedBox(height: 8),
-
-        // Modern Tab Navigation
-        Container(
-          decoration: const BoxDecoration(
-            color: ThemeColors.unifiedSurface,
-            border: Border(
-              bottom: BorderSide(
-                color: ThemeColors.unifiedBorder,
-                width: 1,
-              ),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ResponsivePageContainer(
-              maxWidth: kProjectsPageMaxWidth,
-              child: TabBar(
-                controller: _tabController,
-                isScrollable: true,
-                tabAlignment: TabAlignment.start,
-                indicatorColor: ThemeColors.unifiedPrimary,
-                indicatorWeight: 3,
-                labelColor: ThemeColors.unifiedPrimary,
-                unselectedLabelColor: ThemeColors.unifiedTextMuted,
-                labelStyle: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                ),
-                unselectedLabelStyle: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-                tabs: [
-                  const Tab(
-                    icon: Icon(Icons.analytics_outlined, size: 16),
-                    text: 'Overview',
-                  ),
-                  Tab(
-                    icon: const Icon(Icons.task_alt_rounded, size: 16),
-                    text: 'Tasks (${widget.project.tasks.length})',
-                  ),
-                  const Tab(
-                    icon: Icon(Icons.view_kanban_rounded, size: 16),
-                    text: 'Board',
-                  ),
-                  const Tab(
-                    icon: Icon(Icons.view_timeline_rounded, size: 16),
-                    text: 'Timeline',
-                  ),
-                  const Tab(
-                    icon: Icon(Icons.calendar_month_rounded, size: 16),
-                    text: 'Calendar',
-                  ),
-                  Tab(
-                    icon: const Icon(Icons.group_rounded, size: 16),
-                    text: 'Team (${widget.project.members.length})',
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // Tab views
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              // 1. Overview Tab
-              _ProjectOverviewTab(
-                project: widget.project,
-                currentUser: widget.currentUser,
-                onAddTask: widget.project.canManage ? _openAddTaskModal : null,
-                onNewTicket: _openNewTicketModal,
-              ),
-              // 2. Tasks Tab
-              _ProjectTasksTab(
-                project: widget.project,
-                currentUser: widget.currentUser,
-                onAddTask: widget.project.canManage ? _openAddTaskModal : null,
-              ),
-              // 3. Board Tab (Switchable Task Kanban / Ticket Kanban)
-              _ProjectBoardTab(
-                project: widget.project,
-                currentUser: widget.currentUser,
-              ),
-              // 4. Timeline (Gantt Chart)
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: GanttChart(project: widget.project),
-              ),
-              // 5. Calendar
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: ProjectCalendar(project: widget.project),
-              ),
-              // 6. Team & Access
-              _ProjectTeamTab(
-                project: widget.project,
-                canManage: widget.project.canManage,
-                onEdit: widget.onEdit,
-                onDelete: widget.onDelete,
-              ),
-            ],
-          ),
+        ProjectTicketsBoard(
+          tickets: widget.project.tickets,
+          user: widget.currentUser,
+          projectId: widget.project.id,
         ),
       ],
     );
@@ -525,12 +542,9 @@ class _ModernProjectHeader extends StatelessWidget {
 
     final completedTasks = project.tasks.where((t) => t.status == 'done').length;
 
-    return SoftCard(
-      padding: const EdgeInsets.all(18),
-      radius: 18,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
           // Top Row: Code + Status + Priority + Created By
           Row(
             children: [
@@ -559,12 +573,12 @@ class _ModernProjectHeader extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  InitialsAvatar(name: project.createdByName, size: 20),
-                  const SizedBox(width: 6),
+                  InitialsAvatar(name: project.createdByName, size: 18),
+                  const SizedBox(width: 5),
                   Text(
                     'Created by ${project.createdByName}',
                     style: const TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 11,
                       color: ThemeColors.unifiedTextMuted,
                       fontWeight: FontWeight.w500,
                     ),
@@ -573,9 +587,9 @@ class _ModernProjectHeader extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+        const SizedBox(height: 8),
 
-          // Title & Action Buttons
+        // Title & Action Buttons
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -586,20 +600,20 @@ class _ModernProjectHeader extends StatelessWidget {
                     Text(
                       project.name,
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: 17.5,
                         fontWeight: FontWeight.w900,
                         color: ThemeColors.unifiedTextPrimary,
-                        letterSpacing: -0.4,
+                        letterSpacing: -0.3,
                       ),
                     ),
                     if (project.description.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Text(
                         project.description,
                         style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
                           color: ThemeColors.unifiedTextMuted,
-                          height: 1.45,
+                          height: 1.4,
                         ),
                       ),
                     ],
@@ -616,41 +630,41 @@ class _ModernProjectHeader extends StatelessWidget {
                   if (onAddTask != null)
                     ElevatedButton.icon(
                       onPressed: onAddTask,
-                      icon: const Icon(Icons.add_task_rounded, size: 16),
+                      icon: const Icon(Icons.add_task_rounded, size: 15),
                       label: const Text(
                         'Add Task',
-                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: ThemeColors.unifiedPrimary,
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                     ),
                   if (onNewTicket != null)
                     OutlinedButton.icon(
                       onPressed: onNewTicket,
-                      icon: const Icon(Icons.confirmation_number_outlined, size: 16),
+                      icon: const Icon(Icons.confirmation_number_outlined, size: 15),
                       label: const Text(
                         'New Ticket',
-                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: ThemeColors.unifiedPrimary,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                         side: const BorderSide(color: ThemeColors.unifiedPrimary),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                     ),
                   if (onEdit != null)
                     IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      icon: const Icon(Icons.edit_outlined, size: 16),
                       tooltip: 'Edit project info',
                       onPressed: onEdit,
                     ),
@@ -658,139 +672,83 @@ class _ModernProjectHeader extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+        const SizedBox(height: 10),
 
-          // Department & Date metadata
-          Row(
-            children: [
-              if (project.departments.isNotEmpty) ...[
-                const Icon(
-                  Icons.apartment_rounded,
-                  size: 14,
-                  color: ThemeColors.unifiedTextMuted,
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  project.departments.map((d) => d.name).join(', '),
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: ThemeColors.unifiedTextMuted,
-                  ),
-                ),
-                const SizedBox(width: 14),
-              ],
+        // Department & Date metadata
+        Row(
+          children: [
+            if (project.departments.isNotEmpty) ...[
               const Icon(
-                Icons.calendar_today_rounded,
+                Icons.apartment_rounded,
                 size: 13,
                 color: ThemeColors.unifiedTextMuted,
               ),
-              const SizedBox(width: 5),
+              const SizedBox(width: 4),
               Text(
-                _formatDateRange(),
+                project.departments.map((d) => d.name).join(', '),
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   color: ThemeColors.unifiedTextMuted,
                 ),
               ),
+              const SizedBox(width: 10),
             ],
-          ),
-          const SizedBox(height: 14),
-
-          // Progress bar + quick counts
-          Row(
-            children: [
-              Expanded(
-                child: SoftProgressBar(
-                  value: project.progress / 100,
-                  color: progressColor,
-                  height: 8,
-                ),
+            const Icon(
+              Icons.calendar_today_rounded,
+              size: 12,
+              color: ThemeColors.unifiedTextMuted,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _formatDateRange(),
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                color: ThemeColors.unifiedTextMuted,
               ),
-              const SizedBox(width: 12),
-              Text(
-                '${project.progress}% completed',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  color: progressColor,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: ThemeColors.unifiedInputBg,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '$completedTasks/${project.tasks.length} tasks done',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: ThemeColors.unifiedTextMuted,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProjectOverviewTab extends StatelessWidget {
-  final ProjectModel project;
-  final UserModel? currentUser;
-  final VoidCallback? onAddTask;
-  final VoidCallback? onNewTicket;
-
-  const _ProjectOverviewTab({
-    required this.project,
-    required this.currentUser,
-    this.onAddTask,
-    this.onNewTicket,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      children: [
-        ResponsivePageContainer(
-          maxWidth: kProjectsPageMaxWidth,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Detailed Health & Progress Stats
-              ProjectStatsSection(project: project),
-              const SizedBox(height: 24),
-
-              // Linked Tickets Board
-              if (project.tickets.isNotEmpty) ...[
-                SectionHeader(
-                  icon: Icons.confirmation_number_outlined,
-                  title: 'Linked Tickets',
-                  trailing: onNewTicket != null
-                      ? TextButton.icon(
-                          onPressed: onNewTicket,
-                          icon: const Icon(Icons.add_rounded, size: 16),
-                          label: const Text('Add Ticket'),
-                        )
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                ProjectTicketsBoard(
-                  tickets: project.tickets,
-                  user: currentUser,
-                  projectId: project.id,
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
+        const SizedBox(height: 10),
+
+        // Progress bar + quick counts
+        Row(
+          children: [
+            Expanded(
+              child: SoftProgressBar(
+                value: project.progress / 100,
+                color: progressColor,
+                height: 6,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              '${project.progress}% completed',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+                color: progressColor,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+              decoration: BoxDecoration(
+                color: ThemeColors.unifiedInputBg,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '$completedTasks/${project.tasks.length} tasks done',
+                style: const TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: ThemeColors.unifiedTextMuted,
+                ),
+              ),
+            ),
+              ],
+            ),
       ],
     );
   }
@@ -831,14 +789,9 @@ class _ProjectTasksTabState extends State<_ProjectTasksTab> {
       return matchesFilter && matchesQuery;
     }).toList();
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ResponsivePageContainer(
-          maxWidth: kProjectsPageMaxWidth,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
               // Header with Add Task button
               SectionHeader(
                 icon: Icons.task_alt_rounded,
@@ -869,11 +822,11 @@ class _ProjectTasksTabState extends State<_ProjectTasksTab> {
                       )
                     : null,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
 
               // Filter & Search Row
               SoftCard(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 radius: 14,
                 child: Row(
                   children: [
@@ -918,7 +871,7 @@ class _ProjectTasksTabState extends State<_ProjectTasksTab> {
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
 
               // Tasks List or Empty State
               if (allTasks.isEmpty)
@@ -938,7 +891,7 @@ class _ProjectTasksTabState extends State<_ProjectTasksTab> {
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: filtered.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 10),
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
                   itemBuilder: (context, i) {
                     final task = filtered[i];
                     return _TaskListItem(
@@ -950,9 +903,6 @@ class _ProjectTasksTabState extends State<_ProjectTasksTab> {
                     );
                   },
                 ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -1002,8 +952,8 @@ class _TaskListItem extends StatelessWidget {
             : ThemeColors.unifiedPrimary;
 
     return SoftCard(
-      padding: const EdgeInsets.all(14),
-      radius: 14,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      radius: 12,
       onTap: canUpdate
           ? () {
               Navigator.of(context).push(
@@ -1181,10 +1131,9 @@ class _ProjectBoardTabState extends State<_ProjectBoardTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: Column(
-        children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
           // Switcher between Task Kanban and Ticket Kanban
           Row(
             children: [
@@ -1203,10 +1152,12 @@ class _ProjectBoardTabState extends State<_ProjectBoardTab> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
-          // Board Content
-          Expanded(
+          // Board Content (fixed height — page scroll view provides bounds)
+          SizedBox(
+            height: 640,
+            width: double.infinity,
             child: _boardType == 0
                 ? (widget.project.tasks.isEmpty
                     ? const FriendlyEmptyState(
@@ -1231,8 +1182,7 @@ class _ProjectBoardTabState extends State<_ProjectBoardTab> {
                         projectId: widget.project.id,
                       )),
           ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -1285,23 +1235,18 @@ class _ProjectTeamTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ResponsivePageContainer(
-          maxWidth: kProjectsPageMaxWidth,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
               // Team and Department Management
               TeamManagementSection(project: project, canManage: canManage),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
 
               // Project Actions & Management (If allowed)
               if (canManage) ...[
                 SoftCard(
-                  padding: const EdgeInsets.all(16),
-                  radius: 16,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  radius: 14,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1313,7 +1258,7 @@ class _ProjectTeamTab extends StatelessWidget {
                           color: ThemeColors.unifiedTextPrimary,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 5),
                       const Text(
                         'Modify project settings, milestones, dates or remove this project completely.',
                         style: TextStyle(
@@ -1321,7 +1266,7 @@ class _ProjectTeamTab extends StatelessWidget {
                           color: ThemeColors.unifiedTextMuted,
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       Row(
                         children: [
                           Expanded(
@@ -1370,9 +1315,6 @@ class _ProjectTeamTab extends StatelessWidget {
                   ),
                 ),
               ],
-            ],
-          ),
-        ),
       ],
     );
   }

@@ -31,9 +31,9 @@ class ProjectStatsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Eyebrow(text: 'Overview', color: ThemeColors.unifiedPrimary),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         SoftCard(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final isWide = constraints.maxWidth >= 520;
@@ -53,17 +53,18 @@ class ProjectStatsSection extends StatelessWidget {
                           inProgress: inProgress,
                           overdue: overdue,
                         ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 10),
                   SoftProgressBar(
                     value: completionPercent,
                     color: ThemeColors.unifiedPrimary,
+                    height: 6,
                   ),
                 ],
               );
             },
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         LayoutBuilder(
           builder: (context, constraints) {
             final isWide = constraints.maxWidth >= 520;
@@ -78,7 +79,7 @@ class ProjectStatsSection extends StatelessWidget {
                       percent: completionPercent,
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: _PriorityCard(
                       urgent: urgent,
@@ -98,7 +99,7 @@ class ProjectStatsSection extends StatelessWidget {
                   total: total,
                   percent: completionPercent,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _PriorityCard(
                   urgent: urgent,
                   high: high,
@@ -253,8 +254,8 @@ class _MetricCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 8),
+        Icon(icon, size: 15, color: color),
+        const SizedBox(width: 6),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -262,7 +263,7 @@ class _MetricCell extends StatelessWidget {
             Text(
               value,
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: color,
                 height: 1.1,
@@ -271,7 +272,7 @@ class _MetricCell extends StatelessWidget {
             Text(
               label,
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w600,
                 color: ThemeColors.unifiedTextMuted,
               ),
@@ -287,7 +288,7 @@ class _VerticalDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Container(
         width: 1,
         color: ThemeColors.unifiedBorder,
@@ -313,30 +314,30 @@ class _ProgressCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Eyebrow(text: 'Progress', color: ThemeColors.unifiedPrimary),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Center(
             child: ProgressRing(
               value: percent,
-              size: 100,
-              strokeWidth: 9,
+              size: 76,
+              strokeWidth: 7,
               color: ThemeColors.unifiedPrimary,
               trackColor: ThemeColors.unifiedInputBg,
               centerChild: Text(
                 '${(percent * 100).round()}%',
                 style: const TextStyle(
-                  fontSize: 20,
+                  fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: ThemeColors.unifiedTextPrimary,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Center(
             child: Text(
               '$completed of $total tasks completed',
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w500,
                 color: ThemeColors.unifiedTextMuted,
               ),
@@ -376,10 +377,10 @@ class _PriorityCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Eyebrow(text: 'Priorities', color: ThemeColors.unifiedAccent),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           for (int i = 0; i < items.length; i++) ...[
             items[i],
-            if (i < items.length - 1) const SizedBox(height: 12),
+            if (i < items.length - 1) const SizedBox(height: 8),
           ],
         ],
       ),
@@ -414,15 +415,15 @@ class _PriorityRow extends StatelessWidget {
             Text(
               '$count',
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w800,
                 color: fg,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 6),
-        SoftProgressBar(value: fraction, color: fg),
+        const SizedBox(height: 5),
+        SoftProgressBar(value: fraction, color: fg, height: 5),
       ],
     );
   }
