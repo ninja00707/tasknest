@@ -9,23 +9,19 @@ class ProjectStatsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tasks = project.tasks;
-    final total = tasks.length;
-    final completed = tasks.where((t) => t.status == 'done').length;
-    final inProgress = tasks.where((t) => t.status == 'in_progress').length;
-    final overdue = tasks
-        .where((t) =>
-            t.dueDate != null &&
-            t.dueDate!.isBefore(DateTime.now()) &&
-            t.status != 'done')
-        .length;
+    // Stats are derived from the project's tickets (tickets = tasks now)
+    final tickets = project.tickets;
+    final total = tickets.length;
+    final open = tickets.where((t) => t.status == 'open').length;
+    final inProgress = tickets.where((t) => t.status == 'in_progress').length;
+    final closed = tickets.where((t) => t.status == 'closed').length;
 
-    final completionPercent = total > 0 ? completed / total : 0.0;
+    final completionPercent = total > 0 ? closed / total : 0.0;
 
-    final urgent = tasks.where((t) => t.priority == 'urgent').length;
-    final high = tasks.where((t) => t.priority == 'high').length;
-    final medium = tasks.where((t) => t.priority == 'medium').length;
-    final low = tasks.where((t) => t.priority == 'low').length;
+    final urgent = tickets.where((t) => t.priority == 'urgent').length;
+    final high = tickets.where((t) => t.priority == 'high').length;
+    final medium = tickets.where((t) => t.priority == 'medium').length;
+    final low = tickets.where((t) => t.priority == 'low').length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -43,15 +39,15 @@ class ProjectStatsSection extends StatelessWidget {
                   isWide
                       ? _WideMetricsRow(
                           total: total,
-                          completed: completed,
+                          open: open,
                           inProgress: inProgress,
-                          overdue: overdue,
+                          closed: closed,
                         )
                       : _CompactMetricsGrid(
                           total: total,
-                          completed: completed,
+                          open: open,
                           inProgress: inProgress,
-                          overdue: overdue,
+                          closed: closed,
                         ),
                   const SizedBox(height: 10),
                   SoftProgressBar(
@@ -74,7 +70,7 @@ class ProjectStatsSection extends StatelessWidget {
                 children: [
                   Expanded(
                     child: _ProgressCard(
-                      completed: completed,
+                      completed: closed,
                       total: total,
                       percent: completionPercent,
                     ),
@@ -95,7 +91,7 @@ class ProjectStatsSection extends StatelessWidget {
             return Column(
               children: [
                 _ProgressCard(
-                  completed: completed,
+                  completed: closed,
                   total: total,
                   percent: completionPercent,
                 ),
@@ -118,14 +114,14 @@ class ProjectStatsSection extends StatelessWidget {
 
 class _WideMetricsRow extends StatelessWidget {
   final int total;
-  final int completed;
+  final int open;
   final int inProgress;
-  final int overdue;
+  final int closed;
   const _WideMetricsRow({
     required this.total,
-    required this.completed,
+    required this.open,
     required this.inProgress,
-    required this.overdue,
+    required this.closed,
   });
 
   @override
@@ -144,10 +140,10 @@ class _WideMetricsRow extends StatelessWidget {
           _VerticalDivider(),
           Expanded(
             child: _MetricCell(
-              icon: Icons.check_circle_outline_rounded,
-              label: 'Done',
-              value: '$completed',
-              color: ThemeColors.unifiedSuccess,
+              icon: Icons.circle_outlined,
+              label: 'Open',
+              value: '$open',
+              color: ThemeColors.unifiedSecondary,
             ),
           ),
           _VerticalDivider(),
@@ -162,10 +158,10 @@ class _WideMetricsRow extends StatelessWidget {
           _VerticalDivider(),
           Expanded(
             child: _MetricCell(
-              icon: Icons.warning_amber_rounded,
-              label: 'Overdue',
-              value: '$overdue',
-              color: ThemeColors.unifiedDanger,
+              icon: Icons.check_circle_outline_rounded,
+              label: 'Closed',
+              value: '$closed',
+              color: ThemeColors.unifiedSuccess,
             ),
           ),
         ],
@@ -176,14 +172,14 @@ class _WideMetricsRow extends StatelessWidget {
 
 class _CompactMetricsGrid extends StatelessWidget {
   final int total;
-  final int completed;
+  final int open;
   final int inProgress;
-  final int overdue;
+  final int closed;
   const _CompactMetricsGrid({
     required this.total,
-    required this.completed,
+    required this.open,
     required this.inProgress,
-    required this.overdue,
+    required this.closed,
   });
 
   @override
@@ -203,10 +199,10 @@ class _CompactMetricsGrid extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _MetricCell(
-                icon: Icons.check_circle_outline_rounded,
-                label: 'Done',
-                value: '$completed',
-                color: ThemeColors.unifiedSuccess,
+                icon: Icons.circle_outlined,
+                label: 'Open',
+                value: '$open',
+                color: ThemeColors.unifiedSecondary,
               ),
             ),
           ],
@@ -225,10 +221,10 @@ class _CompactMetricsGrid extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _MetricCell(
-                icon: Icons.warning_amber_rounded,
-                label: 'Overdue',
-                value: '$overdue',
-                color: ThemeColors.unifiedDanger,
+                icon: Icons.check_circle_outline_rounded,
+                label: 'Closed',
+                value: '$closed',
+                color: ThemeColors.unifiedSuccess,
               ),
             ),
           ],

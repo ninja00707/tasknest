@@ -141,6 +141,10 @@ class TicketRepositoryImpl implements TicketRepository {
       _ticketDs.updateDescription(id, description);
 
   @override
+  Future<TicketModel> updateTicket(int id, Map<String, dynamic> fields) =>
+      _ticketDs.updateTicket(id, fields);
+
+  @override
   Future<List<DepartmentModel>> getDepartments() => _ticketDs.getDepartments();
 
   @override

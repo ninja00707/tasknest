@@ -159,6 +159,11 @@ class TicketRemoteDataSource {
     return TicketModel.fromJson(res['data']);
   }
 
+  Future<TicketModel> updateTicket(int id, Map<String, dynamic> fields) async {
+    final res = await _api.patch('tickets/$id', body: fields);
+    return TicketModel.fromJson(res['data']);
+  }
+
   Future<List<DepartmentModel>> getDepartments() async {
     final res = await _api.get('tickets/departments');
     final data = res['data'];

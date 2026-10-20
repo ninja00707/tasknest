@@ -3,13 +3,38 @@ import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/presentation/projects/model/project_models.dart';
 import 'package:tasknest/presentation/projects/widgets/ui_helpers.dart';
 
+/// Lightweight row model for the timeline — derived from project tickets
+/// (tickets = tasks now). Start = created, end = due date.
+class _GanttItem {
+  final String title;
+  final DateTime createdAt;
+  final DateTime? dueDate;
+  final String status;
+  final String priority;
+  const _GanttItem({
+    required this.title,
+    required this.createdAt,
+    required this.dueDate,
+    required this.status,
+    required this.priority,
+  });
+}
+
 class GanttChart extends StatelessWidget {
   final ProjectModel project;
   const GanttChart({super.key, required this.project});
 
   @override
   Widget build(BuildContext context) {
-    final tasks = project.tasks;
+    final tasks = project.tickets
+        .map((t) => _GanttItem(
+              title: t.title,
+              createdAt: t.createdAt,
+              dueDate: t.dueDate,
+              status: t.status,
+              priority: t.priority,
+            ))
+        .toList();
 
     if (tasks.isEmpty) {
       return SoftCard(
@@ -23,8 +48,8 @@ class GanttChart extends StatelessWidget {
             const SizedBox(height: 12),
             const FriendlyEmptyState(
               icon: Icons.view_timeline_rounded,
-              message: 'No tasks to display in timeline',
-              hint: 'Add tasks to see them on the timeline',
+              message: 'No tickets to display in timeline',
+              hint: 'Create tickets to see them on the timeline',
             ),
           ],
         ),
@@ -51,7 +76,7 @@ class GanttChart extends StatelessWidget {
     const rowHeight = 40.0;
     final timelineWidth = totalDays * dayWidth;
 
-    final sorted = List<ProjectTaskModel>.from(tasks)..sort((a, b) {
+    final sorted = List<_GanttItem>.from(tasks)..sort((a, b) {
       final aDate = a.dueDate ?? a.createdAt;
       final bDate = b.dueDate ?? b.createdAt;
       return aDate.compareTo(bDate);
@@ -393,7 +418,7 @@ class _GridPainterPainter extends CustomPainter {
 }
 
 class _TaskLabel extends StatelessWidget {
-  final ProjectTaskModel task;
+  final _GanttItem task;
   final int index;
   final double rowHeight;
   const _TaskLabel({
@@ -404,7 +429,7 @@ class _TaskLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDone = task.status == 'done';
+    final isDone = task.status == 'closed';
     return Container(
       height: rowHeight,
       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -480,7 +505,7 @@ class _TaskLabel extends StatelessWidget {
 }
 
 class _TaskBar extends StatelessWidget {
-  final ProjectTaskModel task;
+  final _GanttItem task;
   final int row;
   final DateTime rangeStart;
   final DateTime today;
@@ -511,7 +536,7 @@ class _TaskBar extends StatelessWidget {
     final barHeight = 28.0;
 
     final color = _priorityColor(task.priority);
-    final isDone = task.status == 'done';
+    final isDone = task.status == 'closed';
     final showTitle = width >= 80;
 
     return Positioned(

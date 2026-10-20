@@ -65,6 +65,10 @@ abstract class TicketRepository {
 
   Future<TicketModel> updateDescription(int id, String description);
 
+  /// Updates the editable core fields of a ticket (title, description,
+  /// priority, due date).
+  Future<TicketModel> updateTicket(int id, Map<String, dynamic> fields);
+
   Future<List<DepartmentModel>> getDepartments();
 
   Future<List<EmployeeModel>> getEmployees({int? departmentId});

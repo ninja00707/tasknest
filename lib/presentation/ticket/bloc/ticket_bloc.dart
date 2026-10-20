@@ -19,6 +19,7 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     on<TransferTicket>(_onTransfer);
     on<ReopenTicket>(_onReopen);
     on<UpdateTicketDescription>(_onUpdateDescription);
+    on<UpdateTicketDetails>(_onUpdateDetails);
     on<CreateTicketEvent>(_onCreate);
     on<CreateSubTicketEvent>(_onCreateSubTicket);
     on<UpdateSubDeptProgressEvent>(_onUpdateSubDeptProgress);
@@ -241,6 +242,27 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
       if (_lastLoadedTicket != null)
         emit(TicketDetailLoaded(_lastLoadedTicket!));
+    }
+  }
+
+  Future<void> _onUpdateDetails(
+    UpdateTicketDetails event,
+    Emitter<TicketState> emit,
+  ) async {
+    emit(TicketActionInProgress());
+    try {
+      final updated = await _dataSource.updateTicket(
+        event.ticketId,
+        event.fields,
+      );
+      _lastLoadedTicket = updated;
+      emit(TicketDetailLoaded(updated));
+      emit(TicketActionSuccess('Task updated successfully.'));
+    } catch (e) {
+      emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (_lastLoadedTicket != null) {
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
+      }
     }
   }
 

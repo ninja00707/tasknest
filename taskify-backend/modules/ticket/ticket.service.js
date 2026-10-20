@@ -594,8 +594,15 @@ class TicketService {
 
     // Only the master waits for ALL its sub-tickets to close. A sub-ticket
     // can always be closed by its own assignee once its work is done,
-    // regardless of how many sub-tickets exist.
-    if (!isSystemUpdate && newStatus === 'closed' && !ticket.is_sub_ticket) {
+    // regardless of how many sub-tickets exist. Project tasks are flat by
+    // design (drag-and-drop on the project board), so they are exempt.
+    const isProjectTask = Boolean(ticket.project_id);
+    if (
+      !isSystemUpdate &&
+      newStatus === 'closed' &&
+      !ticket.is_sub_ticket &&
+      !isProjectTask
+    ) {
       const hasUnfinalized = await ticketRepo.hasUnfinalizedSubTickets(ticketId);
       if (hasUnfinalized) {
         throw {

@@ -60,6 +60,16 @@ class UpdateTicketDescription extends TicketEvent {
   List<Object?> get props => [ticketId, description];
 }
 
+/// Edits the core task fields in one call (title, priority, due date,
+/// description). Members are assigned through [AssignTicketToEmployee].
+class UpdateTicketDetails extends TicketEvent {
+  final int ticketId;
+  final Map<String, dynamic> fields;
+  UpdateTicketDetails(this.ticketId, this.fields);
+  @override
+  List<Object?> get props => [ticketId, fields];
+}
+
 class DeptTicketData {
   final int departmentId;
   final String title;
