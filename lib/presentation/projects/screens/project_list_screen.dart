@@ -466,21 +466,21 @@ class _ControlsBar extends StatelessWidget {
                     color: ThemeColors.unifiedTextPrimary,
                   ),
                   decoration: InputDecoration(
-                    hintText: 'Search by name, code or department...',
+                    hintText: 'Filter and search...',
                     hintStyle: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 12.5,
                       color: ThemeColors.unifiedTextMuted,
                     ),
                     prefixIcon: const Icon(
                       Icons.search_rounded,
-                      size: 17,
+                      size: 18,
                       color: ThemeColors.unifiedTextMuted,
                     ),
                     suffixIcon: query.isNotEmpty
                         ? IconButton(
                             icon: const Icon(
                               Icons.close_rounded,
-                              size: 15,
+                              size: 16,
                               color: ThemeColors.unifiedTextMuted,
                             ),
                             onPressed: onClearSearch,
@@ -490,12 +490,29 @@ class _ControlsBar extends StatelessWidget {
                     filled: true,
                     fillColor: ThemeColors.unifiedInputBg,
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 9,
+                      horizontal: 14,
+                      vertical: 8,
                     ),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(9),
-                      borderSide: BorderSide.none,
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: const BorderSide(
+                        color: ThemeColors.unifiedBorder,
+                        width: 1,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: const BorderSide(
+                        color: ThemeColors.unifiedBorder,
+                        width: 1,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: const BorderSide(
+                        color: ThemeColors.unifiedPrimary,
+                        width: 1.5,
+                      ),
                     ),
                   ),
                 ),

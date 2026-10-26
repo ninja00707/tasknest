@@ -4,12 +4,12 @@ import 'package:intl/intl.dart';
 import 'package:tasknest/core/constant/const_strings.dart';
 import 'package:tasknest/core/theme/color.dart';
 import 'package:tasknest/data/datasource/localstorage/sharedpreferences.dart';
-import 'package:tasknest/presentation/create_ticket_module/widget/create_ticket_screen.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/projects/bloc/project_bloc.dart';
 import 'package:tasknest/presentation/projects/bloc/project_event.dart';
 import 'package:tasknest/presentation/projects/bloc/project_state.dart';
 import 'package:tasknest/presentation/projects/model/project_models.dart';
+import 'package:tasknest/presentation/projects/screens/add_task_screen.dart';
 import 'package:tasknest/presentation/projects/screens/edit_project_screen.dart';
 import 'package:tasknest/presentation/projects/widgets/gantt_chart.dart';
 import 'package:tasknest/presentation/projects/widgets/project_stats_section.dart';
@@ -127,7 +127,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                       _ProjectHeaderCard(
                         project: project,
                         onNewTicket: project.canEdit
-                            ? () => _openNewTicket(project)
+                            ? () => _openAddTask(project)
                             : null,
                         onEdit: project.canEdit
                             ? () => _openEdit(project)
@@ -139,7 +139,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                         child: ProjectTaskBoard(
                           project: project,
                           currentUser: _currentUser,
-                          onNewTicket: () => _openNewTicket(project),
+                          onNewTask: (status) =>
+                              _openAddTask(project, initialStatus: status),
                         ),
                       ),
                     ],
@@ -153,15 +154,18 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     );
   }
 
-  void _openNewTicket(ProjectModel project) {
+  void _openAddTask(ProjectModel project, {String initialStatus = 'open'}) {
     if (_currentUser == null) return;
     final bloc = context.read<ProjectBloc>();
     Navigator.of(context)
         .push(
           MaterialPageRoute(
-            builder: (_) => CreateTicketView(
+            builder: (_) => AddTaskScreen(
               user: _currentUser!,
-              initialProjectId: project.id,
+              projectId: project.id,
+              projectName: project.name,
+              projectTeam: project.members,
+              initialStatus: initialStatus,
             ),
           ),
         )
@@ -404,7 +408,7 @@ class _ProjectHeaderCard extends StatelessWidget {
                         Icon(Icons.add_rounded, size: 14, color: Colors.white),
                         SizedBox(width: 4),
                         Text(
-                          'New ticket',
+                          'Add task',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,

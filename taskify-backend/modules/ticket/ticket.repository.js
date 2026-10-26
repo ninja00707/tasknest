@@ -41,6 +41,7 @@ class TicketRepository {
         t.closed_at, t.reopened_at, t.reopen_count,
         t.is_sub_ticket, t.overall_progress,
         t.parent_ticket_id, t.ticket_type, t.project_id,
+        t.archived_at,
 
         creator.id   AS created_by_id,
         creator.name AS created_by_name,
@@ -96,7 +97,10 @@ class TicketRepository {
             FROM journey_steps 
             ORDER BY first_seen ASC
           ) js
-        ) AS dept_journey
+        ) AS dept_journey,
+
+        -- Task members (Trello-style team on the card)
+        tm.members AS members
 
       FROM tickets t
       LEFT JOIN users creator  ON creator.id = t.created_by_id
@@ -116,6 +120,25 @@ class TicketRepository {
         ORDER BY tl.created_at DESC
         LIMIT 1
       ) ll ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT COALESCE(
+          json_agg(
+            json_build_object(
+              'id', u.id,
+              'name', u.name,
+              'email', u.email,
+              'dept_code', COALESCE(d.code, ''),
+              'dept_name', COALESCE(d.name, '')
+            )
+            ORDER BY u.name ASC
+          ),
+          '[]'::json
+        ) AS members
+        FROM ticket_members tm
+        JOIN users u ON u.id = tm.user_id
+        LEFT JOIN departments d ON d.id = u.department_id
+        WHERE tm.ticket_id = t.id
+      ) tm ON TRUE
       WHERE t.id = $1
     `, [ticketId]);
 
@@ -711,6 +734,14 @@ class TicketRepository {
       return ticket;
     }
 
+    // ── Project tasks (Trello board): every project team member has full
+    // read access. The ticket-workflow visibility chain below does not apply
+    // to tasks living inside a project.
+    if (ticket.project_id) {
+      const isProjectMember = await this.isProjectTeamMember(ticket.project_id, user.id);
+      if (isProjectMember) return ticket;
+    }
+
     // CEO: company-level check instead of department-level
     if (user.role === 'ceo') {
       if (!user.see_all_companies) {
@@ -848,7 +879,7 @@ class TicketRepository {
   }
 
   // ── Create ticket ─────────────────────────────────────────────────────────
-  async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId, parentTicketId = null, ticketType = 'standard', projectId = null, _outboxClient = null }) {
+  async createTicket({ title, description, priority, assignedDeptId, dueDate, createdBy, assignedToId, parentTicketId = null, ticketType = 'standard', projectId = null, status: requestedStatus = null, _outboxClient = null }) {
     const ownClient = !_outboxClient;
     const client = _outboxClient || await pool.connect();
     try {
@@ -862,7 +893,7 @@ class TicketRepository {
       }
 
       // All tickets start as open regardless of assignment
-      const status = 'open';
+      let status = 'open';
       const isSubTicket = parentTicketId != null;
 
       // Tickets created for a project must only live inside that project.
@@ -881,6 +912,15 @@ class TicketRepository {
         if (parentProjectId != null) effectiveProjectId = parentProjectId;
       }
 
+      // Trello board: a project task can be dropped straight into any list
+      // at creation time (To Do / In Progress / Done).
+      if (
+        effectiveProjectId != null &&
+        ['open', 'in_progress', 'closed'].includes(requestedStatus)
+      ) {
+        status = requestedStatus;
+      }
+
       // Generate ticket number
       let ticketNumber;
       if (parentTicketId) {
@@ -893,9 +933,15 @@ class TicketRepository {
         }
       }
       if (!ticketNumber) {
-        const seqRes = await client.query(`SELECT NEXTVAL('ticket_number_seq') AS val`);
-        const seqVal = seqRes.rows[0].val;
-        ticketNumber = `UMP-TKQ-${String(seqVal).padStart(3, '0')}`;
+        if (effectiveProjectId != null) {
+          // Project tasks live in their own global series: UMP-TA-000…
+          const seqRes = await client.query(`SELECT NEXTVAL('task_number_seq') AS val`);
+          ticketNumber = `UMP-TA-${String(seqRes.rows[0].val).padStart(3, '0')}`;
+        } else {
+          const seqRes = await client.query(`SELECT NEXTVAL('ticket_number_seq') AS val`);
+          const seqVal = seqRes.rows[0].val;
+          ticketNumber = `UMP-TKQ-${String(seqVal).padStart(3, '0')}`;
+        }
       }
 
       const result = await client.query(`
@@ -1028,6 +1074,103 @@ class TicketRepository {
     } finally {
       client.release();
     }
+  }
+
+  // ── Task members (Trello-style team on a task) ───────────────────────────
+  async getTicketMembers(ticketId) {
+    const result = await pool.query(`
+      SELECT tm.user_id AS id, u.name, u.email,
+             COALESCE(d.code, '') AS dept_code,
+             COALESCE(d.name, '') AS dept_name
+      FROM ticket_members tm
+      JOIN users u ON u.id = tm.user_id
+      LEFT JOIN departments d ON d.id = u.department_id
+      WHERE tm.ticket_id = $1
+      ORDER BY u.name ASC
+    `, [ticketId]);
+    return result.rows;
+  }
+
+  async replaceTicketMembers(ticketId, memberIds, addedById) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM ticket_members WHERE ticket_id = $1', [ticketId]);
+      for (const userId of memberIds) {
+        await client.query(`
+          INSERT INTO ticket_members (ticket_id, user_id, added_by_id)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (ticket_id, user_id) DO NOTHING
+        `, [ticketId, userId, addedById]);
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+    return this.getTicketMembers(ticketId);
+  }
+
+  async getValidMemberUsers(userIds, companyId) {
+    if (!userIds || userIds.length === 0) return [];
+    const result = await pool.query(`
+      SELECT id, name FROM users
+      WHERE id = ANY($1::int[]) AND company_id = $2 AND is_active = TRUE
+    `, [userIds, companyId]);
+    return result.rows;
+  }
+
+  async getTicketProjectInfo(ticketId) {
+    const result = await pool.query(`
+      SELECT id, project_id, status, ticket_number, parent_ticket_id, archived_at
+      FROM tickets WHERE id = $1
+    `, [ticketId]);
+    return result.rows[0] || null;
+  }
+
+  // ── Trello-style archiving (project tasks only) ───────────────────────────
+  async archiveTicket(ticketId) {
+    const result = await pool.query(
+      `UPDATE tickets SET archived_at = NOW(), updated_at = NOW()
+       WHERE id = $1 AND project_id IS NOT NULL AND archived_at IS NULL
+       RETURNING id`,
+      [ticketId]
+    );
+    return result.rows.length > 0;
+  }
+
+  async unarchiveTicket(ticketId) {
+    const result = await pool.query(
+      `UPDATE tickets SET archived_at = NULL, updated_at = NOW()
+       WHERE id = $1 AND archived_at IS NOT NULL
+       RETURNING id`,
+      [ticketId]
+    );
+    return result.rows.length > 0;
+  }
+
+  async getArchivedProjectTickets(projectId) {
+    const result = await pool.query(`
+      SELECT t.id, t.title, t.status, t.priority, t.ticket_number,
+             t.archived_at, t.created_at, t.due_date, t.project_id
+      FROM tickets t
+      WHERE t.project_id = $1 AND t.archived_at IS NOT NULL
+      ORDER BY t.archived_at DESC
+    `, [projectId]);
+    return result.rows;
+  }
+
+  async isProjectTeamMember(projectId, userId) {
+    if (!projectId) return false;
+    const result = await pool.query(`
+      SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
+      UNION ALL
+      SELECT 1 FROM project_observers WHERE project_id = $1 AND user_id = $2
+      LIMIT 1
+    `, [projectId, userId]);
+    return result.rows.length > 0;
   }
 
   // ── Self-assign open ticket (employee only) ───────────────────────────────
@@ -1540,6 +1683,10 @@ class TicketRepository {
         UNION
         SELECT po.user_id FROM project_observers po
         WHERE po.project_id = (SELECT project_id FROM tickets WHERE id = (SELECT id FROM root))
+        UNION
+        -- Task members (Trello-style team on the card)
+        SELECT tm.user_id FROM ticket_members tm
+        WHERE tm.ticket_id IN (SELECT id FROM all_tree_tickets)
         UNION
         SELECT u.id FROM users u
         WHERE u.department_id IN (

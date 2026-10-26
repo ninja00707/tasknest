@@ -172,6 +172,37 @@ class TicketController {
     }
   }
 
+  async setTicketMembers(req, res, next) {
+    try {
+      const result = await ticketService.setTicketMembers(
+        Number(req.params.id),
+        req.body?.memberIds,
+        req.user
+      );
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async archiveTicket(req, res, next) {
+    try {
+      const result = await ticketService.archiveTicket(Number(req.params.id), req.user);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async unarchiveTicket(req, res, next) {
+    try {
+      const result = await ticketService.unarchiveTicket(Number(req.params.id), req.user);
+      res.json({ success: true, data: result });
+    } catch (err) {
+      next(err);
+    }
+  }
+
   async transferTicket(req, res, next) {
     try {
       const { targetDeptId, title, description } = req.body;

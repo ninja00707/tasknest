@@ -61,13 +61,22 @@ class UpdateTicketDescription extends TicketEvent {
 }
 
 /// Edits the core task fields in one call (title, priority, due date,
-/// description). Members are assigned through [AssignTicketToEmployee].
+/// description). The team on a task is handled by [SetTicketMembers].
 class UpdateTicketDetails extends TicketEvent {
   final int ticketId;
   final Map<String, dynamic> fields;
   UpdateTicketDetails(this.ticketId, this.fields);
   @override
   List<Object?> get props => [ticketId, fields];
+}
+
+/// Replaces the whole member list of a task (Trello-style).
+class SetTicketMembers extends TicketEvent {
+  final int ticketId;
+  final List<int> memberIds;
+  SetTicketMembers(this.ticketId, this.memberIds);
+  @override
+  List<Object?> get props => [ticketId, memberIds];
 }
 
 class DeptTicketData {

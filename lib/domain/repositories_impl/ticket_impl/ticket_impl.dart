@@ -145,6 +145,41 @@ class TicketRepositoryImpl implements TicketRepository {
       _ticketDs.updateTicket(id, fields);
 
   @override
+  Future<List<TicketMemberModel>> setTicketMembers(
+    int id,
+    List<int> memberIds,
+  ) =>
+      _ticketDs.setTicketMembers(id, memberIds);
+
+  @override
+  Future<void> archiveTicket(int id) => _ticketDs.archiveTicket(id);
+
+  @override
+  Future<void> unarchiveTicket(int id) => _ticketDs.unarchiveTicket(id);
+
+  @override
+  Future<TicketModel> createProjectTask({
+    required String title,
+    required String description,
+    required int projectId,
+    required int assignedDeptId,
+    String priority = 'medium',
+    String? dueDate,
+    String status = 'open',
+    List<int> memberIds = const [],
+  }) =>
+      _ticketDs.createProjectTask(
+        title: title,
+        description: description,
+        projectId: projectId,
+        assignedDeptId: assignedDeptId,
+        priority: priority,
+        dueDate: dueDate,
+        status: status,
+        memberIds: memberIds,
+      );
+
+  @override
   Future<List<DepartmentModel>> getDepartments() => _ticketDs.getDepartments();
 
   @override

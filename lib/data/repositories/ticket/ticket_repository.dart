@@ -69,6 +69,31 @@ abstract class TicketRepository {
   /// priority, due date).
   Future<TicketModel> updateTicket(int id, Map<String, dynamic> fields);
 
+  /// Replaces the whole member list of a task (Trello-style).
+  Future<List<TicketMemberModel>> setTicketMembers(
+    int id,
+    List<int> memberIds,
+  );
+
+  /// Archives a project task (Trello-style) — hidden from the board.
+  Future<void> archiveTicket(int id);
+
+  /// Restores an archived task back onto the board.
+  Future<void> unarchiveTicket(int id);
+
+  /// Creates a Trello-style project task in one call (list + team applied
+  /// at creation time). Regular tickets keep using the ticket workflow.
+  Future<TicketModel> createProjectTask({
+    required String title,
+    required String description,
+    required int projectId,
+    required int assignedDeptId,
+    String priority = 'medium',
+    String? dueDate,
+    String status = 'open',
+    List<int> memberIds = const [],
+  });
+
   Future<List<DepartmentModel>> getDepartments();
 
   Future<List<EmployeeModel>> getEmployees({int? departmentId});

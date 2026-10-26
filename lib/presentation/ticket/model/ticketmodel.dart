@@ -48,6 +48,9 @@ class TicketModel {
   final bool canComment;
   final int? projectId;
 
+  /// Trello-style team on the task (many members, not a single assignee).
+  final List<TicketMemberModel> members;
+
   const TicketModel({
     required this.id,
     this.ticketNumber = '',
@@ -94,6 +97,7 @@ class TicketModel {
     this.comments = const [],
     this.canComment = false,
     this.projectId,
+    this.members = const [],
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> j) => TicketModel(
@@ -175,7 +179,64 @@ class TicketModel {
     projectId: (j['project_id'] is num)
         ? (j['project_id'] as num).toInt()
         : int.tryParse(j['project_id']?.toString() ?? ''),
+    members:
+        (j['members'] as List<dynamic>?)
+            ?.map((e) => TicketMemberModel.fromJson(e as Map<String, dynamic>))
+            .toList() ??
+        const [],
   );
+
+  /// Returns this ticket with a new member list (used right after a
+  /// members update so the popup can refresh without a refetch).
+  TicketModel copyWithMembers(List<TicketMemberModel> newMembers) =>
+      TicketModel(
+        id: id,
+        ticketNumber: ticketNumber,
+        title: title,
+        description: description,
+        status: status,
+        priority: priority,
+        assignedDeptId: assignedDeptId,
+        assignedDeptCode: assignedDeptCode,
+        assignedDeptName: assignedDeptName,
+        createdByName: createdByName,
+        createdByDeptCode: createdByDeptCode,
+        createdByDeptId: createdByDeptId,
+        createdById: createdById,
+        assignedToId: assignedToId,
+        assignedToName: assignedToName,
+        myAssignedToId: myAssignedToId,
+        myAssignedToName: myAssignedToName,
+        assignedToReportsToName: assignedToReportsToName,
+        createdByReportsToName: createdByReportsToName,
+        transferredFromCode: transferredFromCode,
+        createdAt: createdAt,
+        dueDate: dueDate,
+        closedAt: closedAt,
+        reopenCount: reopenCount,
+        lastAction: lastAction,
+        lastUpdatedAt: lastUpdatedAt,
+        lastActedByName: lastActedByName,
+        lastActedByDeptName: lastActedByDeptName,
+        history: history,
+        isSubTicket: isSubTicket,
+        isDisputed: isDisputed,
+        overallProgress: overallProgress,
+        departmentCount: departmentCount,
+        subDepartments: subDepartments,
+        parentTicketId: parentTicketId,
+        ticketType: ticketType,
+        parentTicketTitle: parentTicketTitle,
+        parentTicketNumber: parentTicketNumber,
+        deptJourney: deptJourney,
+        children: children,
+        immediateChildCount: immediateChildCount,
+        hasActiveChildren: hasActiveChildren,
+        comments: comments,
+        canComment: canComment,
+        projectId: projectId,
+        members: newMembers,
+      );
 
   bool get isStandardTicket => ticketType == 'standard';
   bool get isMultiTaskTicket => ticketType == 'multi_task';
@@ -208,6 +269,34 @@ class TicketModel {
     }
     return null;
   }
+}
+
+/// One person attached to a task (Trello-style card member).
+class TicketMemberModel {
+  final int id;
+  final String name;
+  final String email;
+  final String deptCode;
+  final String deptName;
+
+  const TicketMemberModel({
+    required this.id,
+    this.name = '',
+    this.email = '',
+    this.deptCode = '',
+    this.deptName = '',
+  });
+
+  factory TicketMemberModel.fromJson(Map<String, dynamic> j) =>
+      TicketMemberModel(
+        id: (j['id'] is num)
+            ? (j['id'] as num).toInt()
+            : (int.tryParse(j['id']?.toString() ?? '') ?? 0),
+        name: j['name'] ?? '',
+        email: j['email'] ?? '',
+        deptCode: j['dept_code'] ?? '',
+        deptName: j['dept_name'] ?? '',
+      );
 }
 
 class ChildTicketModel {

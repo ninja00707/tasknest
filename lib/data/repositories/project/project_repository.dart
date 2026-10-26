@@ -9,6 +9,9 @@ abstract class ProjectRepository {
 
   Future<ProjectModel> getProject(int id);
 
+  /// Archived (Trello-style) tasks of a project — hidden from the board.
+  Future<List<ArchivedTaskModel>> getArchivedTasks(int projectId);
+
   Future<ProjectModel> createProject({
     required String name,
     required String description,

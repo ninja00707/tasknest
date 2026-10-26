@@ -242,8 +242,8 @@ class ProjectRepository {
   async getProjectTickets(projectId) {
     const result = await pool.query(
       `WITH RECURSIVE project_tree AS (
-          -- Seeds: every ticket that belongs to this project
-          SELECT id FROM tickets WHERE project_id = $1
+        -- Seeds: every ticket that belongs to this project (archived ones stay hidden)
+        SELECT id FROM tickets WHERE project_id = $1 AND archived_at IS NULL
           UNION ALL
           -- Descendants, but ONLY descendants that also belong to this project.
           -- No upward climb to project-less roots => a project can never show
@@ -276,7 +276,8 @@ class ProjectRepository {
               pt.ticket_number AS parent_ticket_number,
               EXISTS (
                 SELECT 1 FROM ticket_logs tl WHERE tl.ticket_id = t.id AND tl.action = 'disputed'
-              ) AS disputed
+              ) AS disputed,
+              tm.members AS members
        FROM tickets t
        LEFT JOIN departments ad ON ad.id = t.assigned_dept_id
        LEFT JOIN users u ON u.id = t.assigned_to_id
@@ -290,7 +291,27 @@ class ProjectRepository {
          ORDER BY l.created_at DESC
          LIMIT 1
        ) ll ON true
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(
+           json_agg(
+             json_build_object(
+               'id', mu.id,
+               'name', mu.name,
+               'email', mu.email,
+               'dept_code', COALESCE(md.code, ''),
+               'dept_name', COALESCE(md.name, '')
+             )
+             ORDER BY mu.name ASC
+           ),
+           '[]'::json
+         ) AS members
+         FROM ticket_members tmr
+         JOIN users mu ON mu.id = tmr.user_id
+         LEFT JOIN departments md ON md.id = mu.department_id
+         WHERE tmr.ticket_id = t.id
+       ) tm ON true
        WHERE t.id IN (SELECT id FROM project_tree)
+       AND t.archived_at IS NULL
        ORDER BY t.created_at DESC`,
       [projectId]
     );
@@ -347,6 +368,18 @@ class ProjectRepository {
 
     const roots = rows.filter(r => r.parent_ticket_id == null || !byId.has(r.parent_ticket_id));
     return roots.map(r => ({ ...r, children: allDescendants(r.id).map(toChildModel) }));
+  }
+
+  // Archived (Trello-style) tasks of a project — hidden from the board.
+  async getArchivedProjectTickets(projectId) {
+    const result = await pool.query(`
+      SELECT t.id, t.title, t.status, t.priority, t.ticket_number,
+             t.archived_at, t.created_at, t.due_date, t.project_id
+      FROM tickets t
+      WHERE t.project_id = $1 AND t.archived_at IS NOT NULL
+      ORDER BY t.archived_at DESC
+    `, [projectId]);
+    return result.rows;
   }
 
   // ── Update project ──────────────────────────────────────────────────────

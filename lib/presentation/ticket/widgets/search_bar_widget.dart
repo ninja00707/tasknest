@@ -22,31 +22,31 @@ class SearchBarWidget extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: TextField(
         decoration: InputDecoration(
-          hintText: ConstStrings.searchHint,
+          hintText: 'Filter and search...',
           hintStyle: TextStyle(
             color: ThemeColors.unifiedTextMuted.withValues(alpha: 0.6),
-            fontSize: 13,
+            fontSize: 12.5,
           ),
-          prefixIcon: Icon(
+          prefixIcon: const Icon(
             Icons.search_rounded,
-            size: 20,
+            size: 18,
             color: ThemeColors.unifiedTextMuted,
           ),
           filled: true,
-          fillColor: ThemeColors.unifiedBackground,
-          contentPadding: const EdgeInsets.symmetric(vertical: 10),
+          fillColor: ThemeColors.unifiedInputBg,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: ThemeColors.unifiedBorder),
+            borderRadius: BorderRadius.circular(24),
+            borderSide: const BorderSide(color: ThemeColors.unifiedBorder),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(
-              color: ThemeColors.unifiedBorder.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(24),
+            borderSide: const BorderSide(
+              color: ThemeColors.unifiedBorder,
             ),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(24),
             borderSide: const BorderSide(
               color: ThemeColors.unifiedPrimary,
               width: 1.5,

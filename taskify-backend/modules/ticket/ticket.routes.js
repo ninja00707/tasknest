@@ -37,6 +37,9 @@ router.patch('/:id/status', controller.updateStatus);
 router.patch('/:id/dispute', isManager, controller.dispute);
 router.patch('/:id/self-assign', controller.selfAssign);
 router.patch('/:id/assign', isManager, controller.assignToEmployee);
+router.patch('/:id/members', controller.setTicketMembers);
+router.patch('/:id/archive', controller.archiveTicket);
+router.patch('/:id/unarchive', controller.unarchiveTicket);
 router.patch('/:id/transfer', controller.transferTicket);
 router.patch('/:id/reopen', controller.reopenTicket);
 

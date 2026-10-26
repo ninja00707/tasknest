@@ -41,6 +41,15 @@ class ProjectRemoteDataSource {
     return ProjectModel.fromJson(res['data']);
   }
 
+  /// Archived (Trello-style) tasks of a project — hidden from the board.
+  Future<List<ArchivedTaskModel>> getArchivedTasks(int projectId) async {
+    final res = await _api.get('projects/$projectId/archived');
+    final data = res['data'] ?? [];
+    return (data as List)
+        .map((e) => ArchivedTaskModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<ProjectModel> createProject({
     required String name,
     required String description,

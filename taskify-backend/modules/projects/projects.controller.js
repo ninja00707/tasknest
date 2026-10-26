@@ -25,6 +25,11 @@ class ProjectController {
     res.json({ success: true, data: project });
   });
 
+  getArchivedTasks = handler(async (req, res) => {
+    const tasks = await projectService.getArchivedTasks(req.user, Number(req.params.id));
+    res.json({ success: true, data: tasks });
+  });
+
   updateProject = handler(async (req, res) => {
     const project = await projectService.updateProject(req.user, Number(req.params.id), req.body);
     res.json({ success: true, data: project });

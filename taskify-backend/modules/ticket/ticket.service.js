@@ -52,6 +52,18 @@ class TicketService {
     }
   }
 
+  // Trello rule: project tasks are managed by their project team
+  // (plus the creator, managers and the CEO).
+  async _assertProjectTaskManager(ticket, user) {
+    if (!ticket.project_id) return;
+    if (Number(ticket.created_by_id) === Number(user.id)) return;
+    if (user.role === 'manager' || user.role === 'ceo') return;
+    const isTeam = await ticketRepo.isProjectTeamMember(ticket.project_id, user.id);
+    if (!isTeam) {
+      throw { statusCode: 403, message: 'Only project team members can manage this task' };
+    }
+  }
+
   async _emitParentChain(ticketId, updatedParents, actingUserId) {
     if (!updatedParents || updatedParents.length === 0) return;
 
@@ -119,11 +131,15 @@ class TicketService {
       (ticket.my_assigned_to_id != null && Number(ticket.my_assigned_to_id) === Number(user.id)) ||
       (ticket.assigned_to_id != null && Number(ticket.assigned_to_id) === Number(user.id)) ||
       (Array.isArray(ticket.sub_departments) && ticket.sub_departments.some(sd => Number(sd.assigned_to_id) === Number(user.id)));
+
+    // Project tasks (Trello style): anyone who can open the task can comment.
+    if (ticket.project_id) ticket.can_comment = true;
+
     return ticket;
   }
 
   async createTicket(data, user) {
-    const { title, description, priority = 'medium', assignedDeptId, dueDate, parentTicketId = null, selfAssign = false, projectId } = data;
+    const { title, description, priority = 'medium', assignedDeptId, dueDate, parentTicketId = null, selfAssign = false, projectId, status = null, memberIds } = data;
     const departmentIds = data.departmentIds;
 
     const subTitle = data.subTitle || data.sub_title;
@@ -138,7 +154,17 @@ class TicketService {
       throw { statusCode: 400, message: 'title and description are required' };
     }
 
-    // Multi-department mode: create master + sub-ticket for each department
+    // ── Project tasks are flat (Trello board): no sub-tickets ever ─────────
+    if (projectId != null && Array.isArray(departmentIds) && departmentIds.length > 1) {
+      throw { statusCode: 400, message: 'Project tasks are single-department — sub-tickets are not supported' };
+    }
+    if (parentTicketId != null) {
+      const parent = await ticketRepo.getTicketProjectInfo(Number(parentTicketId));
+      if (parent && parent.project_id) {
+        throw { statusCode: 400, message: 'Project tasks do not support sub-tickets' };
+      }
+    }
+
     if (!parentTicketId && Array.isArray(departmentIds) && departmentIds.length > 0) {
       const uniqueDepts = [...new Set(departmentIds.map(Number))];
       if (uniqueDepts.length === 0) throw { statusCode: 400, message: 'At least one department is required' };
@@ -240,7 +266,8 @@ class TicketService {
       assignedToId,
       parentTicketId: parentTicketId ? Number(parentTicketId) : null,
       ticketType: 'standard',
-      projectId: projectId != null ? Number(projectId) : null
+      projectId: projectId != null ? Number(projectId) : null,
+      status
     });
     this._invalidateStats(user.id, assignedToId);
 
@@ -249,6 +276,11 @@ class TicketService {
 
     if (parentTicketId) {
       await ticketRepo.logAction(parentTicketId, user.id, 'sub_ticket_created', null, String(ticket.id), `Sub-ticket #${ticket.id} created by ${user.name}`);
+    }
+
+    // Trello-style: attach the team in the same call as the creation.
+    if (projectId != null && Array.isArray(memberIds) && memberIds.length > 0) {
+      await this.setTicketMembers(ticket.id, memberIds, user);
     }
 
     return ticket;
@@ -260,6 +292,12 @@ class TicketService {
     }
 
     const { title, description, priority = 'medium', dueDate, departments, parentTicketId = null, projectId = null } = data;
+
+    // Project tasks are flat (Trello board) — multi-department sub-tickets
+    // are never allowed inside a project.
+    if (projectId != null) {
+      throw { statusCode: 400, message: 'Project tasks do not support multi-department sub-tickets' };
+    }
 
     if (!title || !description || title.trim() === '' || description.trim() === '') {
       throw { statusCode: 400, message: 'title and description are required' };
@@ -592,17 +630,35 @@ class TicketService {
       throw { statusCode: 400, message: 'Invalid status' };
     }
 
+    // ── Project tasks (Trello board): free movement between lists ──────────
+    // Any project team member may drag a task to any list — no ownership
+    // checks, closing remarks or reopen limits apply. Archived tasks stay
+    // frozen until restored.
+    const isProjectTask = Boolean(ticket.project_id);
+    if (isProjectTask && !isSystemUpdate) {
+      await this._assertProjectTaskManager(ticket, user);
+      if (ticket.archived_at) {
+        throw { statusCode: 400, message: 'Archived tasks cannot be moved. Restore the task first.' };
+      }
+      const oldStatus = ticket.status;
+      if (oldStatus === newStatus) return ticket;
+      const updated = await ticketRepo.updateStatus(ticketId, newStatus, user);
+      this._invalidateStats(user.id);
+      await ticketRepo.logAction(
+        ticketId,
+        user.id,
+        'status_changed',
+        oldStatus,
+        newStatus,
+        `Status moved to ${newStatus} by ${user.name} (project board)`
+      );
+      return updated;
+    }
+
     // Only the master waits for ALL its sub-tickets to close. A sub-ticket
     // can always be closed by its own assignee once its work is done,
-    // regardless of how many sub-tickets exist. Project tasks are flat by
-    // design (drag-and-drop on the project board), so they are exempt.
-    const isProjectTask = Boolean(ticket.project_id);
-    if (
-      !isSystemUpdate &&
-      newStatus === 'closed' &&
-      !ticket.is_sub_ticket &&
-      !isProjectTask
-    ) {
+    // regardless of how many sub-tickets exist.
+    if (!isSystemUpdate && newStatus === 'closed' && !ticket.is_sub_ticket) {
       const hasUnfinalized = await ticketRepo.hasUnfinalizedSubTickets(ticketId);
       if (hasUnfinalized) {
         throw {
@@ -689,6 +745,9 @@ return updated;
     }
     if (ticket.is_sub_ticket) {
       throw { statusCode: 400, message: 'Only master tickets can be disputed' };
+    }
+    if (ticket.project_id) {
+      throw { statusCode: 400, message: 'Project tasks cannot be disputed — move the task to another list instead' };
     }
 
     const oldStatus = ticket.status;
@@ -825,10 +884,75 @@ return updated;
   return updated;
 }
 
+  // Replaces the whole member list of a task (Trello-style).
+  // Any project team member can do it; managers/CEO always can.
+  async setTicketMembers(ticketId, memberIds, user) {
+  const info = await ticketRepo.getTicketProjectInfo(ticketId);
+  if (!info) throw { statusCode: 404, message: 'Task not found' };
+
+  const isProjectTeam = await ticketRepo.isProjectTeamMember(info.project_id, user.id);
+  if (!isProjectTeam) {
+    const visible = await ticketRepo.getTicketById(ticketId, user);
+    if (!visible) throw { statusCode: 404, message: 'Task not found' };
+    if (visible.forbidden) throw { statusCode: 403, message: 'Access denied' };
+  }
+
+  if (info.archived_at) {
+    throw { statusCode: 400, message: 'Archived tasks cannot be edited. Restore the task first.' };
+  }
+
+  const uniqueIds = [...new Set(
+    (Array.isArray(memberIds) ? memberIds : [])
+      .map(Number)
+      .filter(n => Number.isFinite(n) && n > 0)
+  )];
+
+  const validUsers = await ticketRepo.getValidMemberUsers(uniqueIds, user.company_id);
+  const validIds = validUsers.map(u => u.id);
+  const skipped = uniqueIds.length - validIds.length;
+
+  const previous = await ticketRepo.getTicketMembers(ticketId);
+  await ticketRepo.replaceTicketMembers(ticketId, validIds, user.id);
+
+  const previousIds = previous.map(m => Number(m.id));
+  const addedIds = validIds.filter(id => !previousIds.includes(id));
+  const removedIds = previousIds.filter(id => !validIds.includes(id));
+
+  await ticketRepo.logAction(
+    ticketId,
+    user.id,
+    'members_updated',
+    previous.map(m => m.name).join(', ') || 'None',
+    validUsers.map(u => u.name).join(', ') || 'None',
+    `${user.name} updated the task members.`
+  );
+
+  if (addedIds.length > 0) {
+    const label = info.ticket_number || `#${ticketId}`;
+    await ticketRepo.createNotifications(
+      addedIds,
+      ticketId,
+      `You were added as a member of task ${label}`
+    );
+  }
+
+  return {
+    members: await ticketRepo.getTicketMembers(ticketId),
+    added: addedIds.length,
+    removed: removedIds.length,
+    skipped,
+  };
+}
+
   async transferTicket(ticketId, targetDeptId, user, title, description) {
   const parentTicket = await ticketRepo.getTicketById(ticketId, user);
   if (!parentTicket) throw { statusCode: 404, message: 'Parent ticket not found' };
   if (parentTicket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+
+  // Project tasks are flat (Trello board) — sub-tickets are never allowed.
+  if (parentTicket.project_id) {
+    throw { statusCode: 400, message: 'Project tasks do not support sub-tickets' };
+  }
 
   // Rule: Open ticket must be assigned before sub-ticket creation
   if (parentTicket.status === 'open') {
@@ -942,9 +1066,19 @@ return updated;
   if (!ticket) throw { statusCode: 404, message: 'Ticket not found' };
   if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
 
+  const isProjectTask = Boolean(ticket.project_id);
+
+  if (isProjectTask) {
+    await this._assertProjectTaskManager(ticket, user);
+    if (ticket.archived_at) {
+      throw { statusCode: 400, message: 'Archived tasks cannot be edited. Restore the task first.' };
+    }
+  }
+
   // Description is editable only by the ticket creator while the ticket is
-  // still OPEN (before it moves to in_progress).
-  if (fields && Object.prototype.hasOwnProperty.call(fields, 'description')) {
+  // still OPEN (before it moves to in_progress). Project tasks (Trello
+  // style) skip this rule: every project team member can always edit them.
+  if (!isProjectTask && fields && Object.prototype.hasOwnProperty.call(fields, 'description')) {
     if (Number(ticket.created_by_id) !== Number(user.id)) {
       throw { statusCode: 403, message: 'Only the ticket creator can edit the description' };
     }
@@ -959,6 +1093,44 @@ return updated;
 
   return updated;
 }
+
+  // ── Trello-style archive / restore (project tasks only) ───────────────────
+  async archiveTicket(ticketId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Task not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    if (!ticket.project_id) {
+      throw { statusCode: 400, message: 'Only project tasks can be archived' };
+    }
+    await this._assertProjectTaskManager(ticket, user);
+
+    const done = await ticketRepo.archiveTicket(ticketId);
+    if (!done) throw { statusCode: 400, message: 'Task is already archived' };
+
+    await ticketRepo.logAction(
+      ticketId, user.id, 'archived',
+      ticket.status, ticket.status,
+      `Task archived by ${user.name}`
+    );
+    return { id: ticketId, archived: true };
+  }
+
+  async unarchiveTicket(ticketId, user) {
+    const ticket = await ticketRepo.getTicketById(ticketId, user);
+    if (!ticket) throw { statusCode: 404, message: 'Task not found' };
+    if (ticket.forbidden) throw { statusCode: 403, message: 'Access denied' };
+    await this._assertProjectTaskManager(ticket, user);
+
+    const done = await ticketRepo.unarchiveTicket(ticketId);
+    if (!done) throw { statusCode: 400, message: 'Task is not archived' };
+
+    await ticketRepo.logAction(
+      ticketId, user.id, 'unarchived',
+      'archived', ticket.status,
+      `Task restored by ${user.name}`
+    );
+    return { id: ticketId, archived: false };
+  }
 
   async getDepartments(user) {
   return await ticketRepo.getDepartments(user.company_id);

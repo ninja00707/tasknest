@@ -164,6 +164,58 @@ class TicketRemoteDataSource {
     return TicketModel.fromJson(res['data']);
   }
 
+  /// Replaces the whole member list of a task (Trello-style).
+  Future<List<TicketMemberModel>> setTicketMembers(
+    int id,
+    List<int> memberIds,
+  ) async {
+    final res = await _api.patch('tickets/$id/members', body: {
+      'memberIds': memberIds,
+    });
+    final data = res['data'];
+    final list = (data is Map && data['members'] is List)
+        ? data['members'] as List
+        : const [];
+    return list
+        .map((e) => TicketMemberModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Archives a project task (Trello-style) — it disappears from the board.
+  Future<void> archiveTicket(int id) async {
+    await _api.patch('tickets/$id/archive', body: {});
+  }
+
+  /// Restores an archived task back onto the board.
+  Future<void> unarchiveTicket(int id) async {
+    await _api.patch('tickets/$id/unarchive', body: {});
+  }
+
+  /// Creates a Trello-style project task in one call — the starting list
+  /// (`status`) and the team (`memberIds`) are applied at creation time.
+  Future<TicketModel> createProjectTask({
+    required String title,
+    required String description,
+    required int projectId,
+    required int assignedDeptId,
+    String priority = 'medium',
+    String? dueDate,
+    String status = 'open',
+    List<int> memberIds = const [],
+  }) async {
+    final res = await _api.post('tickets', body: {
+      'title': title,
+      'description': description,
+      'priority': priority,
+      'projectId': projectId,
+      'assignedDeptId': assignedDeptId,
+      'dueDate': dueDate,
+      'status': status,
+      'memberIds': memberIds,
+    });
+    return TicketModel.fromJson(res['data']);
+  }
+
   Future<List<DepartmentModel>> getDepartments() async {
     final res = await _api.get('tickets/departments');
     final data = res['data'];

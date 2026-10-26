@@ -2,31 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tasknest/core/constant/common_status.dart';
 import 'package:tasknest/core/theme/color.dart';
+import 'package:tasknest/domain/repositories_impl/project_impl/project_impl.dart';
 import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
 import 'package:tasknest/injection.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/projects/bloc/project_bloc.dart';
 import 'package:tasknest/presentation/projects/bloc/project_event.dart';
 import 'package:tasknest/presentation/projects/model/project_models.dart';
+import 'package:tasknest/presentation/projects/widgets/member_stack.dart';
 import 'package:tasknest/presentation/projects/widgets/project_ticket_detail_dialog.dart';
 import 'package:tasknest/presentation/projects/widgets/ui_helpers.dart';
 import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 
-/// Bitrix / StudioBinder style task board for a project.
+/// Trello list names for the three ticket statuses.
+String _listLabel(String status) => switch (status) {
+      'open' => 'To Do',
+      'in_progress' => 'In Progress',
+      'closed' => 'Done',
+      _ => CommonStatus.statusLabel(status),
+    };
+
+/// Trello style task board for a project.
 ///
-/// Columns follow the ticket workflow (`CommonStatus.statuses`). Every card is
-/// draggable — dropping it on another column runs the backend transition rules
-/// (remark on close, reopen on leaving closed) and then reloads the project.
+/// Columns are the three lists (`To Do`, `In Progress`, `Done`). Every card
+/// is draggable — dropping it on another list moves the task instantly with
+/// no remarks, ownership checks or reopen limits, then reloads the project.
 class ProjectTaskBoard extends StatefulWidget {
   final ProjectModel project;
   final UserModel? currentUser;
-  final VoidCallback onNewTicket;
+  final ValueChanged<String> onNewTask;
 
   const ProjectTaskBoard({
     super.key,
     required this.project,
     required this.currentUser,
-    required this.onNewTicket,
+    required this.onNewTask,
   });
 
   @override
@@ -92,16 +102,108 @@ class _ProjectTaskBoardState extends State<ProjectTaskBoard> {
       return;
     }
 
-    // Completed tasks are view-disabled on the board — opening them from here
-    // is blocked by the backend's per-ticket access rule.
-    final matches = widget.project.tickets.where((t) => t.id == id);
-    if (matches.isNotEmpty && matches.first.status == 'closed') {
-      _snack('This task is completed and cannot be opened.', neutral: true);
+    showProjectTicketDetailDialog(
+      context,
+      ticketId: id,
+      user: user,
+      projectTeam: widget.project.members,
+    ).then((_) => _reload());
+  }
+
+  /// Trello's board menu: list the archived cards and restore any of them.
+  Future<void> _openArchived() async {
+    final user = widget.currentUser;
+    if (user == null) return;
+
+    List<ArchivedTaskModel> items;
+    try {
+      items = await sl<ProjectRepositoryImpl>()
+          .getArchivedTasks(widget.project.id);
+    } catch (e) {
+      if (mounted) _snack(_friendlyError(e), error: true);
       return;
     }
+    if (!mounted) return;
 
-    showProjectTicketDetailDialog(context, ticketId: id, user: user)
-        .then((_) => _reload());
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.archive_outlined,
+                size: 20, color: ThemeColors.unifiedTextMuted),
+            SizedBox(width: 8),
+            Text('Archived tasks'),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: items.isEmpty
+              ? const Text(
+                  'No archived tasks yet.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: ThemeColors.unifiedTextMuted,
+                  ),
+                )
+              : SizedBox(
+                  height: 320,
+                  child: ListView.separated(
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final a = items[index];
+                      return ListTile(
+                        dense: true,
+                        title: Text(
+                          a.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          a.ticketNumber,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: ThemeColors.unifiedTextMuted,
+                          ),
+                        ),
+                        trailing: TextButton(
+                          onPressed: () async {
+                            try {
+                              await sl<TicketRepositoryImpl>()
+                                  .unarchiveTicket(a.id);
+                              if (dialogContext.mounted) {
+                                Navigator.pop(dialogContext);
+                              }
+                              if (mounted) {
+                                _snack('Task restored to the board.');
+                                _reload();
+                              }
+                            } catch (e) {
+                              if (mounted) _snack(_friendlyError(e), error: true);
+                            }
+                          },
+                          child: const Text('Restore'),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _snack(String message, {bool error = false, bool neutral = false}) {
@@ -131,13 +233,13 @@ class _ProjectTaskBoardState extends State<ProjectTaskBoard> {
     return message.isEmpty ? 'The move could not be saved.' : message;
   }
 
-  /// Backend rules for moving a ticket between workflow columns.
+  /// Trello-style move: drop a card on any list and it just moves — no
+  /// ownership checks, closing remarks or reopen limits.
   Future<void> _move(TicketModel t, String target) async {
     final current = _statusOf(t);
     if (current == target) return;
 
-    final user = widget.currentUser;
-    if (user == null) {
+    if (widget.currentUser == null) {
       _snack('Your session is still loading. Try again in a moment.',
           error: true);
       return;
@@ -154,36 +256,7 @@ class _ProjectTaskBoardState extends State<ProjectTaskBoard> {
     });
 
     try {
-      final repo = sl<TicketRepositoryImpl>();
-
-      if (current == 'closed') {
-        if (!t.canReopenBy(user.id)) {
-          throw Exception(
-            'Only the creator can reopen a task, within 48 hours of closing it and only once.',
-          );
-        }
-        await repo.reopenTicket(t.id);
-        if (target == 'open') {
-          await repo.updateStatus(t.id, 'open');
-        }
-      } else if (target == 'closed') {
-        final canClose = t.isSubTicket
-            ? t.assignedToId == user.id
-            : t.createdById == user.id;
-        if (!canClose) {
-          throw Exception(t.isSubTicket
-              ? 'Only the assigned resolver can close this sub-task.'
-              : 'Only the creator can close this task.');
-        }
-        final remark = await _askRemark(t);
-        if (remark == null) {
-          if (mounted) setState(() => _overrides.remove(t.id));
-          return;
-        }
-        await repo.updateStatus(t.id, 'closed', remark: remark);
-      } else {
-        await repo.updateStatus(t.id, target);
-      }
+      await sl<TicketRepositoryImpl>().updateStatus(t.id, target);
 
       if (mounted) {
         setState(() => _busyId = null);
@@ -197,81 +270,6 @@ class _ProjectTaskBoardState extends State<ProjectTaskBoard> {
       });
       _snack(_friendlyError(e), error: true);
     }
-  }
-
-  Future<String?> _askRemark(TicketModel t) {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
-            children: [
-              Icon(Icons.check_circle_outline_rounded,
-                  size: 20, color: ThemeColors.unifiedPrimary),
-              SizedBox(width: 8),
-              Text('Complete this task'),
-            ],
-          ),
-          content: SizedBox(
-            width: 440,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '"${t.title}"',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: ThemeColors.unifiedTextPrimary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'A short closing remark is required.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: ThemeColors.unifiedTextMuted,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    hintText: 'What was delivered?',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final remark = controller.text.trim();
-                if (remark.isEmpty) return;
-                Navigator.pop(dialogContext, remark);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: ThemeColors.unifiedPrimary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-              ),
-              child: const Text('Complete'),
-            ),
-          ],
-        );
-      },
-    ).whenComplete(controller.dispose);
   }
 
   @override
@@ -318,12 +316,15 @@ class _ProjectTaskBoardState extends State<ProjectTaskBoard> {
           total: tickets.length,
           overdue: overdueCount,
           canMove: widget.project.canEdit,
+          canCreateTask: widget.project.canEdit,
           counts: {
             for (final s in CommonStatus.statuses)
               s: tickets.where((t) => _statusOf(t) == s).length,
           },
           onQuery: (v) => setState(() => _query = v),
           onFilter: (v) => setState(() => _filter = v),
+          onArchived: _openArchived,
+          onNewTask: widget.onNewTask,
         ),
         const SizedBox(height: 10),
         Expanded(
@@ -361,9 +362,9 @@ class _ProjectTaskBoardState extends State<ProjectTaskBoard> {
                     if (widget.project.canEdit) ...[
                       const SizedBox(height: 10),
                       TextButton.icon(
-                        onPressed: widget.onNewTicket,
+                        onPressed: () => widget.onNewTask('open'),
                         icon: const Icon(Icons.add_rounded, size: 16),
-                        label: const Text('New Ticket'),
+                        label: const Text('Add task'),
                       ),
                     ],
                   ],
@@ -405,7 +406,7 @@ class _ProjectTaskBoardState extends State<ProjectTaskBoard> {
                               for (final status in CommonStatus.statuses) ...[
                                 _BoardColumn(
                                   status: status,
-                                  label: CommonStatus.statusLabel(status),
+                                  label: _listLabel(status),
                                   color: CommonStatus.columnColor(status),
                                   tickets: grouped[status] ?? const [],
                                   height: height,
@@ -415,7 +416,7 @@ class _ProjectTaskBoardState extends State<ProjectTaskBoard> {
                                   onTap: _openTicket,
                                   onMove: _move,
                                   statusOf: _statusOf,
-                                  onNewTicket: widget.onNewTicket,
+                                  onAddCard: widget.onNewTask,
                                 ),
                                 const SizedBox(width: 14),
                               ],
@@ -442,9 +443,12 @@ class _Toolbar extends StatelessWidget {
   final int total;
   final int overdue;
   final bool canMove;
+  final bool canCreateTask;
   final Map<String, int> counts;
   final ValueChanged<String> onQuery;
   final ValueChanged<String> onFilter;
+  final VoidCallback onArchived;
+  final ValueChanged<String> onNewTask;
 
   const _Toolbar({
     required this.query,
@@ -452,9 +456,12 @@ class _Toolbar extends StatelessWidget {
     required this.total,
     required this.overdue,
     required this.canMove,
+    required this.canCreateTask,
     required this.counts,
     required this.onQuery,
     required this.onFilter,
+    required this.onArchived,
+    required this.onNewTask,
   });
 
   @override
@@ -462,25 +469,103 @@ class _Toolbar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          onChanged: onQuery,
-          style: const TextStyle(fontSize: 13),
-          decoration: InputDecoration(
-            hintText: 'Filter and search...',
-            hintStyle: const TextStyle(fontSize: 12),
-            prefixIcon: const Icon(Icons.search_rounded, size: 18),
-            isDense: true,
-            filled: true,
-            fillColor: ThemeColors.unifiedInputBg,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: BorderSide.none,
+        // Top action & search bar row (Bitrix24 layout style)
+        Row(
+          children: [
+            if (canCreateTask) ...[
+              Material(
+                color: ThemeColors.unifiedPrimary,
+                borderRadius: BorderRadius.circular(20),
+                child: InkWell(
+                  onTap: () => onNewTask('open'),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                        SizedBox(width: 4),
+                        Text(
+                          'New task',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: TextField(
+                onChanged: onQuery,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: ThemeColors.unifiedTextPrimary,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Filter and search...',
+                  hintStyle: const TextStyle(
+                    fontSize: 12.5,
+                    color: ThemeColors.unifiedTextMuted,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    size: 18,
+                    color: ThemeColors.unifiedTextMuted,
+                  ),
+                  suffixIcon: query.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            size: 16,
+                            color: ThemeColors.unifiedTextMuted,
+                          ),
+                          onPressed: () => onQuery(''),
+                        )
+                      : null,
+                  isDense: true,
+                  filled: true,
+                  fillColor: ThemeColors.unifiedInputBg,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: const BorderSide(
+                      color: ThemeColors.unifiedBorder,
+                      width: 1,
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: const BorderSide(
+                      color: ThemeColors.unifiedBorder,
+                      width: 1,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: const BorderSide(
+                      color: ThemeColors.unifiedPrimary,
+                      width: 1.5,
+                    ),
+                  ),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -502,13 +587,33 @@ class _Toolbar extends StatelessWidget {
               for (final status in CommonStatus.statuses) ...[
                 const SizedBox(width: 6),
                 _Pill(
-                  label: CommonStatus.statusLabel(status),
+                  label: _listLabel(status),
                   count: counts[status] ?? 0,
                   active: filter == status,
                   color: CommonStatus.columnColor(status),
                   onTap: () => onFilter(status),
                 ),
               ],
+              const SizedBox(width: 6),
+              TextButton.icon(
+                onPressed: onArchived,
+                icon: const Icon(Icons.archive_outlined, size: 15),
+                label: const Text('Archived'),
+                style: TextButton.styleFrom(
+                  foregroundColor: ThemeColors.unifiedTextMuted,
+                  backgroundColor: ThemeColors.unifiedInputBg,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: const Size(0, 30),
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: const BorderSide(color: ThemeColors.unifiedBorder),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -627,7 +732,7 @@ class _BoardColumn extends StatelessWidget {
   final ValueChanged<int> onTap;
   final void Function(TicketModel ticket, String target) onMove;
   final String Function(TicketModel ticket) statusOf;
-  final VoidCallback onNewTicket;
+  final ValueChanged<String> onAddCard;
 
   const _BoardColumn({
     required this.status,
@@ -641,7 +746,7 @@ class _BoardColumn extends StatelessWidget {
     required this.onTap,
     required this.onMove,
     required this.statusOf,
-    required this.onNewTicket,
+    required this.onAddCard,
   });
 
   @override
@@ -786,7 +891,7 @@ class _BoardColumn extends StatelessWidget {
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      onTap: onNewTicket,
+                      onTap: () => onAddCard(status),
                       borderRadius: BorderRadius.circular(8),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -1066,9 +1171,11 @@ class _CardInner extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  InitialsAvatar(
-                    name: t.assignedToName ?? 'Unassigned',
-                    size: 24,
+                  MemberStack(
+                    members: t.members,
+                    size: 22,
+                    max: 3,
+                    fallbackName: t.assignedToName ?? 'Unassigned',
                   ),
                 ],
               ),

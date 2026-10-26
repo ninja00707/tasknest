@@ -285,3 +285,37 @@ class ProjectCommentModel {
     );
   }
 }
+
+/// An archived (Trello-style) task of a project — hidden from the board
+/// until it is restored.
+class ArchivedTaskModel {
+  final int id;
+  final String title;
+  final String ticketNumber;
+  final String status;
+  final String priority;
+  final DateTime? archivedAt;
+  final DateTime? dueDate;
+
+  const ArchivedTaskModel({
+    required this.id,
+    required this.title,
+    this.ticketNumber = '',
+    this.status = 'open',
+    this.priority = 'medium',
+    this.archivedAt,
+    this.dueDate,
+  });
+
+  factory ArchivedTaskModel.fromJson(Map<String, dynamic> json) {
+    return ArchivedTaskModel(
+      id: _parseInt(json['id']),
+      title: json['title'] ?? '',
+      ticketNumber: json['ticket_number'] ?? '',
+      status: json['status'] ?? 'open',
+      priority: json['priority'] ?? 'medium',
+      archivedAt: DateTime.tryParse(json['archived_at'].toString()),
+      dueDate: DateTime.tryParse(json['due_date'].toString()),
+    );
+  }
+}

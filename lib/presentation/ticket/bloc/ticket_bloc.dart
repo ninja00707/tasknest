@@ -20,6 +20,7 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
     on<ReopenTicket>(_onReopen);
     on<UpdateTicketDescription>(_onUpdateDescription);
     on<UpdateTicketDetails>(_onUpdateDetails);
+    on<SetTicketMembers>(_onSetMembers);
     on<CreateTicketEvent>(_onCreate);
     on<CreateSubTicketEvent>(_onCreateSubTicket);
     on<UpdateSubDeptProgressEvent>(_onUpdateSubDeptProgress);
@@ -258,6 +259,37 @@ class TicketBloc extends Bloc<TicketEvent, TicketState> {
       _lastLoadedTicket = updated;
       emit(TicketDetailLoaded(updated));
       emit(TicketActionSuccess('Task updated successfully.'));
+    } catch (e) {
+      emit(TicketActionError(_getFriendlyErrorMessage(e)));
+      if (_lastLoadedTicket != null) {
+        emit(TicketDetailLoaded(_lastLoadedTicket!));
+      }
+    }
+  }
+
+  Future<void> _onSetMembers(
+    SetTicketMembers event,
+    Emitter<TicketState> emit,
+  ) async {
+    emit(TicketActionInProgress());
+    try {
+      final members = await _dataSource.setTicketMembers(
+        event.ticketId,
+        event.memberIds,
+      );
+      final current = _lastLoadedTicket;
+      if (current != null && current.id == event.ticketId) {
+        final updated = current.copyWithMembers(members);
+        _lastLoadedTicket = updated;
+        emit(TicketDetailLoaded(updated));
+      } else {
+        add(LoadTicketDetail(event.ticketId, silent: true));
+      }
+      emit(TicketActionSuccess(
+        event.memberIds.isEmpty
+            ? 'Task members cleared.'
+            : 'Task members updated (${event.memberIds.length}).',
+      ));
     } catch (e) {
       emit(TicketActionError(_getFriendlyErrorMessage(e)));
       if (_lastLoadedTicket != null) {

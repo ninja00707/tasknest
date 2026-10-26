@@ -11,6 +11,7 @@ router.post('/', isManager, controller.createProject);
 router.get('/', controller.listProjects);
 router.get('/directory', isManager, controller.getDirectory);
 router.get('/:id', controller.getProjectDetail);
+router.get('/:id/archived', controller.getArchivedTasks);
 router.patch('/:id', controller.updateProject);
 router.delete('/:id', controller.deleteProject);
 

@@ -101,6 +101,12 @@ class ProjectService {
     };
   }
 
+  // Archived (Trello-style) tasks — visible to anyone with project access.
+  async getArchivedTasks(user, projectId) {
+    await this._getAccess(projectId, user);
+    return projectRepo.getArchivedProjectTickets(projectId);
+  }
+
   // ══════════════════════════════════════════════════════════════════════
   // RULE 3: Only the manager who created the project can edit
   // ══════════════════════════════════════════════════════════════════════

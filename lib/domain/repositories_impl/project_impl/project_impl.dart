@@ -22,6 +22,10 @@ class ProjectRepositoryImpl implements ProjectRepository {
   Future<ProjectModel> getProject(int id) => _projectDs.getProject(id);
 
   @override
+  Future<List<ArchivedTaskModel>> getArchivedTasks(int projectId) =>
+      _projectDs.getArchivedTasks(projectId);
+
+  @override
   Future<ProjectModel> createProject({
     required String name,
     required String description,

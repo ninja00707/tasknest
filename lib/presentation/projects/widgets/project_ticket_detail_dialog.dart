@@ -10,6 +10,8 @@ import 'package:tasknest/core/theme/common_text_styles.dart';
 import 'package:tasknest/domain/repositories_impl/ticket_impl/ticket_impl.dart';
 import 'package:tasknest/injection.dart';
 import 'package:tasknest/presentation/dashboard/widgets/ticket_history_timeline.dart';
+import 'package:tasknest/presentation/projects/model/project_models.dart';
+import 'package:tasknest/presentation/projects/widgets/member_stack.dart';
 import 'package:tasknest/presentation/login/models/user_model.dart';
 import 'package:tasknest/presentation/projects/widgets/ui_helpers.dart';
 import 'package:tasknest/presentation/ticket/bloc/ticket_bloc.dart';
@@ -19,10 +21,15 @@ import 'package:tasknest/presentation/ticket/model/ticketmodel.dart';
 import 'package:tasknest/presentation/ticket/widgets/card_detailing_widget/appbar_print_button.dart';
 import 'package:tasknest/presentation/ticket/widgets/card_detailing_widget/common_baged.dart';
 import 'package:tasknest/presentation/ticket/widgets/card_detailing_widget/ticket_comment_section.dart';
-import 'package:tasknest/presentation/ticket/widgets/card_detailing_widget/ticket_detail_child_card.dart';
 import 'package:tasknest/presentation/ticket/widgets/card_detailing_widget/ticket_detail_table_raw.dart';
-import 'package:tasknest/presentation/ticket/widgets/sub_ticket_detail_section.dart';
-import 'package:tasknest/presentation/ticket/widgets/ticket_action.dart';
+
+/// Strips `Exception(...)` wrappers from error strings for snackbars.
+String _friendlyError(Object e) {
+  final raw = e.toString();
+  final match = RegExp(r'Exception\((.*)\)', dotAll: true).firstMatch(raw);
+  final message = match != null ? match.group(1)! : raw;
+  return message.isEmpty ? 'The action could not be saved.' : message;
+}
 
 /// Trello-style card popup for the project module.
 ///
@@ -32,13 +39,18 @@ Future<void> showProjectTicketDetailDialog(
   BuildContext context, {
   required int ticketId,
   required UserModel user,
+  List<ProjectMemberModel> projectTeam = const [],
 }) async {
   final bloc = context.read<TicketBloc>();
   bloc.add(LoadTicketDetail(ticketId));
   await showDialog<void>(
     context: context,
     barrierDismissible: true,
-    builder: (_) => ProjectTicketDetailDialog(ticketId: ticketId, user: user),
+    builder: (_) => ProjectTicketDetailDialog(
+      ticketId: ticketId,
+      user: user,
+      projectTeam: projectTeam,
+    ),
   );
   bloc.add(ClearTicketDetail());
 }
@@ -57,11 +69,13 @@ String _statusName(String status) {
 class ProjectTicketDetailDialog extends StatefulWidget {
   final int ticketId;
   final UserModel user;
+  final List<ProjectMemberModel> projectTeam;
 
   const ProjectTicketDetailDialog({
     super.key,
     required this.ticketId,
     required this.user,
+    this.projectTeam = const [],
   });
 
   @override
@@ -128,7 +142,11 @@ class _ProjectTicketDetailDialogState extends State<ProjectTicketDetailDialog> {
             if (ticket == null) {
               return Column(
                 children: [
-                  const _CoverBand(ticket: null, user: null),
+                  _CoverBand(
+                    ticket: null,
+                    user: null,
+                    projectTeam: widget.projectTeam,
+                  ),
                   Expanded(
                     child: _loadError == null
                         ? const Center(child: CircularProgressIndicator())
@@ -139,14 +157,22 @@ class _ProjectTicketDetailDialogState extends State<ProjectTicketDetailDialog> {
             }
             return Column(
               children: [
-                _CoverBand(ticket: ticket, user: widget.user),
+                _CoverBand(
+                  ticket: ticket,
+                  user: widget.user,
+                  projectTeam: widget.projectTeam,
+                ),
                 Expanded(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Expanded(
                         flex: 62,
-                        child: _LeftPane(ticket: ticket, user: widget.user),
+                        child: _LeftPane(
+                          ticket: ticket,
+                          user: widget.user,
+                          projectTeam: widget.projectTeam,
+                        ),
                       ),
                       Container(
                         width: 1,
@@ -248,7 +274,12 @@ class _LoadErrorPanel extends StatelessWidget {
 class _CoverBand extends StatelessWidget {
   final TicketModel? ticket;
   final UserModel? user;
-  const _CoverBand({required this.ticket, required this.user});
+  final List<ProjectMemberModel> projectTeam;
+  const _CoverBand({
+    required this.ticket,
+    required this.user,
+    this.projectTeam = const [],
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -283,9 +314,20 @@ class _CoverBand extends StatelessWidget {
           ],
           const Spacer(),
           if (t != null && user != null) ...[
+            MemberStack(
+              members: t.members,
+              size: 28,
+              max: 4,
+              fallbackName: t.assignedToName ?? '',
+            ),
+            const SizedBox(width: 14),
             PrintButton(ticket: t, userName: t.createdByName),
             const SizedBox(width: 8),
-            _OverflowMenu(ticket: t, user: user!),
+            _OverflowMenu(
+              ticket: t,
+              user: user!,
+              projectTeam: projectTeam,
+            ),
             const SizedBox(width: 8),
           ],
           _RoundIconButton(
@@ -305,19 +347,23 @@ class _StatusChip extends StatelessWidget {
   final TicketModel ticket;
   const _StatusChip({required this.ticket});
 
-  String get _label =>
-      ticket.status.toUpperCase().replaceAll('_', ' ');
+  String get _label => switch (ticket.status) {
+        'open' => 'TO DO',
+        'in_progress' => 'IN PROGRESS',
+        'closed' => 'DONE',
+        _ => ticket.status.toUpperCase().replaceAll('_', ' '),
+      };
 
   @override
   Widget build(BuildContext context) {
     final color = CommonStatus.ticketStatusColor(ticket.status);
     return PopupMenuButton<String>(
-      tooltip: 'Change status',
+      tooltip: 'Move to another list',
       onSelected: (value) => _changeStatus(context, value),
       itemBuilder: (context) => const [
-        PopupMenuItem(value: 'open', child: Text('Move to Open')),
-        PopupMenuItem(value: 'in_progress', child: Text('Move to In Progress')),
-        PopupMenuItem(value: 'closed', child: Text('Move to Closed')),
+        PopupMenuItem(value: 'open', child: Text('To Do')),
+        PopupMenuItem(value: 'in_progress', child: Text('In Progress')),
+        PopupMenuItem(value: 'closed', child: Text('Done')),
       ],
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
@@ -347,57 +393,23 @@ class _StatusChip extends StatelessWidget {
     );
   }
 
+  /// Trello style: moving between lists needs no remark and no permission
+  /// dance — any project team member can drop the card anywhere.
   void _changeStatus(BuildContext context, String target) {
     if (target == ticket.status) return;
-    final bloc = context.read<TicketBloc>();
-    if (target != 'closed') {
-      bloc.add(UpdateTicketStatus(ticket.id, target));
-      return;
-    }
-    final controller = TextEditingController();
-    showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: const Text('Add remark before close'),
-        content: TextField(
-          controller: controller,
-          maxLines: 3,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Summary of the work done…',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text(ConstStrings.cancel),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: ThemeColors.unifiedPrimary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-            ),
-            onPressed: () {
-              final remark = controller.text.trim();
-              if (remark.isEmpty) return;
-              Navigator.pop(dialogContext);
-              bloc.add(UpdateTicketStatus(ticket.id, 'closed', remark: remark));
-            },
-            child: const Text(ConstStrings.submit),
-          ),
-        ],
-      ),
-    );
+    context.read<TicketBloc>().add(UpdateTicketStatus(ticket.id, target));
   }
 }
 
 class _OverflowMenu extends StatelessWidget {
   final TicketModel ticket;
   final UserModel user;
-  const _OverflowMenu({required this.ticket, required this.user});
+  final List<ProjectMemberModel> projectTeam;
+  const _OverflowMenu({
+    required this.ticket,
+    required this.user,
+    this.projectTeam = const [],
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -447,7 +459,11 @@ class _OverflowMenu extends StatelessWidget {
   void _openEditor(BuildContext context, TicketModel t, UserModel u) {
     showDialog<void>(
       context: context,
-      builder: (_) => _EditTaskDialog(ticket: t, user: u),
+      builder: (_) => _EditTaskDialog(
+        ticket: t,
+        user: u,
+        projectTeam: projectTeam,
+      ),
     );
   }
 }
@@ -495,7 +511,12 @@ class _RoundIconButton extends StatelessWidget {
 class _LeftPane extends StatelessWidget {
   final TicketModel ticket;
   final UserModel user;
-  const _LeftPane({required this.ticket, required this.user});
+  final List<ProjectMemberModel> projectTeam;
+  const _LeftPane({
+    required this.ticket,
+    required this.user,
+    this.projectTeam = const [],
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -515,9 +536,9 @@ class _LeftPane extends StatelessWidget {
             const SizedBox(height: 18),
             _SectionLabel('Actions', icon: Icons.bolt_rounded),
             const SizedBox(height: 8),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: TicketActions(ticket: ticket, user: user),
+            _TaskActionsRow(
+              ticket: ticket,
+              onEdit: () => _openEditor(context),
             ),
             const SizedBox(height: 20),
             CommonSectionCardContainer(
@@ -536,25 +557,6 @@ class _LeftPane extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _ProjectDetailsCard(ticket: ticket),
-            if (ticket.isSubTicket) ...[
-              const SizedBox(height: 16),
-              SubTicketDetailSection(ticket: ticket, user: user),
-            ],
-            if (ticket.children.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              CommonSectionCardContainer(
-                icon: Icons.account_tree_outlined,
-                title: 'Sub-tickets (${ticket.children.length})',
-                child: Column(
-                  children: [
-                    for (final child in ticket.children) ...[
-                      ChildDetailCard(child: child),
-                      const SizedBox(height: 8),
-                    ],
-                  ],
-                ),
-              ),
-            ],
             const SizedBox(height: 16),
             _ProgressCard(ticket: ticket),
           ],
@@ -566,13 +568,171 @@ class _LeftPane extends StatelessWidget {
   void _openEditor(BuildContext context) {
     showDialog<void>(
       context: context,
-      builder: (_) => _EditTaskDialog(ticket: ticket, user: user),
+      builder: (_) => _EditTaskDialog(
+        ticket: ticket,
+        user: user,
+        projectTeam: projectTeam,
+      ),
+    );
+  }
+}
+
+/// Trello-style action chips for a project task: move it to any list, edit
+/// it, or archive it off the board.
+class _TaskActionsRow extends StatelessWidget {
+  final TicketModel ticket;
+  final VoidCallback onEdit;
+  const _TaskActionsRow({required this.ticket, required this.onEdit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        PopupMenuButton<String>(
+          tooltip: 'Move to another list',
+          onSelected: (value) {
+            if (value == ticket.status) return;
+            context
+                .read<TicketBloc>()
+                .add(UpdateTicketStatus(ticket.id, value));
+          },
+          itemBuilder: (_) => const [
+            PopupMenuItem(value: 'open', child: Text('To Do')),
+            PopupMenuItem(value: 'in_progress', child: Text('In Progress')),
+            PopupMenuItem(value: 'closed', child: Text('Done')),
+          ],
+          child: const _ActionChip(
+            icon: Icons.alt_route_rounded,
+            label: 'Move to',
+          ),
+        ),
+        const SizedBox(width: 8),
+        _ActionChip(
+          icon: Icons.edit_outlined,
+          label: 'Edit task',
+          onTap: onEdit,
+        ),
+        const SizedBox(width: 8),
+        _ActionChip(
+          icon: Icons.archive_outlined,
+          label: 'Archive',
+          danger: true,
+          onTap: () => _confirmArchive(context),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmArchive(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text('Archive this task?'),
+        content: const Text(
+          'It will disappear from the board. You can restore it later from '
+          'the board\'s Archived list.',
+          style: TextStyle(
+            fontSize: 13,
+            color: ThemeColors.unifiedTextMuted,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: ThemeColors.unifiedDanger,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Archive'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await sl<TicketRepositoryImpl>().archiveTicket(ticket.id);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Task archived.'),
+          backgroundColor: ThemeColors.unifiedPrimary,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_friendlyError(e)),
+          backgroundColor: ThemeColors.unifiedDanger,
+        ),
+      );
+    }
+  }
+}
+
+class _ActionChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final bool danger;
+  const _ActionChip({
+    required this.icon,
+    required this.label,
+    this.onTap,
+    this.danger = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = danger ? ThemeColors.unifiedDanger : ThemeColors.unifiedPrimary;
+    final content = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(
+          color: danger
+              ? ThemeColors.unifiedDanger.withValues(alpha: 0.45)
+              : ThemeColors.unifiedBorder,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: danger ? tint : ThemeColors.unifiedTextPrimary),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: danger ? tint : ThemeColors.unifiedTextPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (onTap == null) return content;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(9),
+      child: content,
     );
   }
 }
 
 /// Project tasks only surface the creator, the department that owns the task
-/// and the person responsible for it.
+/// and the team working on it.
 class _ProjectDetailsCard extends StatelessWidget {
   final TicketModel ticket;
   const _ProjectDetailsCard({required this.ticket});
@@ -587,14 +747,7 @@ class _ProjectDetailsCard extends StatelessWidget {
 
     final creator = t.createdByName.isNotEmpty ? t.createdByName : '—';
 
-    final String assignee;
-    if (t.myAssignedToName != null && t.myAssignedToName!.isNotEmpty) {
-      assignee = t.myAssignedToName!;
-    } else if (t.assignedToName != null && t.assignedToName!.isNotEmpty) {
-      assignee = t.assignedToName!;
-    } else {
-      assignee = ConstStrings.unassigned;
-    }
+    final memberNames = t.members.map((m) => m.name).join(', ');
 
     return CommonSectionCardContainer(
       icon: Icons.info_outline_rounded,
@@ -604,27 +757,41 @@ class _ProjectDetailsCard extends StatelessWidget {
           DetailRow(label: 'Created by', value: creator),
           DetailRow(label: 'Assigned department', value: department),
           DetailRow(
-            label: 'Responsible person',
-            value: assignee,
+            label: 'Members',
+            value: memberNames.isEmpty ? 'No members yet' : memberNames,
             isLast: true,
-            valueWidget: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                InitialsAvatar(name: assignee, size: 24),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    assignee,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+            valueWidget: t.members.isEmpty
+                ? const Text(
+                    'No members yet',
+                    style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: ThemeColors.unifiedTextPrimary,
+                      fontWeight: FontWeight.w600,
+                      color: ThemeColors.unifiedTextMuted,
                     ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      MemberStack(
+                        members: t.members,
+                        size: 24,
+                        max: 5,
+                        showFallbackWhenEmpty: false,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          memberNames,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: ThemeColors.unifiedTextPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -872,6 +1039,8 @@ class _RightPaneState extends State<_RightPane> {
 
   bool get _canComment {
     final t = widget.ticket;
+    // Project tasks (Trello style): anyone who can open the task can comment.
+    if (t.projectId != null) return true;
     if (t.isClosed) return false;
     if (t.canComment) return true;
     final uid = widget.user.id;
@@ -1089,11 +1258,16 @@ class _SectionEditButton extends StatelessWidget {
 }
 
 /// One dialog to edit a project task: title, description, priority, due date
-/// and (for managers / CEO) the member responsible for it.
+/// and the team (many members) working on it.
 class _EditTaskDialog extends StatefulWidget {
   final TicketModel ticket;
   final UserModel user;
-  const _EditTaskDialog({required this.ticket, required this.user});
+  final List<ProjectMemberModel> projectTeam;
+  const _EditTaskDialog({
+    required this.ticket,
+    required this.user,
+    this.projectTeam = const [],
+  });
 
   @override
   State<_EditTaskDialog> createState() => _EditTaskDialogState();
@@ -1104,62 +1278,118 @@ class _EditTaskDialogState extends State<_EditTaskDialog> {
 
   late final TextEditingController _title;
   late final TextEditingController _description;
+  late final TextEditingController _memberSearch;
   late String _priority;
   DateTime? _dueDate;
-  int? _assigneeId;
-  List<EmployeeModel> _employees = [];
-  bool _loadingEmployees = false;
+  List<TicketMemberModel> _selected = [];
+  List<TicketMemberModel> _candidates = [];
+  bool _loadingCandidates = false;
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   TicketModel get ticket => widget.ticket;
   UserModel get user => widget.user;
+  List<ProjectMemberModel> get projectTeam => widget.projectTeam;
 
-  /// Backend only lets the creator touch the description while it is open.
+  /// Backend only lets the creator touch the description while it is open —
+  /// except on project tasks (Trello style), where everyone can always edit.
   bool get _canEditDescription =>
-      ticket.isOpen && ticket.createdById == user.id;
-
-  /// `PATCH /tickets/:id/assign` is manager / CEO only.
-  bool get _canAssign => user.roleId == 0 || user.roleId == 1;
+      ticket.projectId != null ||
+      (ticket.isOpen && ticket.createdById == user.id);
 
   @override
   void initState() {
     super.initState();
     _title = TextEditingController(text: ticket.title);
     _description = TextEditingController(text: ticket.description);
+    _memberSearch = TextEditingController();
     _priority = _priorities.contains(ticket.priority)
         ? ticket.priority
         : 'medium';
     _dueDate = ticket.dueDate;
-    _assigneeId = ticket.assignedToId;
-    if (_canAssign) _loadEmployees();
+    _selected = List.of(ticket.members);
+    _loadCandidates();
   }
 
   @override
   void dispose() {
     _title.dispose();
     _description.dispose();
+    _memberSearch.dispose();
     super.dispose();
   }
 
-  Future<void> _loadEmployees() async {
-    setState(() => _loadingEmployees = true);
+  /// Candidate pool = project team (everyone can see it) + the employee
+  /// directory (manager/CEO only, 403 quietly ignored).
+  Future<void> _loadCandidates() async {
+    setState(() => _loadingCandidates = true);
+    final byId = <int, TicketMemberModel>{};
+
+    for (final m in projectTeam) {
+      byId[m.id] = TicketMemberModel(
+        id: m.id,
+        name: m.name,
+        deptCode: m.code,
+        deptName: m.departmentName,
+      );
+    }
+
     final repo = sl<TicketRepositoryImpl>();
-    var list = <EmployeeModel>[];
     try {
-      list = await repo.getEmployees(departmentId: ticket.assignedDeptId);
-      if (list.isEmpty) list = await repo.getEmployees();
-      if (_assigneeId != null && !list.any((e) => e.id == _assigneeId)) {
-        final all = await repo.getEmployees();
-        if (all.any((e) => e.id == _assigneeId)) list = all;
+      var employees = await repo.getEmployees(
+        departmentId: ticket.assignedDeptId,
+      );
+      if (employees.isEmpty) employees = await repo.getEmployees();
+      for (final e in employees) {
+        byId[e.id] = TicketMemberModel(
+          id: e.id,
+          name: e.name,
+          deptCode: e.deptCode,
+          deptName: e.deptName,
+        );
       }
     } catch (_) {
-      list = <EmployeeModel>[];
+      // Not a manager / CEO — project team is the pool.
     }
+
+    for (final m in _selected) {
+      byId.putIfAbsent(m.id, () => m);
+    }
+
     if (!mounted) return;
     setState(() {
-      _employees = list;
-      _loadingEmployees = false;
+      _candidates = byId.values.toList()
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      _loadingCandidates = false;
     });
+  }
+
+  bool _isSelected(TicketMemberModel m) => _selected.any((e) => e.id == m.id);
+
+  void _addMember(TicketMemberModel m) {
+    if (_isSelected(m)) return;
+    setState(() => _selected = [..._selected, m]);
+  }
+
+  void _removeMember(int id) {
+    setState(() => _selected = _selected.where((m) => m.id != id).toList());
+  }
+
+  List<TicketMemberModel> get _filteredCandidates {
+    final q = _memberSearch.text.trim().toLowerCase();
+    final pool = _candidates.where((m) => !_isSelected(m)).toList();
+    if (q.isEmpty) return pool;
+    return pool
+        .where((m) =>
+            m.name.toLowerCase().contains(q) ||
+            m.deptCode.toLowerCase().contains(q) ||
+            m.deptName.toLowerCase().contains(q))
+        .toList();
+  }
+
+  bool get _membersChanged {
+    final before = ticket.members.map((m) => m.id).toSet();
+    final after = _selected.map((m) => m.id).toSet();
+    return before.length != after.length || !before.containsAll(after);
   }
 
   String _dateLabel(DateTime d) {
@@ -1212,10 +1442,9 @@ class _EditTaskDialogState extends State<_EditTaskDialog> {
       fields['description'] = newDescription;
     }
 
-    final assignChanged =
-        _canAssign && _assigneeId != null && _assigneeId != ticket.assignedToId;
+    final membersChanged = _membersChanged;
 
-    if (fields.isEmpty && !assignChanged) {
+    if (fields.isEmpty && !membersChanged) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No changes to save.')),
       );
@@ -1227,8 +1456,11 @@ class _EditTaskDialogState extends State<_EditTaskDialog> {
     if (fields.isNotEmpty) {
       bloc.add(UpdateTicketDetails(ticket.id, fields));
     }
-    if (assignChanged) {
-      bloc.add(AssignTicketToEmployee(ticket.id, _assigneeId!));
+    if (membersChanged) {
+      bloc.add(SetTicketMembers(
+        ticket.id,
+        _selected.map((m) => m.id).toList(),
+      ));
     }
     Navigator.pop(context);
   }
@@ -1360,69 +1592,177 @@ class _EditTaskDialogState extends State<_EditTaskDialog> {
                     ),
                   ],
                 ),
-                if (_canAssign) ...[
-                  const SizedBox(height: 14),
-                  if (_loadingEmployees)
-                    const Row(
-                      children: [
-                        SizedBox(
-                          width: 15,
-                          height: 15,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: ThemeColors.unifiedPrimary,
-                          ),
-                        ),
-                        SizedBox(width: 10),
-                        Text(
-                          'Loading members…',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: ThemeColors.unifiedTextMuted,
-                          ),
-                        ),
-                      ],
-                    )
-                  else
-                    DropdownButtonFormField<int?>(
-                      initialValue: _employees.any((e) => e.id == _assigneeId)
-                          ? _assigneeId
-                          : null,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Responsible person (member)',
-                        prefixIcon: Icon(Icons.person_outline, size: 18),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Text('Team members', style: titleStyle),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
                       ),
-                      hint: const Text(
-                        'Select a member',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          color: ThemeColors.unifiedTextMuted,
+                      decoration: BoxDecoration(
+                        color: ThemeColors.unifiedPrimary
+                            .withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '${_selected.length}',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: ThemeColors.unifiedPrimary,
                         ),
                       ),
-                      items: [
-                        for (final e in _employees)
-                          DropdownMenuItem<int?>(
-                            value: e.id,
-                            child: Text(
-                              e.deptCode.isEmpty
-                                  ? e.name
-                                  : '${e.name}  ·  ${e.deptCode}',
-                              style: titleStyle,
-                            ),
-                          ),
-                      ],
-                      onChanged: (v) => setState(() => _assigneeId = v),
                     ),
-                  if (!_loadingEmployees && _employees.isEmpty)
+                  ],
+                ),
+                if (_selected.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      'No members yet. Search below to add your team.',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: ThemeColors.unifiedTextMuted,
+                      ),
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final m in _selected)
+                          Chip(
+                            avatar: InitialsAvatar(name: m.name, size: 18),
+                            label: Text(
+                              m.name,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: ThemeColors.unifiedTextPrimary,
+                              ),
+                            ),
+                            backgroundColor: ThemeColors.unifiedInputBg,
+                            side: const BorderSide(
+                              color: ThemeColors.unifiedBorder,
+                            ),
+                            deleteIcon: const Icon(Icons.close_rounded, size: 15),
+                            onDeleted: () => _removeMember(m.id),
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _memberSearch,
+                  style: const TextStyle(fontSize: 13.5),
+                  decoration: const InputDecoration(
+                    hintText: 'Search people to add…',
+                    prefixIcon: Icon(Icons.search_rounded, size: 18),
+                    isDense: true,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 4),
+                if (_loadingCandidates)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 10),
+                    child: Center(
+                      child: SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: ThemeColors.unifiedPrimary,
+                        ),
+                      ),
+                    ),
+                  )
+                else ...[
+                  if (_filteredCandidates.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
-                        'No members found for this department.',
+                        _memberSearch.text.trim().isEmpty
+                            ? 'Everyone is already on this task.'
+                            : 'No matching people.',
                         style: const TextStyle(
                           fontSize: 12,
                           color: ThemeColors.unifiedTextMuted,
                         ),
+                      ),
+                    )
+                  else
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 180),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        padding: EdgeInsets.zero,
+                        itemCount: _filteredCandidates.length > 6
+                            ? 6
+                            : _filteredCandidates.length,
+                        itemBuilder: (ctx, index) {
+                          final c = _filteredCandidates[index];
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () => _addMember(c),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 6,
+                                horizontal: 4,
+                              ),
+                              child: Row(
+                                children: [
+                                  InitialsAvatar(name: c.name, size: 26),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          c.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: titleStyle,
+                                        ),
+                                        if (c.deptCode.isNotEmpty ||
+                                            c.deptName.isNotEmpty)
+                                          Text(
+                                            c.deptCode.isEmpty
+                                                ? c.deptName
+                                                : (c.deptName.isEmpty
+                                                    ? c.deptCode
+                                                    : '${c.deptCode} · ${c.deptName}'),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              color:
+                                                  ThemeColors.unifiedTextMuted,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.add_circle_outline_rounded,
+                                    size: 18,
+                                    color: ThemeColors.unifiedPrimary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                 ],
