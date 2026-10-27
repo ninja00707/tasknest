@@ -1168,6 +1168,12 @@ class TicketRepository {
       SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2
       UNION ALL
       SELECT 1 FROM project_observers WHERE project_id = $1 AND user_id = $2
+      UNION ALL
+      SELECT 1 FROM projects p WHERE p.id = $1 AND p.created_by_id = $2
+      UNION ALL
+      SELECT 1 FROM project_departments pd 
+        JOIN users u ON u.department_id = pd.department_id 
+        WHERE pd.project_id = $1 AND u.id = $2
       LIMIT 1
     `, [projectId, userId]);
     return result.rows.length > 0;

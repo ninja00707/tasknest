@@ -193,11 +193,23 @@ class ProjectRepository {
          assignee.name AS assigned_to_name,
          ad.name AS assigned_dept_name, ad.code AS assigned_dept_code,
          creator.name AS created_by_name,
-         (SELECT COUNT(*) FROM project_task_comments c WHERE c.task_id = t.id) AS comment_count
+         (SELECT COUNT(*) FROM project_task_comments c WHERE c.task_id = t.id) AS comment_count,
+         ll.acted_by_id AS last_moved_by_id,
+         ll.actor_name AS last_moved_by_name,
+         ll.action AS last_action,
+         ll.created_at AS last_moved_at
        FROM project_tasks t
        LEFT JOIN users assignee ON assignee.id = t.assigned_to_id
        LEFT JOIN departments ad ON ad.id = t.assigned_dept_id
        JOIN users creator ON creator.id = t.created_by_id
+       LEFT JOIN LATERAL (
+         SELECT l.acted_by_id, u.name AS actor_name, l.action, l.created_at
+         FROM project_task_logs l
+         LEFT JOIN users u ON u.id = l.acted_by_id
+         WHERE l.task_id = t.id
+         ORDER BY l.created_at DESC
+         LIMIT 1
+       ) ll ON true
        WHERE t.project_id = $1
        ORDER BY t.created_at DESC`,
       [projectId]
@@ -473,10 +485,22 @@ class ProjectRepository {
 
   async getTask(taskId) {
     const result = await pool.query(
-      `SELECT t.*, assignee.name AS assigned_to_name, ad.code AS assigned_dept_code, ad.name AS assigned_dept_name
+      `SELECT t.*, assignee.name AS assigned_to_name, ad.code AS assigned_dept_code, ad.name AS assigned_dept_name,
+              ll.acted_by_id AS last_moved_by_id,
+              ll.actor_name AS last_moved_by_name,
+              ll.action AS last_action,
+              ll.created_at AS last_moved_at
        FROM project_tasks t
        LEFT JOIN users assignee ON assignee.id = t.assigned_to_id
        LEFT JOIN departments ad ON ad.id = t.assigned_dept_id
+       LEFT JOIN LATERAL (
+         SELECT l.acted_by_id, u.name AS actor_name, l.action, l.created_at
+         FROM project_task_logs l
+         LEFT JOIN users u ON u.id = l.acted_by_id
+         WHERE l.task_id = t.id
+         ORDER BY l.created_at DESC
+         LIMIT 1
+       ) ll ON true
        WHERE t.id = $1`,
       [taskId]
     );
@@ -501,7 +525,10 @@ class ProjectRepository {
       params.push(value);
       sets.push(`${key} = $${params.length}`);
     }
-    if (sets.length === 0) return null;
+    if (sets.length === 0) {
+      // Still log if nothing changed? No. But ensure we don't fail.
+      return before;
+    }
 
     params.push(taskId);
     const result = await pool.query(
@@ -516,12 +543,26 @@ class ProjectRepository {
       const oldV = before[key];
       const newV = after[key];
       if (String(oldV) !== String(newV)) {
-        await this.logTask(taskId, actorId, `status_${after.status}`, oldV, newV, key);
+        // For status changes, use a clear action name; otherwise log generically
+        if (key === 'status') {
+          await this.logTask(taskId, actorId, `moved_to_${String(newV)}`, oldV, newV, key);
+        } else {
+          await this.logTask(taskId, actorId, `updated_${key}`, oldV, newV, key);
+        }
       }
     }
 
     const proj = await pool.query(`SELECT project_id FROM project_tasks WHERE id = $1`, [taskId]);
     if (proj.rows[0]) await this.recomputeProjectProgress(proj.rows[0].project_id);
+
+    // Attach latest mover info
+    const latest = await this.getTaskLogs(taskId);
+    if (latest && latest.length > 0) {
+      after.last_moved_by_id = latest[0].acted_by_id;
+      after.last_moved_by_name = latest[0].actor_name;
+      after.last_action = latest[0].action;
+      after.last_moved_at = latest[0].created_at;
+    }
 
     return after;
   }

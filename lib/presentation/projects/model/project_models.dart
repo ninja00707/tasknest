@@ -206,6 +206,10 @@ class ProjectTaskModel {
   final String createdByName;
   final int commentCount;
   final DateTime createdAt;
+  final int? lastMovedById;
+  final String? lastMovedByName;
+  final String? lastAction;
+  final DateTime? lastMovedAt;
 
   const ProjectTaskModel({
     required this.id,
@@ -225,6 +229,10 @@ class ProjectTaskModel {
     this.createdByName = '',
     this.commentCount = 0,
     required this.createdAt,
+    this.lastMovedById,
+    this.lastMovedByName,
+    this.lastAction,
+    this.lastMovedAt,
   });
 
   factory ProjectTaskModel.fromJson(Map<String, dynamic> json) {
@@ -253,6 +261,14 @@ class ProjectTaskModel {
       commentCount: _parseInt(json['comment_count']),
       createdAt:
           DateTime.tryParse(json['created_at'].toString()) ?? DateTime.now(),
+      lastMovedById: json['last_moved_by_id'] != null
+          ? _parseInt(json['last_moved_by_id'])
+          : null,
+      lastMovedByName: json['last_moved_by_name'],
+      lastAction: json['last_action'],
+      lastMovedAt: json['last_moved_at'] != null
+          ? DateTime.tryParse(json['last_moved_at'].toString())
+          : null,
     );
   }
 }

@@ -95,8 +95,9 @@ class _KanbanColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     return DragTarget<ProjectTaskModel>(
       onWillAcceptWithDetails: (details) =>
-          details.data.status != statusKey && canManage,
+          details.data.status != statusKey && !project.isObserver,
       onAcceptWithDetails: (details) {
+        if (project.isObserver) return;
         context.read<ProjectBloc>().add(UpdateProjectTask(
               projectId: project.id,
               taskId: details.data.id,
@@ -241,6 +242,9 @@ class _TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Find project from context if possible via ancestor? We don't have access;
+    // instead rely on parent passing, but easier to check via ProjectModel passed down.
+    // We'll modify to get project from parent - but structure differs. Just make draggable always here and rely on board.
     return LongPressDraggable<ProjectTaskModel>(
       data: task,
       feedback: Material(
@@ -336,6 +340,28 @@ class _CardInner extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: ThemeColors.unifiedTextMuted,
               ),
+            ),
+          ],
+          if (task.lastMovedByName != null && task.lastMovedByName!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(Icons.history_rounded,
+                    size: 12, color: ThemeColors.unifiedTextMuted),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Last moved by ${task.lastMovedByName}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: ThemeColors.unifiedTextMuted,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ],

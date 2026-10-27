@@ -136,10 +136,8 @@ class ProjectRules {
     // Creator, lead, and CEO can update any task
     if (userRole === this.ROLES.CREATOR || userRole === this.ROLES.LEAD) return true;
     if (user.role === 'ceo' || user.role === 'developer') return true;
-    // Members can update tasks assigned to them
-    if (userRole === this.ROLES.MEMBER && task && Number(task.assigned_to_id) === Number(user.id)) {
-      return true;
-    }
+    // Members can update tasks (everyone in project except observers)
+    if (userRole === this.ROLES.MEMBER) return true;
     return false;
   }
 

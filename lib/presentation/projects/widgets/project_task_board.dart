@@ -244,7 +244,7 @@ class _ProjectTaskBoardState extends State<ProjectTaskBoard> {
           error: true);
       return;
     }
-    if (!widget.project.canEdit) {
+    if (widget.project.isObserver) {
       _snack('You do not have permission to move tasks in this project.',
           error: true);
       return;
@@ -315,8 +315,8 @@ class _ProjectTaskBoardState extends State<ProjectTaskBoard> {
           filter: _filter,
           total: tickets.length,
           overdue: overdueCount,
-          canMove: widget.project.canEdit,
-          canCreateTask: widget.project.canEdit,
+          canMove: !widget.project.isObserver,
+          canCreateTask: !widget.project.isObserver || widget.project.canEdit,
           counts: {
             for (final s in CommonStatus.statuses)
               s: tickets.where((t) => _statusOf(t) == s).length,
@@ -751,7 +751,7 @@ class _BoardColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canDrag = project.canEdit;
+    final canDrag = !project.isObserver;
 
     return DragTarget<TicketModel>(
       onWillAcceptWithDetails: (details) =>
@@ -885,7 +885,7 @@ class _BoardColumn extends StatelessWidget {
                         },
                       ),
               ),
-              if (project.canEdit)
+              if (!project.isObserver)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(6, 2, 6, 8),
                   child: Material(

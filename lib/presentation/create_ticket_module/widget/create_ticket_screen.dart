@@ -207,19 +207,6 @@ class _CreateTicketBodyState extends State<_CreateTicketBody> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ProjectLinkSection(
-                          addToProject: _addToProject,
-                          onChanged: (v) {
-                            setState(() => _addToProject = v);
-                            if (v) _ensureDirectory();
-                            if (!v) _selectedProjectId = null;
-                          },
-                          projects: _projects,
-                          loadingProjects: _loadingProjects,
-                          selectedProjectId: _selectedProjectId,
-                          onProjectSelected: (id) =>
-                              setState(() => _selectedProjectId = id),
-                        ),
                         isWide
                             ? WideFormLayout(
                                 titleCtrl: _title,
