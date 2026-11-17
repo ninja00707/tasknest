@@ -1,5 +1,5 @@
 class Env {
-  static bool isLive = false;
+  static bool isLive = true;
 
   /// Override this if your IIS hostname (e.g. "loop") doesn't resolve on clients.
   /// Set to e.g. 'http://10.100.0.23:82' to force a fixed IP for WebSocket.
